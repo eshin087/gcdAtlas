@@ -4,6 +4,11 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+**Calmer ASCII**
+- Bright areas are calm now. Seven heavy characters (`& # 8 % W @ $`) put almost the same ink on screen, so bright cores such as the Milky Way's bulge or the heart of the Orion Nebula looked like confetti. The brightest levels now use only `& 8 @`, in order of the ink each one really has in the page's font. The faint characters are unchanged.
+- Smoother brightness. Each character's colour now makes up for the ink it has more or less than its brightness asks for, so gradients rise smoothly instead of in bands. The overall brightness of a view stays within about 2%.
+- Less work off screen. A galaxy or nebula whose outer edge reached behind the camera was drawn over the whole screen, even when it was out of sight: the Large Magellanic Cloud was drawn in every Sun, Earth and Jupiter view. Now only the part of the screen it can cover is drawn, and nothing when it is out of view. The picture is the same, and frames in the Sun, Earth, Jupiter and Crab Nebula views take 7 to 17% less time to draw in a software renderer (3 to 8% on a fast graphics card).
+
 ## 0.8.2 · 2026-09-26
 
 **New: the Halo's new look** (drawn after the owner's concept art; the ship is still fictional)
