@@ -162,10 +162,10 @@ void main(){
   float tk = 1. + spool + S;
   for(int k=0;k<2;k++){
     float sg = k == 0 ? 1. : -1.;
-    vec3 nz = vec3(lift(0.29), -0.838, 0.287*sg);
-    col += jet(o - nz, d, vec3(0., -1., 0.), 0.11, 0.007, 0.018, 0.6, tm*5. + sg, vec3(0.85, 0.95, 1.), vec3(0.3, 0.55, 1.))*(2. + 3.*spool + 6.*jg);
-    col += ice*lamp(o, d, nz, 0.007, front)*30.*tk;
-    for(int j=1;j<6;j++){ float fj = float(j); col += ice*lamp(o, d, nz + vec3(0., -0.021*fj, 0.), 0.0035, front)*(9. - 1.4*fj)*tk*(0.7 + 0.3*sin(tm*9. - fj*1.7)); }
+    vec3 nz = vec3(lift(0.29), -0.857, 0.287*sg);   // (just behind the nacelle's end cap)
+    col += jet(o - nz, d, vec3(0., -1., 0.), 0.1, 0.007, 0.018, 0.6, tm*5. + sg, vec3(0.85, 0.95, 1.), vec3(0.3, 0.55, 1.))*(2. + 3.*spool + 6.*jg);
+    col += mix(white, ice, 0.4)*lamp(o, d, nz, 0.008, front)*40.*tk;
+    for(int j=1;j<5;j++){ float fj = float(j); col += ice*lamp(o, d, nz + vec3(0., -0.02*fj, 0.), 0.0035, front)*(10. - 1.8*fj)*tk*(0.7 + 0.3*sin(tm*9. - fj*1.7)); }
     col += white*lamp(o, d, vec3(lift(0.176), -0.403, 0.176*sg), 0.006, front)*22.*(0.5 + 0.5*pow(0.5 + 0.5*sin(tm*1.7 + sg), 4.));
     col += white*lamp(o, d, vec3(0., -0.043, 0.108*sg), 0.005, front)*16.*(0.55 + 0.45*pow(0.5 + 0.5*sin(tm*1.3 - sg*0.8), 6.));
   }
