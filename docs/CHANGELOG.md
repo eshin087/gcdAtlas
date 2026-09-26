@@ -4,6 +4,20 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.8.3 · 2026-09-26
+
+**Quick wins**
+- The sound button shows when no music is playing: "sound off" in soft red with a thin red border (on phones, "muted" with a thin red ring), and the tooltip "Music is off: click to turn it on (M)". It does not blink, and it fades with the rest of the interface.
+- Before your first click the browser keeps the music silent, although the button used to say "sound". Now the button stays red until the music really plays, and a click on it then starts the music (it used to turn it off). M works the same way. The first track's name shows when the music starts, not while it is held back.
+- The top bar keeps its shape when you turn the music off. The sound button is always as wide as "sound off", so "pause" no longer drops to a second row at 1280 px wide; nothing moves at 1024 px either.
+- Scrolling over a label (the Moon's, a planet's, a moon's) zooms, as it does over the sky. It used to do nothing.
+- On a desktop, picking or resuming a tour closes the tours panel, so it no longer covers the caption.
+- Bigger targets to click or tap: the daily card's close button, and "less" and "hide" on the info panel, are 28 px tall. Each name on the scale ladder is 28 px tall where the next name is at least that far away; where two sit closer, each takes the whole gap, so no name covers its neighbour. Nothing looks different.
+
+**Content**
+- TRAPPIST-1e, "the most Earth-like of the seven", was drawn as a lava world. It is now a temperate world that keeps one side to its star: open sea under the star, a few rocky islands, ice beyond and across the night side, clouds over the warmest water and a thin blue haze. A second angle looks at the edge between its day and night sides. The readout says the look is a guess: no one knows yet if it has air or water.
+- Voyager 1 now moves along its real path (fitted to JPL Horizons) as the Solar System clock runs. Its readout gives the light-time to Earth and counts down to the day it is first one light-day (173.1 AU, 25.9 billion km) from Earth: 18 November 2026. After that it says "now more than one light-day from Earth". Its distance from the Sun on its card and in the Solar System's readout follow the same path.
+
 ## 0.8.2 · 2026-09-26
 
 **New: the Halo's new look** (drawn after the owner's concept art; the ship is still fictional)
