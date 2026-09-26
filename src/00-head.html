@@ -352,6 +352,9 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .info,.controls,.ladder,.labels,.strip,.caption,.daily,.atlas,.panel,.shipmark,.shiparrow,.backpill{transition:opacity .25s}
 body.saver .info,body.saver .brand,body.saver .topr,body.saver .info-pill,body.saver .controls,body.saver .ladder,body.saver .labels,body.saver .strip,body.saver .caption,body.saver .daily,body.saver .atlas,body.saver .panel,body.saver .shipmark,body.saver .shiparrow,body.saver .backpill{opacity:0!important;pointer-events:none!important;transition:opacity 1.2s}
 body.saver #view{cursor:none}
+/* wallpaper mode (?wallpaper=1): nothing but the universe, from the first frame (only the no-WebGL notice may still show) */
+body.wallpaper>:not(#view):not(.fold-flash):not(.nogl){display:none!important}
+body.wallpaper{cursor:none}
 .saver-hud{position:fixed;left:calc(28px + env(safe-area-inset-left,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));max-width:min(520px,calc(100vw - 56px));color:var(--soft);z-index:5;pointer-events:none;text-shadow:0 0 12px #000,0 0 4px #000;opacity:.8}
 .sv-time{font-family:var(--disp);font-size:calc(34px*var(--ts));color:var(--ink);letter-spacing:.06em}
 .sv-obj{margin-top:6px;font-size:calc(15px*var(--ts));color:var(--ink)}

@@ -1,0 +1,79 @@
+# Tests the site and builds the KDE Plasma wallpaper (docs/WALLPAPER.md).
+# Every pull request gets the wallpaper archive as a downloadable artifact of its run.
+# Every push to main publishes it as the GitHub Release of the version in package.json (vX.Y.Z),
+# creating that release the first time and refreshing its file afterwards.
+# The site itself is still deployed by Vercel; this workflow does not touch it.
+name: wallpaper
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wallpaper-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # build.mjs and the packager need no dependencies
+      - run: npm run wallpaper
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gcdatlas-plasma-wallpaper
+          path: dist/gcdatlas-plasma-wallpaper.tar.gz
+          if-no-files-found: error
+
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [test, package]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: gcdatlas-plasma-wallpaper
+          path: dist
+      - name: Publish the release of this version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v$VERSION"
+          FILE=dist/gcdatlas-plasma-wallpaper.tar.gz
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$FILE" --clobber
+          else
+            # the notes are this version's section of docs/CHANGELOG.md
+            awk -v v="$VERSION" '$0 ~ "^## " v " " {on=1; next} /^## / {on=0} on' docs/CHANGELOG.md > notes.md
+            [ -s notes.md ] || echo "gcdatlas $VERSION. See docs/CHANGELOG.md." > notes.md
+            printf '\n**KDE Plasma wallpaper:** download `gcdatlas-plasma-wallpaper.tar.gz` below and see [docs/WALLPAPER.md](https://github.com/%s/blob/main/docs/WALLPAPER.md) to install it.\n' "$GITHUB_REPOSITORY" >> notes.md
+            gh release create "$TAG" "$FILE" --title "gcdatlas $VERSION" --notes-file notes.md --target "$GITHUB_SHA"
+          fi

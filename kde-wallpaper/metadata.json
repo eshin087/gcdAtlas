@@ -1,0 +1,18 @@
+{
+    "KPackageStructure": "Plasma/Wallpaper",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "eshin087"
+            }
+        ],
+        "Description": "The real universe drawn entirely in ASCII",
+        "Icon": "preferences-desktop-wallpaper",
+        "Id": "app.gcdatlas.wallpaper",
+        "Name": "gcdatlas",
+        "Version": "0.0.0",
+        "Website": "https://gcdatlas.com"
+    },
+    "X-KDE-ParentApp": "org.kde.plasmashell",
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

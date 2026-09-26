@@ -8,10 +8,17 @@ const IS_SMALL = Math.min(innerWidth, innerHeight) < 600;
 // the phone layout (dock, info card, scale chip): narrow screens, and short ones on their side. Keep in step with the CSS in 00-head.html.
 const COMPACT_MQ = matchMedia('(max-width:680px), (max-height:520px) and (max-width:1000px)');
 const isCompact = () => COMPACT_MQ.matches;
+// wallpaper mode (?wallpaper=1): the screensaver runs for good, with no interface, sound or network (the KDE Plasma wallpaper, docs/WALLPAPER.md).
+// Its settings come from the address (&travel=cinematic|quick, &fps=N) and are never saved.
+const URLQ = new URLSearchParams(location.search);
+const WALLPAPER = URLQ.get('wallpaper') === '1';
+const WALLPAPER_FPS = Math.min(60, Math.max(10, +URLQ.get('fps') || 30));
 // user settings, remembered between visits when the browser allows it
 const SET = (() => {
   const d = { detail:1, travel:reduceMotion ? 'quick' : 'cinematic', glow:true, labels:true, twinkle:true, haloMark:false, menuSize:1.15, sound:true, volume:0.55, dwell:'normal', textSize:1, musicStyle:'mix', saverIdle:0, fadeUI:'quick', infoD:'full', infoM:'compact' };
+  const travel0 = d.travel;
   try { const s = JSON.parse(localStorage.getItem('gcdatlas.settings') || '{}'); for (const k in d) if (k in s && typeof s[k] === typeof d[k]) d[k] = s[k]; } catch (e) {}
+  if (WALLPAPER){ const t = URLQ.get('travel'); Object.assign(d, { sound:false, fadeUI:'off', saverIdle:0, travel:t === 'cinematic' || t === 'quick' ? t : travel0 }); }
   return d;
 })();
 // feature flags: experiments can ship switched off, or be switched off without touching the code that uses them.
@@ -20,14 +27,17 @@ const SET = (() => {
 const FLAGS = (() => {
   const f = { live:true, launches:true, planes:true, backyard:true, earthStory:true, social:false };
   try { const saved = JSON.parse(localStorage.getItem('gcdatlas.flags') || '{}'); for (const k of Object.keys(f)) if (typeof saved[k] === 'boolean') f[k] = saved[k]; } catch (e) {}
-  const q = new URLSearchParams(location.search).get('flags');
+  const q = URLQ.get('flags');
   if (q){ for (const s of q.split(',')){ const k = s.replace(/^[-+]/, ''); if (Object.hasOwn(f, k)) f[k] = !s.startsWith('-'); } }
+  // a wallpaper makes no network calls and has no buttons to press (the air traffic is bundled, so it stays)
+  if (WALLPAPER) Object.assign(f, { live:false, launches:false, backyard:false, earthStory:false, social:false });
   return f;
 })();
 // shared state for two special modes: looking up from your own backyard, and Earth's story through deep time
 const SKYV = { on:false, site:null };
 const EARTH_ERA = { era:0, lights:1 };
-function saveSet(){ try { localStorage.setItem('gcdatlas.settings', JSON.stringify(SET)); } catch (e) {} }
+function saveSet(){ if (WALLPAPER) return;   // wallpaper settings live in the address, and must not change the visitor's own
+  try { localStorage.setItem('gcdatlas.settings', JSON.stringify(SET)); } catch (e) {} }
 const dwellK = () => SET.dwell === 'short' ? 0.45 : SET.dwell === 'long' ? 1.7 : 1;   // how long a tour lingers on each view
 let GT = 0;   // global clock in seconds (drives twinkle, shimmer and other ambient motion)
 const twinkleAmt = () => SET.twinkle ? (reduceMotion ? 0.35 : 1) : 0;

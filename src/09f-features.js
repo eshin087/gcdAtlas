@@ -86,42 +86,51 @@ $('#dailyClose').addEventListener('click', () => { store.set('dailySeen', DAILY.
 if (store.get('dailySeen', '') !== DAILY.key && !location.hash) setTimeout(() => { if (!SAVER.on && !document.body.classList.contains('photo') && !document.body.classList.contains('showcase')) showDaily(); }, 9000);
 
 // ---------------------------------------------------------------- screensaver: full screen, the interface fades, an endless shuffled tour plays
-const SAVER = { on:false, prevTravel:null, lastInput:performance.now(), startAt:0, x:0, y:0 };
+// Embedded (the wallpaper, ?wallpaper=1): no full screen, no music, no HUD, and input changes nothing. It never ends.
+const SAVER = { on:false, embedded:false, fs:false, prevTravel:null, lastInput:performance.now(), startAt:0, x:0, y:0 };
 TOURS.push({ id:'saver', name:'screensaver', blurb:'everything, shuffled', stops:[] });
-function saverStops(){
-  const keys = atlasRows.map(r => r.o).filter(o => o.views && o.views.length && o.group !== 'travel').map(o => o.key);
+// a shuffled lap of everything; a new lap can start where the last one ended, so no place shows twice in a row
+function saverStops(first){
+  const keys = atlasRows.map(r => r.o).filter(o => o.views && o.views.length && o.group !== 'travel' && o.key !== first).map(o => o.key);
   for (let i = keys.length - 1; i > 0; i--){ const j = Math.floor(Math.random()*(i + 1)); [keys[i], keys[j]] = [keys[j], keys[i]]; }
+  if (first) keys.unshift(first);
   return keys.map(k => [k, '']);
 }
-function startSaver(){
+function startSaver({ embedded = false } = {}){
   if (SAVER.on) return;
-  SAVER.on = true; SAVER.startAt = performance.now();
+  SAVER.on = true; SAVER.embedded = embedded; SAVER.startAt = performance.now();
   togglePanel(null, false); toggleAtlas(false); if (cmp) endCompare(false); $('#daily').hidden = true; if (!$('#help').hidden) toggleHelp(false);
-  document.body.classList.add('saver'); $('#saverHud').hidden = false;
-  try { if (document.fullscreenEnabled && !document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {}); } catch (e) {}
+  document.body.classList.add('saver'); $('#saverHud').hidden = embedded;
+  if (embedded) hideHint();
+  else try { if (document.fullscreenEnabled && !document.fullscreenElement){ SAVER.fs = true; document.documentElement.requestFullscreen().catch(() => { SAVER.fs = false; }); } } catch (e) {}
   SAVER.prevTravel = SET.travel; if (SET.travel === 'warp') SET.travel = 'quick';
   TOURS.find(t => t.id === 'saver').stops = saverStops();
   useTour('saver'); tween = null; flyMove = null; if (flight) finishFlightHere();
   tour.on = true; tourGo(TOUR[0]); updateModeUI();
-  music.gesture();
+  if (!embedded) music.gesture();
 }
 function stopSaver(){
   if (!SAVER.on) return;
-  SAVER.on = false; document.body.classList.remove('saver'); $('#saverHud').hidden = true;
+  const embedded = SAVER.embedded;
+  SAVER.on = SAVER.embedded = false; document.body.classList.remove('saver'); $('#saverHud').hidden = true;
   if (SAVER.prevTravel) SET.travel = SAVER.prevTravel;
-  try { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); } catch (e) {}
+  try { if (SAVER.fs && document.fullscreenElement) document.exitFullscreen().catch(() => {}); } catch (e) {}
+  SAVER.fs = false;
   const here = tour.obj; stopTour(false); useTour('grand'); tour.last = TOUR.includes(here) ? here : null;
-  updateModeUI();
-  toast('welcome back');
+  $('#stopCount').textContent = String(TOUR.length).padStart(2, '0'); updateModeUI();
+  if (!embedded) toast('welcome back');
 }
 function saverInput(e){
   SAVER.lastInput = performance.now();
+  // as a wallpaper nothing may reach the camera, the tour or the panels: swallow the event here, in the capture phase
+  // (no preventDefault, so the browser's own shortcuts still work when ?wallpaper=1 is opened in a browser)
+  if (SAVER.embedded){ e.stopImmediatePropagation(); return; }
   if (!SAVER.on || performance.now() - SAVER.startAt < 1200) return;
   if (e.type === 'pointermove'){ if (Math.hypot(e.clientX - SAVER.x, e.clientY - SAVER.y) < 40){ return; } }
   if (e.type === 'keydown' && e.key !== 'Escape' && e.key.toLowerCase() !== 'z'){ e.stopImmediatePropagation(); e.preventDefault(); }
   stopSaver();
 }
-addEventListener('pointermove', e => { if (!SAVER.on){ SAVER.x = e.clientX; SAVER.y = e.clientY; } saverInput(e); }, { passive:true });
+addEventListener('pointermove', e => { if (!SAVER.on){ SAVER.x = e.clientX; SAVER.y = e.clientY; } saverInput(e); }, { capture:true, passive:true });
 for (const ev of ['pointerdown', 'wheel', 'touchstart']) addEventListener(ev, saverInput, { capture:true, passive:true });
 addEventListener('keydown', e => {
   if (SAVER.on){ saverInput(e); return; }
@@ -133,13 +142,18 @@ addEventListener('keydown', e => {
   else if (k === 'p'){ e.preventDefault(); document.body.classList.contains('photo') ? stopPhoto() : startPhoto(); }
 }, { capture:true });
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && SAVER.on && performance.now() - SAVER.startAt > 1500) stopSaver(); });
-$('#btnSaver').addEventListener('click', startSaver);
+$('#btnSaver').addEventListener('click', () => startSaver());
+// the wallpaper starts the screensaver by itself, once every later file has set itself up
+if (WALLPAPER) setTimeout(() => startSaver({ embedded:true }), 0);
 let saverT = 0;
 function updateSaver(dt){
   saverT -= dt; if (saverT > 0) return; saverT = 0.5;
   const idleMin = +SET.saverIdle || 0;
   if (!SAVER.on && idleMin > 0 && performance.now() - SAVER.lastInput > idleMin*60000 && document.visibilityState === 'visible' && !document.body.classList.contains('photo') && !document.body.classList.contains('showcase')) startSaver();
   if (!SAVER.on) return;
+  // on the last stop of a lap, shuffle the next lap (it starts from here, so the order never repeats and nothing shows twice in a row)
+  if (TOUR_ID === 'saver' && TOUR.length > 2 && tour.obj === TOUR[TOUR.length - 1]){ TOURS.find(t => t.id === 'saver').stops = saverStops(OBJ[tour.obj].key); useTour('saver'); }
+  if (SAVER.embedded) return;
   const d = new Date(); $('#svTime').textContent = d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
   const o = OBJ[tour.obj]; if ($('#svObj').textContent !== o.name){ $('#svObj').textContent = o.name; $('#svFact').textContent = o.fact || o.type; }
   const tr = music.track; $('#svNp').textContent = SET.sound && tr ? '♪ ' + tr.name : '';

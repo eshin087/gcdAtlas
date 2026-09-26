@@ -959,6 +959,8 @@ for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => { soundS
 for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown', 'wheel', 'touchstart']) addEventListener(ev, () => music.gesture(), { capture:true, passive:true });
 
 // ================================================================ main loop
+// frame time is judged against 60 fps; a capped wallpaper is judged against its own cap, so reaching the cap counts as smooth
+const pace = WALLPAPER ? WALLPAPER_FPS/60 : 1;
 let tmT = 0, last = performance.now(), ema = 16, adaptCount = 0, raised = 0, calmT = 0, runTime = 0, resizePending = false, refocusT = 0, lodT = 0;
 addEventListener('resize', () => { if (resizePending) return; resizePending = true; requestAnimationFrame(() => { resizePending = false; resize(); ladTitles(); }); });
 // when zooming out from inside the galaxy, rise gently above the disk so the Milky Way unfolds instead of staying edge-on
@@ -1197,6 +1199,8 @@ function tick(dt){
 function frame(now){
   requestAnimationFrame(frame);
   if (window.__freeze){ last = now; return; }
+  // a wallpaper draws at most WALLPAPER_FPS frames a second: the monitor may refresh at 144 Hz, all day, behind every window
+  if (WALLPAPER && now - last < 1000/WALLPAPER_FPS - 2) return;
   const dtR = Math.min((now - last)/1000, 0.25); last = now;
   const hitch = progBusy > 0; progBusy = 0;   // the last frame compiled a shader: its time says nothing about how fast the scene draws
   const dt = Math.min(dtR, 0.05);
@@ -1206,7 +1210,7 @@ function frame(now){
   updateCaption(dtR); updateHash(dtR);
   tmT -= dtR; if (tmT <= 0){ tmT = 0.25; syncTimeUI(); }
   runTime += dtR;
-  if (!hitch) ema = ema*0.95 + dtR*1000*0.05;
+  if (!hitch) ema = ema*0.95 + dtR*1000*pace*0.05;
   if (runTime > 2.5) progIdle(1);
   // keep motion smooth on slower devices: first trim ray-march steps, then (at most twice) use bigger characters;
   // after 10 calm seconds at full steps the characters go back to the chosen detail (at most 3 times a session, so it cannot flip back and forth)
@@ -1224,6 +1228,7 @@ function frame(now){
   }
   if (!hintHidden && performance.now() > 18000) hideHint();
 }
+document.body.classList.toggle('wallpaper', WALLPAPER);
 resize();
 ladTitles();
 if (document.fonts) document.fonts.load('500 20px "IBM Plex Mono"').then(() => buildAtlas(cellW, cellH)).catch(() => {});
@@ -1238,7 +1243,7 @@ updateModeUI(); syncTimeUI();
 window.__cosmos = { startTour, playFlyby, setMove(o, v, f){ flight = null; tween = null; tourGo(o.index, true); tour.on = false; flyMove = { o, v, t:f*v.hold, frozen:true }; },  get flyMove(){ return flyMove; }, startCompare, endCompare, setDeep, viewHash, applyHash, get cmp(){ return cmp; }, get ssRate(){ return ssRate; }, dbg:{ imp, impSpec, atlas, sphereRect, get tan(){ return [tanX, tanY]; }, get cols(){ return cols; }, get sceneH(){ return sceneH; }, get LODK(){ return LODK; }, PROGS }, OBJ, BYKEY, tourGo, lockOn, setTour, cam, orbit, tour, TOUR, SET, setOpt, music, LADDER, goLadder,
   land:(extra = 0.2) => { let n = 0; while (flight && n < 60*180){ tick(1/60); n++; } for (let i=0;i<extra*60;i++) tick(1/60); return n/60; },
   setDays:d => { ssDays = d; }, stepObject, stepAngle, get stepTarget(){ return flight ? (flight.dest || flight.obj).key : null; }, get via(){ return flight && flight.via ? flight.via.key : null; }, PASS,
-  startShipCam, stopShipCam, setShipCamMode, get shipCam(){ return shipCam; }, get show(){ return show; }, togglePlay, get flight(){ return flight; },
+  startShipCam, stopShipCam, setShipCamMode, get shipCam(){ return shipCam; }, get saver(){ return SAVER; }, get tourId(){ return TOUR_ID; }, get show(){ return show; }, togglePlay, get flight(){ return flight; },
   goHome, goBack, unlock, leash, get freeFrom(){ return freeFrom; }, proj:k => { const o = typeof k === 'string' ? BYKEY[k] : k, p = projectCSS(o.rel); return p && { x:p.x, y:p.y, z:p.z }; }, get SYSMAG(){ return SYSMAG; },
   setDetail:i => setOpt('detail', i, true), render, zoomTo, tick, caption:dt => updateCaption(dt), get showcap(){ return SHOWCAP.txt; }, flightDur:() => flight ? flight.dur : 0, hud:() => { roTimer = 0; updateHUD(0.2); },
   simulate:(sec) => { for (let k=0; k<sec*30; k++) tick(1/30); return { obj:tour.obj, view:tour.view, phase:tour.phase, lock:orbit.lock }; },

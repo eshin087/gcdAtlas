@@ -23,6 +23,7 @@ How accurate is it? See [docs/ACCURACY.md](docs/ACCURACY.md). The short version:
 | **Earth's story** | 4.54 billion years on one slider: magma ocean, snowball Earth, the first forests, the asteroid, the first humans, today. |
 | **Live Earth** | Every active satellite from CelesTrak's tracking data, the ISS and Hubble at their real positions, the next rocket launches at their pads, air traffic on real routes (simulated). |
 | **Screensaver** | Full screen, the interface fades, an endless shuffled tour plays with the music (`Z`). Can start by itself after a few idle minutes. |
+| **KDE Plasma wallpaper** | Run gcdatlas as a live desktop wallpaper on Linux (see [docs/WALLPAPER.md](docs/WALLPAPER.md)). |
 | **Photo mode** | Frame a shot, save it as a picture or copy it as ASCII text (`P`). |
 | **Today's discovery** | One object a day, the same for everyone, with a streak. |
 | **Collection log** | Ticks off what you have seen, with badges. Stored only on your device. |
