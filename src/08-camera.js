@@ -241,13 +241,17 @@ function trackView(o, v, dt){
 }
 // ---------------------------------------------------------------- riding along with the Halo: a chase camera behind and above the ship (third person), or the bridge (first person)
 // Poses are in the ship's frame (+y forward, -x dorsal = up); the camera follows them with a little lag so turns feel like flying, not like a bolted-on view.
+// The chase camera sits low and looks along the heading: from higher up the needle points up the screen and the ship seems to climb.
 // When the ship folds space the camera folds with it: it stays attached, and a flash covers the jump.
-const shipCam = { on:false, pending:false, mode:'chase', zoom:1, eye:null, fwd:null, up:null };
-const SHIP_POSE = { chase:{ eye:[-0.95, -3.0, 0], look:[-0.2, 1.4, 0], lag:3.2 }, cockpit:{ eye:[-0.27, 0.3, 0], look:[-0.05, 2.2, 0], lag:14 } };
+const shipCam = { on:false, pending:false, mode:'chase', zoom:1, eye:null, fwd:null, up:null, turn:null };
+const SHIP_POSE = { chase:{ eye:[-0.8, -3.0, 0], look:[-0.3, 1.5, 0], lag:3.2 }, cockpit:{ eye:[-0.15, -0.1, 0], look:[-0.05, 2.2, 0], lag:14 }, turn:{ lag:12 } };
 // (while the Halo works on a body below it, ship.viewR turns the chase rig toward the body and ship.chaseOff aims it at the ship's belly,
 // so the job shows beside and beneath it; on the bridge the eye stays put and the pilot's gaze, ship.gazeR, turns toward the body)
+// ('turn': a camera circling the ship for the showcase, its pose set from outside in the ship's frame, in ship radii: shipCam.turn = { eye, look, up })
 function shipPose(mode){
   const q = SHIP_POSE[mode], R = ship.R0, r = ship.rad;
+  if (mode === 'turn'){ const T = shipCam.turn, eye = V.mul(M3.apply(R, T.eye), r), look = V.mul(M3.apply(R, T.look || [0, 0, 0]), r);
+    return { eye, look, fwd:V.norm(V.sub(look, eye)), up:M3.apply(R, T.up || [-1, 0, 0]) }; }
   if (mode === 'chase'){ const Rv = ship.viewR || R, o = ship.chaseOff || [0, 0, 0], eye = V.mul(M3.apply(Rv, V.mul(q.eye, shipCam.zoom)), r), look = V.mul(M3.apply(Rv, V.add(q.look, o)), r);
     return { eye, look, fwd:V.norm(V.sub(look, eye)), up:M3.apply(Rv, [-1, 0, 0]) }; }
   const Rg = ship.gazeR || R, eye = V.mul(M3.apply(R, q.eye), r), look = V.add(eye, V.mul(M3.apply(Rg, V.sub(q.look, q.eye)), r));

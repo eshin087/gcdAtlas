@@ -860,6 +860,7 @@ function startTour(id){
 }
 const capEl = $('#caption'), capText = $('#capText'), capBtn = $('#capBtn');
 let capFull = '', capShown = 0, capT = 0;
+const SHOWCAP = { txt:'' };   // a caption set by the Halo showcase
 function setCaption(txt, btn){
   if (txt === capFull){ return; }
   capFull = txt; capShown = 0; capT = 0; capText.textContent = ''; capEl.classList.remove('done');
@@ -869,6 +870,7 @@ function updateCaption(dt){
   let txt = '', btn = '';
   if (cmp) { txt = cmpText(); btn = 'end compare'; }
   else if (tour.on && tour.phase !== 'fly' && TOUR_CAP[tour.obj]) txt = TOUR_CAP[tour.obj];
+  else if (SHOWCAP.txt) txt = SHOWCAP.txt;
   setCaption(txt, btn);
   if (capFull && capShown < capFull.length){
     capT += dt*(reduceMotion ? 1e4 : 55); const k = Math.min(capFull.length, Math.floor(capT));
@@ -1002,9 +1004,12 @@ async function share(){
 $('#btnShare').addEventListener('click', share);
 
 const simActive = o => o.vis > 0.003 || o.pvis > 0.003 || o.index === orbit.lock || (tour.on && o.index === tour.obj) || (flight && flight.obj === o);
+// (TICKS: more work to do at the start of each tick, added by later files, e.g. the Halo showcase)
+const TICKS = [];
 function tick(dt){
   const sdt = dt*timeScale;
   GT += dt;
+  for (const f of TICKS) f(dt);
   ssDays += sdt*ssRate;
   for (const o of OBJ){ o.t += sdt; if (o.update && (!o.sim || simActive(o))) o.update(sdt); if (o.parent && !o.selfPos) o.pos = V.add(o.parent.pos, o.offset); }
   if (flight) updateFlight(dt);
@@ -1074,7 +1079,7 @@ window.__cosmos = { startTour, playFlyby, setMove(o, v, f){ flight = null; tween
   land:(extra = 0.2) => { let n = 0; while (flight && n < 60*180){ tick(1/60); n++; } for (let i=0;i<extra*60;i++) tick(1/60); return n/60; },
   setDays:d => { ssDays = d; }, stepObject, stepAngle, get stepTarget(){ return flight ? (flight.dest || flight.obj).key : null; }, get via(){ return flight && flight.via ? flight.via.key : null; }, PASS,
   startShipCam, stopShipCam, setShipCamMode, get shipCam(){ return shipCam; }, get show(){ return show; }, togglePlay, get flight(){ return flight; },
-  setDetail:i => setOpt('detail', i, true), render, zoomTo, tick, flightDur:() => flight ? flight.dur : 0, hud:() => { roTimer = 0; updateHUD(0.2); },
+  setDetail:i => setOpt('detail', i, true), render, zoomTo, tick, caption:dt => updateCaption(dt), get showcap(){ return SHOWCAP.txt; }, flightDur:() => flight ? flight.dur : 0, hud:() => { roTimer = 0; updateHUD(0.2); },
   simulate:(sec) => { for (let k=0; k<sec*30; k++) tick(1/30); return { obj:tour.obj, view:tour.view, phase:tour.phase, lock:orbit.lock }; },
   view:(i, v) => { if (typeof i === 'string') i = BYKEY[i].index; const o = OBJ[i], vp = viewParams(o, v); flight = null; shipCam.on = false; tween = null; cam.focus = i; orbit.lock = i; orbit.frame = camFrameOf(o); orbit.yaw = vp.yaw; orbit.pitch = vp.pitch; orbit.dist = orbit.distT = vp.dist; orbit.off = vp.off; orbit.offFn = vp.offFn; orbit.target = V.add(frel(o), vp.off); setInfo(i); applyOrbit(); tick(0); } };
 requestAnimationFrame(frame);
