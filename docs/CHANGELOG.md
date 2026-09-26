@@ -12,7 +12,7 @@ All notable changes, newest first. Dates are UTC.
 - The top bar keeps its shape when you turn the music off. The sound button is always as wide as "sound off", so "pause" no longer drops to a second row at 1280 px wide; nothing moves at 1024 px either.
 - Scrolling over a label (the Moon's, a planet's, a moon's) zooms, as it does over the sky. It used to do nothing.
 - On a desktop, picking or resuming a tour closes the tours panel, so it no longer covers the caption.
-- Bigger targets to click or tap: the daily card's close button, and "less" and "hide" on the info panel, are 28 px tall. Each name on the scale ladder is 28 px tall where the next name is at least that far away; where two sit closer, each takes the whole gap, so no name covers its neighbour. Nothing looks different.
+- Bigger targets to click or tap: the daily card's close button, and "less" and "hide" on the info panel, are 28 px tall. Names on the scale ladder are 28 px tall where the next name is at least that far away; where two sit closer, they grow only as far as the space between them. Nothing looks different.
 
 **Content**
 - TRAPPIST-1e, "the most Earth-like of the seven", was drawn as a lava world. It is now a temperate world that keeps one side to its star: open sea under the star, a few rocky islands, ice beyond and across the night side, clouds over the warmest water and a thin blue haze. A second angle looks at the edge between its day and night sides. The readout says the look is a guess: no one knows yet if it has air or water.
