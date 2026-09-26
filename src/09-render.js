@@ -49,14 +49,32 @@ function setCommon(pr, o){
     gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, o.tex ? TEX[o.tex] : TEX.mw);
     if (o.tex2 && pr.u.uTex2){ gl.uniform1i(pr.u.uTex2, 7); gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, TEX[o.tex2]); } }
 }
+// The screen rectangle (NDC) a volume's bounding sphere can cover, or null when none of it can be seen.
+// A sphere wholly in front of the camera is bounded by the corners of its bounding cube, as always. One that reaches behind the camera
+// used to take the whole screen (the Large Magellanic Cloud was ray-marched, out of sight, in every Earth and Sun view). Now:
+// seen along one screen axis, the sphere is a disc in the plane of that axis and the view direction, and the two lines from the camera
+// that touch the disc bound it on screen. Only what lies in front of the camera counts, so the rectangle gets an open side (out to the
+// screen edge) where the sphere passes beside the camera, and a sphere entirely off to the side is not drawn at all.
+function discSpan(a, z, r){
+  const d2 = a*a + z*z; if (d2 <= r*r) return [-Infinity, Infinity];
+  const f = Math.atan2(a, z), h = Math.asin(r/Math.sqrt(d2)), lo = f - h, hi = f + h, Q = Math.PI/2;
+  if (lo >= Q || hi <= -Q) return null;
+  return [lo <= -Q ? -Infinity : Math.tan(lo), hi >= Q ? Infinity : Math.tan(hi)];
+}
 function sphereRect(c, r){
   if (V.len(c) < r*1.05) return [-1,-1,1,1];
   const vx = V.dot(c, cam.right), vy = V.dot(c, cam.up), vz = V.dot(c, cam.fwd);
   if (vz + r < 0) return null;
-  if (vz - r < r*0.02) return [-1,-1,1,1];
   let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
-  for (const sz of [-r, r]){ const z = vz + sz;
-    for (const s of [-r, r]){ const x = (vx + s)/(z*tanX), y = (vy + s)/(z*tanY); x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); } }
+  if (vz - r < r*0.02){
+    // reaches behind the camera: the touching lines, with a wide margin (some shaders glow a little past rad, and this used to be the whole screen)
+    const sx = discSpan(vx, vz, r*1.25), sy = sx && discSpan(vy, vz, r*1.25); if (!sy) return null;
+    x0 = sx[0]/tanX; x1 = sx[1]/tanX; y0 = sy[0]/tanY; y1 = sy[1]/tanY;
+  } else {
+    // wholly in front: the corners of the bounding cube (a little looser than the sphere itself, as it always was)
+    for (const sz of [-r, r]){ const z = vz + sz;
+      for (const s of [-r, r]){ const x = (vx + s)/(z*tanX), y = (vy + s)/(z*tanY); x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); } }
+  }
   const px = 4/sceneW, py = 4/sceneH;
   x0 = Math.max(x0 - px, -1); x1 = Math.min(x1 + px, 1); y0 = Math.max(y0 - py, -1); y1 = Math.min(y1 + py, 1);
   if (x0 >= x1 || y0 >= y1) return null;
