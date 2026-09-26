@@ -2,7 +2,7 @@
 'use strict';
 const $ = s => document.querySelector(s);
 const canvas = $('#view');
-const gl = canvas.getContext('webgl2', {antialias:false, alpha:false, depth:false, stencil:false, premultipliedAlpha:false, powerPreference:'high-performance'});
+const gl = canvas.getContext('webgl2', {antialias:false, alpha:false, depth:false, stencil:false, premultipliedAlpha:false});
 if (!gl) { $('#nogl').hidden = false; return; }
 const HDR = !!gl.getExtension('EXT_color_buffer_float');
 const OUT = HDR ? 1 : 0.125;

@@ -19,7 +19,12 @@ WallpaperItem {
         web.runJavaScript("if (window.setFreeze) { window.setFreeze(" + (root.paused ? "true" : "false") + "); } else { window.__freeze = " + (root.paused ? "true" : "false") + "; }");
     }
 
-    onPausedChanged: root.applyFreeze()
+    onPausedChanged: {
+        if (!root.paused) {
+            web.lifecycleState = WebEngineView.LifecycleState.Active;
+        }
+        root.applyFreeze();
+    }
 
     PlasmaWallpaper.MaximizedWindowMonitor {
         id: activeWindowMonitor
@@ -32,8 +37,12 @@ WallpaperItem {
         audioMuted: true
         backgroundColor: "black"
         url: Qt.resolvedUrl("../gcdatlas.html") + "?wallpaper=1&travel=" + root.travel + "&fps=" + root.fps
-        lifecycleState: root.paused ? WebEngineView.LifecycleState.Frozen : WebEngineView.LifecycleState.Active
         visible: !root.paused
+        onVisibleChanged: {
+            if (!visible && root.paused) {
+                lifecycleState = WebEngineView.LifecycleState.Frozen;
+            }
+        }
         settings.webGLEnabled: true
         settings.accelerated2dCanvasEnabled: true
         settings.playbackRequiresUserGesture: true
