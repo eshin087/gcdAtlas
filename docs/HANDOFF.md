@@ -44,6 +44,7 @@ This file carries the context of the chat sessions that built gcdatlas (v0.1 to 
 - Site: https://gcdatlas.vercel.app (Vercel project `gcdatlas`, deploys `main` automatically; every PR gets a preview URL).
 - Repo: `eshin087/gcdatlas`. Source in `src/`, built by `node build.mjs` into `dist/`. Serverless functions in `api/` (`/api/sats` from CelesTrak, `/api/launches` from Launch Library 2).
 - Content inventory: `docs/CATALOG.md` (generated). Backlog: `docs/CONTENT.md`. Plans: `docs/ROADMAP.md`.
+- Wallpaper package: `kde-wallpaper/` (`contents/`, `metadata.json`, `package.mjs`). Packaged with `npm run wallpaper`.
 - Tests: `npm test` (smoke, phone layout, camera motion), `npm run test:tour` (long regression), `npm run shots -- key:view`.
 
 ## History in brief
@@ -68,6 +69,7 @@ Until 0.7.5 the code was pushed through the GitHub website from a cloud session,
 
 ## Open items and ideas
 
+- **KDE Plasma wallpaper follow-ups:** inlining fonts in the packaged archive, multi-monitor per-screen optimizations, more configuration options on the settings page (tour selection or specific object focus).
 - **Planned with the owner (2026-09-26), one PR each:** (v0.7.9 Earth night lights and weather: done.) v0.8.0 the Halo: no idle spinning, always heading somewhere; a mix of bigger fold jumps and light-speed cruising with Star Wars-style streaks; a cute probe, weapons tests on any object (visual only, nothing permanent, natural-looking blasts), skimming gas giants and stars, tractor beam and drill; scan beams that touch the real surface and a faint scan-coloured outline. v0.8.1 comets, comet storms, meteor fields and meteors, with an atlas category, and one passing now and then on tour trips.
 - Content still open (`docs/CONTENT.md`): Vesta, Bennu, human spaceflight sites (Apollo, Mars rovers, Parker Solar Probe, Tiangong), 51 Pegasi b, K2-18 b, planet surfaces. Some tour stops already name future keys (`apollo11`, `parker`, `olympus`, `perseverance`, `vesta`, `peg51b`, `k218b`); they are skipped until those objects exist.
 - Visual polish the owner asked for and may want more of: the Milky Way and the Pillars compared with the iconic images, and more ASCII fire and motion. The Einstein Cross images are subtle against the lens galaxy.

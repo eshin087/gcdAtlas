@@ -4,6 +4,11 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+**New**
+- KDE Plasma 6 live wallpaper: gcdatlas can run directly as an animated desktop wallpaper on Linux (see docs/WALLPAPER.md). Packaged via `npm run wallpaper` as a KDE wallpaper plugin (`app.gcdatlas.wallpaper`) with configurable travel speed, frame rate limit, and automatic power saving.
+- Wallpaper mode (`?wallpaper=1`): an embedded screensaver tour across all catalog objects with no HUD, sound, or network requests, and input swallowed so desktop clicks do not affect the camera.
+- Wallpaper optimizations: dynamic frame rate pacing (15, 30, 60 FPS) combining `setTimeout` with `requestAnimationFrame`, 1x DPR canvas clamp on HiDPI displays to eliminate fill rate overhead, skipping off-screen DOM updates, and complete freezing via QtWebEngine `LifecycleState.Frozen` when covered by maximized or fullscreen windows.
+
 ## 0.8.6 · 2026-09-27
 
 **Calmer ASCII**

@@ -25,6 +25,13 @@ The goal: keep adding features and content for years without breaking what alrea
 6. **Pull request**: every version ships as its own PR (branch `release/vX.Y.Z`), so it can be rolled back with GitHub's *Revert* button. Push the branch, open the PR, open the Vercel preview on desktop and phone, then merge with a merge commit (one revertible commit per version).
 7. **Release**: `main` deploys automatically. For a named release, move *Unreleased* to a version heading, bump `package.json`, tag `vX.Y.Z`.
 
+## Packaging and releases
+
+- **KDE Plasma wallpaper:** built with `npm run wallpaper` (or `npm run wallpaper:install`), producing `dist/gcdatlas-plasma-wallpaper.tar.gz` and `dist/plasma-wallpaper/`.
+- **GitHub Actions workflow** (`.github/workflows/wallpaper.yml`):
+  - Every pull request runs the test suite and packages the wallpaper archive as a downloadable artifact.
+  - Every push to `main` publishes the archive to the GitHub Release matching `package.json` (`vX.Y.Z`), creating the release if needed or updating its assets.
+
 ## Versioning
 
 - Patch (0.7.1): fixes and small content additions.

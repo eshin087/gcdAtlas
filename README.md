@@ -84,6 +84,8 @@ npm run catalog         # regenerates docs/CATALOG.md, the list of everything im
 | `api/` | serverless functions: `/api/sats` (CelesTrak), `/api/launches` (Launch Library 2) |
 | `tests/`, `tools/` | test harness, catalogue and data generators |
 | `docs/` | architecture, accuracy, workflow, testing, security, roadmap, changelog, content catalogue |
+| `kde-wallpaper/` | KDE Plasma 6 live wallpaper plugin sources and packager |
+| `.github/` | CI workflow for testing, packaging and releases |
 
 Start with [CLAUDE.md](CLAUDE.md) (working conventions) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
