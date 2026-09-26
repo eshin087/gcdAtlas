@@ -3,7 +3,7 @@
 import { openPage, report, PAGE } from './lib.mjs';
 
 const bad = [];
-const { browser, page, errors } = await openPage({ query:'?wallpaper=1&travel=quick' });
+const { browser, page, errors } = await openPage({ query:'?wallpaper=1&travel=quick', fade:true });
 // every request must stay on the device (fonts are the one exception the page allows)
 const requests = [];
 page.on('request', r => { const u = r.url(); if (!/^(file|data|blob):/.test(u) && !/fonts\.(googleapis|gstatic)\.com/.test(u)) requests.push(u); });
