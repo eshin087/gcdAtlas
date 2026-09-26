@@ -438,10 +438,12 @@ function endPointer(e){
 }
 canvas.addEventListener('pointerup', endPointer);
 canvas.addEventListener('pointercancel', endPointer);
-canvas.addEventListener('wheel', e => { e.preventDefault();
+function onWheel(e){ e.preventDefault();
   // riding along: the wheel moves the chase camera nearer or further back instead of letting go of the ship
   if (shipCam.on && shipCam.mode === 'chase'){ shipCam.zoom = clamp(shipCam.zoom*Math.exp(clamp(e.deltaY*(e.deltaMode ? 0.06 : 0.0022), -0.6, 0.6)), 0.55, 4); return; }
-  beginManual(); zoomBy(Math.exp(clamp(e.deltaY*(e.deltaMode ? 0.06 : 0.0022), -0.6, 0.6))); }, {passive:false});
+  beginManual(); zoomBy(Math.exp(clamp(e.deltaY*(e.deltaMode ? 0.06 : 0.0022), -0.6, 0.6))); }
+// labels and the Halo's brackets sit on top of the scene: a wheel over them zooms like a wheel over the sky (it used to do nothing)
+for (const el of [canvas, $('#labels'), $('#shipMark')]) el.addEventListener('wheel', onWheel, {passive:false});
 
 function beginManual(){
   manualAt = performance.now();
