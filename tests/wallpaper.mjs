@@ -31,6 +31,27 @@ if (!s.saver || !s.embedded || !s.tourOn || s.tourId !== 'saver') bad.push('inpu
 if (s.glow !== before.glow || s.labels !== before.labels) bad.push('keys reached the settings in wallpaper mode');
 if (s.shown.length) bad.push('input brought up the interface: ' + s.shown.join(', '));
 
+// dynamic wallpaper FPS update (via window.setWallpaperFps and window.WALLPAPER_FPS)
+const fpsCheck = await page.evaluate(() => {
+  window.setWallpaperFps(20);
+  const a = window.__cosmos.wallpaperFps;
+  window.WALLPAPER_FPS = 15;
+  const b = window.__cosmos.wallpaperFps;
+  return { a, b, prop:window.WALLPAPER_FPS };
+});
+if (fpsCheck.a !== 20 || fpsCheck.b !== 15 || fpsCheck.prop !== 15) bad.push('dynamic wallpaper FPS was not updated: ' + JSON.stringify(fpsCheck));
+
+// freeze / unfreeze control halts and resumes rendering
+const freezeCheck = await page.evaluate(async () => {
+  window.setFreeze(true);
+  const f1 = window.__freeze;
+  await new Promise(r => setTimeout(r, 60));
+  window.setFreeze(false);
+  const f2 = window.__freeze;
+  return { f1, f2 };
+});
+if (!freezeCheck.f1 || freezeCheck.f2) bad.push('setFreeze did not update freeze state correctly');
+
 // laps: on the last stop the next lap is shuffled and starts right there, so nothing shows twice in a row
 const lap = await page.evaluate(async () => { const c = window.__cosmos, n = c.TOUR.length, last = c.TOUR[n - 1], order = c.TOUR.join();
   c.tourGo(last, true); await new Promise(r => setTimeout(r, 1500));

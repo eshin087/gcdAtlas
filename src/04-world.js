@@ -12,7 +12,8 @@ const isCompact = () => COMPACT_MQ.matches;
 // Its settings come from the address (&travel=cinematic|quick, &fps=N) and are never saved.
 const URLQ = new URLSearchParams(location.search);
 const WALLPAPER = URLQ.get('wallpaper') === '1';
-const WALLPAPER_FPS = Math.min(60, Math.max(10, +URLQ.get('fps') || 30));
+let wallpaperFps = Math.min(60, Math.max(10, +URLQ.get('fps') || 30));
+const WALLPAPER_FPS = wallpaperFps;
 // user settings, remembered between visits when the browser allows it
 const SET = (() => {
   const d = { detail:1, travel:reduceMotion ? 'quick' : 'cinematic', glow:true, labels:true, twinkle:true, haloMark:false, menuSize:1.15, sound:true, volume:0.55, dwell:'normal', textSize:1, musicStyle:'mix', saverIdle:0, fadeUI:'quick', infoD:'full', infoM:'compact' };

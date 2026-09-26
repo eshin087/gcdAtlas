@@ -16,7 +16,7 @@ WallpaperItem {
     readonly property bool paused: pauseEnabled && covered
 
     function applyFreeze() {
-        web.runJavaScript("window.__freeze = " + (root.paused ? "true" : "false") + ";");
+        web.runJavaScript("if (window.setFreeze) { window.setFreeze(" + (root.paused ? "true" : "false") + "); } else { window.__freeze = " + (root.paused ? "true" : "false") + "; }");
     }
 
     onPausedChanged: root.applyFreeze()
@@ -32,6 +32,8 @@ WallpaperItem {
         audioMuted: true
         backgroundColor: "black"
         url: Qt.resolvedUrl("../gcdatlas.html") + "?wallpaper=1&travel=" + root.travel + "&fps=" + root.fps
+        lifecycleState: root.paused ? WebEngineView.LifecycleState.Frozen : WebEngineView.LifecycleState.Active
+        visible: !root.paused
         settings.webGLEnabled: true
         settings.accelerated2dCanvasEnabled: true
         settings.playbackRequiresUserGesture: true
@@ -49,7 +51,7 @@ WallpaperItem {
         web.url = Qt.resolvedUrl("../gcdatlas.html") + "?wallpaper=1&travel=" + root.travel + "&fps=" + root.fps;
     }
     onFpsChanged: {
-        web.runJavaScript("window.WALLPAPER_FPS = " + root.fps + ";");
+        web.runJavaScript("if (window.setWallpaperFps) { window.setWallpaperFps(" + root.fps + "); } else { window.WALLPAPER_FPS = " + root.fps + "; }");
     }
 
     Component.onCompleted: root.applyFreeze()
