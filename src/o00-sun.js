@@ -434,7 +434,8 @@ const solarSystem = (() => {
       // (seen from far out the belt is a few characters wide and its dots pile up into a solid blob: it dims as the view widens)
       {ps:belt, prog:'ptKepler', mode:3, sb:0.35, size:1.6, rad:AU_LY, rot:() => ECL, q0:() => [jdNow() - JD_NOW, 0, 0, 0], vis:() => beltVis()*(1 - 0.85*smooth(8e-5, 4e-4, orbit.dist))},
     ],
-    readout:() => `Neptune orbits 30 AU out · light takes 4 hours to get there\nVoyager 1, our farthest probe, is ~171 AU away after 49 years` +
+    readout:() => `Neptune orbits 30 AU out · light takes 4 hours to get there` +
+      (jdNow() >= VOY1.from ? `\nVoyager 1, our farthest probe, is ~${Math.round(V.len(voyager1At(jdNow()))/AU_LY)} AU away after ${Math.floor((jdNow() - VOY1.launch)/365.25)} years` : '') +
       (typeof SYSMAG !== 'undefined' && SYSMAG.k > 0.5 && BYKEY.jupiter.mag > 2 ? sysMagNote() : '') });
   function sysMagNote(){
     const hid = ['mercury', 'venus', 'earth', 'mars'].filter(k => BYKEY[k] && BYKEY[k].magHide > 0.5).map(k => BYKEY[k].name.replace(/^the /, ''));
