@@ -8,7 +8,7 @@ The goal: keep adding features and content for years without breaking what alrea
 | --- | --- | --- |
 | Local | `node build.mjs` then open `dist/index.html`, or `npx vercel dev` (with `/api`) | your working copy |
 | Preview | a unique `*.vercel.app` URL per pull request (Vercel posts it on the PR) | the PR branch |
-| Production | https://gcdatlas.vercel.app | `main` |
+| Production | https://gcdatlas.com | `main` |
 
 ## The loop
 

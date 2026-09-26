@@ -4,7 +4,7 @@ import { cachedHandler } from './_lib/guard.js';
 const SRC = 'https://ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=15&hide_recent_previous=true';
 const num = x => { const v = parseFloat(x); return isFinite(v) ? +v.toFixed(4) : null; };
 export default cachedHandler({ what:'launch data', minAge:30*60e3, sMaxAge:3600, swr:21600, load:async () => {
-  const r = await fetch(SRC, { headers:{ 'User-Agent':'gcdatlas (https://gcdatlas.vercel.app)' }, signal:AbortSignal.timeout(15000) });
+  const r = await fetch(SRC, { headers:{ 'User-Agent':'gcdatlas (https://gcdatlas.com)' }, signal:AbortSignal.timeout(15000) });
   if (!r.ok) throw new Error('Launch Library answered ' + r.status);
   const j = await r.json();
   const launches = (j.results || []).map(l => ({

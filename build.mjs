@@ -38,8 +38,8 @@ const meta = `<meta charset="utf-8">
 <meta property="og:title" content="gcdatlas">
 <meta property="og:description" content="The real universe, drawn entirely in ASCII. Zoom from Earth to the edge of the observable universe.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://gcdatlas.vercel.app/">
-<link rel="canonical" href="https://gcdatlas.vercel.app/">
+<meta property="og:url" content="https://gcdatlas.com/">
+<link rel="canonical" href="https://gcdatlas.com/">
 <link rel="icon" href="data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="#04050a"/><text x="16" y="23" font-family="monospace" font-size="22" font-weight="700" text-anchor="middle" fill="#ffb35c">*</text></svg>')}">
 `;
 

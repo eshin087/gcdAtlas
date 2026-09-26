@@ -24,7 +24,7 @@ const FLAGS = (() => {
 
 ## Turning a flag on or off for yourself
 
-- In the address bar: `https://gcdatlas.vercel.app/?flags=social,-planes` (on: `name`, off: `-name`). This applies to that visit only (a shared link must not change anyone's settings for good).
+- In the address bar: `https://gcdatlas.com/?flags=social,-planes` (on: `name`, off: `-name`). This applies to that visit only (a shared link must not change anyone's settings for good).
 - To keep a choice in this browser, set `gcdatlas.flags` in localStorage, e.g. `localStorage.setItem('gcdatlas.flags', JSON.stringify({ social:true }))`. Only known flag names with true/false values are read.
 
 ## Adding a flag

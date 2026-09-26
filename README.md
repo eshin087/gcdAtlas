@@ -1,6 +1,6 @@
 # gcdatlas
 
-**The real universe, drawn entirely in ASCII.** Live at **https://gcdatlas.vercel.app**
+**The real universe, drawn entirely in ASCII.** Live at **https://gcdatlas.com**
 
 gcdatlas is an explorable atlas of the known universe where every frame is made of printable ASCII characters. Planets are where they are today, about 2,000 naked-eye stars sit at their measured distances, every active satellite circles the Earth, and one continuous zoom takes you from a city street's worth of sky to the edge of the observable universe.
 
@@ -48,6 +48,7 @@ How accurate is it? See [docs/ACCURACY.md](docs/ACCURACY.md). The short version:
 | V · Y · T | detail · travel speed · time speed |
 | G · L · M | glow · labels · music |
 | Z · P · B | screensaver · photo mode · your sky |
+| C | ride along with the Halo (chase / cockpit) |
 
 ## Build and run
 

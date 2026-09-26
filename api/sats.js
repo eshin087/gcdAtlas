@@ -5,7 +5,7 @@ import { compact } from './_lib/orbits.js';
 import { cachedHandler } from './_lib/guard.js';
 const SRC = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=json';
 export default cachedHandler({ what:'satellite data', minAge:2*3600e3, sMaxAge:21600, swr:86400, load:async () => {
-  const r = await fetch(SRC, { headers:{ 'User-Agent':'gcdatlas (https://gcdatlas.vercel.app)' }, signal:AbortSignal.timeout(20000) });
+  const r = await fetch(SRC, { headers:{ 'User-Agent':'gcdatlas (https://gcdatlas.com)' }, signal:AbortSignal.timeout(20000) });
   if (!r.ok) throw new Error('CelesTrak answered ' + r.status);
   const records = await r.json();
   if (!Array.isArray(records) || !records.length) throw new Error('no records');
