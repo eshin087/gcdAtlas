@@ -101,15 +101,17 @@ const voyager1 = (() => {
   // so step a day at a time, then narrow it down (NASA gives 18 November 2026; after that it never comes back inside a light-day)
   let a = 2461000.5; while (voyager1FromEarth(a + 1) < VOY1.LD && a < 2463000) a += 1;
   let b = a + 1; for (let i=0;i<30;i++){ const m = (a + b)/2; if (voyager1FromEarth(m) < VOY1.LD) a = m; else b = m; }
-  const ldJD = b, ldDate = new Date((ldJD - 2440587.5)*86400000).toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric', timeZone:'UTC' }).replace(/ /g, '\u00a0');   // (no-break spaces: the date and the light-time wrap as a whole)
+  // the date and the count of days are both on the visitor's own calendar, so they agree (a count of 24-hour spans said 52 days on 26 September)
+  const ldJD = b, ldAt = new Date((ldJD - 2440587.5)*86400000), ldDate = ldAt.toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' }).replace(/ /g, '\u00a0');   // (no-break spaces: the date and the light-time wrap as a whole)
+  const dayOf = ms => new Date(ms).setHours(0, 0, 0, 0), ldDay = dayOf(ldAt.getTime());
   return addProbe({ key:'voyager1', name:'Voyager 1', label:'Voyager 1', type:'space probe · the farthest human-made object', kind:0, sortKey:1,
     fact:'Launched in 1977, it flew past Jupiter and Saturn and in 2012 became the first craft to enter interstellar space. Its radio signal, 20 watts, takes about a day to reach us.',
     pos, rad:0.018*KM, R0:frameY(V.mul(d, -1), [0, 0, 1]), labelRange:0.02, distEarth:'~' + Math.round(V.len(pos)/AU_LY) + ' AU from the Sun',
     update(){ this.pos = voyager1At(jdNow()); },
     views:[{d:[0.6, 0.3, 0.75], k:2.4, hold:8, drift:0.05}, {dirFn:() => V.norm(V.add(V.mul(voyager1.pos, 1/V.len(voyager1.pos)), [0, 0, 0.12])), k:3, hold:9, drift:0.01}],
     readout:() => {
-      const jd = jdNow(), left = ldJD - jd, n = Math.round(left);
-      const ld = left <= 0 ? 'now more than one light-day from Earth' : `one light-day from Earth in ${left < 0.5 ? 'less than a day' : n.toLocaleString('en-US') + (n === 1 ? ' day' : ' days')}, on ${ldDate}`;
+      const jd = jdNow(), left = ldJD - jd, n = Math.round((ldDay - dayOf((jd - 2440587.5)*86400000))/86400000);
+      const ld = left <= 0 ? 'now more than one light-day from Earth' : 'one light-day from Earth ' + (n < 1 ? 'later today, ' + ldDate : n === 1 ? 'tomorrow, ' + ldDate : `in ${n.toLocaleString('en-US')} days, on ${ldDate}`);
       if (jd < VOY1.from) return (jd < VOY1.launch ? 'not launched yet on this date (it left on 5 September 1977) · shown where it was in 1990' : 'before 1990 it is shown where it was in 1990') + '\n' + ld;
       // (minutes rounded down, so it reads 24 h 00 min only once it has passed one light-day)
       const min = Math.floor(voyager1FromEarth(jd)*AU/299792.458/60), lt = Math.floor(min/60) + '\u00a0h\u00a0' + String(min % 60).padStart(2, '0') + '\u00a0min';
