@@ -51,7 +51,7 @@ function setCommon(pr, o){
 }
 // The screen rectangle (NDC) a volume's bounding sphere can cover, or null when none of it can be seen.
 // A sphere wholly in front of the camera is bounded by the corners of its bounding cube, as always. One that reaches behind the camera
-// used to take the whole screen (the Large Magellanic Cloud was ray-marched, out of sight, in every Earth and Sun view). Now:
+// used to take the whole screen (the Large Magellanic Cloud was ray-marched, out of sight, in many Earth and Sun views). Now:
 // seen along one screen axis, the sphere is a disc in the plane of that axis and the view direction, and the two lines from the camera
 // that touch the disc bound it on screen. Only what lies in front of the camera counts, so the rectangle gets an open side (out to the
 // screen edge) where the sphere passes beside the camera, and a sphere entirely off to the side is not drawn at all.
