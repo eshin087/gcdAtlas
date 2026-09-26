@@ -24,14 +24,16 @@ if (SHOWCASE.on){
     else if (t < 19){ phi = 90 + 270*smooth(7, 19, t);
       el = 15 + 5*smooth(90, 180, phi) - 48*smooth(180, 270, phi) + 53*smooth(270, 360, phi);
       dist = 1.65 + 0.35*smooth(90, 180, phi) - 0.25*smooth(180, 270, phi) + 0.2*smooth(270, 360, phi); }
-    else { const u = smooth(19, TURN_T, t); phi = 360; el = 25 + 0.3*u; dist = 1.95 + 1.09*u; look = [-0.15*u, 1.2*u, 0]; }
+    else { const u = smooth(19, TURN_T, t); phi = 360; el = 25 - 10*u; dist = 1.95 + 1.15*u; look = [-0.3*u, 1.5*u, 0]; }
     const fit = Math.max(1, 0.62/tanX), e = el*D, f = phi*D, dir = [-Math.sin(e), -Math.cos(e)*Math.cos(f), Math.cos(e)*Math.sin(f)];
     return { eye:V.mul(dir, dist*(t < 19 ? fit : 1 + (fit - 1)*(1 - smooth(19, TURN_T, t)))), look, up:V.norm(V.sub([-1, 0, 0], V.mul(dir, Math.sin(e)))) };
   }
-  function startTurn(){ S_.hold = true; SC.turn = 0; SC.fadeIn = true; SC.fade = 0; shipCam.turn = turnPose(0); shipCam.mode = 'turn'; }
-  function endTurn(){ S_.hold = false; SC.turn = -1; SC.fadeIn = false; SC.fade = 0; if (shipCam.mode === 'turn') shipCam.mode = 'chase'; }
+  // (while the camera circles the ship the info panel steps back to its compact form, so it covers none of the ship; it comes back for the ride,
+  // with its chase view / cockpit view button. Not saved: the visitor's own choice stays.)
+  function startTurn(){ S_.hold = true; SC.turn = 0; SC.fadeIn = true; SC.fade = 0; shipCam.turn = turnPose(0); shipCam.mode = 'turn'; document.body.classList.add('info-compact'); syncLayout(); }
+  function endTurn(){ S_.hold = false; SC.turn = -1; SC.fadeIn = false; SC.fade = 0; if (shipCam.mode === 'turn') shipCam.mode = 'chase'; applyInfoState(); }
   function begin(){
-    document.body.classList.add('showcase', 'info-compact'); syncLayout(); hideHint();
+    document.body.classList.add('showcase'); hideHint();
     stopTour(false); pauseShow(); tween = null; flyMove = null; flight = null;
     forceFrom(-1); foldVisit(BYKEY.saturn); forceFrom(0); S_.t = 1; SC.visits = S_.visits;
     shipCam.on = true; shipCam.pending = false; shipCam.eye = null; shipCam.zoom = 1; motion.last = 'ship';

@@ -198,10 +198,10 @@ const ship = (() => {
     fact:'A long-range cruiser from a civilisation that learned to fold space. Seen from above it is a trident: a needle-shaped bow and two crescent arms sweeping back to the engines at their tips. Between the arms floats its heart, a captured ball of star plasma inside two rings of light. It hops between the wonders of the universe: light speed for short hops, a fold through space for long ones. On each visit it does one job: a sensor scan, a probe launch, a weapons test, a skim through a gas giant or a star, or drilling a passing rock. (It is the only made-up thing in this atlas.)',
     // (seen from afar it is an engine glint; its hull fades in over a wide range of sizes, so flying up to it never pops it into view)
     pos:[0, 0, 0], rad:RAD, prog:P.ship, minZoom:1.2, pxMin:3, visFn:rpx => smooth(1.5, 12, rpx), noImpostor:false, farColor:[0.55, 0.8, 1], farLum:0.7, labelRange:1, selfPos:true, aka:'ship starship spaceship ring halo follow trident crescent',
-    // locked on, the camera always trails the ship (its frame turns with the ship: see the lock-follow in tick): from behind and above, lower and to one side, then high and wide (the ship is flat: its outline shows best from above)
+    // locked on, the camera always trails the ship (its frame turns with the ship: see the lock-follow in tick): from behind and a little above (low enough that it reads as flying straight on), lower and to one side, then wide from one side and above
     // (camera frame, camFrame: +y is up from the deck, +z is behind the stern)
     // (off: while it works on something below its belly, the camera aims a little below the ship, so the job shows beneath it)
-    views:[{d:[0, 0.55, 1], k:2.4, hold:10, drift:0, off:shipOff}, {d:[0.62, 0.12, 1], k:2.1, hold:9, drift:0, off:shipOff}, {d:[-0.45, 0.95, 0.75], k:3.3, hold:9, drift:0, off:shipOff}],
+    views:[{d:[0, 0.3, 1], k:2.5, hold:10, drift:0, off:shipOff}, {d:[0.62, 0.12, 1], k:2.1, hold:9, drift:0, off:shipOff}, {d:[-0.5, 0.5, 0.9], k:3.4, hold:9, drift:0, off:shipOff}],
     // (S.light: a fixed light in the ship's own frame, for the showcase and screenshots; otherwise the Sun lights it)
     setU(pr){ const L = S.light ? M3.apply(this.R0, V.norm(S.light)) : S.target ? V.norm(V.sub(sun.rel, this.rel)) : [0, 1, 0], c = S.scoopC, e = S.em;
       gl.uniform4f(pr.u.uP0, S.spool, S.jg, S.scale, 0); gl.uniform4f(pr.u.uP1, L[0], L[1], L[2], S.scoop); gl.uniform4f(pr.u.uP2, e[0], e[1], e[2], e[3]); gl.uniform4f(pr.u.uP3, c[0], c[1], c[2], 0); },
