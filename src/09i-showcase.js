@@ -30,8 +30,8 @@ if (SHOWCASE.on){
   }
   // (while the camera circles the ship the info panel steps back to its compact form, so it covers none of the ship; it comes back for the ride,
   // with its chase view / cockpit view button. Not saved: the visitor's own choice stays.)
-  function startTurn(){ S_.hold = true; SC.turn = 0; SC.fadeIn = true; SC.fade = 0; shipCam.turn = turnPose(0); shipCam.mode = 'turn'; document.body.classList.add('info-compact'); syncLayout(); }
-  function endTurn(){ S_.hold = false; SC.turn = -1; SC.fadeIn = false; SC.fade = 0; if (shipCam.mode === 'turn') shipCam.mode = 'chase'; applyInfoState(); }
+  function startTurn(){ S_.hold = true; SC.turn = 0; SC.fadeIn = true; SC.fade = 0; shipCam.turn = turnPose(0); shipCam.mode = 'turn'; document.body.classList.add('info-compact'); syncLayout(); updateModeUI(); }
+  function endTurn(){ S_.hold = false; SC.turn = -1; SC.fadeIn = false; SC.fade = 0; if (shipCam.mode === 'turn') shipCam.mode = 'chase'; applyInfoState(); updateModeUI(); }
   function begin(){
     document.body.classList.add('showcase'); hideHint();
     stopTour(false); pauseShow(); tween = null; flyMove = null; flight = null;
@@ -73,11 +73,11 @@ if (SHOWCASE.on){
       SC.visits = S_.visits;
       const i = PLAN.findIndex(p => p.key === S_.target.key); forceFrom(i);
       if (i === 0){ SC.loops++; SC.wait = 0.8; }
-      if (shipCam.mode === 'cockpit') shipCam.mode = 'chase';
+      if (shipCam.mode === 'cockpit'){ shipCam.mode = 'chase'; updateModeUI(); }
     }
     if (SC.wait >= 0 && (SC.wait -= dt) < 0){ SC.wait = -1; startTurn(); }
     // from the bridge for the first light-speed jump: after the scan at Saturn, until the ship drops out at Jupiter
-    if (SC.turn < 0 && S_.target === BYKEY.saturn && (S_.phase === 'align' || (S_.act && S_.act.kind === 'scan' && S_.act.tau > ACTS.scan.T + 0.3)) && shipCam.mode === 'chase') shipCam.mode = 'cockpit';
+    if (SC.turn < 0 && S_.target === BYKEY.saturn && (S_.phase === 'align' || (S_.act && S_.act.kind === 'scan' && S_.act.tau > ACTS.scan.T + 0.3)) && shipCam.mode === 'chase'){ shipCam.mode = 'cockpit'; updateModeUI(); }
     SHOWCAP.txt = caption();
   });
 }
