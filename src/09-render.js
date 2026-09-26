@@ -429,6 +429,7 @@ function updateHUD(dt){
     updateTourTrack();
     updateScale();
     syncSoundBtn();   // (the browser may let the music start, or stop it, at any moment)
+    syncTickSizes();
   }
   updateLadder();
   updateLabels();
@@ -481,6 +482,14 @@ LADDER.forEach(m => {
   m.el = b; ladderEl.appendChild(b);
 });
 function ladTitles(){ LADDER.forEach(m => { m.el.title = `fly to ${m.name} · a view ${fmtLen(viewWidth(m.d)*LY)} wide`; m.el.setAttribute('aria-label', m.el.title); }); }
+// every name on the ladder is 28 px tall to tap, or as tall as the gap to the next name where two sit closer, so none covers its neighbour's name
+// (checked with the HUD, so it follows window and toolbar changes; the phone's ladder is measured when it opens)
+let tickLadH = -1;
+function syncTickSizes(){
+  const H = ladderEl.getBoundingClientRect().height; if (!H || Math.abs(H - tickLadH) < 0.5) return; tickLadH = H;
+  const ys = LADDER.map(m => (1 - ladFrac(m.d))*H);
+  LADDER.forEach((m, i) => { const g = Math.min(i > 0 ? Math.abs(ys[i] - ys[i - 1]) : 99, i < ys.length - 1 ? Math.abs(ys[i + 1] - ys[i]) : 99); m.el.style.minHeight = Math.min(28, g).toFixed(1) + 'px'; });
+}
 function goLadder(m){
   const o = BYKEY[m.key]; if (!o) return;
   hideHint();
@@ -570,6 +579,7 @@ function updateTourTrack(){
   $('#ladCap').textContent = `tour ${k + 1} / ${n}`;
   // with many stops only some names fit: always the current one, its neighbours, the ends, and an even spread
   const H = ladderEl.getBoundingClientRect().height, gap = H/Math.max(n - 1, 1), every = Math.max(1, Math.ceil(17/Math.max(gap, 1)));
+  const th = Math.min(28, gap).toFixed(1) + 'px'; if (tourTrack.style.getPropertyValue('--tt-h') !== th) tourTrack.style.setProperty('--tt-h', th);   // (see syncTickSizes)
   ttTicks.forEach((b, j) => {
     const cls = 'tick tt' + (j < k ? ' done' : j === k ? ' here' : '') + ((j === k || Math.abs(j - k) === 1 || j === 0 || j === n - 1 || j % every === 0) ? '' : ' mute');
     if (b.className !== cls) b.className = cls;

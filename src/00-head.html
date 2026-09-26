@@ -66,7 +66,8 @@ body:has(#view.dragging) *{-webkit-user-select:none;user-select:none}
 /* info panel controls: more / less, hide, and the pill that brings it back */
 .grip{display:none}
 .itools{margin-left:auto;display:inline-flex;gap:2px;pointer-events:auto}
-.itool{font:inherit;font-size:calc(10px*var(--ts));letter-spacing:.1em;text-transform:uppercase;color:var(--dim);background:none;border:1px solid transparent;border-radius:3px;padding:1px 6px;cursor:pointer}
+.itool{font:inherit;font-size:calc(10px*var(--ts));letter-spacing:.1em;text-transform:uppercase;color:var(--dim);background:none;border:1px solid transparent;border-radius:3px;padding:1px 6px;cursor:pointer;
+  min-height:28px;margin:-4.5px 0}   /* (a 28 px target; the negative margin keeps the row's height) */
 .itool:hover{color:var(--ink);border-color:var(--line)}
 .resume-i{display:none}
 body.info-compact .info .acts,body.info-compact .info .type,body.info-compact .info .fact,body.info-compact .info .readout,body.info-compact .info .scale{display:none}
@@ -257,7 +258,7 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .atlas-open .ladder{right:calc(392px + env(safe-area-inset-right,0px))}
 .lad-cap{position:absolute;right:-2px;top:-26px;color:var(--dim);font-size:calc(10px*var(--ts));letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}
 .lad-track{position:absolute;inset:-6px -18px -6px -30px;cursor:ns-resize;touch-action:none}
-.tick{position:absolute;right:-3px;transform:translateY(-50%);display:flex;align-items:center;gap:7px;background:none;border:0;padding:2px 0 2px 8px;color:var(--soft);
+.tick{position:absolute;right:-3px;transform:translateY(-50%);display:flex;align-items:center;gap:7px;background:none;border:0;padding:2px 0 2px 8px;min-height:28px;color:var(--soft);   /* (28 px to tap, less where two names sit closer: syncTickSizes) */
   font-size:calc(11px*var(--ts));letter-spacing:.03em;white-space:nowrap;cursor:pointer;text-shadow:0 0 6px #000,0 0 3px #000}
 .tick::after{content:"";width:8px;height:2px;background:rgba(195,203,224,.7)}
 .tick:hover,.tick.near{color:var(--flare)}
@@ -272,13 +273,13 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .ladder.touring{background:linear-gradient(rgba(168,240,176,.35),rgba(168,240,176,.2))}
 .tour-track{position:absolute;inset:0}
 .tt-fill{position:absolute;left:-1px;bottom:0;width:4px;border-radius:2px;background:linear-gradient(0deg,#6fd08a,#a8f0b0);box-shadow:0 0 8px rgba(168,240,176,.6);transition:height .2s linear}
-.tick.tt{color:var(--soft)}
+.tick.tt{color:var(--soft);min-height:var(--tt-h,28px)}
 .tick.tt::after{background:rgba(168,240,176,.55)}
 .tick.tt.done{color:var(--faint)}
 .tick.tt.done::after{background:#6fd08a}
 .tick.tt.here{color:#a8f0b0;font-weight:600}
 .tick.tt.here::after{background:#a8f0b0;width:14px}
-.tick.tt.mute{font-size:0;gap:0}
+.tick.tt.mute{font-size:0;gap:0;min-height:0}   /* (unnamed tour stops stay small, so they do not cover their named neighbours) */
 .ladder.touring .ladmark::before{border-color:#a8f0b0;box-shadow:0 0 10px rgba(168,240,176,.6)}
 .ladder.touring .ladmark span{background:#a8f0b0}
 .ladder.touring .ladmark{pointer-events:none}
@@ -313,7 +314,8 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .d-top{display:flex;align-items:center;gap:8px}
 .d-lbl{color:#a8f0b0;font-size:calc(10px*var(--ts));letter-spacing:.14em;text-transform:uppercase;flex:1}
 .d-streak{color:var(--flare);font-size:calc(10px*var(--ts))}
-.d-x{background:none;border:0;color:var(--dim);cursor:pointer;font-size:calc(16px*var(--ts));line-height:1;padding:0 2px}
+.d-x{background:none;border:0;color:var(--dim);cursor:pointer;font-size:calc(16px*var(--ts));line-height:1;padding:0 2px;
+  display:grid;place-items:center;min-width:28px;min-height:28px;margin:-6px -7px -6px 0}   /* (a 28 px target; the negative margins keep the x where it was) */
 .d-x:hover{color:var(--ink)}
 .d-name{margin-top:4px;font-size:calc(15px*var(--ts));color:var(--ink);font-weight:500}
 .d-type{color:var(--dim);font-size:calc(11px*var(--ts))}
