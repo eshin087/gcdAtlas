@@ -4,6 +4,16 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.8.2 · 2026-09-26
+
+**New: the Halo's new look** (drawn after the owner's concept art; the ship is still fictional)
+- Seen from above it is a trident: a long needle-shaped bow and two crescent arms sweeping back from its shoulders to the engines at their tails, each arm with a claw reaching in toward the heart.
+- Between the arms floats its heart, a white ball of star plasma inside two dotted rings of light that turn faster as the fold drive spools up, wired to the claws and to the bow by chains of lights pulsing outward.
+- A black hull with silver edges, a faint engraved pattern and rows of small blue-white lights; slow blinking lights on the claws, the shoulders and the needle's tip; a plume and a dotted exhaust trail behind each engine.
+- The working gear sits in a pod under the bow (scan array, tractor emitter, probe bay, drill), with the gun at the needle's tip and a turret under the bow; beams, the probe, shots, the drill and the skim trail leave from the new places. The bridge sits on the bow's spine, so the cockpit view looks down the needle.
+- The trailing camera sits a little higher and the lock-on angles look down more: the new ship is flat and its outline shows best from above. The readout gives its size, about 4.2 km from needle to engines.
+- A showcase for reviewing the ship: open the site with `?showcase=halo`. The camera circles the ship once (it holds still just for this), then rides along through a scan at Saturn, light speed to Jupiter seen from the bridge and a skim, a weapons test on the Moon, a probe at Mars, and a fold to the Pillars of Creation for the tractor beam and drill, then round again. A caption names each part; a drag or the pause button ends it.
+
 ## 0.8.1 · 2026-09-26
 
 **New**
