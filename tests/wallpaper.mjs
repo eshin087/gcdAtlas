@@ -65,7 +65,7 @@ if (requests.length) bad.push('network requests in wallpaper mode: ' + requests.
 
 // saved settings are ignored and left alone: a visitor's warp and sound stay theirs
 await page.evaluate(() => localStorage.setItem('gcdatlas.settings', JSON.stringify({ travel:'warp', sound:true, fadeUI:'off' })));
-await page.goto('about:blank'); await page.goto(PAGE + '?wallpaper=1');
+await page.goto(PAGE + '?wallpaper=1');
 await page.waitForFunction(() => window.__cosmos && window.__cosmos.saver && window.__cosmos.saver.on, null, { timeout:30000 });
 const saved = await page.evaluate(() => ({ travel:window.__cosmos.SET.travel, sound:window.__cosmos.SET.sound, stored:JSON.parse(localStorage.getItem('gcdatlas.settings')) }));
 if (saved.travel !== 'cinematic' || saved.sound) bad.push('saved settings leaked into wallpaper mode: ' + JSON.stringify(saved));
@@ -73,7 +73,7 @@ if (saved.stored.travel !== 'warp' || saved.stored.sound !== true) bad.push('wal
 
 // the normal screensaver: Z starts it with its HUD, moving the mouse brings the atlas back
 await page.evaluate(() => localStorage.setItem('gcdatlas.settings', JSON.stringify({ fadeUI:'off' })));
-await page.goto('about:blank'); await page.goto(PAGE);
+await page.goto(PAGE);
 await page.waitForFunction(() => window.__cosmos && window.__cosmos.saver, null, { timeout:30000 });
 await page.mouse.move(100, 100); await page.keyboard.press('z');
 const on = await page.evaluate(() => ({ saver:window.__cosmos.saver.on, embedded:window.__cosmos.saver.embedded, hud:!document.querySelector('#saverHud').hidden, tourId:window.__cosmos.tourId, wallpaper:document.body.classList.contains('wallpaper') }));
