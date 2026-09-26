@@ -13,3 +13,4 @@
 | [ROADMAP.md](ROADMAP.md) | what is next |
 | [CHANGELOG.md](CHANGELOG.md) | what changed, by version |
 | [HANDOFF.md](HANDOFF.md) | context for a new Claude Code session: the owner's preferences, decisions, history, setup |
+| [WALLPAPER.md](WALLPAPER.md) | KDE Plasma 6 live wallpaper packaging, mode, and performance |

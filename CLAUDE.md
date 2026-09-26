@@ -39,6 +39,9 @@ npm run test:tour              # long tour regression (tests/tour.mjs)
 npm run shots -- sun:0,crab:1  # screenshots into tests/out/ (+ a contact sheet)
 npm run catalog                # regenerate docs/CATALOG.md from the built page
 npx vercel dev                 # local server with the /api functions
+npm run wallpaper              # package KDE Plasma 6 wallpaper archive
+npm run wallpaper:install      # package and install/update KDE wallpaper locally
+npm run test:wallpaper         # run wallpaper mode Playwright test
 ```
 
 Tests need `npm install` once (dev dependencies: playwright, sharp). Headless Chromium runs WebGL through SwiftShader, which is slow: simulations run at a lower frame rate in tests, so use `__cosmos.simulate(seconds)` or step `o.update()` for deterministic checks.
@@ -86,4 +89,4 @@ Tests need `npm install` once (dev dependencies: playwright, sharp). Headless Ch
 - A tour plays `tourViews(o)` (08-camera.js): all of an object's views, unless it lists fewer in `tourViews` (Earth plays three). `tour.view` is still an index into `o.views`; a swing's target is `tour.to` / `show.to`, so taps during a swing count from where the camera is heading. Check new or changed views on a desk and a phone: angles that look empty are bugs.
 - Esc goes through `closeOpen()` (09-render.js): anything new that opens like a panel should close there before the camera lets go. On a touch screen only taps on the canvas and labels are eaten while the interface is faded (09h-ui.js); faded buttons work on the first tap. The faded scale bar track lets touches through to the sky (`body.ui-idle .lad-track` in `00-head.html`), so a tap there on a tablet only wakes the interface. Keys typed into an input stay there, except Esc.
 - Phones get their own layout (dock, info card, scale chip; `src/09h-ui.js`). The breakpoint is `COMPACT_MQ` in `src/04-world.js` and the matching `@media` blocks at the end of `00-head.html`; change both together. Anything new that sits at the bottom of the screen on a phone should stack above `var(--dock-h)` + `var(--sheet-h)`, and anything that should fade when idle goes in the `body.ui-idle` rule.
-- In `?wallpaper=1` the saver is embedded: input is swallowed (`stopImmediatePropagation`), not ignored; anything new that can appear on screen must hide under `body.wallpaper`.
+- In `?wallpaper=1` the saver is embedded: input is swallowed (`stopImmediatePropagation`), not ignored; anything new that can appear on screen must hide under `body.wallpaper`. Dynamic FPS pacing throttles loop scheduling via `queueNextFrame`; DPR is clamped to 1x; off-screen DOM updates return early; `window.setFreeze` / `window.__freeze` halts rendering.

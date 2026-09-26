@@ -89,3 +89,16 @@ Objects that stand for a past moment or a replay (the comets frozen at their bes
 ## 9. State and persistence
 
 `localStorage` keys (all prefixed `gcdatlas.`): `settings`, `atlas`, `seen`, `badges`, `dailyLog`, `dailySeen`, `where`, `flags`. Nothing is sent to a server.
+
+## 10. Wallpaper mode and packaging
+
+- **Packaging**: `kde-wallpaper/package.mjs` (`npm run wallpaper`) packages `dist/index.html` into a KDE Plasma 6 wallpaper plugin (`dist/gcdatlas-plasma-wallpaper.tar.gz` and `dist/plasma-wallpaper/`). `npm run wallpaper:install` builds and installs or updates the plugin via `kpackagetool6`.
+- **Wallpaper mode (`?wallpaper=1`)**: activates embedded screensaver mode. Sound, HUD, toolbars, and `/api` requests are disabled. Mouse, touch, and keyboard events are captured and stopped (`stopImmediatePropagation`) to prevent desktop interaction from disrupting the camera.
+- **Resource optimizations**:
+  - `dpr` is clamped to 1x to eliminate fill-rate overhead on HiDPI displays.
+  - Off-screen DOM updates (`updateLabels`, `updateHUD`, `updateCaption`, `syncTimeUI`, `updateHash`) return early.
+  - Dynamic frame-rate pacing: target FPS (15, 30, 60; default 30) combines `setTimeout` with `requestAnimationFrame`. Target FPS can be dynamically modified at runtime via `window.setWallpaperFps(fps)`.
+  - Power freeze: when covered by maximized or fullscreen windows, `main.qml` transitions QtWebEngine to `LifecycleState.Frozen` and calls `window.setFreeze(true)`. Animation frame requests and interval timers halt completely, bringing CPU and GPU usage to 0%.
+- **Desktop context menu**: `main.qml` exposes Plasma contextual actions:
+  - "Next Object": calls `window.__cosmos.stepObject(1)`
+  - "Next View": calls `window.__cosmos.stepAngle(1)`

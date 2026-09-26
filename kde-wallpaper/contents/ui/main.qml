@@ -2,6 +2,7 @@ import QtQuick
 import QtWebEngine
 import org.kde.plasma.plasmoid
 import org.kde.kwindowsystem
+import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.wallpapers.image as PlasmaWallpaper
 
 WallpaperItem {
@@ -14,6 +15,19 @@ WallpaperItem {
     // True when a maximized or fullscreen window covers the wallpaper on this screen
     readonly property bool covered: (activeWindowMonitor.count > 0) && !KWindowSystem.showingDesktop
     readonly property bool paused: pauseEnabled && covered
+
+    contextualActions: [
+        PlasmaCore.Action {
+            text: i18nd("plasma_wallpaper_app.gcdatlas.wallpaper", "Next Object")
+            icon.name: "go-next"
+            onTriggered: web.runJavaScript("if (window.__cosmos && window.__cosmos.stepObject) window.__cosmos.stepObject(1);")
+        },
+        PlasmaCore.Action {
+            text: i18nd("plasma_wallpaper_app.gcdatlas.wallpaper", "Next View")
+            icon.name: "transform-rotate"
+            onTriggered: web.runJavaScript("if (window.__cosmos && window.__cosmos.stepAngle) window.__cosmos.stepAngle(1);")
+        }
+    ]
 
     function applyFreeze() {
         web.runJavaScript("if (window.setFreeze) { window.setFreeze(" + (root.paused ? "true" : "false") + "); } else { window.__freeze = " + (root.paused ? "true" : "false") + "; }");

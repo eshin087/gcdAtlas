@@ -31,6 +31,7 @@ This file carries the context of the chat sessions that built gcdatlas (v0.1 to 
 | Solar System | Sun and planets enlarged in the overview (`SYSMAG`), true size close up; the readout says so. Since 0.7.7 the Sun is always the largest and planets keep their true order of size (size = Sun x ratio^0.3); a version where Jupiter outgrew the Sun was reported as wrong by the owner. Zooming in must never make the Sun shrink. |
 | Social features | Planned only, behind the `social` flag (off). Design in `docs/ROADMAP.md`. |
 | Music | Generative "gcd radio": rotating mix of lofi, chill house and ambient. |
+| Wallpaper mode | Dedicated mode (`?wallpaper=1`): swallowed input, sound/HUD/network off, dynamic FPS throttle (15/30/60), 1x DPR clamp, freeze when window is maximized/fullscreen. Plasma 6 package in `kde-wallpaper/`. Desktop right-click menu offers 'Next Object' and 'Next View'. |
 
 ## Current state (2026-09-25)
 

@@ -7,6 +7,7 @@ All notable changes, newest first. Dates are UTC.
 **New**
 - The site's primary public address is now gcdatlas.com (canonical link, Open Graph metadata, photo watermarks, and upstream User-Agent headers).
 - KDE Plasma 6 live wallpaper: gcdatlas can run directly as an animated desktop wallpaper on Linux (see docs/WALLPAPER.md). Packaged via `npm run wallpaper` as a KDE wallpaper plugin (`app.gcdatlas.wallpaper`) with configurable travel speed, frame rate limit, and automatic power saving.
+- Desktop context menu actions: right-clicking on an empty area of the desktop reveals "Next Object" and "Next View" actions to step through tour stops and camera angles.
 - Wallpaper mode (`?wallpaper=1`): an embedded screensaver tour across all catalog objects with no HUD, sound, or network requests, and input swallowed so desktop clicks do not affect the camera.
 - Wallpaper optimizations: dynamic frame rate pacing (15, 30, 60 FPS) combining `setTimeout` with `requestAnimationFrame`, 1x DPR canvas clamp on HiDPI displays to eliminate fill rate overhead, skipping off-screen DOM updates, and complete freezing via QtWebEngine `LifecycleState.Frozen` when covered by maximized or fullscreen windows.
 

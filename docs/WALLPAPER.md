@@ -5,8 +5,10 @@ gcdatlas can run directly as a live desktop wallpaper on KDE Plasma 6.
 It runs in a dedicated **wallpaper mode** (`?wallpaper=1`):
 - All HUD, menus, sound, and network calls are disabled.
 - Loops through a continuously shuffled screensaver tour across all catalog objects without repeating stops.
-- Desktop input (clicks, drags, keystrokes) does not affect the camera.
-- Frame rate is throttled (15, 30, or 60 FPS) to minimize CPU and GPU usage.
+- Desktop input (clicks, drags, keystrokes) is swallowed so desktop interactions do not affect the camera.
+- Frame rate is throttled (15, 30, or 60 FPS) via hybrid timer scheduling to minimize CPU and GPU usage.
+- Canvas DPR is clamped to 1x to avoid fill-rate overhead on HiDPI screens.
+- Off-screen DOM updates (labels, HUD, captions, time, hash) are skipped.
 - Pauses execution and frees rendering when covered by maximized or fullscreen windows.
 
 ---
@@ -21,9 +23,10 @@ From the repository root:
 npm run wallpaper:install
 ```
 
-Or using KDE's package tool:
+Or build the package and install with KDE's package tool:
 
 ```bash
+npm run wallpaper
 kpackagetool6 -t Plasma/Wallpaper -i dist/plasma-wallpaper
 # If already installed and updating:
 kpackagetool6 -t Plasma/Wallpaper -u dist/plasma-wallpaper
@@ -49,6 +52,12 @@ kpackagetool6 -t Plasma/Wallpaper -i gcdatlas-plasma-wallpaper.tar.gz
    - **Save power**: Pause while a maximized or full screen window covers the screen.
 4. Click **Apply**.
 
+### Desktop Context Menu Actions
+
+Right-clicking on an empty area of the desktop reveals navigation actions:
+- **Next Object**: Flies to the next stop on the tour.
+- **Next View**: Cycles between viewpoints and camera angles for the current body.
+
 ---
 
 ## Resource Usage and Performance
@@ -61,10 +70,37 @@ Because the wallpaper runs inside QtWebEngine (Chromium), system resource monito
 
 ---
 
+## Running in Other Wallpaper Tools or Browsers
+
+`?wallpaper=1` is a standard web URL mode supported by any web-view wallpaper utility (such as Komorebi, Electron wallpaper runners, or a kiosk browser):
+
+```text
+https://gcdatlas.com/?wallpaper=1&travel=cinematic&fps=30
+```
+
+Supported query parameters:
+- `wallpaper=1`: enables wallpaper mode.
+- `travel=cinematic|quick`: flight duration between stops (`cinematic` is slower and calmer).
+- `fps=N`: caps the target frame rate (clamped between 10 and 60).
+
+---
+
 ## Requirements
 
 - KDE Plasma 6.0+
 - Qt 6 with `QtWebEngine` and `Kirigami` (installed by default on most Plasma 6 desktop distributions like Fedora KDE, Arch, openSUSE Tumbleweed, Neon, Kubuntu 24.10+).
+
+---
+
+## Testing
+
+Run the Playwright test suite for wallpaper mode:
+
+```bash
+npm run test:wallpaper
+```
+
+This verifies embedded screensaver start, tour playback, event swallowing, network silence, dynamic FPS adjustment, and freeze/unfreeze transitions.
 
 ---
 
