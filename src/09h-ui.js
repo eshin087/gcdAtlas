@@ -56,8 +56,12 @@ if (typeof ResizeObserver !== 'undefined'){ const ro = new ResizeObserver(() => 
 COMPACT_MQ.addEventListener('change', () => { applyInfoState(); syncSettingsUI(); updateModeUI(); roLast = ''; if (!isCompact()) setLadOpen(false); });
 PORTRAIT_MQ.addEventListener('change', syncLayout);
 addEventListener('resize', syncLayout);
-// on a phone, choosing a tour closes the panel so you can watch it
-$('#tours').addEventListener('click', e => { if (isCompact() && e.target.closest('.trow, #btnTour, #btnFree')) setTimeout(() => togglePanel('tours', false), 120); });
+// picking or resuming a tour closes the panel so you can watch it (on a desk it used to stay open over the caption);
+// on a phone the other choices close it too
+$('#tours').addEventListener('click', e => {
+  const t = e.target.closest('.trow, #btnTour, #btnFree'); if (!t) return;
+  if (isCompact() || t.classList.contains('trow') || (t.id === 'btnTour' && tour.on)) setTimeout(() => togglePanel('tours', false), 120);
+});
 
 // ---------------------------------------------------------------- phones: the scale ladder opens from a chip, and folds away again by itself
 let ladOpenAt = 0;
