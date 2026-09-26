@@ -19,6 +19,7 @@
   --disp:"Major Mono Display","IBM Plex Mono",ui-monospace,monospace;
   --ts:1;   /* text size, set from settings */
   --cyan:#7fdcff;
+  --mute:#ff968c;   /* soft red: the music is off */
 }
 [hidden]{display:none!important}
 html,body{height:100%;margin:0;background:var(--void);color:var(--ink);overflow:hidden}
@@ -108,12 +109,16 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 
 /* ---- controls, top right */
 .controls{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));top:calc(14px + env(safe-area-inset-top,0px));
-  display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:center;max-width:calc(100vw - 470px);z-index:6}
+  display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:center;max-width:calc(100vw - 440px);z-index:6}
 .btn{font-size:calc(11.5px*var(--ts));color:var(--dim);background:var(--panel);border:1px solid var(--line);border-radius:3px;
   padding:6px 10px;cursor:pointer;letter-spacing:.03em;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);white-space:nowrap}
 .btn:hover{color:var(--ink);border-color:rgba(200,215,245,.45)}
 .btn[aria-pressed="true"],.btn[aria-expanded="true"]{color:var(--flare);border-color:rgba(255,179,92,.6)}
 #btnShip[aria-pressed="true"]{color:var(--ship);border-color:rgba(143,230,255,.55)}
+/* the sound button: as wide as "sound off" either way, so the bar never re-wraps; soft red while no music plays (no animation, it fades with the bar) */
+#btnSound{min-width:calc(9.5ch + 22px);text-align:center}
+#btnSound.silent{color:var(--mute);border-color:rgba(255,128,118,.5)}
+#btnSound.silent:hover{color:#ffb8b0;border-color:rgba(255,128,118,.75)}
 .btn.primary{color:var(--ink)}
 .seg.mini{flex-wrap:nowrap;gap:0;background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:1px;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
 .seg.mini button{flex:0 0 auto;border:0;background:none;padding:4px 7px;font-size:calc(11px*var(--ts));border-radius:2px}
@@ -348,7 +353,7 @@ body.sky .info .acts,body.sky .ladder,body.sky .lad-chip,body.sky .progress{opac
 .st-name{margin-top:8px;color:var(--ink);font-size:calc(14px*var(--ts));font-weight:500}
 .st-text{margin-top:3px;color:var(--soft);font-size:calc(12px*var(--ts));min-height:3.4em;-webkit-user-select:text;user-select:text}
 
-@media (max-width:1100px){ .search input{width:170px} .controls{max-width:calc(100vw - 420px)} }
+@media (max-width:1100px){ .search input{width:170px} .controls{max-width:calc(100vw - 400px)} }
 /* ---- phones and small windows: a dock of big buttons at the bottom, the info as a card above it, the scale ladder behind a chip.
    --dock-h and --sheet-h are measured by src/09h-ui.js so captions, toasts and cards stack above them. */
 @media (max-width:680px), (max-height:520px) and (max-width:1000px){
@@ -364,7 +369,8 @@ body.sky .info .acts,body.sky .ladder,body.sky .lad-chip,body.sky .progress{opac
   .controls .btn[data-ico]::before{content:attr(data-ico);font-size:calc(17px*var(--ts));line-height:1.15}
   .controls .btn:hover{border-color:transparent}
   .controls .btn[aria-expanded="true"]{background:var(--flare-bg);color:var(--flare)}
-  #btnSound[aria-pressed="false"]{color:var(--faint)}
+  .controls #btnSound{min-width:0}
+  .controls #btnSound.silent{color:var(--mute);box-shadow:inset 0 0 0 1px rgba(255,128,118,.55)}
   .controls #btnRide{display:none}
   #btnShip[aria-pressed="true"]{background:rgba(143,230,255,.14);color:var(--ship)}
   #btnTours.touring{background:rgba(168,240,176,.1)}

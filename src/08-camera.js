@@ -491,7 +491,7 @@ addEventListener('keydown', e => {
   if (k === '/' || k === 'o'){ e.preventDefault(); focusSearch(); return; }
   if (k === 'c' && typeof ship !== 'undefined'){ setShipCamMode(shipCam.on && shipCam.mode === 'chase' ? 'cockpit' : 'chase'); return; }
   if (k === 'y'){ setOpt('travel', cycle(['quick', 'warp', 'cinematic'], SET.travel)); return; }
-  if (k === 'm'){ setOpt('sound', !SET.sound); return; }
+  if (k === 'm'){ toggleSound(); return; }
   if (k === '[' || k === ']'){ stepObject(k === ']' ? 1 : -1); return; }
   if (k === '+' || k === '='){ beginManual(); zoomBy(0.6); return; }
   if (k === '-' || k === '_'){ beginManual(); zoomBy(1.7); return; }
