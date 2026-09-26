@@ -246,6 +246,7 @@ function render(){
   gl.uniform1i(pr.u.uScene, 1); gl.uniform2f(pr.u.uGrid, cols, rows); gl.uniform1f(pr.u.uExp, 1.0); gl.uniform1f(pr.u.uIn, 1/OUT);
   gl.uniform1f(pr.u.uLv, atlas.levels); gl.uniform1f(pr.u.uDir0, atlas.dir0); gl.uniform1f(pr.u.uEdge, 1); gl.uniform4f(pr.u.uRect, -1, -1, 1, 1);
   gl.uniform1f(pr.u.uT, GT); gl.uniform1f(pr.u.uDith, 1);
+  gl.activeTexture(gl.TEXTURE8); gl.bindTexture(gl.TEXTURE_2D, atlas.lut); gl.uniform1i(pr.u.uLut, 8); gl.uniform1f(pr.u.uSub, atlas.sub);
   drawQuad();
   if (glowOn){
     pr = P.glow; gl.useProgram(pr.p);
@@ -1075,7 +1076,7 @@ tick(0);
 if (!applyHash()) tourGo(TOUR[0], true);
 tick(0);
 updateModeUI(); syncTimeUI();
-window.__cosmos = { startTour, playFlyby, setMove(o, v, f){ flight = null; tween = null; tourGo(o.index, true); tour.on = false; flyMove = { o, v, t:f*v.hold, frozen:true }; },  get flyMove(){ return flyMove; }, startCompare, endCompare, setDeep, viewHash, applyHash, get cmp(){ return cmp; }, get ssRate(){ return ssRate; }, dbg:{ imp, impSpec, get cols(){ return cols; }, get sceneH(){ return sceneH; }, get LODK(){ return LODK; }, PROGS }, OBJ, BYKEY, tourGo, lockOn, setTour, cam, orbit, tour, TOUR, SET, setOpt, music, LADDER, goLadder,
+window.__cosmos = { startTour, playFlyby, setMove(o, v, f){ flight = null; tween = null; tourGo(o.index, true); tour.on = false; flyMove = { o, v, t:f*v.hold, frozen:true }; },  get flyMove(){ return flyMove; }, startCompare, endCompare, setDeep, viewHash, applyHash, get cmp(){ return cmp; }, get ssRate(){ return ssRate; }, dbg:{ imp, impSpec, atlas, sphereRect, get tan(){ return [tanX, tanY]; }, get cols(){ return cols; }, get sceneH(){ return sceneH; }, get LODK(){ return LODK; }, PROGS }, OBJ, BYKEY, tourGo, lockOn, setTour, cam, orbit, tour, TOUR, SET, setOpt, music, LADDER, goLadder,
   land:(extra = 0.2) => { let n = 0; while (flight && n < 60*180){ tick(1/60); n++; } for (let i=0;i<extra*60;i++) tick(1/60); return n/60; },
   setDays:d => { ssDays = d; }, stepObject, stepAngle, get stepTarget(){ return flight ? (flight.dest || flight.obj).key : null; }, get via(){ return flight && flight.via ? flight.via.key : null; }, PASS,
   startShipCam, stopShipCam, setShipCamMode, get shipCam(){ return shipCam; }, get show(){ return show; }, togglePlay, get flight(){ return flight; },

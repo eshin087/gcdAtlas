@@ -13,6 +13,18 @@ for (let i = 0; i < keys.length; i += 8){
     return out; }, chunk);
   bad.push(...r);
 }
+// the glyph table: faint levels keep their own glyph; the run of heavy glyphs at the top uses at most three of & 8 @, each with clearly more ink than the one before
+bad.push(...await page.evaluate(() => { const a = window.__cosmos.dbg.atlas, d = a.lutData, HEAVY = '%#&8@$W', out = [], used = [];
+  if (!d || d.length !== a.levels*a.sub*4) return ['glyph table missing'];
+  let h0 = a.levels; while (h0 > 0 && HEAVY.includes(a.chars[h0])) h0--;
+  for (let b = 0; b < d.length/4; b++){ const g = d[b*4], ch = a.chars[g], was = Math.floor(b/a.sub) + 1;
+    if (!(d[b*4 + 1] > 0 && d[b*4 + 2] > 0 && d[b*4 + 3] > 0 && isFinite(d[b*4 + 1]))) out.push('bad glyph table entry ' + b);
+    if (was <= h0){ if (g !== was) out.push(`faint glyph changed at entry ${b}: ${a.chars[was]} -> ${ch}`); continue; }
+    if (!'&8@'.includes(ch)) out.push(`bright end uses ${ch} at entry ${b}`);
+    if (used[used.length - 1] !== g){ const prev = used.length ? a.ink[used[used.length - 1]] : a.ink[h0];
+      if (used.includes(g)) out.push('bright end goes back to ' + ch); else if (!(a.ink[g] > prev)) out.push(`ink does not rise at ${ch}`); used.push(g); } }
+  if (used.length > 3) out.push('bright end uses ' + used.map(g => a.chars[g]).join(''));
+  return out; }));
 for (const id of ['#btnAtlas', '#btnTours', '#btnTime', '#btnSettings']){ await page.click(id); await page.waitForTimeout(150); await page.click(id); }
 const ui = await page.evaluate(() => ({ rows:document.querySelectorAll('.arow').length, readout:document.querySelector('#readout').textContent.length }));
 if (ui.rows < 50) bad.push('atlas has only ' + ui.rows + ' rows');
