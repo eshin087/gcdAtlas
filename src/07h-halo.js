@@ -21,6 +21,10 @@ const ACTS = { scan:{ T:11, rho:0.3, fc:0.47, view:1, bank:1, turn:1, aim:[0.6, 
 const SKIM = new Set(['jupiter', 'sun', 'betelgeuse', 'antares', 'alphacen', 'proxima', 'sirius', 'trappist1']);   // gas giants and stars (Saturn's rings are in the way)
 const SURF_K = { halley:0.62 };   // bodies drawn without a solid radius of their own: the solid share of the bounding sphere
 const CYAN = [0.45, 0.9, 1], TEAL = [0.45, 1, 0.75], WHITE = [1, 1, 1];
+// points on the hull (the ship's own frame, in ship radii: +y forward, -x dorsal, +x the belly), matching FS_SHIP in 07-extras.js:
+// the working gear on the belly pod under the bow, the gun at the needle's tip and a turret under the bow, the heart, the left engine's nozzle
+const HULL = { scan:[0.066, 0.2, 0], tractor:[0.07, -0.02, 0], drill:[0.07, 0.08, 0.02], bay:[0.064, -0.1, 0], dock:[0.06, -0.1, 0],
+  gun:[0, 0.85, 0], turret:[0.04, 0.38, 0], core:[0, -0.3, 0], nozzle:[-0.04, -0.84, 0.287] };
 
 // ---------------------------------------------------------------- small geometry
 const angleOf = (a, b) => Math.acos(clamp(V.dot(a, b), -1, 1));
@@ -43,14 +47,23 @@ function behindSphere(p, c, r){
 }
 // in the picture: in front of the camera and inside the view (1 = the edge), and on a phone above the card that covers the bottom of the screen
 function onScreen(p, m = 0.95){ const z = V.dot(p, cam.fwd); if (!(z > 0)) return false; const y = V.dot(p, cam.up)/(z*tanY); return Math.abs(V.dot(p, cam.right)/(z*tanX)) < m && y < m && y > (isCompact() ? -0.45 : -m); }
-// hidden behind the ship's own hull (an ellipsoid round the hull and a slab for the wings), as seen from the camera
+// the outline of one arm (ship radii; y along the ship, w = |z|): the same crescent as armPlan in the ship's shader
+function inArm(y, w){
+  const vy = y + 0.567, vw = w + 0.33, u = (Math.atan2(vw, vy) - 0.698)/1.1; if (u < 0 || u > 1) return false;
+  const r = Math.hypot(vy, vw), Ro = 0.68 + 0.012*Math.exp(-(u - 0.3)*(u - 0.3)*25), cf = Math.max(1 - (0.508 - u)/0.1, 0), cr = Math.max(1 - (u - 0.508)/0.2, 0);
+  return r < Ro && r > Ro - 0.089*smooth(0, 0.45, u)*(1 - smooth(0.68, 1, u)) - 0.063*(u < 0.508 ? cf*Math.sqrt(cf) : cr*cr);
+}
+// hidden behind the ship's own hull, as seen from the camera: the bow (an ellipsoid round it), the arms (where the line crosses their nearly
+// flat plane, inside the crescent) and the heart
 function behindHull(p){
   if (!(ship.rpx > 10) || ship.S.scale < 0.5) return false;
   const s = ship.rad*ship.S.scale, R = ship.R0, o = M3.applyT(R, V.mul(ship.rel, -1/s)), q = M3.applyT(R, V.mul(V.sub(p, ship.rel), 1/s)), d = V.sub(q, o);
-  const E = [0.17, 0.95, 0.19], oe = [o[0]/E[0], o[1]/E[1], o[2]/E[2]], de = [d[0]/E[0], d[1]/E[1], d[2]/E[2]];
+  const E = [0.055, 0.54, 0.1], oe = [o[0]/E[0], (o[1] - 0.32)/E[1], o[2]/E[2]], de = [d[0]/E[0], d[1]/E[1], d[2]/E[2]];
   const a = V.dot(de, de), b = V.dot(oe, de), c = V.dot(oe, oe) - 1, h = b*b - a*c;
   if (h > 0){ const t = (-b - Math.sqrt(h))/a; if (t > 0 && t < 0.995) return true; }
-  if (Math.abs(d[0]) > 1e-12){ const t = (0.015 - o[0])/d[0]; if (t > 0 && t < 0.995){ const y = o[1] + d[1]*t, z = Math.abs(o[2] + d[2]*t) - 0.13; if (z > 0 && z < 0.44 && y < -0.06 - 0.85*z && y > -0.6 - 0.33*z) return true; } }
+  if (Math.abs(d[0]) > 1e-12){ const t = (-0.02 - o[0])/d[0]; if (t > 0 && t < 0.995 && inArm(o[1] + d[1]*t, Math.abs(o[2] + d[2]*t))) return true; }
+  const oc = V.sub(o, HULL.core), dd = V.dot(d, d), bc = V.dot(oc, d), hc = bc*bc - dd*(V.dot(oc, oc) - 0.0016);
+  if (hc > 0){ const t = (-bc - Math.sqrt(hc))/dd; if (t > 0 && t < 0.995) return true; }
   return false;
 }
 
@@ -323,6 +336,7 @@ function placeShip(dt){
 }
 ship.update = function(dt){
   if (!S_.plan){ S_.visits = 0; foldVisit(BYKEY.saturn); S_.t = 3; }
+  if (S_.hold) return;   // (the showcase holds it still while the camera circles it; on the site it never stops)
   // (a camera flying up to the ship: the ship carries on, but it will not jump until the camera has landed)
   const flying = !!(flight && flight.obj === ship);
   S_.t += dt;
@@ -361,7 +375,7 @@ ACT.scan = pl => {
   A.draw = () => {
     A.beams = [];
     const tau = A.tau; if (tau < 0 || tau > T + 0.5) return;
-    const sp = aimSphere(tg), C = tg.rel, R = sp.r, E = shipPt([0.145, 0.18, 0]);
+    const sp = aimSphere(tg), C = tg.rel, R = sp.r, E = shipPt(HULL.scan);
     const EC = V.sub(E, C), dEC = V.len(EC); if (!(dEC > R*1.002)) return;
     const e = V.mul(EC, 1/dEC), thMax = Math.acos(R/dEC);
     // the ping: a faint ring spreading out from the ship before the sweeps
@@ -409,7 +423,7 @@ ACT.probe = pl => {
   function build(){
     const sp = aimSphere(tg), s = surfOf(tg), Rl = s ? Math.max(s*1.35, tg.holeR ? tg.rad*0.7 : 0) : heartOf(tg)*3;
     const mid = passAt(pl, t0 + 6.3), u1 = V.norm(mid.p), u2 = V.norm(perpTo(mid.h, u1)), bl = S_.belly || [1, 0, 0], R = ship.rad;
-    const bay = localPt([0.2, -0.42, 0]), hold = V.add(bay, V.add(V.mul(bl, 2.4*R), V.mul(S_.h, 0.6*R)));
+    const bay = localPt(HULL.bay), hold = V.add(bay, V.add(V.mul(bl, 2.4*R), V.mul(S_.h, 0.6*R)));
     const kn = [{ t:t0, r:bay, m:V.mul(bl, 1.2*R) }, { t:t0 + 1.3, r:hold, m:V.mul(bl, 2*R) }];
     for (let j=0;j<8;j++){ const th = -0.4 + j*(2*Math.PI + 0.3)/7, t = t0 + 3.3 + j*6/7, K = V.add(V.mul(u1, Math.cos(th)*Rl), V.mul(u2, Math.sin(th)*Rl)); kn.push({ t, r:V.sub(K, passAt(pl, t).p) }); }
     kn.push({ t:t0 + 10.6, r:hold, m:V.mul(bl, -2*R) }, { t:t0 + 11.9, r:bay, m:V.mul(bl, -0.6*R) });
@@ -430,8 +444,8 @@ ACT.probe = pl => {
       if (Math.abs(t - k0) < 0.6 || Math.abs(t - k1) < 0.6) S_.em[3] = 1;
       if (A.out()){ A.tAcc = (A.tAcc || 0) + dt; if (A.tAcc > 0.04){ A.tAcc = 0; A.trail.push({ r:A.relAt(t), age:0 }); } }
       while (A.shots < A.flashAt.length && t >= A.flashAt[A.shots]){ A.shots++; const q = V.add(ship.offset, A.relAt(t)); fxAdd({ T:0.25, anc:tg, q, draw(fx){ const p = V.add(fx.anc.rel, fx.q), u = fx.t/fx.T; if (behindSphere(p, fx.anc.rel, aimSphere(fx.anc).r*0.998)) return; P_(p, WHITE, 5*(1 - u)*(1 - u), -12); P_(p, [0.85, 0.92, 1], 1.4*(1 - u), -26); } }); }
-      if (t > k0 && !A.puffed){ A.puffed = true; fxPuff(localPt([0.2, -0.42, 0]), [0.7, 1, 0.8], 10); }
-      if (t > k1 && !A.docked){ A.docked = true; fxPuff(localPt([0.16, -0.42, 0]), [0.7, 1, 0.8], 6); }
+      if (t > k0 && !A.puffed){ A.puffed = true; fxPuff(localPt(HULL.bay), [0.7, 1, 0.8], 10); }
+      if (t > k1 && !A.docked){ A.docked = true; fxPuff(localPt(HULL.dock), [0.7, 1, 0.8], 6); }
     }
   };
   A.env = () => env(A.tau, T);
@@ -462,7 +476,7 @@ ACT.weapons = pl => {
     const sp = aimSphere(tg), R = sp.hole ? tg.holeR*1.6 : sp.r;
     // aim somewhere on the part of the body the gun can see, then find where the shot really lands (first hit of the line of fire)
     const fwd = V.dot(V.norm(V.mul(ship.offset, -1)), S_.h) > 0.25;   // (the bow gun when the body is ahead, the belly turret otherwise)
-    const ml = fwd ? [0.05, 0.93, 0] : [0.145, 0.45, 0], m = localPt(ml), M0 = V.add(ship.offset, m);   // (target-relative muzzle, for aiming only)
+    const ml = fwd ? HULL.gun : HULL.turret, m = localPt(ml), M0 = V.add(ship.offset, m);   // (target-relative muzzle, for aiming only)
     const e = V.norm(V.mul(M0, -1)), th = Math.acos(clamp(R/Math.max(V.len(M0), R*1.0001), 0, 1))*(0.2 + 0.3*r());
     // (toward the part of the body ahead of the ship, which is the part the trailing cameras see best)
     let a = perpTo(S_.h, e); a = V.len(a) > 1e-6 ? V.norm(a) : anyPerp(e); const ra = (r() - 0.5)*1.4; a = V.norm(V.add(V.mul(a, Math.cos(ra)), V.mul(V.cross(e, a), Math.sin(ra))));
@@ -532,7 +546,7 @@ ACT.skim = pl => {
     for (const q of A.trail) q.age += dt;
     while (A.trail.length && A.trail[0].age > 2.6) A.trail.shift();
     A.acc += dt;
-    if (A.low > 0.02 && A.acc > 1/45){ A.acc = 0; if (A.trail.length > 230) A.trail.shift(); A.trail.push({ q:V.add(ship.offset, localPt([0.08 + 0.06*rnd(), -0.95, (rnd() - 0.5)*0.3])), age:0, b:A.low }); }
+    if (A.low > 0.02 && A.acc > 1/45){ A.acc = 0; if (A.trail.length > 230) A.trail.shift(); const n = HULL.nozzle, sd = rnd() < 0.5 ? -1 : 1; A.trail.push({ q:V.add(ship.offset, localPt([n[0] + 0.02*(rnd() - 0.5), n[1] - 0.04*rnd(), sd*(n[2] + 0.02*(rnd() - 0.5))])), age:0, b:A.low }); }
   };
   A.env = () => env(A.tau, T);
   A.line = () => A.low > 0.05 ? `skimming ${tg.name}${tg === sun || tg.group === 'stars' ? "'s surface" : "'s cloud tops"} · refuelling ${Math.round(A.fuel)}%` : A.tau < 0 ? 'diving toward ' + tg.name + ' to refuel' : 'climbing away from ' + tg.name + ' · tanks at ' + Math.round(A.fuel) + '%';
@@ -544,7 +558,7 @@ ACT.skim = pl => {
       if (v) P_(p, col, 0.55*br, ship.rad*(1.2 + q.age*6)); if (prev && v && pv) L_(prev, p, col, 0.35*br); prev = p; pv = v; }
     // gas streaming into the scoop at the bow
     if (A.low > 0.02) for (let i=0;i<48;i++){ const u = (GT*1.4 + i*0.618) % 1, a = i*2.4 + GT*2, k = 1 - u;
-      const l = [0.02 + k*0.9 + Math.cos(a)*k*0.5, 0.96 + k*5.5, Math.sin(a)*k*0.6], p = shipPt(l); if (!occ(p)) P_(p, col, A.low*0.5*u, -2); }
+      const l = [k*0.9 + Math.cos(a)*k*0.5, HULL.gun[1] + 0.01 + k*5.5, Math.sin(a)*k*0.6], p = shipPt(l); if (!occ(p)) P_(p, col, A.low*0.5*u, -2); }
   };
   A.end = () => {};
   return A;
@@ -582,10 +596,10 @@ ACT.tractor = pl => {
     // sparks from the drill head (kept relative to the ship: the rock is held right beside it)
     for (const s of A.sparks){ s.age += dt; s.r = V.add(s.r, V.mul(s.v, dt)); s.v = V.mul(s.v, 1 - dt*1.5); }
     while (A.sparks.length && A.sparks[0].age > A.sparks[0].life) A.sparks.shift();
-    if (drill > 0.3 && !rk.hidden){ const c = A.contact(), n = V.norm(V.sub(localPt([0.145, 0.05, 0.02]), rk.offset));
+    if (drill > 0.3 && !rk.hidden){ const c = A.contact(), n = V.norm(V.sub(localPt(HULL.drill), rk.offset));
       for (let k=0;k<3;k++){ const v = V.mul(V.norm(V.add(V.mul(n, 0.4), V.mul(randDir(), 1))), ship.rad*(0.8 + 1.6*rnd())); A.sparks.push({ r:c.slice(), v, age:0, life:0.35 + 0.5*rnd() }); } }
   };
-  A.contact = () => { const d = V.norm(V.sub(localPt([0.145, 0.05, 0.02]), rk.offset)); return V.add(rk.offset, V.mul(d, rr*0.62)); };
+  A.contact = () => { const d = V.norm(V.sub(localPt(HULL.drill), rk.offset)); return V.add(rk.offset, V.mul(d, rr*0.62)); };
   A.env = () => env(A.tau, T + 1);
   A.line = () => { const t = A.tau; if (t < 2.2) return 'a passing rock ahead · locking the tractor beam'; if (t < 5.8) return 'tractor beam holding a ~1 km rock'; if (t < 10) return 'drilling a core sample from the rock';
     if (t < 11) return 'core sample stowed'; return 'rock released · it drifts on toward ' + tg.name; };
@@ -595,20 +609,20 @@ ACT.tractor = pl => {
     const beam = smooth(2.2, 2.8, tau)*(1 - smooth(10.8, 11.4, tau));
     if (beam > 0.01){
       // the beam: a faint cone from the emitter to the rock's outline, with rings of light running up it
-      const E = shipPt([0.145, -0.25, 0]), ax = V.sub(R, E), L = V.len(ax), u = V.mul(ax, 1/L), p1 = anyPerp(u), p2 = V.cross(u, p1);
+      const E = shipPt(HULL.tractor), ax = V.sub(R, E), L = V.len(ax), u = V.mul(ax, 1/L), p1 = anyPerp(u), p2 = V.cross(u, p1);
       for (let k=0;k<8;k++){ const a = k/8*6.2832 + tau*0.4, rim = V.add(R, V.mul(V.add(V.mul(p1, Math.cos(a)), V.mul(p2, Math.sin(a))), rr*1.05)); beamLine(E, rim, TEAL, 0.2*beam, occ, TEAL, 0.07*beam, 10, ship.rad*0.1); }
       for (let j=0;j<3;j++){ const f = 1 - ((tau*0.6 + j/3) % 1), c = V.add(E, V.mul(ax, f)), rad = rr*(0.12 + 0.95*f);
         let prev = null, pv = false; for (let k=0;k<=16;k++){ const a = k/16*6.2832, p = V.add(c, V.mul(V.add(V.mul(p1, Math.cos(a)), V.mul(p2, Math.sin(a))), rad)), v = !occ(p); if (prev && pv && v) L_(prev, p, TEAL, 0.3*beam*Math.sin(Math.PI*f)); prev = p; pv = v; } }
     }
     const drill = smooth(5.8, 6.1, tau)*(1 - smooth(9.8, 10, tau));
     if (drill > 0.01){
-      const D0 = shipPt([0.145, 0.05, 0.02]), c = V.add(ship.rel, A.contact());
+      const D0 = shipPt(HULL.drill), c = V.add(ship.rel, A.contact());
       beamLine(D0, c, [1, 0.85, 0.6], 1.1*drill, p => behindHull(p), [1, 0.95, 0.85], 1.3*drill);
       if (!occR(c)){ P_(c, [1, 0.6, 0.25], drill*(1.6 + 0.6*Math.sin(tau*43)), -6); P_(c, [1, 0.45, 0.15], drill*0.6, rr*0.35); }
     }
     for (const s of A.sparks){ const p = V.add(ship.rel, s.r), f = 1 - s.age/s.life, q = V.sub(p, V.mul(s.v, 0.05)); if (!occ(p)) L_(q, p, [1, 0.5, 0.15], 0.2*f, [1, 0.85, 0.5], 0.9*f); }
     // the sample: a small bright core rising into the belly bay
-    if (tau > 10 && tau < 10.9){ const u = smooth(10, 10.9, tau), p = V.lerp(V.add(ship.rel, A.contact()), shipPt([0.16, -0.42, 0]), u); if (!behindHull(p)) P_(p, [0.8, 1, 0.85], 1.5, -4); }
+    if (tau > 10 && tau < 10.9){ const u = smooth(10, 10.9, tau), p = V.lerp(V.add(ship.rel, A.contact()), shipPt(HULL.dock), u); if (!behindHull(p)) P_(p, [0.8, 1, 0.85], 1.5, -4); }
   };
   A.end = () => { rk.hidden = true; };
   return A;
@@ -800,7 +814,7 @@ function haloDraw(){
     for (let i=0;i<SWIRL.length;i++){ const q = SWIRL[i], a = GT*(1.2 + 2.5*u)*q.w, d = q.d, ca = Math.cos(a);   // (each grain turns round the ship's heading)
       const dd = V.add(V.add(V.mul(d, ca), V.mul(V.cross(h, d), Math.sin(a))), V.mul(h, V.dot(h, d)*(1 - ca)));
       const p = V.add(ship.rel, V.mul(dd, r*(0.8 + 0.3*q.w))); if (!behindHull(p)) P_(p, c, (0.15 + 0.7*u)*0.8, -2); }
-    const k = Math.floor(GT/0.07), core = shipPt([-0.01, -0.12, 0]);
+    const k = Math.floor(GT/0.07), core = shipPt(HULL.core);
     for (let a=0;a<5;a++){ if (lcg(k*7 + a)() > u) continue; const rr = lcg(k*13 + a*5), d = V.norm([rr() - 0.5, rr() - 0.5, rr() - 0.5]); let prev = core;
       for (let j=1;j<=6;j++){ const p = V.add(core, V.add(V.mul(d, r*j/6), V.mul([rr() - 0.5, rr() - 0.5, rr() - 0.5], r*0.25*Math.sin(Math.PI*j/6)))); L_(prev, p, [0.85, 0.95, 1], 0.9*u); prev = p; } }
     ringCam(ship.rel, R*(1.5 + 9*(1 - ((GT*0.8) % 1))), [0.55, 0.9, 1], 0.4*u, 64);
@@ -823,7 +837,7 @@ function haloReadout(){
   else if (S.phase === 'align') l = S.next.mode === 'fold' ? (S.spool > 0.05 ? 'fold drive spooling up · next stop: ' + S.next.tg.name : 'setting course for ' + S.next.tg.name) : (S.stretch > 0.05 ? 'jumping to light speed' : 'setting course for ' + S.next.tg.name + ' · light speed');
   else if (S.phase === 'light') l = 'light speed · to ' + S.leg.B.name + (S.t > S.leg.T - 0.6 ? ' · dropping out' : '');
   else l = 'folding space · to ' + S.next.tg.name;
-  return l + `\nthe Halo is made up · ~2.5 km wingtip to wingtip · visit ${S.visits}`;
+  return l + `\nthe Halo is made up · ~4.2 km from needle to engines · visit ${S.visits}`;
 }
 
 // ---------------------------------------------------------------- test hooks (tests/motion.mjs): force the next target, job or way of travel; skip ahead; read the last beams
