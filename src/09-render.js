@@ -651,8 +651,9 @@ function syncSettingsUI(){
 let soundShown = '', soundSilentAtInput = false, soundHeard = false;
 function syncSoundBtn(force){
   const on = SET.sound && music.audible, c = isCompact(), key = (on ? 'on' : 'off') + (c ? 'c' : 'd');
-  // the first track's name shows when it can first be heard (not at load, while the browser still holds it back)
-  if (on && !soundHeard){ soundHeard = true; if (music.track) toast('♪ ' + music.track.name); }
+  // the first track's name shows when it can first be heard (not at load, while the browser still holds it back),
+  // once the note the first click brought up has gone (it used to replace "riding along with the Halo..." at once)
+  if (on && !soundHeard && !$('#toast').classList.contains('on')){ soundHeard = true; if (music.track) toast('♪ ' + music.track.name); }
   if (key === soundShown && !force) return; soundShown = key;
   const b = $('#btnSound');
   b.classList.toggle('silent', !on); b.setAttribute('aria-pressed', String(on));
