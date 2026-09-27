@@ -251,9 +251,12 @@ const earth = (() => {
     fact:'The only world known to have life. Real coastlines, weather systems pushed by the trade winds and westerlies, city lights on the night side and auroras over the poles.',
     parent:sun, offset:planetPos(PLANET_EL.earth, JD_NOW), rad:R*bound, solid:0.893, R0:poleFrame(0, 90), prog:P.earth, tex:'earth', tex2:'lights', minZoom:1.035, pxMin:5, farColor:[0.55, 0.7, 1], farLum:0.9, labelRange:2e-3,
     distEarth:'home', aka:'home world planet blue marble',
+    // tours play three of the angles (day side, the horizon up close, the night side with its city lights): about 30 s instead of a minute
+    tourViews:[0, 2, 1],
     views:[
       {dirFn:() => sunSide(o, 0.95, 0.32), k:3.1, hold:9, drift:0.035},
-      {dirFn:() => sunSide(o, 2.75, 0.22), k:2.1, hold:9, drift:0.03},
+      // the night side with a lit crescent beside it (from further round, 2.75 rad, it was a dark disc: on a phone it looked empty)
+      {dirFn:() => sunSide(o, 1.8, 0.25), k:2.0, hold:9, drift:0.03},
       {dirFn:() => sunSide(o, 0.55, 0.05), k:1.3, off:[0, 0.62, 0], hold:8, drift:0.012},
       // pull back from behind Earth, with the Moon hanging beyond it, until the true gap between them opens up (30 Earths wide)
       {dirFn:() => { const m = V.norm(moon.offset), L = sunDirFrom(o), c = V.norm(V.sub(L, V.mul(m, V.dot(L, m)))); return V.norm(V.add(V.mul(m, -1), V.mul(c, 0.55))); },

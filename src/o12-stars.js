@@ -110,11 +110,13 @@ const trappist = namedStar('trappist1', 'TRAPPIST-1', hms(23,6,29), dms(-5,2,29)
   star:{ cells:28, act:0.9, prom:0.5 }, bound:120, farLum:0.2, labelRange:600, aka:'trappist exoplanets',
   views:[{d:[0.3, 0.55, 1], k:0.62, hold:10, drift:0.03}, {d:[0.2, 0.12, 1], k:0.25, hold:8, drift:0.03}],
   readout:() => 'all seven planets fit within 0.062 AU of the star\nfrom one planet, the others look bigger than our Moon' });
-[['b', 1.116, 0.01154, 1.51, 14], ['c', 1.097, 0.0158, 2.42, 14], ['d', 0.788, 0.02227, 4.05, 15], ['e', 0.920, 0.02925, 6.10, 15], ['f', 1.045, 0.03849, 9.21, 13], ['g', 1.129, 0.04683, 12.35, 13], ['h', 0.755, 0.06189, 18.77, 13]].forEach(([l, r, a, P, kind], i) => {
+// (e is drawn as a temperate world locked to its star, kind 20: sea under the star, ice beyond and on the night side; a guess, and its readout says so)
+[['b', 1.116, 0.01154, 1.51, 14], ['c', 1.097, 0.0158, 2.42, 14], ['d', 0.788, 0.02227, 4.05, 15], ['e', 0.920, 0.02925, 6.10, 20], ['f', 1.045, 0.03849, 9.21, 13], ['g', 1.129, 0.04683, 12.35, 13], ['h', 0.755, 0.06189, 18.77, 13]].forEach(([l, r, a, P, kind], i) => {
   const b = addBody({ key:'trappist1' + l, name:'TRAPPIST-1' + l, type:'exoplanet', parent:trappist, R:6371*r, pole:[0, 90], kind, lightFrom:trappist, group:'stars', atlas:l === 'e', sortKey:40.7 + i*1e-6,
-    labelRange:0.004, farLum:0.25, fact:l === 'e' ? 'The most Earth-like of the seven: about Earth\'s size and density, in the zone where water could stay liquid.' : 'One of seven rocky planets circling TRAPPIST-1.',
-    readout:() => `orbit ${P} days at ${a} AU` });
+    labelRange:0.004, farLum:0.25, fact:l === 'e' ? 'The most Earth-like of the seven: about Earth\'s size and density, in the zone where water could stay liquid. It probably keeps one side facing its star, as the Moon does with Earth.' : 'One of seven rocky planets circling TRAPPIST-1.',
+    readout:() => `orbit ${P} days at ${a} AU` + (l === 'e' ? ' · 0.92 times Earth\'s width\nillustrative: the sea under its star and the ice around it are a guess; no one knows yet if it has air or water' : '') });
   b.update = function(){ const th = i*2.1 + this.t*2*Math.PI/(P*4); this.offset = M3.apply(trappist.R0, [a*AU_LY*Math.cos(th), 0, -a*AU_LY*Math.sin(th)]); this.pos = V.add(trappist.pos, this.offset); this.rot = M3.mul(trappist.R0, M3.rotY(th)); };
   b.views = [{dirFn:() => sunSide(b, 0.7, 0.2), k:3, hold:7, drift:0.03}];
+  if (l === 'e') b.views.push({dirFn:() => sunSide(b, 1.2, 0.3), k:2.6, hold:7, drift:0.03});   // the line between its day and night sides
   b.update();
 });

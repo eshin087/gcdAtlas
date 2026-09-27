@@ -58,7 +58,7 @@ addObj({
 });
 ```
 
-Views: `d` direction in the object frame, `k` distance in bounding radii, `off` look-at offset, `hold` seconds, `drift` orbit speed. A view with `to:{...}` is a camera move (flyby) played over its hold; `offW:'dist'` keeps the subject in frame on long pull-backs.
+Views: `d` direction in the object frame, `k` distance in bounding radii, `off` look-at offset, `hold` seconds, `drift` orbit speed. A view with `to:{...}` is a camera move (flyby) played over its hold; `offW:'dist'` keeps the subject in frame on long pull-backs. `tourViews:[0, 2, 1]` on the object limits (and orders) the views a tour plays there; picked by itself the object still loops through all of them.
 
 Helpers: `addStar`, `namedStar`, `addBody` (planets and moons with IAU rotation), `addGalaxy` (parametric spiral/elliptical/ring), `addProbe` (spacecraft models), `addMarker` (labels only), `clusterPS`, `makeSpikes`, `orbitLine`, `addComet` and `addShower` (`src/objects/p6-comets.js`).
 
@@ -68,7 +68,7 @@ Objects that stand for a past moment or a replay (the comets frozen at their bes
 
 - `orbit` (yaw, pitch, dist, target, frame) drives the camera around the locked object; `applyOrbit()` builds the basis. `skyCamera()` replaces it in planetarium mode.
 - `startFlight(o, viewParams)` flies with a van Wijk–Nuij zoom-and-pan path; duration depends on the travel setting.
-- Tours (`08t-tours.js`): named lists of stops with captions. `tourGo`, `updateTour` (holds and swings between views, plays flyby moves), `stopTour` remembers `tour.last` for *resume tour*.
+- Tours (`08t-tours.js`): named lists of stops with captions. `tourGo`, `updateTour` (holds and swings between views, plays flyby moves), `stopTour` remembers `tour.last` for the green *back to the tour* button beside the name (`goNextState` in `09-render.js`). `tourViews(o)` lists the angles a tour plays at a stop: all of them unless the object sets `tourViews` (Earth plays three).
 
 ## 7. Interface modules
 

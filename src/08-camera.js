@@ -3,12 +3,18 @@
 const cam = { focus:0, rel:[0,0,1], fwd:[0,0,-1], right:[1,0,0], up:[0,1,0], fovY:55*DEG };
 const orbit = { yaw:0, pitch:0.1, dist:1, distT:1, lock:0, off:[0,0,0], offFn:null, target:[0,0,0], frame:M3.I() };
 let flight = null, tween = null;
-const tour = { on:true, obj:0, view:0, phase:'hold', t:0 };
+const tour = { on:true, obj:0, view:0, to:null, phase:'hold', t:0 };   // (to: the angle a swing is heading for)
 const keys = new Set();
 let timeScale = 1, manualAt = -1e9, zoomAt = -1e9;
 // on phones the camera looks slightly off-centre so the object sits in the middle of the space the interface leaves free (radians, set by 09h-ui.js)
 const viewShift = { x:0, y:0 };
+// the leash: two fingers moving together slide the locked object across the screen without letting go of it. x, y: how far its centre sits
+// from the middle of the free space, in CSS pixels (right, down); bx, by: how far it may go (35% of the free space); avoid: a rectangle its
+// centre stays out of (the card, on a phone on its side). The limits are set by 09h-ui.js. It eases back to the middle when play, a tour
+// or a flight takes over, or after a double-tap on the sky (home).
+const leash = { x:0, y:0, bx:0, by:0, avoid:null, home:false };
 let wakeTapAt = -1e9;   // a tap that only woke the faded interface does not also pick an object
+let freeFrom = -1;      // the object the camera last let go of: play and the "back to" pill fly back to it, and the free camera keeps moving with it while near
 
 // the frame the camera orbits in when locked on o: its own frame, unless it supplies a camera frame (the Halo: up is its deck, behind is its stern)
 const camFrameOf = o => o.camFrame ? o.camFrame() : o.R0;
@@ -18,9 +24,16 @@ function setBasis(fwd, up){
   let r = V.cross(cam.fwd, up);
   if (V.len(r) < 1e-6) r = V.cross(cam.fwd, V.norm([up[1], up[2], up[0]]));
   cam.right = V.norm(r); cam.up = V.cross(cam.right, cam.fwd);
-  if ((viewShift.x || viewShift.y) && !SKYV.on){
+  let shX = viewShift.x, shY = viewShift.y;
+  if ((leash.x || leash.y) && !SKYV.on){
+    // after the turn below the target sits at X = tan(shX)/cos(shY), Y = tan(shY) on screen (in units of tanX, tanY per half screen):
+    // move it by the leash's pixels exactly
+    const Y = Math.tan(shY) - leash.y/Math.max(viewHcss/2, 1)*tanY, X = Math.tan(shX)/Math.cos(shY) + leash.x/Math.max(viewWcss/2, 1)*tanX;
+    shY = Math.atan(Y); shX = Math.atan(X*Math.cos(shY));
+  }
+  if ((shX || shY) && !SKYV.on){
     // turn the view a little (left for x > 0, down for y > 0) so the target appears right of / above the centre
-    const cx = Math.cos(viewShift.x), sx = Math.sin(viewShift.x), cy = Math.cos(viewShift.y), sy = Math.sin(viewShift.y);
+    const cx = Math.cos(shX), sx = Math.sin(shX), cy = Math.cos(shY), sy = Math.sin(shY);
     let f = V.sub(V.mul(cam.fwd, cx), V.mul(cam.right, sx)); cam.right = V.add(V.mul(cam.right, cx), V.mul(cam.fwd, sx));
     cam.fwd = V.sub(V.mul(f, cy), V.mul(cam.up, sy)); cam.up = V.add(V.mul(cam.up, cy), V.mul(f, sy));
   }
@@ -198,13 +211,21 @@ function updateTween(dt){
   if (w.t >= w.dur){ orbit.offFn = w.to.offFn || null; tween = null; w.onDone && w.onDone(); }
 }
 const TOUR = [];   // filled after all objects exist (list of object indices)
+// the angles a tour plays at a stop (indices into o.views): all of them, unless the object lists fewer for tours (tourViews: Earth plays
+// three there, about 30 s instead of a minute; picked by itself it still loops through all of them)
+const TVIEWS = new WeakMap();
+function tourViews(o){
+  let c = TVIEWS.get(o);
+  if (!c || c.v !== o.views){ const all = o.views.map((_, i) => i), L = (o.tourViews || []).filter(i => o.views[i]); c = { v:o.views, L:L.length ? L : all }; TVIEWS.set(o, c); }
+  return c.L;
+}
 // the guided tour: outward from home to the edge of the observable universe
 const TOUR_KEYS = ['earth', 'moon', 'sun', 'jupiter', 'saturn', 'solarsystem', 'oort', 'alphacen', 'betelgeuse', 'hltau', 'catseye', 'pillars', 'crab', 'crabpulsar', 'etacar', 'rsoph',
   'omegacen', 'galcentre', 'sgra', 'magnetar', 'milkyway', 'sn1987a', 'andromeda', 'm51', 'antennae', 'm87', 'gw170817', '3c273', 'ton618', 'cosmicweb', 'universe'];
 function tourGo(i, instant){
-  const o = OBJ[i]; tour.obj = i; tour.view = 0; tour.t = 0; tour.last = null; show.on = show.pending = false; motion.last = 'tour';
+  const o = OBJ[i]; tour.obj = i; tour.view = tourViews(o)[0]; tour.to = null; tour.t = 0; tour.last = null; show.on = show.pending = false; motion.last = 'tour';
   o.tourReset && o.tourReset();
-  const vp = viewParams(o, 0);
+  const vp = viewParams(o, tour.view);
   setInfo(i);
   if (instant){
     cam.focus = i; orbit.lock = i; orbit.frame = camFrameOf(o); orbit.off = vp.off.slice(); orbit.offFn = vp.offFn;
@@ -224,10 +245,12 @@ function updateTour(dt){
     else if (v.track) trackView(o, v, dt);
     else orbit.yaw += v.drift*dt;
     if (tour.t > hold){
-      if (tour.view < o.views.length - 1){
-        tour.phase = 'swing'; tour.t = 0;
-        startTween(viewParams(o, tour.view + 1), swingDur());
-        tween.onDone = () => { tour.view++; tour.phase = 'hold'; tour.t = 0; };
+      const L = tourViews(o), k = L.indexOf(tour.view);
+      if (k >= 0 && k < L.length - 1){
+        const next = L[k + 1];
+        tour.phase = 'swing'; tour.t = 0; tour.to = next;
+        startTween(viewParams(o, next), swingDur());
+        tween.onDone = () => { tour.view = next; tour.to = null; tour.phase = 'hold'; tour.t = 0; };
       } else tourGo(tourNext(1));
     }
   }
@@ -295,11 +318,11 @@ const swingDur = () => SET.travel === 'warp' ? 1.4 : SET.travel === 'quick' ? 2.
 function retimeFlight(){ if (!flight || !flight.durs) return; const x = clamp(flight.t/flight.dur, 0, 1), d = flight.durs[SET.travel] || flight.dur; flight.dur = d; flight.t = x*d; }
 // ---------------------------------------------------------------- the angle loop: an object you pick yourself plays its tour angles, round and round, until you take the camera
 // (pending: the loop starts when the flight there lands). motion.last remembers what play should bring back: the tour or the loop.
-const show = { on:false, pending:false, obj:-1, view:0, t:0, phase:'hold', free:false };   // free: a scale picked on the ladder, so the camera only circles slowly at that distance
+const show = { on:false, pending:false, obj:-1, view:0, to:null, t:0, phase:'hold', free:false };   // free: a scale picked on the ladder, so the camera only circles slowly at that distance
 const motion = { last:'tour' };
 function startShow(i, view = 0, free = false){
   const o = OBJ[i]; if (!o) return;
-  show.free = free; show.on = true; show.pending = false; show.obj = i; show.view = clamp(view, 0, o.views.length - 1); show.t = 0; show.phase = 'hold'; motion.last = 'show';
+  show.free = free; show.on = true; show.pending = false; show.obj = i; show.view = clamp(view, 0, o.views.length - 1); show.to = null; show.t = 0; show.phase = 'hold'; motion.last = 'show';
   updateModeUI();
 }
 function updateShow(dt){
@@ -314,9 +337,9 @@ function updateShow(dt){
   else orbit.yaw += v.drift*dt;
   if (show.t > hold && o.views.length > 1){
     const next = (show.view + 1) % o.views.length;
-    show.phase = 'swing'; show.t = 0;
+    show.phase = 'swing'; show.t = 0; show.to = next;
     startTween(viewParams(o, next), swingDur());
-    tween.onDone = () => { show.view = next; show.phase = 'hold'; show.t = 0; };
+    tween.onDone = () => { show.view = next; show.to = null; show.phase = 'hold'; show.t = 0; };
   }
 }
 // carry on from wherever the camera is: glide back into the current angle, then keep looping
@@ -324,10 +347,10 @@ function resumeShow(){
   const i = orbit.lock, o = OBJ[i]; if (!o) return;
   const view = show.obj === i ? show.view : 0;
   if (show.free && show.obj === i){ show.on = true; show.pending = false; show.phase = 'hold'; motion.last = 'show'; if (flight) finishFlightHere(); updateModeUI(); return; }
-  show.free = false; show.on = true; show.pending = false; show.obj = i; show.view = view; show.phase = 'swing'; show.t = 0; motion.last = 'show';
+  show.free = false; show.on = true; show.pending = false; show.obj = i; show.view = show.to = view; show.phase = 'swing'; show.t = 0; motion.last = 'show';
   if (flight) finishFlightHere();
   startTween(viewParams(o, view), swingDur()*0.8);
-  tween.onDone = () => { show.phase = 'hold'; show.t = 0; };
+  tween.onDone = () => { show.to = null; show.phase = 'hold'; show.t = 0; };
   updateModeUI();
 }
 function pauseShow(){ if (show.on || show.pending){ show.on = show.pending = false; motion.last = 'show'; if (show.phase === 'swing') tween = null; } }
@@ -338,9 +361,26 @@ function togglePlay(){
   else if (shipCam.on){ stopShipCam(); toast('paused · press play to ride along with the Halo again'); }
   else if (motion.last === 'ship' && typeof ship !== 'undefined' && orbit.lock === ship.index){ startShipCam(); }
   else if (show.on || show.pending || flyMove){ pauseShow(); flyMove = null; tween = null; toast('paused · the camera is yours · press play to carry on'); }
+  else if (backTarget()) goBack();
   else if (motion.last === 'show' && orbit.lock >= 0 && !cmp) resumeShow();
   else setTour(true);
   updateModeUI();
+}
+// in free camera, play (and the "back to" pill) flies back to the object you let go of and plays its angles again
+const backTarget = () => orbit.lock < 0 && !flight && !tour.on && !cmp && !SKYV.on && OBJ[freeFrom] && !OBJ[freeFrom].hidden ? OBJ[freeFrom] : null;
+function goBack(){
+  const o = backTarget(); if (!o) return;
+  hideHint(); lockOn(o.index, show.obj === o.index ? show.view : 0); toast('back to ' + o.name);
+}
+// home (the home button, the logo, H and the Home key): fly to Earth's opening view from anywhere. A running tour pauses, so "resume tour" can pick it up again.
+function goHome(){
+  hideHint();
+  if (SKYV.on){ exitSky(); return; }   // (leaving your sky flies back up to Earth)
+  if (cmpPick){ cmpPick = false; atlasTitle(); toggleAtlas(false); }
+  if (cmp) endCompare(false);
+  const touring = tour.on;
+  lockOn(earth.index, 0);
+  toast(touring ? 'home · Earth · the tour is paused: "back to the tour" picks it up again' : 'home · Earth');
 }
 // a camera move: glide from the view's own framing to its 'to' framing, easing in and out, distance changing smoothly in log space
 function playMove(o, v, u){
@@ -361,7 +401,7 @@ function setTour(on){
     let i = orbit.lock >= 0 ? orbit.lock : nearestObject();
     if (tour.last != null && TOUR.includes(tour.last)){ i = tour.last; toast('resuming the tour at ' + OBJ[i].name); }   // back to where the tour left off
     if (!TOUR.includes(i)) i = TOUR[0];
-    if (orbit.lock === i && !flight){ tour.obj = i; tour.view = 0; tour.t = 0; tour.phase = 'swing'; startTween(viewParams(OBJ[i], 0), 2.5); tween.onDone = () => { tour.phase = 'hold'; tour.t = 0; }; setInfo(i); }
+    if (orbit.lock === i && !flight){ const v0 = tourViews(OBJ[i])[0]; tour.obj = i; tour.view = tour.to = v0; tour.t = 0; tour.phase = 'swing'; startTween(viewParams(OBJ[i], v0), 2.5); tween.onDone = () => { tour.to = null; tour.phase = 'hold'; tour.t = 0; }; setInfo(i); }
     else tourGo(i);
   }
   updateModeUI();
@@ -396,52 +436,100 @@ function lockOn(i, viewIdx = 0, loop = true){
   flyTo(o, vp, loop ? () => { if (show.pending) startShow(i, vi); } : null);
   updateModeUI();
 }
-function unlock(){ shipCam.on = false; pauseShow(); if (orbit.lock < 0 && !tour.on) return; stopTour(false); if (flight) finishFlightHere(); orbit.lock = -1; orbit.offFn = null; updateModeUI(); }
+function unlock(){ shipCam.on = false; pauseShow(); if (orbit.lock < 0 && !tour.on) return; stopTour(false); if (flight) finishFlightHere(); letGo(); }
+// the camera lets go of the object it was locked on (free camera); remember which, so play can fly back and the view keeps moving with it
+function letGo(){ if (orbit.lock >= 0) freeFrom = orbit.lock; orbit.lock = -1; orbit.offFn = null; updateModeUI(); }
 function nearestObject(){ let b = 0, bd = 1e300; OBJ.forEach((o, i) => { if (o.layer < 2 || o.noPick || o.marker) return; const d = o.dist/o.rad; if (d < bd){ bd = d; b = i; } }); return b; }
 
 // ---------------------------------------------------------------- input
 const pointers = new Map();
-let drag = null;
+let drag = null, skyTap = null;
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 canvas.addEventListener('pointerdown', e => {
   canvas.setPointerCapture(e.pointerId);
   pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
   if (pointers.size === 1) drag = { x0:e.clientX, y0:e.clientY, t0:performance.now(), moved:0, pan:e.button === 2 || e.shiftKey };
-  else if (drag) drag.moved = 99;
+  else if (drag){ drag.moved = 99; drag.two = null; }   // (a new two-finger gesture starts from here)
   canvas.classList.add('dragging');
 });
 canvas.addEventListener('pointermove', e => {
   const p = pointers.get(e.pointerId); if (!p) return;
   const dx = e.clientX - p.x, dy = e.clientY - p.y;
-  if (pointers.size === 2){
-    const pts = [...pointers.values()];
-    const before = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+  if (pointers.size >= 2){
+    const [a, b] = pointers.values();   // (a third finger is ignored)
+    if (p !== a && p !== b){ p.x = e.clientX; p.y = e.clientY; return; }
+    const before = Math.hypot(a.x - b.x, a.y - b.y), mx0 = (a.x + b.x)/2, my0 = (a.y + b.y)/2;
     p.x = e.clientX; p.y = e.clientY;
-    const after = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    const after = Math.hypot(a.x - b.x, a.y - b.y), mx1 = (a.x + b.x)/2, my1 = (a.y + b.y)/2;
     beginManual();
-    if (before > 10 && after > 10) zoomBy(Math.pow(before/after, 1.6));
-    panBy(dx*0.5, dy*0.5);
+    twoFingers(before, after, mx0, my0, mx1, my1);
     return;
   }
   p.x = e.clientX; p.y = e.clientY;
-  if (!drag) return;
+  if (!drag || drag.dead) return;
   drag.moved += Math.abs(dx) + Math.abs(dy);
   if (drag.moved < 4) return;
   beginManual();
   if (drag.pan) panBy(dx, dy);
   else { orbit.yaw -= dx*0.005; orbit.pitch = clamp(orbit.pitch + dy*0.005, -1.52, 1.52); }
 });
+// two fingers (touch screens): the spread zooms exactly as far as the fingers spread (three times apart = three times closer), about the object,
+// never past its surface; moving both fingers together slides it across the screen on the leash, still locked on (in free camera: a pan).
+// A slide only starts once the fingers clearly travel together, so a pinch whose middle drifts a little stays a pure zoom.
+function twoFingers(before, after, mx0, my0, mx1, my1){
+  const g = drag || (drag = { moved:99 });
+  const T = g.two || (g.two = { mx:mx0, my:my0, sp:before, slide:false });
+  if (before > 10 && after > 10){ zoomBy(before/after); orbit.dist = orbit.distT; }   // (no easing: the view follows the fingers)
+  let dx = mx1 - mx0, dy = my1 - my0;
+  if (!T.slide){
+    const m = Math.hypot(mx1 - T.mx, my1 - T.my);
+    if (m < 16 || m < 0.8*Math.abs(after - T.sp)) return;
+    T.slide = true; dx = mx1 - T.mx; dy = my1 - T.my;   // (the slide catches up with the fingers)
+  }
+  if (SKYV.on) return;
+  if (orbit.lock >= 0) slideBy(dx, dy); else panBy(dx, dy);
+}
+// move the locked object across the screen by (dx, dy) CSS pixels, keeping it inside the leash box
+function slideBy(dx, dy){ leash.x += dx; leash.y += dy; leash.home = false; clampLeash(); }
+function clampLeash(){
+  leash.x = clamp(leash.x, -leash.bx, leash.bx); leash.y = clamp(leash.y, -leash.by, leash.by);
+  const A = leash.avoid; if (!A) return;
+  // where the object rests (the middle of the free space) and where the leash puts it; a centre that would sit on the card goes over its nearer free edge
+  const X0 = Math.tan(viewShift.x)/Math.cos(viewShift.y), Y0 = Math.tan(viewShift.y);
+  const rx = viewWcss/2*(1 + X0/tanX), ry = canvasHcss - viewHcss/2*(1 + Y0/tanY), px = rx + leash.x, py = ry + leash.y;
+  if (px <= A.left || px >= A.right || py <= A.top || py >= A.bottom) return;
+  const toTop = A.top - ry, toRight = A.right - rx, okTop = toTop >= -leash.by, okRight = toRight <= leash.bx;
+  if (okTop && (!okRight || py - A.top <= A.right - px)) leash.y = toTop; else if (okRight) leash.x = toRight;
+}
+function updateLeash(dt){
+  if (!leash.x && !leash.y){ leash.home = false; return; }
+  if (leash.home || orbit.lock < 0 || SKYV.on || flight || tween || cmp || isPlaying()){
+    const k = Math.exp(-dt*3); leash.x *= k; leash.y *= k;
+    if (Math.abs(leash.x) + Math.abs(leash.y) < 0.5){ leash.x = leash.y = 0; leash.home = false; }
+  } else clampLeash();   // (the phone may have turned, or the card grown: the object stays inside the box)
+}
 function endPointer(e){
   const wasTap = drag && pointers.size === 1 && drag.moved < 6 && performance.now() - drag.t0 < 450;
   pointers.delete(e.pointerId);
-  if (pointers.size === 0){ canvas.classList.remove('dragging'); if (wasTap && Math.abs(drag.t0 - wakeTapAt) > 150) pick(e.clientX, e.clientY); drag = null; }
+  // one finger of two lifted: the other one does nothing until it lifts too (it used to turn the pinch into a sudden orbit)
+  if (pointers.size === 1 && drag) drag.dead = true;
+  if (pointers.size === 0){ canvas.classList.remove('dragging'); if (wasTap && Math.abs(drag.t0 - wakeTapAt) > 150) tapAt(e.clientX, e.clientY); drag = null; }
+}
+// a tap picks what is under it; a double-tap on the sky brings the object on the leash back to the middle
+function tapAt(x, y){
+  if (pick(x, y)){ skyTap = null; return; }
+  const now = performance.now(), t = skyTap;
+  if (t && now - t.t < 450 && Math.hypot(x - t.x, y - t.y) < 45){ skyTap = null; if (leash.x || leash.y) leash.home = true; return; }
+  skyTap = { t:now, x, y };
 }
 canvas.addEventListener('pointerup', endPointer);
 canvas.addEventListener('pointercancel', endPointer);
-canvas.addEventListener('wheel', e => { e.preventDefault();
+function onWheel(e){ e.preventDefault();
   // riding along: the wheel moves the chase camera nearer or further back instead of letting go of the ship
   if (shipCam.on && shipCam.mode === 'chase'){ shipCam.zoom = clamp(shipCam.zoom*Math.exp(clamp(e.deltaY*(e.deltaMode ? 0.06 : 0.0022), -0.6, 0.6)), 0.55, 4); return; }
-  beginManual(); zoomBy(Math.exp(clamp(e.deltaY*(e.deltaMode ? 0.06 : 0.0022), -0.6, 0.6))); }, {passive:false});
+  beginManual(); zoomBy(Math.exp(clamp(e.deltaY*(e.deltaMode ? 0.06 : 0.0022), -0.6, 0.6))); }
+// labels and the Halo's brackets sit on top of the scene: a wheel over them zooms like a wheel over the sky (it used to do nothing)
+for (const el of [canvas, $('#labels'), $('#shipMark')]) el.addEventListener('wheel', onWheel, {passive:false});
 
 function beginManual(){
   manualAt = performance.now();
@@ -460,8 +548,9 @@ function zoomBy(f){
   orbit.distT = clamp(orbit.distT*f, lo, MAX_DIST); zoomAt = performance.now();
 }
 function zoomTo(d){ beginManual(); zoomAt = performance.now(); orbit.distT = clamp(d, orbit.lock >= 0 ? OBJ[orbit.lock].rad*OBJ[orbit.lock].minZoom : 1e-12, MAX_DIST); }
+// right-drag / shift-drag (and two fingers in free camera): pan; this lets go of the object (free camera)
 function panBy(dx, dy){
-  if (orbit.lock >= 0){ orbit.lock = -1; orbit.offFn = null; updateModeUI(); }
+  if (orbit.lock >= 0) letGo();
   const s = orbit.dist*0.0016;
   orbit.target = V.add(orbit.target, V.add(V.mul(cam.right, -dx*s), V.mul(cam.up, dy*s)));
 }
@@ -476,22 +565,20 @@ function pick(cx, cy){
     if (d < Math.max(rpx*0.8, 26) && pr.z < bz){ bz = pr.z; best = i; }
   });
   if (best >= 0) lockOn(best);
+  return best >= 0;
 }
 addEventListener('keydown', e => {
-  if (e.target.closest && (e.target.closest('input') || (e.target.closest('button') && (e.key === ' ' || e.key === 'Enter')))) return;
+  // (keys typed into a box or a slider stay there; Esc still closes the panel around a slider: the search boxes handle their own Esc)
+  if (e.target.closest && ((e.target.closest('input') && e.key !== 'Escape') || (e.target.closest('button') && (e.key === ' ' || e.key === 'Enter')))) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   const k = e.key.toLowerCase();
-  if (!$('#help').hidden){ if (k === 'escape' || k === '?' || k === 'h') toggleHelp(false); return; }
-  if (k === 'escape'){
-    if (!$('#settings').hidden || !$('#tours').hidden || !$('#timem').hidden){ togglePanel(null, false); return; }
-    if (!$('#atlas').hidden){ toggleAtlas(false); return; }
-    unlock(); return;
-  }
+  if (!$('#help').hidden){ if (k === 'escape' || k === '?') toggleHelp(false); return; }
+  if (k === 'escape'){ if (!closeOpen()) unlock(); return; }   // (an open panel closes first; with nothing open the camera lets go)
   if (k === ' '){ e.preventDefault(); togglePlay(); return; }
   if (k === '/' || k === 'o'){ e.preventDefault(); focusSearch(); return; }
   if (k === 'c' && typeof ship !== 'undefined'){ setShipCamMode(shipCam.on && shipCam.mode === 'chase' ? 'cockpit' : 'chase'); return; }
   if (k === 'y'){ setOpt('travel', cycle(['quick', 'warp', 'cinematic'], SET.travel)); return; }
-  if (k === 'm'){ setOpt('sound', !SET.sound); return; }
+  if (k === 'm'){ toggleSound(); return; }
   if (k === '[' || k === ']'){ stepObject(k === ']' ? 1 : -1); return; }
   if (k === '+' || k === '='){ beginManual(); zoomBy(0.6); return; }
   if (k === '-' || k === '_'){ beginManual(); zoomBy(1.7); return; }
@@ -499,13 +586,14 @@ addEventListener('keydown', e => {
   if (k === 'v'){ setOpt('detail', (detailIdx + 1) % DETAIL.length); return; }
   if (k === 'g'){ setOpt('glow', !SET.glow); return; }
   if (k === 'l'){ setOpt('labels', !SET.labels); return; }
-  if (k === '?' || k === 'h'){ toggleHelp(true); return; }
+  if (k === 'h' || k === 'home'){ e.preventDefault(); goHome(); return; }
+  if (k === '?'){ toggleHelp(true); return; }
   if ('wasdrfqe'.includes(k) && k.length === 1){ keys.add(k); if (!e.repeat) beginManual(); }
   if (k.startsWith('arrow')){ e.preventDefault(); keys.add(k); if (!e.repeat) beginManual(); }
 });
 addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => keys.clear());
-// next / previous (top-right arrows, [ ]): on a tour, the next tour stop; otherwise the next marker up or down the scale bar
+// next / previous ([ ]): on a tour, the next tour stop; otherwise the next marker up or down the scale bar
 function stepObject(dir){
   if (tour.on){ const n = tourNext(dir); tween = null; if (flight) finishFlightHere(); tourGo(n); return; }
   ladderStep(dir);
@@ -522,21 +610,22 @@ function ladderStep(dir){
   if (n < 0 || n >= L.length){ toast(n < 0 ? 'the Moon is the smallest marker on the scale bar' : 'the observable universe is the top of the scale bar'); return; }
   goLadder(L[n]);
 }
-// the arrows beside the object's name: step through its camera angles (the loop carries on from the new angle)
+// the arrows on the angle line: step through the camera angles (the loop carries on from the new angle). Each tap moves one angle,
+// also while the camera is still swinging to the last one: the step counts from the angle it is swinging to (fast taps used to be lost)
 function stepAngle(dir){
   if (shipCam.on){ setShipCamMode(shipCam.mode === 'chase' ? 'cockpit' : 'chase'); return; }
   if (cmp || flight) return;
   if (tour.on){
-    const o = OBJ[tour.obj], n = o.views.length; if (n < 2) return;
-    const next = (tour.view + dir + n) % n;
-    tour.phase = 'swing'; tour.t = 0; startTween(viewParams(o, next), swingDur()*0.7);
-    tween.onDone = () => { tour.view = next; tour.phase = 'hold'; tour.t = 0; };
+    const o = OBJ[tour.obj], L = tourViews(o), n = L.length; if (n < 2) return;
+    const cur = tour.phase === 'swing' && tween && tour.to != null ? tour.to : tour.view, next = L[(Math.max(L.indexOf(cur), 0) + dir + n) % n];
+    tour.phase = 'swing'; tour.t = 0; tour.to = next; startTween(viewParams(o, next), swingDur()*0.7);
+    tween.onDone = () => { tour.view = next; tour.to = null; tour.phase = 'hold'; tour.t = 0; };
     return;
   }
   const i = orbit.lock; if (i < 0) return;
-  const o = OBJ[i], n = o.views.length, cur = show.obj === i ? show.view : 0, next = (cur + dir + n) % n;
-  show.on = true; show.pending = false; show.free = false; show.obj = i; show.phase = 'swing'; show.t = 0; motion.last = 'show';
-  startTween(viewParams(o, next), swingDur()*0.7); tween.onDone = () => { show.view = next; show.phase = 'hold'; show.t = 0; };
+  const o = OBJ[i], n = o.views.length, cur = show.obj !== i ? 0 : show.phase === 'swing' && tween && show.to != null ? show.to : show.view, next = (cur + dir + n) % n;
+  show.on = true; show.pending = false; show.free = false; show.obj = i; show.phase = 'swing'; show.t = 0; show.to = next; motion.last = 'show';
+  startTween(viewParams(o, next), swingDur()*0.7); tween.onDone = () => { show.view = next; show.to = null; show.phase = 'hold'; show.t = 0; };
   updateModeUI();
 }
 function updateKeys(dt){
@@ -547,8 +636,27 @@ function updateKeys(dt){
   if (keys.has('arrowup')) orbit.pitch = clamp(orbit.pitch + dt*1.0, -1.52, 1.52);
   if (keys.has('arrowdown')) orbit.pitch = clamp(orbit.pitch - dt*1.0, -1.52, 1.52);
   if (f || r || u){
-    if (orbit.lock >= 0){ orbit.lock = -1; orbit.offFn = null; updateModeUI(); }
+    if (orbit.lock >= 0) letGo();
     const sp = orbit.dist*1.1*dt;
-    orbit.target = V.add(orbit.target, V.add(V.add(V.mul(cam.fwd, f*sp), V.mul(cam.right, r*sp)), V.mul(cam.up, u*sp)));
+    orbit.target = V.add(orbit.target, keepNear(V.add(V.add(V.mul(cam.fwd, f*sp), V.mul(cam.right, r*sp)), V.mul(cam.up, u*sp))));
   }
+}
+// W A S D never takes the camera out into empty black space: it stays within FLY_REACH view distances (orbit.dist) of the nearest object's surface.
+// Flying toward something is always allowed; at the edge only the part of the move that would go further out is dropped, so the camera slides along it.
+// Zooming out widens the view, and with it the reach. (Objects the camera is inside, like the Oort cloud or the Milky Way, do not count.)
+const FLY_REACH = 8;
+let reachToastAt = -1e9;
+function keepNear(d){
+  const lim = FLY_REACH*Math.max(orbit.dist, 1e-30);
+  let g0 = Infinity, g1 = Infinity, b0 = null;
+  for (const o of OBJ){
+    if (o.layer < 2 || o.noPick || o.marker || o.hidden || o.magHide > 0.5 || o === ship || !(o.dist > o.rad)) continue;
+    const s = o.rad*(o.solid || 1), a = o.dist - s, n = Math.hypot(o.rel[0] - d[0], o.rel[1] - d[1], o.rel[2] - d[2]) - s;
+    if (a < g0){ g0 = a; b0 = o; }
+    if (n < g1) g1 = n;
+  }
+  if (!b0 || g1 <= lim || g1 <= g0) return d;
+  const out = V.mul(b0.rel, -1/Math.max(b0.dist, 1e-300)), k = V.dot(d, out);
+  if (performance.now() - reachToastAt > 5000){ reachToastAt = performance.now(); toast('free flight stays near ' + b0.name + ' · scroll out to go further'); }
+  return k > 0 ? V.sub(d, V.mul(out, k)) : d;
 }

@@ -5,7 +5,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const src = [...fs.readdirSync(path.join(ROOT, 'src')).filter(f => f.endsWith('.js')).map(f => 'src/' + f), ...fs.readdirSync(path.join(ROOT, 'src/objects')).map(f => 'src/objects/' + f)];
+// (the Halo showcase only names objects in its plan, as key:'moon' and so on, so it is left out)
+const src = [...fs.readdirSync(path.join(ROOT, 'src')).filter(f => f.endsWith('.js') && f !== '09i-showcase.js').map(f => 'src/' + f), ...fs.readdirSync(path.join(ROOT, 'src/objects')).map(f => 'src/objects/' + f)];
 const text = Object.fromEntries(src.map(f => [f, fs.readFileSync(path.join(ROOT, f), 'utf8')]));
 // where an object is defined: its key:'…' property, a namedStar('…' call, or a ['…', 'Name' table row, in that order
 const fileOf = key => src.find(f => text[f].includes(`key:'${key}'`)) || src.find(f => text[f].includes(`namedStar('${key}'`)) || src.find(f => new RegExp(`[\\[(]'${key}', '[A-Z]`).test(text[f])) || src.find(f => new RegExp(`key:\\s*'${key}'|'${key}'\\s*:\\s*\\{`).test(text[f])) || src.find(f => text[f].includes(`key:'${key.slice(0, -1)}' +`)) || '';

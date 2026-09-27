@@ -56,8 +56,12 @@ if (typeof ResizeObserver !== 'undefined'){ const ro = new ResizeObserver(() => 
 COMPACT_MQ.addEventListener('change', () => { applyInfoState(); syncSettingsUI(); updateModeUI(); roLast = ''; if (!isCompact()) setLadOpen(false); });
 PORTRAIT_MQ.addEventListener('change', syncLayout);
 addEventListener('resize', syncLayout);
-// on a phone, choosing a tour closes the panel so you can watch it
-$('#tours').addEventListener('click', e => { if (isCompact() && e.target.closest('.trow, #btnTour, #btnFree')) setTimeout(() => togglePanel('tours', false), 120); });
+// picking or resuming a tour closes the panel so you can watch it (on a desk it used to stay open over the caption);
+// on a phone the other choices close it too
+$('#tours').addEventListener('click', e => {
+  const t = e.target.closest('.trow, #btnTour, #btnFree'); if (!t) return;
+  if (isCompact() || t.classList.contains('trow') || (t.id === 'btnTour' && tour.on)) setTimeout(() => togglePanel('tours', false), 120);
+});
 
 // ---------------------------------------------------------------- phones: the scale ladder opens from a chip, and folds away again by itself
 let ladOpenAt = 0;
@@ -99,10 +103,10 @@ addEventListener('pointermove', e => {
   }
   wakeUI();
 }, { capture:true, passive:true });
-// on a touch screen the first tap after a fade only brings the interface back: it does not pick an object on the canvas,
-// and its click does not reach a label or anything else under the finger
+// on a touch screen the first tap after a fade on the sky only brings the interface back: it does not pick an object on the canvas,
+// and its click does not reach a label (they stay on screen, part of the sky). A tap on a faded button works at once, and brings the rest back.
 addEventListener('pointerdown', e => {
-  if (IDLE.on && e.pointerType !== 'mouse'){ wakeTapAt = performance.now(); IDLE.eatClick = performance.now(); }
+  if (IDLE.on && e.pointerType !== 'mouse' && (e.target === canvas || (e.target.closest && e.target.closest('#labels, #shipMark')))){ wakeTapAt = performance.now(); IDLE.eatClick = performance.now(); }
   wakeUI();
 }, { capture:true, passive:true });
 addEventListener('click', e => { if (IDLE.eatClick && performance.now() - IDLE.eatClick < 900){ IDLE.eatClick = 0; e.stopPropagation(); e.preventDefault(); } }, { capture:true });
@@ -119,6 +123,8 @@ function updateIdle(){
 // ---------------------------------------------------------------- phones: frame the object in the space the interface leaves free, not behind the card or an open panel
 let shiftT0 = 0, shiftTx = 0, shiftTy = 0;
 function shiftTarget(){
+  // the leash: the object slid by two fingers stays within 35% of the free space from its middle (the whole screen on a desk)
+  leash.bx = 0.35*viewWcss; leash.by = 0.35*viewHcss; leash.avoid = null;
   if (!isCompact() || SKYV.on){ shiftTx = shiftTy = 0; return; }
   const W = innerWidth, H = innerHeight, top = 44;
   if (PORTRAIT_MQ.matches){
@@ -131,6 +137,7 @@ function shiftTarget(){
     for (const el of els){ const r = el.getBoundingClientRect(); if (r.height > 0) bottom = Math.min(bottom, r.top); }
     const s = Math.max(0, (H - bottom - top)/2);
     shiftTx = 0; shiftTy = Math.atan(2*s/Math.max(viewHcss, 1)*tanY);
+    leash.by = 0.35*Math.max(bottom - top, 0.2*viewHcss);   // (so it stays clear of the card and the dock)
   } else {
     // on its side: panels open on the right, the card sits on the left; move the object into the free middle
     let left = 0, right = W, bottom = controlsEl.getBoundingClientRect().top;
@@ -143,8 +150,14 @@ function shiftTarget(){
     const sx = (left + right)/2 - W/2, sy = (H - bottom - top)/2;
     shiftTx = Math.atan(2*sx/Math.max(viewWcss, 1)*tanX);
     shiftTy = Math.atan(2*Math.max(0, sy)/Math.max(viewHcss, 1)*tanY);
+    leash.bx = 0.35*Math.max(right - left, 0.2*viewWcss); leash.by = 0.35*Math.max(bottom - top, 0.2*viewHcss);
+    if (card && card.width) leash.avoid = { left:card.left, top:card.top, right:card.right, bottom:card.bottom };   // (the card sits beside the free middle: never slide the object under it)
   }
 }
+// a pinch that starts on the card must not zoom the whole page (the CSS says so too; Safari also needs its gesture events stopped),
+// while one finger still scrolls the card
+for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev, e => e.preventDefault(), { passive:false });
+infoEl.addEventListener('touchmove', e => { if (e.touches.length > 1 && e.cancelable) e.preventDefault(); }, { passive:false });
 function updateShift(dt){
   shiftT0 -= dt; if (shiftT0 <= 0){ shiftT0 = 0.2; shiftTarget(); }
   const k = Math.min(1, dt*3.5);

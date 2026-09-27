@@ -11,6 +11,66 @@ All notable changes, newest first. Dates are UTC.
 - Smoother brightness. Each character's colour now makes up for the ink it has more or less than its brightness asks for, so gradients rise smoothly instead of in bands. The overall brightness of a view stays within about 2%.
 - Less work off screen. A galaxy or nebula whose outer edge reached behind the camera was drawn over the whole screen, even when it was out of sight: the Large Magellanic Cloud was drawn in many Sun, Earth and Jupiter views. Now only the part of the screen it can cover is drawn, and nothing when it is out of view. The picture is the same, and frames in the Sun, Earth and Crab Nebula views take about 7 to 25% less time to draw in a software renderer (a few percent less on a fast graphics card).
 
+## 0.8.5 · 2026-09-26
+
+**Say where it goes**
+- A green button beside the object's name says where it goes. On a tour it reads "next stop · Moon ›", and on the last stop "start again ›". Once you leave a tour it reads "back to the tour · Earth ›" and flies back to the stop you left. If you only paused on a stop (a drag, the pause button), it goes on to the next stop. With no tour involved it is hidden. The phone card has it too.
+- The camera-angle arrows moved onto the angle line: "‹ angle 1/5 [#####-----] ›". The grey ASCII bar is unchanged. Every tap moves one angle, also while the camera is still swinging to the last one (fast taps used to be lost), and the line shows the angle it is swinging to.
+- The tour's name above the object's name is a button: "GRAND TOUR ▾" opens the list of tours.
+- The row above the name says something useful: "stop 3 / 31" on a tour. Off a tour it names the kind of object ("gas giant") while the type line below is folded away. It used to read "-- / 31".
+- The ‹ › around "tours" in the top bar are gone, and so are both "resume tour" buttons (the green button does that now). [ and ] still step through the stops on a tour and along the scale bar otherwise. Pausing from the tours panel remembers the stop, like the pause button.
+- On a touch screen the first tap on a faded button works (it used to only bring the interface back). A tap on the sky still only brings it back. So does a tap on the line of the faded scale bar on a tablet (its names are buttons and work at once).
+- Esc closes whatever is open first: help, photo mode, Earth's story, the tours, time or settings panel, the atlas or the search. It lets go of the object only when nothing is open. It also closes a panel while one of its sliders has the focus.
+- The scale bar hides while the search or the atlas is open (it used to move out into the scene). Picking something from the search empties the search box.
+
+**Tour angles**
+- On a tour Earth plays three of its angles, about 30 s instead of a minute: the day side, the horizon up close and the night side. Picked by itself it still loops through all five.
+- Earth's night-side angle looked empty, especially on a phone: a dark disc with a few city lights. It now looks from a little further round, so a lit crescent sits beside the city lights.
+- Gaia BH1's second angle showed two small smudges. The camera now sits closer and nearer the line to the star, so the star's light bends into two long arcs around the shadow that close into a ring and open again.
+- Betelgeuse seen from above and SN 1987A's first angle (the rings before the flash) were small specks on a phone. Both cameras now sit closer.
+- Every grand tour angle was checked on a desk and a phone. Tours now skip the angles that looked empty: Jupiter's wide view of its moons (specks at that distance), and the views back at the Sun from behind Jupiter and Saturn, and Saturn's night side (a dark disc and a thin crescent). They still play when you pick the planet yourself.
+- Tours also skip the Crab Pulsar's closest angle: from 80 km its glow filled the whole screen with bright characters. Picked by itself it still plays.
+
+## 0.8.4 · 2026-09-26
+
+**Stay with it: phone gestures**
+- A pinch only zooms, and it follows your fingers exactly: spread them three times apart and the view comes three times closer (it used to zoom almost six times). It stays on the object and stops at its surface.
+- Two fingers moving together slide the object across the screen on a leash. The camera stays locked on, and the object's centre never goes further than about a third of the screen from the middle, so it cannot leave the screen or hide behind the card. It glides back to the middle when you press play, a tour takes over or you fly somewhere. A double-tap on the sky brings it back too.
+- Lifting one finger of a pinch no longer swings the camera round.
+- A pinch that starts on the info card no longer zooms the whole page (it could blow it up five times). One finger still scrolls the card.
+- While the camera is paused, the card shows one hint line: "drag to turn · pinch to zoom · double-tap to centre".
+- On a desk nothing changes here: a right-drag still lets go of the object and pans freely.
+
+**Home**
+- A home button: first in the dock on a phone, right after the search box on a desk ("⌂ home"). The logo, H and the Home key do the same. It flies to Earth's opening view from anywhere. A running tour pauses, and "resume tour" stays so you can pick it up again.
+- On narrow phones (under 380 px wide) the dock buttons share the width by the length of their words, so "settings" still fits beside home.
+- Help moved to the ? key and the ? button.
+
+**Free camera**
+- Once you let go of an object, the view keeps moving with it while you are near it. The Solar System clock used to carry it away: Earth moved out of view within a second.
+- The play button says where it goes: "back to the Moon" (space does the same). It flies back to the object you left and plays its angles again.
+- When that object has been off screen for a moment, a small pill at the edge of the screen points the way: "› back to the Moon · 10,000 km". Tap it to fly back.
+- The card no longer says "you are here" once you have left Earth. In free camera it reads "free camera · H for home" (on a phone, "free camera · ⌂ for home").
+- W A S D can no longer take you out into empty black space: the camera stays close to the nearest object, never more than eight times your viewing distance from its surface. Flying back toward it is always allowed; scroll out to go further. A note says so when you reach the edge.
+- The planets no longer swell around you. The enlarged Solar System overview used to switch on anywhere 1 to 2,000 AU from the Sun, so a camera that had just let go of Jupiter saw it grow hundreds of times around it. In free camera it now switches on only when you look at the system from outside: a wide view, with no planet near the camera.
+
+**Top bar (desk)**
+- Travel, resume tour and play / pause always sit together on the second row, with play at the far right. The play button's words can change ("pause", "back to the Moon") without anything else moving.
+
+## 0.8.3 · 2026-09-26
+
+**Quick wins**
+- The sound button shows when no music is playing: "sound off" in soft red with a thin red border (on phones, "muted" with a thin red ring), and the tooltip "Music is off: click to turn it on (M)". It does not blink, and it fades with the rest of the interface.
+- Before your first click the browser keeps the music silent, although the button used to say "sound". Now the button stays red until the music really plays, and a click on it then starts the music (it used to turn it off). M works the same way. The first track's name shows when the music starts, not while it is held back.
+- The top bar keeps its shape when you turn the music off. The sound button is always as wide as "sound off", so "pause" no longer drops to a second row at 1280 px wide; nothing moves at 1024 px either.
+- Scrolling over a label (the Moon's, a planet's, a moon's) zooms, as it does over the sky. It used to do nothing.
+- On a desktop, picking or resuming a tour closes the tours panel, so it no longer covers the caption.
+- Bigger targets to click or tap: the daily card's close button, and "less" and "hide" on the info panel, are 28 px tall. Names on the scale ladder are 28 px tall where the next name is at least that far away; where two sit closer, they grow only as far as the space between them. Nothing looks different.
+
+**Content**
+- TRAPPIST-1e, "the most Earth-like of the seven", was drawn as a lava world. It is now a temperate world that keeps one side to its star: open sea under the star, a few rocky islands, ice beyond and across the night side, clouds over the warmest water and a thin blue haze. A second angle looks at the edge between its day and night sides. The readout says the look is a guess: no one knows yet if it has air or water.
+- Voyager 1 now moves along its real path (fitted to JPL Horizons) as the Solar System clock runs. Its readout gives the light-time to Earth and counts down to the day it is first one light-day (173.1 AU, 25.9 billion km) from Earth: 18 November 2026. After that it says "now more than one light-day from Earth". Its distance from the Sun on its card and in the Solar System's readout follow the same path.
+
 ## 0.8.2 · 2026-09-26
 
 **New: the Halo's new look** (drawn after the owner's concept art; the ship is still fictional)

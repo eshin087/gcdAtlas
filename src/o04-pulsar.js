@@ -124,6 +124,7 @@ const crabPulsar = (() => {
     update(){ this.spin = this.t*OMEGA; this.magF = M3.mul(M3.rotY(this.spin), M3.rotZ(-AL)); this.m = M3.apply(this.magF, [0,1,0]); },
     setU(pr){ gl.uniform4f(pr.u.uP0, this.m[0], this.m[1], this.m[2], 0); gl.uniform4f(pr.u.uP1, RN, 1.4, 12, 0); gl.uniform4f(pr.u.uP2, 0, 0, 0, 0); },
     views:[{d:[0.4, 0.3, 1], k:1.6, hold:8, drift:0.04}, {d:[0.64, 0.77, 0], k:0.25, hold:8, drift:0}, {d:[0.2, 0.05, 1], k:0.04, hold:7, drift:0.05}],
+    tourViews:[0, 1],   // (tours skip the closest angle: from 80 km the glow round the star fills the whole screen with bright characters)
     particleVis:rpx => smooth(4, 14, rpx),
     particles:[
       {ps:spr, prog:'ptSprinkle', mode:1, sb:0.5, size:1.8, q0:()=>[OMEGA, Math.sin(AL), Math.cos(AL), 0]},

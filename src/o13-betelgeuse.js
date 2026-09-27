@@ -78,7 +78,7 @@ const betelgeuse = (() => {
   const o = addObj({ key:'betelgeuse', name:'Betelgeuse', label:'Betelgeuse', type:'red supergiant · the shoulder of Orion', group:'stars', sortKey:548,
     fact:'Placed where the Sun is, it would swallow Mercury, Venus, Earth and Mars. Its surface is a few giant boiling cells; in 2019-20 it dimmed when it coughed out a cloud of dust. It will explode as a supernova.',
     pos, rad:R/0.2, solid:0.2, R0:facingEarth(pos, [0, 0.25, 1], 0), prog:program(VS_RECT, FS_BETELGEUSE), minZoom:0.23, pxMin:5, farColor:[1, 0.55, 0.3], farLum:1, noImpostor:true, labelRange:9000, aka:'alpha orionis red supergiant',
-    views:[{d:[0.15, 0.25, 1], k:0.62, hold:10, drift:0.03}, {d:[0.3, 0.95, 0.35], k:1.9, hold:10, drift:0.02}, {d:[0.85, -0.2, 0.4], k:0.32, hold:8, drift:0.03}],
+    views:[{d:[0.15, 0.25, 1], k:0.62, hold:10, drift:0.03}, {d:[0.3, 0.95, 0.35], k:1.3, hold:10, drift:0.02}, {d:[0.85, -0.2, 0.4], k:0.32, hold:8, drift:0.03}],
     setU(pr){ gl.uniform4f(pr.u.uP0, 0.6 + 0.4*Math.sin(this.t*0.05), smooth(120, 500, this.rpx || 0), 0, 0); },
     readout:() => '764 times the Sun\'s radius · 3.6 AU · 548 light-years\nabout 100,000 times as luminous as the Sun, and only ~10 million years old' });
   return o;
