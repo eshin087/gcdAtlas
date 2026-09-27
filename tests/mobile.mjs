@@ -162,11 +162,11 @@ if (pz.room > 2 && pz.scroll < 2) fail('one finger no longer scrolls the card: '
 await page.evaluate(() => { __cosmos.setOpt('textSize', 1, true); document.querySelector('#infoMore').click(); });
 
 // home: from a tour stop far away, the home button flies to Earth and pauses the tour, and the card offers to resume it
-await page.evaluate(() => { const C = __cosmos; C.startTour('grand'); C.tourGo(C.BYKEY.crab.index, true); C.tick(1/60); });
+const hmAt = await page.evaluate(() => { const C = __cosmos; C.startTour('grand'); C.land(0.1); C.tourGo(C.BYKEY.crab.index, true); C.tick(1/60); return C.flight ? 'flying' : C.OBJ[C.orbit.lock].key; });
 await page.evaluate(() => document.querySelector('#btnHome').click());
-const hm = await page.evaluate(() => { const C = __cosmos; const r = { tour:C.tour.on, to:C.stepTarget }; C.land(0.3); r.lock = C.orbit.lock >= 0 ? C.OBJ[C.orbit.lock].key : null; return r; });
+const hm = await page.evaluate(at => { const C = __cosmos; const r = { at, tour:C.tour.on, to:C.stepTarget }; C.land(0.3); r.lock = C.orbit.lock >= 0 ? C.OBJ[C.orbit.lock].key : null; return r; }, hmAt);
 await page.waitForTimeout(400); await shot('11-home');
-if (hm.tour || hm.to !== 'earth' || hm.lock !== 'earth') fail('home did not fly to Earth and pause the tour: ' + JSON.stringify(hm));
+if (hm.at !== 'crab' || hm.tour || hm.to !== 'earth' || hm.lock !== 'earth') fail('home did not fly to Earth and pause the tour: ' + JSON.stringify(hm));
 if (!(await rect('#btnResumeI')).shown) fail('no resume tour in the card after going home');
 await page.evaluate(() => __cosmos.setOpt('labels', true, true));
 
@@ -177,6 +177,17 @@ const ld = await page.evaluate(() => { const c = document.querySelector('.contro
 if (ld.over > 1) fail('landscape dock overflows');
 if (ld.cardBottom > ld.dockTop + 1) fail('landscape card overlaps the dock');
 await page.tap('#btnAtlas'); await page.waitForTimeout(800); await shot('9-landscape-atlas');
+// on its side the card sits beside the object: a two-finger slide toward it stops with the object's centre on screen and off the card
+await page.evaluate(() => { document.querySelector('#atlasClose').click(); const C = __cosmos; C.setTour(false); C.view('earth', 0); C.tick(1/60); });
+await page.waitForTimeout(800);
+await touch('touchStart', [[500, 200, 0], [590, 200, 1]]);
+for (let i = 1; i <= 15; i++) await touch('touchMove', [[500 - i*40, 200 + i*30, 0], [590 - i*40, 200 + i*30, 1]]);
+await touch('touchEnd', []);
+const ls = await page.evaluate(() => { const C = __cosmos; C.tick(1/60); const p = C.proj('earth'), b = document.querySelector('#info').getBoundingClientRect();
+  return { lock:C.orbit.lock >= 0 ? C.OBJ[C.orbit.lock].key : null, x:Math.round(p.x), y:Math.round(p.y), card:[b.left, b.top, b.right, b.bottom].map(Math.round) }; });
+await shot('12-landscape-slide');
+if (ls.lock !== 'earth' || !(ls.x > 0 && ls.x < 844 && ls.y > 0 && ls.y < 390) || (ls.x > ls.card[0] + 1 && ls.x < ls.card[2] - 1 && ls.y > ls.card[1] + 1 && ls.y < ls.card[3] - 1))
+  fail('on its side a two-finger slide put Earth off screen or under the card: ' + JSON.stringify(ls));
 
 report('mobile', errors, 'screenshots in tests/out/mobile' + (lab ? ` · wake-up tap on "${lab.t}" checked` : '') + ` · pinch x${ratio.toFixed(2)} for fingers 3x apart · two-finger slide stays locked, Earth at ${Math.round(g2.x)}, ${Math.round(g2.y)} · home first in the dock`);
 await browser.close();

@@ -8,10 +8,11 @@ const keys = new Set();
 let timeScale = 1, manualAt = -1e9, zoomAt = -1e9;
 // on phones the camera looks slightly off-centre so the object sits in the middle of the space the interface leaves free (radians, set by 09h-ui.js)
 const viewShift = { x:0, y:0 };
-// the leash: two fingers moving together slide the locked object across the screen without letting go of it (radians, like viewShift, on top of it).
-// fx, fy: how far its centre may go from the middle of the free space, as a share of half that space (0.7 = 35% of the screen; set by 09h-ui.js on phones).
-// It eases back to the middle when play, a tour or a flight takes over, or after a double-tap on the sky (home).
-const leash = { x:0, y:0, fx:0.7, fy:0.7, home:false };
+// the leash: two fingers moving together slide the locked object across the screen without letting go of it. x, y: how far its centre sits
+// from the middle of the free space, in CSS pixels (right, down); bx, by: how far it may go (35% of the free space); avoid: a rectangle its
+// centre stays out of (the card, on a phone on its side). The limits are set by 09h-ui.js. It eases back to the middle when play, a tour
+// or a flight takes over, or after a double-tap on the sky (home).
+const leash = { x:0, y:0, bx:0, by:0, avoid:null, home:false };
 let wakeTapAt = -1e9;   // a tap that only woke the faded interface does not also pick an object
 let freeFrom = -1;      // the object the camera last let go of: play and the "back to" pill fly back to it, and the free camera keeps moving with it while near
 
@@ -23,7 +24,13 @@ function setBasis(fwd, up){
   let r = V.cross(cam.fwd, up);
   if (V.len(r) < 1e-6) r = V.cross(cam.fwd, V.norm([up[1], up[2], up[0]]));
   cam.right = V.norm(r); cam.up = V.cross(cam.right, cam.fwd);
-  const shX = viewShift.x + leash.x, shY = viewShift.y + leash.y;
+  let shX = viewShift.x, shY = viewShift.y;
+  if ((leash.x || leash.y) && !SKYV.on){
+    // after the turn below the target sits at X = tan(shX)/cos(shY), Y = tan(shY) on screen (in units of tanX, tanY per half screen):
+    // move it by the leash's pixels exactly
+    const Y = Math.tan(shY) - leash.y/Math.max(viewHcss/2, 1)*tanY, X = Math.tan(shX)/Math.cos(shY) + leash.x/Math.max(viewWcss/2, 1)*tanX;
+    shY = Math.atan(Y); shX = Math.atan(X*Math.cos(shY));
+  }
   if ((shX || shY) && !SKYV.on){
     // turn the view a little (left for x > 0, down for y > 0) so the target appears right of / above the centre
     const cx = Math.cos(shX), sx = Math.sin(shX), cy = Math.cos(shY), sy = Math.sin(shY);
@@ -473,19 +480,23 @@ function twoFingers(before, after, mx0, my0, mx1, my1){
   if (orbit.lock >= 0) slideBy(dx, dy); else panBy(dx, dy);
 }
 // move the locked object across the screen by (dx, dy) CSS pixels, keeping it inside the leash box
-function slideBy(dx, dy){
-  const tx = Math.tan(leash.x) + dx/Math.max(viewWcss/2, 1)*tanX, ty = Math.tan(leash.y) - dy/Math.max(viewHcss/2, 1)*tanY;
-  leash.x = Math.atan(clamp(tx, -leash.fx*tanX, leash.fx*tanX)); leash.y = Math.atan(clamp(ty, -leash.fy*tanY, leash.fy*tanY)); leash.home = false;
+function slideBy(dx, dy){ leash.x += dx; leash.y += dy; leash.home = false; clampLeash(); }
+function clampLeash(){
+  leash.x = clamp(leash.x, -leash.bx, leash.bx); leash.y = clamp(leash.y, -leash.by, leash.by);
+  const A = leash.avoid; if (!A) return;
+  // where the object rests (the middle of the free space) and where the leash puts it; a centre that would sit on the card goes over its nearer free edge
+  const X0 = Math.tan(viewShift.x)/Math.cos(viewShift.y), Y0 = Math.tan(viewShift.y);
+  const rx = viewWcss/2*(1 + X0/tanX), ry = canvasHcss - viewHcss/2*(1 + Y0/tanY), px = rx + leash.x, py = ry + leash.y;
+  if (px <= A.left || px >= A.right || py <= A.top || py >= A.bottom) return;
+  const toTop = A.top - ry, toRight = A.right - rx, okTop = toTop >= -leash.by, okRight = toRight <= leash.bx;
+  if (okTop && (!okRight || py - A.top <= A.right - px)) leash.y = toTop; else if (okRight) leash.x = toRight;
 }
 function updateLeash(dt){
   if (!leash.x && !leash.y){ leash.home = false; return; }
   if (leash.home || orbit.lock < 0 || SKYV.on || flight || tween || cmp || isPlaying()){
     const k = Math.exp(-dt*3); leash.x *= k; leash.y *= k;
-    if (Math.abs(leash.x) + Math.abs(leash.y) < 2e-4){ leash.x = leash.y = 0; leash.home = false; }
-  } else {
-    // (the phone may have turned, or the card grown: the object stays inside the box)
-    leash.x = Math.atan(clamp(Math.tan(leash.x), -leash.fx*tanX, leash.fx*tanX)); leash.y = Math.atan(clamp(Math.tan(leash.y), -leash.fy*tanY, leash.fy*tanY));
-  }
+    if (Math.abs(leash.x) + Math.abs(leash.y) < 0.5){ leash.x = leash.y = 0; leash.home = false; }
+  } else clampLeash();   // (the phone may have turned, or the card grown: the object stays inside the box)
 }
 function endPointer(e){
   const wasTap = drag && pointers.size === 1 && drag.moved < 6 && performance.now() - drag.t0 < 450;
