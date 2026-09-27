@@ -4,6 +4,25 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.9.0 · 2026-09-27
+
+**New places**
+- Vesta, the brightest asteroid: a squashed ball about 525 km across with Rheasilvia, a crater about 500 km wide around its south pole, its central peak about 22 km high and the troughs round its equator, all at true height. It sits on its real orbit and turns on its real axis every 5.3 hours.
+- Bennu, the rubble pile NASA's OSIRIS-REx brought a sample home from in 2023: a spinning top about 500 m wide with a ridge round its middle and boulders everywhere.
+- Mimas joins the atlas with its real crater Herschel: 130 km wide, walls about 5 km high and a peak 6 km tall, so near sunset it looks like the Death Star. Its crater view looks for Herschel in sunlight, and the readout says when Saturn's shadow covers the moon (near Saturn's equinox, once an orbit).
+- Three planets of other stars: 51 Pegasi b, the first found around a Sun-like star (1995); K2-18 b, whose hydrogen-rich air JWST has analysed; HD 189733 b, the deep blue planet where it may rain glass. Their views turn with their fast orbits, so each keeps its day side, crescent or dusk.
+- Gaia BH3, the heaviest black hole found in our galaxy that was made by a star (33 Suns), with its ancient giant companion on an 11.6-year orbit, and its starlight bent into a ring.
+- T Coronae Borealis, the Blaze Star: a red giant feeding a white dwarf that erupts about every 80 years. It last erupted in 1946; the nova here is a replay.
+- The Lagoon Nebula (M8), a star nursery cut by its dark lane, with the Hourglass and the cluster NGC 6530.
+- The Hercules Cluster (M13), the globular cluster the Arecibo message was aimed at in 1974. Its readout counts how far the message has come.
+- The "our neighbourhood" tour now stops at Vesta, and "other worlds" at 51 Pegasi b and K2-18 b (the stops were already written).
+
+**Atlas**
+- A new heading, Other worlds, holds the planets of other stars (they were under Stars; their stars stay there).
+- New filter chips: moons & small worlds, star clusters, explosions & collisions and human-made. One object can sit in several chips (the Crab Nebula is a nebula and an explosion); the headings still list it once. Human-made (it was "spacecraft") holds the real spacecraft, not the made-up Halo; a saved "spacecraft" choice opens it.
+- On a phone the chosen chip scrolls into sight.
+- With ten more places in the atlas, today's discovery reshuffles on release day, and the collection log and badges count the new places.
+
 ## 0.8.6 · 2026-09-27
 
 **Calmer ASCII**
