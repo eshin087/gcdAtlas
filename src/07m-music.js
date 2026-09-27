@@ -250,6 +250,9 @@ const music = (() => {
   }
   return {
     get on(){ return wantOn; },
+    // really playing: wanted, started and not held back by the browser (before the first click the context stays suspended)
+    // (without Web Audio there is nothing to wait for, so the wish counts)
+    get audible(){ return AC ? !!(wantOn && running && ctx && ctx.state === 'running') : wantOn; },
     get track(){ return T; },
     get _dbg(){ return { ctx, master }; },   // for the level tests
     set onTrack(f){ onTrack = f; },

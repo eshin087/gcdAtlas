@@ -428,6 +428,8 @@ function updateHUD(dt){
     $('#progress').classList.toggle('hintish', !tour.on && f < 0);
     updateTourTrack();
     updateScale();
+    syncSoundBtn();   // (the browser may let the music start, or stop it, at any moment)
+    syncTickSizes();
   }
   updateLadder();
   updateLabels();
@@ -480,6 +482,14 @@ LADDER.forEach(m => {
   m.el = b; ladderEl.appendChild(b);
 });
 function ladTitles(){ LADDER.forEach(m => { m.el.title = `fly to ${m.name} · a view ${fmtLen(viewWidth(m.d)*LY)} wide`; m.el.setAttribute('aria-label', m.el.title); }); }
+// every name on the ladder is 28 px tall to tap, or as tall as the gap to the next name where two sit closer, so none covers its neighbour's name
+// (checked with the HUD, so it follows window and toolbar changes; the phone's ladder is measured when it opens)
+let tickLadH = -1;
+function syncTickSizes(){
+  const H = ladderEl.getBoundingClientRect().height; if (!H || Math.abs(H - tickLadH) < 0.5) return; tickLadH = H;
+  const ys = LADDER.map(m => (1 - ladFrac(m.d))*H);
+  LADDER.forEach((m, i) => { const g = Math.min(i > 0 ? Math.abs(ys[i] - ys[i - 1]) : 99, i < ys.length - 1 ? Math.abs(ys[i + 1] - ys[i]) : 99); m.el.style.minHeight = Math.min(28, g).toFixed(1) + 'px'; });
+}
 function goLadder(m){
   const o = BYKEY[m.key]; if (!o) return;
   hideHint();
@@ -569,6 +579,7 @@ function updateTourTrack(){
   $('#ladCap').textContent = `tour ${k + 1} / ${n}`;
   // with many stops only some names fit: always the current one, its neighbours, the ends, and an even spread
   const H = ladderEl.getBoundingClientRect().height, gap = H/Math.max(n - 1, 1), every = Math.max(1, Math.ceil(17/Math.max(gap, 1)));
+  const th = Math.min(28, gap).toFixed(1) + 'px'; if (tourTrack.style.getPropertyValue('--tt-h') !== th) tourTrack.style.setProperty('--tt-h', th);   // (see syncTickSizes)
   ttTicks.forEach((b, j) => {
     const cls = 'tick tt' + (j < k ? ' done' : j === k ? ' here' : '') + ((j === k || Math.abs(j - k) === 1 || j === 0 || j === n - 1 || j % every === 0) ? '' : ' mute');
     if (b.className !== cls) b.className = cls;
@@ -630,11 +641,28 @@ function syncSettingsUI(){
   document.querySelectorAll('.seg[data-key]').forEach(seg => { const k = seg.dataset.key; seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.v === v[k]))); });
   settingsEl.querySelectorAll('.tog button').forEach(b => b.setAttribute('aria-pressed', String(!!SET[b.dataset.key])));
   $('#volume').value = SET.volume;
-  $('#btnSound').setAttribute('aria-pressed', String(SET.sound)); $('#btnSound').textContent = SET.sound ? 'sound' : (isCompact() ? 'muted' : 'sound off');
+  syncSoundBtn(true);
   $('#textSize').value = SET.textSize; $('#tsTxt').textContent = Math.round(SET.textSize*100) + '%';
   $('#menuSize').value = SET.menuSize; $('#msTxt').textContent = Math.round(SET.menuSize*100) + '%';
   $('#detailInfo').textContent = `${cols} x ${rows} characters`;
 }
+// the sound button shows whether music really plays: a soft red "sound off" (on phones "muted") while it is off,
+// and also while the browser still holds it back before the first click, although the setting is on
+let soundShown = '', soundSilentAtInput = false, soundHeard = false;
+function syncSoundBtn(force){
+  const on = SET.sound && music.audible, c = isCompact(), key = (on ? 'on' : 'off') + (c ? 'c' : 'd');
+  // the first track's name shows when it can first be heard (not at load, while the browser still holds it back),
+  // once the note the first click brought up has gone (it used to replace "riding along with the Halo..." at once)
+  if (on && !soundHeard && !$('#toast').classList.contains('on')){ soundHeard = true; if (music.track) toast('♪ ' + music.track.name); }
+  if (key === soundShown && !force) return; soundShown = key;
+  const b = $('#btnSound');
+  b.classList.toggle('silent', !on); b.setAttribute('aria-pressed', String(on));
+  b.textContent = on ? 'sound' : (c ? 'muted' : 'sound off');
+  b.title = on ? 'Music is on: click to turn it off (M)' : 'Music is off: click to turn it on (M)';
+}
+// the button and M do what the button showed when they were pressed: while it was red they start the music, never stop it
+// (the press itself lets the browser start the music, so by the time of the click it may already be playing)
+function toggleSound(){ if (soundSilentAtInput) setOpt('sound', true); else setOpt('sound', !SET.sound); soundSilentAtInput = false; }
 function setOpt(key, v, quiet){
   switch (key){
     case 'detail': detailIdx = SET.detail = clamp(v | 0, 0, DETAIL.length - 1); adaptCount = 0; resize(); if (!quiet) toast(`detail: ${DETAIL[detailIdx].name} (${cols} x ${rows} characters)`); break;
@@ -793,7 +821,7 @@ function playFlyby(o){
   updateModeUI(); toast('flyby · ' + o.flyby.flyby);
 }
 $('#btnFlyby').addEventListener('click', () => { const o = OBJ[infoObj]; if (o.flyby) playFlyby(o); });
-music.onTrack = tr => { $('#nowPlaying').textContent = tr.name; if (SET.sound) toast('\u266a ' + tr.name); };
+music.onTrack = tr => { $('#nowPlaying').textContent = tr.name; if (SET.sound && music.audible) toast('\u266a ' + tr.name); };   // (no track name while the browser still holds the music back)
 $('#npSkip').addEventListener('click', () => { music.skip(); if (!SET.sound) toast('music is off · turn it on to hear the next track'); });
 $('#btnResume').addEventListener('click', () => { hideHint(); if (cmp) endCompare(false); setTour(true); });
 for (const b of ['#btnPlay', '#btnPlayM']) $(b).addEventListener('click', () => { hideHint(); if (cmp) endCompare(false); togglePlay(); });
@@ -801,12 +829,14 @@ $('#btnResumeI').addEventListener('click', () => $('#btnResume').click());
 $('#settingsHelp').addEventListener('click', () => { togglePanel('settings', false); toggleHelp(true); });
 $('#tourPrev').addEventListener('click', () => { hideHint(); stepObject(-1); });
 $('#tourNext').addEventListener('click', () => { hideHint(); stepObject(1); });
-$('#btnSound').addEventListener('click', () => setOpt('sound', !SET.sound));
+$('#btnSound').addEventListener('click', toggleSound);
 $('#btnHelp').addEventListener('click', () => toggleHelp(true));
 $('#helpClose').addEventListener('click', () => toggleHelp(false));
 $('#help').addEventListener('click', e => { if (e.target.id === 'help') toggleHelp(false); });
 function toggleHelp(on){ $('#help').hidden = !on; if (on) $('#helpClose').focus(); else canvas.focus({preventScroll:true}); }
 // browsers that block sound on load accept a click, tap or key press as permission (pointerup and touchend count on phones)
+// (first note whether the music was silent, before this very press lets it start: see toggleSound)
+for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => { soundSilentAtInput = !(SET.sound && music.audible); }, { capture:true, passive:true });
 for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown', 'wheel', 'touchstart']) addEventListener(ev, () => music.gesture(), { capture:true, passive:true });
 
 // ================================================================ main loop

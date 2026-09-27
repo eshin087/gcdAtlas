@@ -19,6 +19,7 @@
   --disp:"Major Mono Display","IBM Plex Mono",ui-monospace,monospace;
   --ts:1;   /* text size, set from settings */
   --cyan:#7fdcff;
+  --mute:#ff968c;   /* soft red: the music is off */
 }
 [hidden]{display:none!important}
 html,body{height:100%;margin:0;background:var(--void);color:var(--ink);overflow:hidden}
@@ -65,7 +66,8 @@ body:has(#view.dragging) *{-webkit-user-select:none;user-select:none}
 /* info panel controls: more / less, hide, and the pill that brings it back */
 .grip{display:none}
 .itools{margin-left:auto;display:inline-flex;gap:2px;pointer-events:auto}
-.itool{font:inherit;font-size:calc(10px*var(--ts));letter-spacing:.1em;text-transform:uppercase;color:var(--dim);background:none;border:1px solid transparent;border-radius:3px;padding:1px 6px;cursor:pointer}
+.itool{font:inherit;font-size:calc(10px*var(--ts));letter-spacing:.1em;text-transform:uppercase;color:var(--dim);background:none;border:1px solid transparent;border-radius:3px;padding:1px 6px;cursor:pointer;
+  min-height:28px;margin:-4.5px 0}   /* (a 28 px target; the negative margin keeps the row's height) */
 .itool:hover{color:var(--ink);border-color:var(--line)}
 .resume-i{display:none}
 body.info-compact .info .acts,body.info-compact .info .type,body.info-compact .info .fact,body.info-compact .info .readout,body.info-compact .info .scale{display:none}
@@ -108,12 +110,16 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 
 /* ---- controls, top right */
 .controls{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));top:calc(14px + env(safe-area-inset-top,0px));
-  display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:center;max-width:calc(100vw - 470px);z-index:6}
+  display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:center;max-width:calc(100vw - 440px);z-index:6}
 .btn{font-size:calc(11.5px*var(--ts));color:var(--dim);background:var(--panel);border:1px solid var(--line);border-radius:3px;
   padding:6px 10px;cursor:pointer;letter-spacing:.03em;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);white-space:nowrap}
 .btn:hover{color:var(--ink);border-color:rgba(200,215,245,.45)}
 .btn[aria-pressed="true"],.btn[aria-expanded="true"]{color:var(--flare);border-color:rgba(255,179,92,.6)}
 #btnShip[aria-pressed="true"]{color:var(--ship);border-color:rgba(143,230,255,.55)}
+/* the sound button: as wide as "sound off" either way, so the bar never re-wraps; soft red while no music plays (no animation, it fades with the bar) */
+#btnSound{min-width:calc(9.5ch + 22px);text-align:center}
+#btnSound.silent{color:var(--mute);border-color:rgba(255,128,118,.5)}
+#btnSound.silent:hover{color:#ffb8b0;border-color:rgba(255,128,118,.75)}
 .btn.primary{color:var(--ink)}
 .seg.mini{flex-wrap:nowrap;gap:0;background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:1px;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
 .seg.mini button{flex:0 0 auto;border:0;background:none;padding:4px 7px;font-size:calc(11px*var(--ts));border-radius:2px}
@@ -252,7 +258,7 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .atlas-open .ladder{right:calc(392px + env(safe-area-inset-right,0px))}
 .lad-cap{position:absolute;right:-2px;top:-26px;color:var(--dim);font-size:calc(10px*var(--ts));letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}
 .lad-track{position:absolute;inset:-6px -18px -6px -30px;cursor:ns-resize;touch-action:none}
-.tick{position:absolute;right:-3px;transform:translateY(-50%);display:flex;align-items:center;gap:7px;background:none;border:0;padding:2px 0 2px 8px;color:var(--soft);
+.tick{position:absolute;right:-3px;transform:translateY(-50%);display:flex;align-items:center;gap:7px;background:none;border:0;padding:2px 0 2px 8px;min-height:28px;color:var(--soft);   /* (28 px to tap, less where two names sit closer: syncTickSizes) */
   font-size:calc(11px*var(--ts));letter-spacing:.03em;white-space:nowrap;cursor:pointer;text-shadow:0 0 6px #000,0 0 3px #000}
 .tick::after{content:"";width:8px;height:2px;background:rgba(195,203,224,.7)}
 .tick:hover,.tick.near{color:var(--flare)}
@@ -267,13 +273,13 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .ladder.touring{background:linear-gradient(rgba(168,240,176,.35),rgba(168,240,176,.2))}
 .tour-track{position:absolute;inset:0}
 .tt-fill{position:absolute;left:-1px;bottom:0;width:4px;border-radius:2px;background:linear-gradient(0deg,#6fd08a,#a8f0b0);box-shadow:0 0 8px rgba(168,240,176,.6);transition:height .2s linear}
-.tick.tt{color:var(--soft)}
+.tick.tt{color:var(--soft);min-height:var(--tt-h,28px)}
 .tick.tt::after{background:rgba(168,240,176,.55)}
 .tick.tt.done{color:var(--faint)}
 .tick.tt.done::after{background:#6fd08a}
 .tick.tt.here{color:#a8f0b0;font-weight:600}
 .tick.tt.here::after{background:#a8f0b0;width:14px}
-.tick.tt.mute{font-size:0;gap:0}
+.tick.tt.mute{font-size:0;gap:0;min-height:0}   /* (unnamed tour stops stay small, so they do not cover their named neighbours) */
 .ladder.touring .ladmark::before{border-color:#a8f0b0;box-shadow:0 0 10px rgba(168,240,176,.6)}
 .ladder.touring .ladmark span{background:#a8f0b0}
 .ladder.touring .ladmark{pointer-events:none}
@@ -308,7 +314,8 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .d-top{display:flex;align-items:center;gap:8px}
 .d-lbl{color:#a8f0b0;font-size:calc(10px*var(--ts));letter-spacing:.14em;text-transform:uppercase;flex:1}
 .d-streak{color:var(--flare);font-size:calc(10px*var(--ts))}
-.d-x{background:none;border:0;color:var(--dim);cursor:pointer;font-size:calc(16px*var(--ts));line-height:1;padding:0 2px}
+.d-x{background:none;border:0;color:var(--dim);cursor:pointer;font-size:calc(16px*var(--ts));line-height:1;padding:0 2px;
+  display:grid;place-items:center;min-width:28px;min-height:28px;margin:-6px -7px -6px 0}   /* (a 28 px target; the negative margins keep the x where it was) */
 .d-x:hover{color:var(--ink)}
 .d-name{margin-top:4px;font-size:calc(15px*var(--ts));color:var(--ink);font-weight:500}
 .d-type{color:var(--dim);font-size:calc(11px*var(--ts))}
@@ -348,7 +355,7 @@ body.sky .info .acts,body.sky .ladder,body.sky .lad-chip,body.sky .progress{opac
 .st-name{margin-top:8px;color:var(--ink);font-size:calc(14px*var(--ts));font-weight:500}
 .st-text{margin-top:3px;color:var(--soft);font-size:calc(12px*var(--ts));min-height:3.4em;-webkit-user-select:text;user-select:text}
 
-@media (max-width:1100px){ .search input{width:170px} .controls{max-width:calc(100vw - 420px)} }
+@media (max-width:1100px){ .search input{width:170px} .controls{max-width:calc(100vw - 400px)} }
 /* ---- phones and small windows: a dock of big buttons at the bottom, the info as a card above it, the scale ladder behind a chip.
    --dock-h and --sheet-h are measured by src/09h-ui.js so captions, toasts and cards stack above them. */
 @media (max-width:680px), (max-height:520px) and (max-width:1000px){
@@ -364,7 +371,8 @@ body.sky .info .acts,body.sky .ladder,body.sky .lad-chip,body.sky .progress{opac
   .controls .btn[data-ico]::before{content:attr(data-ico);font-size:calc(17px*var(--ts));line-height:1.15}
   .controls .btn:hover{border-color:transparent}
   .controls .btn[aria-expanded="true"]{background:var(--flare-bg);color:var(--flare)}
-  #btnSound[aria-pressed="false"]{color:var(--faint)}
+  .controls #btnSound{min-width:0}
+  .controls #btnSound.silent{color:var(--mute);box-shadow:inset 0 0 0 1px rgba(255,128,118,.55)}
   .controls #btnRide{display:none}
   #btnShip[aria-pressed="true"]{background:rgba(143,230,255,.14);color:var(--ship)}
   #btnTours.touring{background:rgba(168,240,176,.1)}

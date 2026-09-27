@@ -314,10 +314,16 @@ vec3 surface(vec3 n, float kind, out float spec){
     float spot = exp(-dot(n - oc, n - oc)/0.0005) + 0.6*exp(-dot(n - oc - vec3(0.03, 0.01, 0.02), n - oc - vec3(0.03, 0.01, 0.02))/0.0002);
     return vec3(0.42, 0.41, 0.4)*(0.8 + 0.5*craters(n, 8.) + 0.3*craters(n, 19.) + 0.15*fbm3(n*5.)) + vec3(0.95)*spot;
   }
-  // temperate world: oceans, land and cloud (TRAPPIST-1e style guess)
-  float f = fbm(n*3.5 + 1.), cl = smoothstep(0.55, 0.75, fbm(n*5. + vec3(uTime*0.01, 0., 0.)));
-  vec3 c = mix(vec3(0.05, 0.14, 0.32), vec3(0.45, 0.35, 0.22), smoothstep(0.5, 0.56, f));
-  return mix(c, vec3(0.95), cl*0.8);
+  // temperate rocky world locked to its star (TRAPPIST-1e, an illustrative guess): open sea around the point under the star,
+  // a few rocky islands, ice beyond the warm middle and across the night side, and a slow swirl of cloud over the warmest water (plus a thin blue haze: atm in main)
+  float day = dot(n, gL), f = fbm(n*3.5 + 1.), g = fbm3(n*9. + 4.);
+  float sea = smoothstep(0.18, 0.42, day + 0.3*(f - 0.5));
+  vec3 water = mix(vec3(0.03, 0.1, 0.26), vec3(0.07, 0.19, 0.38), g);
+  vec3 rock = vec3(0.42, 0.35, 0.28)*(0.8 + 0.4*g);
+  vec3 ice = mix(vec3(0.78, 0.84, 0.92), vec3(0.96, 0.97, 1.), g)*(0.9 + 0.1*noise(n*24.));
+  vec3 c = mix(ice, mix(water, rock, smoothstep(0.64, 0.68, f)), sea);
+  float cl = smoothstep(0.55, 0.78, fbm(n*5. + vec3(uTime*0.01, 0., 0.)))*smoothstep(0.3, 0.8, day);
+  return mix(c, vec3(0.95), cl*0.6);
 }
 void main(){
   vec3 o, d; localRay(o, d);
@@ -326,8 +332,8 @@ void main(){
   vec2 h = sphIsect(o, d, vec3(0.), RP);
   vec3 col = vec3(0.); float alpha = 0.;
   bool giantX = kind > 15.5 && kind < 18.5;
-  vec3 atm = giantX ? (kind < 16.5 ? vec3(1., 0.55, 0.25) : (kind < 17.5 ? vec3(0.9, 0.8, 0.6) : vec3(0.8, 0.45, 0.55))) : kind < 0.5 || (kind > 4.5 && kind < 11.) || kind > 11.5 ? vec3(0.) : (kind < 1.5 ? vec3(1., 0.85, 0.55) : (kind < 2.5 ? vec3(0.95, 0.62, 0.45) : (kind < 3.5 ? vec3(0.55, 0.85, 0.95) : (kind < 4.5 ? vec3(0.4, 0.55, 1.) : vec3(0.95, 0.6, 0.25)))));
-  float atmK = giantX ? 0.8 : kind < 1.5 ? 0.9 : (kind < 2.5 ? 0.35 : (kind < 4.5 ? 0.7 : 1.));
+  vec3 atm = giantX ? (kind < 16.5 ? vec3(1., 0.55, 0.25) : (kind < 17.5 ? vec3(0.9, 0.8, 0.6) : vec3(0.8, 0.45, 0.55))) : kind > 19.5 ? vec3(0.45, 0.65, 1.) : kind < 0.5 || (kind > 4.5 && kind < 11.) || kind > 11.5 ? vec3(0.) : (kind < 1.5 ? vec3(1., 0.85, 0.55) : (kind < 2.5 ? vec3(0.95, 0.62, 0.45) : (kind < 3.5 ? vec3(0.55, 0.85, 0.95) : (kind < 4.5 ? vec3(0.4, 0.55, 1.) : vec3(0.95, 0.6, 0.25)))));
+  float atmK = giantX ? 0.8 : kind > 19.5 ? 0.4 : kind < 1.5 ? 0.9 : (kind < 2.5 ? 0.35 : (kind < 4.5 ? 0.7 : 1.));
   if(h.x > 0.){
     vec3 p = o + d*h.x, n = p/RP;
     gL = L; float spec; vec3 base = surface(n, kind, spec);
@@ -428,7 +434,8 @@ const solarSystem = (() => {
       // (seen from far out the belt is a few characters wide and its dots pile up into a solid blob: it dims as the view widens)
       {ps:belt, prog:'ptKepler', mode:3, sb:0.35, size:1.6, rad:AU_LY, rot:() => ECL, q0:() => [jdNow() - JD_NOW, 0, 0, 0], vis:() => beltVis()*(1 - 0.85*smooth(8e-5, 4e-4, orbit.dist))},
     ],
-    readout:() => `Neptune orbits 30 AU out · light takes 4 hours to get there\nVoyager 1, our farthest probe, is ~171 AU away after 49 years` +
+    readout:() => `Neptune orbits 30 AU out · light takes 4 hours to get there` +
+      (jdNow() >= VOY1.from ? `\nVoyager 1, our farthest probe, is ~${Math.round(V.len(voyager1At(jdNow()))/AU_LY)} AU away after ${Math.floor((jdNow() - VOY1.launch)/365.25)} years` : '') +
       (typeof SYSMAG !== 'undefined' && SYSMAG.k > 0.5 && BYKEY.jupiter.mag > 2 ? sysMagNote() : '') });
   function sysMagNote(){
     const hid = ['mercury', 'venus', 'earth', 'mars'].filter(k => BYKEY[k] && BYKEY[k].magHide > 0.5).map(k => BYKEY[k].name.replace(/^the /, ''));

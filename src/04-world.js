@@ -90,6 +90,12 @@ function orbitPoint(k, E){   // heliocentric galactic position (ly) at eccentric
 }
 function keplerE(M, e){ let E = M + e*Math.sin(M); for (let i=0;i<8;i++) E -= (E - e*Math.sin(E) - M)/(1 - e*Math.cos(E)); return E; }
 function planetPos(el, jd){ const k = orbitEls(el, jd); const M = (((k.L - k.wb) % 360) + 360) % 360*DEG; return orbitPoint(k, keplerE(M, k.e)); }
+// Voyager 1 coasting on a straight line through its JPL Horizons state on 2026-11-18 10:00 (heliocentric, J2000 equatorial; AU and AU per day).
+// Since its 1980 Saturn flyby it has barely curved: the line stays within about 0.02 AU of Horizons from 2020 to 2030 and within 1 AU back to 2000.
+// Before 1990 the line is no longer a fair guess, so the probe waits at its 1990 point.
+const VOY1 = { jd0:2461362.9167, p:[-32.22089719, -165.37072068, 36.50148939], v:[-1.195193872e-3, -9.471167736e-3, 2.082593396e-3], launch:2443391.5, from:2447892.5, LD:299792.458*86400/AU };   // (from: 1990 January 1)
+const voyager1At = jd => V.mul(eqToGal(V.add(VOY1.p, V.mul(VOY1.v, Math.max(jd, VOY1.from) - VOY1.jd0))), AU_LY);
+const voyager1FromEarth = jd => V.len(V.sub(voyager1At(jd), planetPos(PLANET_EL.earth, jd)))/AU_LY;   // AU
 // geocentric Moon (low-precision lunar theory), light-years
 function moonGeo(jd){
   const d = jd - 2451545, L = (218.316 + 13.176396*d)*DEG, M = (134.963 + 13.064993*d)*DEG, F = (93.272 + 13.229350*d)*DEG, D = (297.850 + 12.190749*d)*DEG;

@@ -172,11 +172,12 @@ const halo = await page.evaluate(() => {
   }
   r.beams = beams; r.beamWorst = worst;
   // a weapons test: blasts happen, and some seconds after the job every trace of them is gone
+  // (only what the job made counts: the streak the ship leaves when it jumps away from the Moon later is also tied to the Moon)
   D.force({ target:'moon', act:'weapons', travel:'light' }); D.replan(); D.skip();
   n = 0; while (!(S.phase === 'pass' && S.target.key === 'moon') && n++ < 30*60) C.tick(dt);
-  let blasts = 0; n = 0; while (D.act === 'weapons' && n++ < 30*40){ C.tick(dt); blasts = Math.max(blasts, D.FX.filter(e => e.anc === C.BYKEY.moon).length); }
+  const made = new Set(); let blasts = 0; n = 0; while (D.act === 'weapons' && n++ < 30*40){ C.tick(dt); const b = D.FX.filter(e => e.anc === C.BYKEY.moon); b.forEach(e => made.add(e)); blasts = Math.max(blasts, b.length); }
   for (let i=0;i<30*6;i++) C.tick(dt);
-  r.blasts = blasts; r.leftAfter = D.FX.filter(e => e.anc === C.BYKEY.moon).length;
+  r.blasts = blasts; r.leftAfter = D.FX.filter(e => made.has(e)).length;
   return r;
 });
 if (halo.stopped) fail('the Halo stood still for ' + halo.stopped + ' steps');
