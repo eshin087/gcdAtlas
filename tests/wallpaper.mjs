@@ -79,25 +79,31 @@ if (t0 === t1) bad.push('the tour did not move on to another stop');
 if (requests.length) bad.push('network requests in wallpaper mode: ' + requests.slice(0, 5).join(', '));
 
 // saved settings are ignored and left alone: a visitor's warp and sound stay theirs
-await page.evaluate(() => localStorage.setItem('gcdatlas.settings', JSON.stringify({ travel:'warp', sound:true, fadeUI:'off' })));
-await page.goto(PAGE + '?wallpaper=1');
-await page.waitForFunction(() => window.__cosmos && window.__cosmos.saver && window.__cosmos.saver.on, null, { timeout:30000 });
-const saved = await page.evaluate(() => ({ travel:window.__cosmos.SET.travel, sound:window.__cosmos.SET.sound, stored:JSON.parse(localStorage.getItem('gcdatlas.settings')) }));
+const { browser: b2, page: p2 } = await openPage({ query:'?wallpaper=1', fade:true });
+await p2.evaluate(() => { try { localStorage.setItem('gcdatlas.settings', JSON.stringify({ travel:'warp', sound:true, fadeUI:'off' })); } catch (e) {} });
+await p2.goto(PAGE + '?wallpaper=1');
+await p2.waitForFunction(() => window.__cosmos && window.__cosmos.saver && window.__cosmos.saver.on, null, { timeout:30000 });
+const saved = await p2.evaluate(() => {
+  const c = window.__cosmos;
+  let stored = null;
+  try { stored = JSON.parse(localStorage.getItem('gcdatlas.settings') || 'null'); } catch (e) {}
+  return { travel:c.SET.travel, sound:c.SET.sound, stored };
+});
 if (saved.travel !== 'cinematic' || saved.sound) bad.push('saved settings leaked into wallpaper mode: ' + JSON.stringify(saved));
-if (saved.stored.travel !== 'warp' || saved.stored.sound !== true) bad.push('wallpaper mode changed the saved settings: ' + JSON.stringify(saved.stored));
+if (!saved.stored || saved.stored.travel !== 'warp' || saved.stored.sound !== true) bad.push('wallpaper mode changed the saved settings: ' + JSON.stringify(saved.stored));
+await b2.close();
 
 // the normal screensaver: Z starts it with its HUD, moving the mouse brings the atlas back
-await page.evaluate(() => localStorage.setItem('gcdatlas.settings', JSON.stringify({ fadeUI:'off' })));
-await page.goto(PAGE);
-await page.waitForFunction(() => window.__cosmos && window.__cosmos.saver, null, { timeout:30000 });
-await page.mouse.move(100, 100); await page.keyboard.press('z');
-const on = await page.evaluate(() => ({ saver:window.__cosmos.saver.on, embedded:window.__cosmos.saver.embedded, hud:!document.querySelector('#saverHud').hidden, tourId:window.__cosmos.tourId, wallpaper:document.body.classList.contains('wallpaper') }));
+const { browser: b3, page: p3 } = await openPage({ fade:true });
+await p3.mouse.move(100, 100); await p3.keyboard.press('z');
+const on = await p3.evaluate(() => ({ saver:window.__cosmos.saver.on, embedded:window.__cosmos.saver.embedded, hud:!document.querySelector('#saverHud').hidden, tourId:window.__cosmos.tourId, wallpaper:document.documentElement.classList.contains('wallpaper') }));
 if (!on.saver || on.embedded || !on.hud || on.tourId !== 'saver' || on.wallpaper) bad.push('Z did not start the normal screensaver: ' + JSON.stringify(on));
-await page.waitForTimeout(1400);
-await page.mouse.move(600, 500, { steps:4 });
-const off = await page.evaluate(() => ({ saver:window.__cosmos.saver.on, saverClass:document.body.classList.contains('saver'), hud:!document.querySelector('#saverHud').hidden, tourId:window.__cosmos.tourId }));
+await p3.waitForTimeout(1400);
+await p3.mouse.move(600, 500, { steps:4 });
+const off = await p3.evaluate(() => ({ saver:window.__cosmos.saver.on, saverClass:document.body.classList.contains('saver'), hud:!document.querySelector('#saverHud').hidden, tourId:window.__cosmos.tourId }));
 if (off.saver || off.saverClass || off.hud || off.tourId !== 'grand') bad.push('moving the mouse did not end the screensaver: ' + JSON.stringify(off));
 
 errors.push(...bad);
 report('wallpaper', errors, `${lap.n} stops a lap`);
+await b3.close();
 await browser.close();
