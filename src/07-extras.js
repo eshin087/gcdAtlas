@@ -440,11 +440,13 @@ void main(){
 const SHIELD_LOOKS = { off:0, a:1, b:2, c:3 }, SHIELD_NAMES = ['no shield', 'shield A · outline', 'shield B · bubble', 'shield C · honeycomb'];
 const SHIELD_BOUND = [1, 1.1, 1.2, 1.1];   // the sphere the ship is drawn in, in ship radii (the shield reaches past the hull's own)
 const SHIELD_Q = (new URLSearchParams(location.search).get('shield') || '').toLowerCase();
+// (?showcase=review, the looks review in 09i-showcase.js: it shows the switches for the shield, the fold and Pip even when the address picks none)
+const REVIEW_SC = new URLSearchParams(location.search).get('showcase') === 'review';
 // ---------------------------------------------------------------- the fold's look (made up, like the ship): A ember wind, B singularity, C streak-out.
 // For the review it is picked once from the address (?fold=a|b|c, A when not given). The hull breaks up into cells; foldCellThr gives the page
 // the same threshold per cell as thrC in the shader (the same front, the same integer hash), so an ember leaves each cell as the shader cuts it.
 const FOLD_LOOKS = { a:1, b:2, c:3 }, FOLD_NAMES = ['', 'fold A · ember wind', 'fold B · singularity', 'fold C · streak-out'];
-const foldLook = FOLD_LOOKS[(new URLSearchParams(location.search).get('fold') || '').toLowerCase()] || 1;
+const FOLD_Q = (new URLSearchParams(location.search).get('fold') || '').toLowerCase(), foldLook = FOLD_LOOKS[FOLD_Q] || 1;
 const FOLD_JIT = [0, 0.28, 0.16, 0.06][foldLook];
 function foldF(y, z, mode){
   if (foldLook === 1) return mode > 0 ? (0.834 - y)/1.69 + 0.05*Math.sin(z*9 + y*4) : 1 - Math.hypot(y + 0.3, z)/1.14 + 0.05*Math.sin(z*9 - y*5);
@@ -497,15 +499,29 @@ const ship = (() => {
   o.setShield = v => { if (!(v in SHIELD_NAMES)) return; shieldLook = v; o.prog = shipProg(v); progReady(o.prog, true); o.drawK = SHIELD_BOUND[v]; };
   return o;
 })();
-// review only: with ?shield= in the address, keys 1 2 3 0 and a small chip switch between the looks
-if (SHIELD_Q){
-  const chip = document.createElement('div'), pick = v => { ship.setShield(v); sync(); toast(SHIELD_NAMES[v]); };
-  chip.className = 'shield-chip'; chip.setAttribute('aria-label', 'Shield look (review)');
-  chip.innerHTML = 'shield ' + ['A', 'B', 'C', 'off'].map((n, i) => `<button type="button" data-v="${(i + 1) % 4}">${n}</button>`).join('');
+// review only: small switches between the looks, stacked at the top of the screen (one per ?shield=, ?fold=, ?drone= in the address, all three
+// in the looks review)
+function reviewChip(name, label, names, val){
+  let box = document.querySelector('.review-chips');
+  if (!box){ box = document.createElement('div'); box.className = 'review-chips'; document.body.appendChild(box); }
+  const chip = document.createElement('div'); chip.className = 'shield-chip'; chip.setAttribute('aria-label', label);
+  chip.innerHTML = name + ' ' + names.map((n, i) => `<button type="button" data-v="${val(i)}">${n}</button>`).join('');
+  box.appendChild(chip); return chip;
+}
+// the shield: keys 1 2 3 0 too
+if (SHIELD_Q || REVIEW_SC){
+  const chip = reviewChip('shield', 'Shield look (review)', ['A', 'B', 'C', 'off'], i => (i + 1) % 4), pick = v => { ship.setShield(v); sync(); toast(SHIELD_NAMES[v]); };
   const sync = () => { for (const b of chip.querySelectorAll('button')) b.classList.toggle('on', +b.dataset.v === shieldLook); };
   chip.addEventListener('click', e => { const b = e.target.closest('button'); if (b) pick(+b.dataset.v); });
-  document.body.appendChild(chip); sync();
+  sync();
   addEventListener('keydown', e => { if (e.ctrlKey || e.metaKey || e.altKey || (e.target.closest && e.target.closest('input'))) return; const v = '0123'.indexOf(e.key); if (v >= 0) pick(v); });
+}
+// the fold: its style is built into the page (the shader and the cells), so this switch opens the page again with the new ?fold=
+if (FOLD_Q || REVIEW_SC){
+  const chip = reviewChip('fold', 'Fold style (review, reloads the page)', ['A', 'B', 'C'], i => 'abc'[i]);
+  for (const b of chip.querySelectorAll('button')) b.classList.toggle('on', FOLD_LOOKS[b.dataset.v] === foldLook);
+  chip.addEventListener('click', e => { const b = e.target.closest('button'); if (!b || FOLD_LOOKS[b.dataset.v] === foldLook) return;
+    const q = new URLSearchParams(location.search); q.set('fold', b.dataset.v); location.search = q.toString(); });
 }
 
 // ---------------------------------------------------------------- comets: new visitors dropping in from the Oort cloud, with an ion tail and a curved dust tail

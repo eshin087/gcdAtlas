@@ -395,12 +395,10 @@ drone.reset = () => { pipStow(); Object.assign(PIP, { A:null, pose:null, r:lcg(7
 Object.defineProperty(drone, 'state', { get:() => ({ st:PIP.st, kind:PIP.kind, shots:PIP.shots, flash:PIP.flash, thr:PIP.thr, vis:PIP.vis, pos:PIP.pos.slice(), minAlt:PIP.minAlt,
   bayD:V.len(V.sub(PIP.pos, localPt(HULL.bay)))/ship.rad }) });
 ship.dbg.drone = { get state(){ return drone.state; }, pose(o){ PIP.pose = o || null; if (!o) pipStow(); }, setLook:v => drone.setLook(v), get look(){ return droneLook; }, PT };
-// review only: with ?drone= in the address, a small chip switches between the looks
-if (DRONE_Q){
-  const chip = document.createElement('div'), pick = v => { drone.setLook(v); sync(); toast(DRONE_NAMES[v]); };
-  chip.className = 'shield-chip drone-chip' + (SHIELD_Q ? ' second' : ''); chip.setAttribute('aria-label', 'Drone look (review)');
-  chip.innerHTML = 'Pip ' + ['A', 'B', 'C'].map((n, i) => `<button type="button" data-v="${i + 1}">${n}</button>`).join('');
+// review only: with ?drone= in the address (or the looks review), a small chip switches between the looks (under the shield's and the fold's: reviewChip)
+if (DRONE_Q || REVIEW_SC){
+  const chip = reviewChip('Pip', 'Drone look (review)', ['A', 'B', 'C'], i => i + 1), pick = v => { drone.setLook(v); sync(); toast(DRONE_NAMES[v]); };
   const sync = () => { for (const b of chip.querySelectorAll('button')) b.classList.toggle('on', +b.dataset.v === droneLook); };
   chip.addEventListener('click', e => { const b = e.target.closest('button'); if (b) pick(+b.dataset.v); });
-  document.body.appendChild(chip); sync();
+  sync();
 }

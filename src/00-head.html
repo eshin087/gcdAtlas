@@ -174,12 +174,12 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .fold-flash.blink{background:radial-gradient(ellipse at 50% 50%,rgba(215,240,255,.7) 0%,rgba(143,200,255,.22) 30%,rgba(20,40,70,0) 65%)}
 .fold-flash.go.blink{animation:foldBlink .35s ease-out}
 @keyframes foldBlink{0%{opacity:0}25%{opacity:.45}100%{opacity:0}}
-/* review only (?shield=): the switch between the shield's looks */
-.shield-chip{position:fixed;left:50%;transform:translateX(-50%);top:calc(8px + env(safe-area-inset-top,0px));z-index:7;display:flex;gap:3px;align-items:center;font:11px/1 'IBM Plex Mono',ui-monospace,monospace;color:#9bb3c4;background:rgba(4,5,10,.72);border:1px solid rgba(143,230,255,.25);border-radius:6px;padding:3px 3px 3px 8px}
+/* review only (?shield=, ?fold=, ?drone=, ?showcase=review): the switches between the looks, stacked at the top */
+.review-chips{position:fixed;left:50%;transform:translateX(-50%);top:calc(8px + env(safe-area-inset-top,0px));z-index:7;display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:none}
+.shield-chip{pointer-events:auto;display:flex;gap:3px;align-items:center;font:11px/1 'IBM Plex Mono',ui-monospace,monospace;color:#9bb3c4;background:rgba(4,5,10,.72);border:1px solid rgba(143,230,255,.25);border-radius:6px;padding:3px 3px 3px 8px}
 .shield-chip button{font:inherit;color:inherit;background:none;border:1px solid transparent;border-radius:4px;padding:3px 7px;cursor:pointer}
 .shield-chip button.on{color:#04050a;background:#8fe6ff}
-.shield-chip.second{top:calc(38px + env(safe-area-inset-top,0px))}
-@media (max-width:680px), (max-height:520px) and (max-width:1000px){ .shield-chip{left:calc(8px + env(safe-area-inset-left,0px));transform:none;top:calc(52px + env(safe-area-inset-top,0px))} .shield-chip.second{top:calc(82px + env(safe-area-inset-top,0px))} }
+@media (max-width:680px), (max-height:520px) and (max-width:1000px){ .review-chips{left:calc(8px + env(safe-area-inset-left,0px));transform:none;top:calc(52px + env(safe-area-inset-top,0px));align-items:flex-start} }
 @media (prefers-reduced-motion:reduce){.fold-flash.go{animation-duration:.4s}}
 .btn:focus-visible,.gonext:focus-visible,.tourpick:focus-visible,.brand:focus-visible,.backpill:focus-visible,.lab:focus-visible,.arow:focus-visible,.tick:focus-visible,.nav:focus-visible,.seg button:focus-visible,.tog button:focus-visible,.ladmark:focus-visible{outline:1px solid var(--flare);outline-offset:2px}
 .search{position:relative;display:flex;align-items:center}

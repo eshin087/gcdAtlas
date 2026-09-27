@@ -350,6 +350,7 @@ function endFold(){
   if (shipCam.on && shipCam.eye){ const R = ship.R0; S_.reseat = [M3.applyT(R, shipCam.eye), M3.applyT(R, shipCam.fwd), M3.applyT(R, shipCam.up)]; }
   foldVisit(B, S_.next);
   S_.emerge = 0; S_.asm = 0; S_.csL = false;   // (the hull forms again: foldUpdate)
+  if (S_.onFoldIn) S_.onFoldIn();   // (the looks review, ?showcase=review, may start the new pass later on, before it is first drawn: 09i-showcase.js)
   fxFoldIn();
 }
 
