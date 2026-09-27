@@ -65,8 +65,10 @@ function viewParamsV(o, v){
   let off = [0,0,0], offFn = null;
   if (typeof v.off === 'function') offFn = () => V.mul(M3.apply(o.R0, v.off()), o.rad);
   if (v.off) off = offFn ? offFn() : V.mul(M3.apply(o.R0, v.off), o.rad);
-  return { yaw:Math.atan2(d[0], d[2]), pitch:Math.asin(clamp(d[1], -0.999, 0.999)), dist:v.k*o.rad*(v.off ? 1 : viewFit), off, offFn };
+  return { yaw:Math.atan2(d[0], d[2]), pitch:Math.asin(clamp(d[1], -0.999, 0.999)), dist:v.k*o.rad*(v.off ? 1 : viewFit), off, offFn, track:v.track ? () => trackYP(o, v) : null };
 }
+// the yaw and pitch a view with track() asks for right now (flights and swings to it follow it, so they land on the angle it has then)
+function trackYP(o, v){ const d = M3.applyT(o.R0, V.norm(v.track())); return [Math.atan2(d[0], d[2]), Math.asin(clamp(d[1], -0.999, 0.999))]; }
 // van Wijk & Nuij optimal zoom-and-pan path (numerically stable forms)
 function vwPath(u1, w0, w1, rho){
   if (u1 < 1e-7*Math.min(w0, w1)){ const k = Math.log(w1/w0); return { S:Math.abs(k)/rho + 1e-6, u:() => 0, w:s => w0*Math.exp(Math.sign(k)*rho*s) }; }
@@ -175,6 +177,8 @@ function updateFlight(dt){
   const w = x >= 1 ? f.vp.dist : f.path.w(s);
   // flying up to the Halo: it turns as it goes, so the final framing follows its frame (no swing on landing)
   if (f.obj.camFrame){ f.dir1 = M3.apply(camFrameOf(f.obj), sphL(f.vp.yaw, f.vp.pitch)); f.up1 = f.vp.upFn ? f.vp.upFn() : M3.apply(camFrameOf(f.obj), [0, 1, 0]); }
+  // flying to an angle that follows something moving (a planet's day side as it circles its star): the landing direction follows it too
+  if (f.vp.track){ [f.vp.yaw, f.vp.pitch] = f.vp.track(); f.dir1 = M3.apply(camFrameOf(f.obj), sphL(f.vp.yaw, f.vp.pitch)); }
   if (!f.switched && x > 0.5){
     const D = frel(f.obj);
     f.A = V.sub(f.A, D); tgt[0] -= D[0]; tgt[1] -= D[1]; tgt[2] -= D[2];
@@ -203,6 +207,7 @@ let flyMove = null;   // a flyby playing outside a tour
 function startTween(to, dur){ tween = { t:0, dur, from:{yaw:orbit.yaw, pitch:orbit.pitch, dist:orbit.dist, off:orbit.off.slice()}, to }; }
 function updateTween(dt){
   const w = tween; w.t += dt; const u = ease(clamp(w.t/w.dur, 0, 1));
+  if (w.to.track) [w.to.yaw, w.to.pitch] = w.to.track();
   let dy = w.to.yaw - w.from.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
   orbit.yaw = w.from.yaw + dy*u;
   orbit.pitch = w.from.pitch + (w.to.pitch - w.from.pitch)*u;
@@ -258,7 +263,7 @@ function updateTour(dt){
 const holdOf = v => v.hold*(v.to ? Math.max(dwellK(), 0.75) : dwellK());
 // a view with track(): while it holds, the camera keeps turning toward a moving direction (world frame) instead of drifting
 function trackView(o, v, dt){
-  const d = M3.applyT(o.R0, V.norm(v.track())), y = Math.atan2(d[0], d[2]), p = Math.asin(clamp(d[1], -0.999, 0.999));
+  const [y, p] = trackYP(o, v);
   const k = 1 - Math.exp(-dt*2.5); let dy = y - orbit.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
   orbit.yaw += dy*k; orbit.pitch += (p - orbit.pitch)*k;
 }

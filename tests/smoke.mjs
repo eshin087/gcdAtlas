@@ -46,6 +46,15 @@ bad.push(...await page.evaluate(() => { const c = window.__cosmos; c.setTour(fal
 for (const id of ['#btnAtlas', '#btnTours', '#btnTime', '#btnSettings']){ await page.click(id); await page.waitForTimeout(150); await page.click(id); }
 const ui = await page.evaluate(() => ({ rows:document.querySelectorAll('.arow').length, readout:document.querySelector('#readout').textContent.length }));
 if (ui.rows < 50) bad.push('atlas has only ' + ui.rows + ' rows');
+// a planet whose angle follows its orbit (track): a flight to its day side lands on the day side, not where it was at take-off
+bad.push(...await page.evaluate(() => { const c = window.__cosmos, out = [], n = v => { const l = Math.hypot(...v); return v.map(x => x/l); };
+  for (const k of ['peg51b', 'hd189733b']){
+    c.setTour(false); c.view('earth', 0); c.tick(1/30);
+    const o = c.BYKEY[k]; c.lockOn(o.index, 0); c.land(0);
+    const a = n(c.cam.rel), b = n(o.host.pos.map((x, i) => x - o.pos[i])), dot = a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+    if (!(dot > 0.5)) out.push(`${k}: landed on the night side (camera toward the star ${dot.toFixed(2)})`);
+  }
+  return out; }));
 errors.push(...bad);
 // crafted share links must not stop the page from starting (they used to: #o=constructor, a non-numeric date)
 for (const h of ['#o=constructor', '#o=__proto__', '#o=earth&jd=abc&deep=x&c=1,NaN,-5']){
