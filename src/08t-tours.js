@@ -108,35 +108,55 @@ const TOURS = [
 let TOUR_ID = 'grand', TOUR_CAP = {};
 let TOUR_GEN = 0;   // goes up whenever TOUR is rebuilt (the tour track on the scale bar keys on it: a new deal of the same length has new names)
 function tourStops(id){ const t = TOURS.find(t => t.id === id) || TOURS[0]; return t.stops.filter(([k]) => BYKEY[k] && !BYKEY[k].marker).map(([k, cap]) => ({ i:BYKEY[k].index, cap })); }
-// first: a dealt tour starts with this place (a shared link); from: the place a dealt tour sets off from (default: where the camera is)
-function useTour(id, first, from){
+let nextDeal = null;   // the random tour's next 12 stops, dealt ahead while its last stop plays (dealAhead)
+// first: a dealt tour starts with this place (a shared link); from: the place a dealt tour sets off from (default: where the camera is);
+// stops: its stops if they were dealt ahead
+function useTour(id, first, from, stops){
   const prev = TOUR_ID === id ? new Set(TOUR) : new Set();   // (a new deal of the same tour avoids the places just played)
   TOUR_ID = TOURS.some(t => t.id === id) ? id : 'grand';
   const t = TOURS.find(t => t.id === TOUR_ID);
-  if (t.deal) t.stops = dealRandom(first && tourable(first) ? null : from || hereObj(), first && tourable(first) ? first : null, prev);
-  TOUR.length = 0; TOUR_CAP = {}; TOUR_GEN++;
+  if (t.deal) t.stops = stops || dealRandom(first && tourable(first) ? null : from || hereObj(), first && tourable(first) ? first : null, prev);
+  TOUR.length = 0; TOUR_CAP = {}; TOUR_GEN++; nextDeal = null;
   for (const s of tourStops(TOUR_ID)){ TOUR.push(s.i); if (s.cap) TOUR_CAP[s.i] = s.cap; }
 }
 const tourName = () => (TOURS.find(t => t.id === TOUR_ID) || TOURS[0]).name;
 const tourDeals = () => !!(TOURS.find(t => t.id === TOUR_ID) || TOURS[0]).deal;
-// the last stop of the random tour goes on to 12 new places, starting from there
-function dealAgain(from){ useTour(TOUR_ID, null, from); toast(tourName() + ' · ' + TOUR.length + ' new places'); }
+// the last stop of the random tour goes on to 12 new places, starting from there (usually dealt ahead already: see dealAhead)
+function dealAgain(from){
+  const pre = nextDeal && nextDeal.gen === TOUR_GEN && nextDeal.from === from ? nextDeal.stops : null;
+  useTour(TOUR_ID, null, from, pre); toast(tourName() + ' · ' + TOUR.length + ' new places');
+}
+// A deal takes a few milliseconds (more on a slow phone), too long for the frame the next trip sets off in. So while the random tour's last
+// stop plays, updateTour deals the next 12 ahead, a small step per frame. Positions are relative to the camera's focus, so a deal that is still
+// going starts again if the focus changes. (If it is not ready, or no longer fits, dealAgain deals on the spot.)
+function dealAhead(){
+  const from = OBJ[TOUR[TOUR.length - 1]], d = nextDeal;
+  if (!from || tour.obj !== from.index) return;
+  if (d && d.gen === TOUR_GEN && (d.stops || d.focus === cam.focus)){ if (!d.stops){ const r = d.it.next(); if (r.done) d.stops = r.value; } return; }
+  nextDeal = { gen:TOUR_GEN, from, focus:cam.focus, it:dealSteps(from, null, new Set(TOUR)), stops:null };
+}
 const hereObj = () => OBJ[flight ? cam.focus : orbit.lock >= 0 ? orbit.lock : cam.focus];
 
 // ---------------------------------------------------------------- the random tour: 12 places from the whole atlas, a new mix every time
-// A weighted walk: each next stop is picked at random, but less often when it is the same kind of place as the stop before (x0.4), when
-// getting there means zooming far out (x0.2; isScenic, the rule of startFlight: about a third of its trips do, against almost half on the
-// grand tour, and over half would without it), and when you have seen it already (x0.15: places you have not seen come first; SEEN stays
-// on your device). No place twice (see samePlace), at most 3 from one atlas category, never the place it sets off from, and no trip that
-// would fly through a third object (tripClear). It costs a few milliseconds, once per deal; nothing per frame.
-const RANDOM_N = 12, RANDOM_W = { sameCat:0.4, far:0.2, seen:0.15 };
+// A weighted walk. Places you have not seen come first: a place you have seen is only picked when no unseen one is left to pick (SEEN
+// stays on your device). Among those, each next stop is picked at random, but less often when the trip there pulls the view far back and
+// closes in again (back: the widest view on the way against the wider end, x0.03 past 100,000 times, x0.1 past 10,000, x0.3 past 1,000,
+// x0.6 past 100; and x0.2 more for a trip over the galactic pole, isScenic, the rule of startFlight), and less often when it would be a
+// third place of one kind in a row (x0.4). No place twice (see samePlace), at most 3 from one atlas category, never the place it sets off
+// from as the first stop, and no trip that would fly through a third object (tripClear).
+// Measured over 440 trips of 40 deals from Earth at cinematic speed: 2% pull back more than 100,000 times and 9% more than 1,000 times
+// (the grand tour: 7% and 30%; places picked blindly: 29% and 47%); 21% go over the galactic pole (grand tour 43%, blindly 57%); 10.9 s
+// a trip on average (grand tour 9.5 s, blindly 13.1 s), and about 6 of the atlas's kinds of place in each deal.
+const RANDOM_N = 12, RANDOM_W = { back:[[1e5, 0.03], [1e4, 0.1], [1e3, 0.3], [1e2, 0.6]], far:0.2, sameCat:0.4, run:2 };
 // (a seed of its own from Math.random: the shared rnd() starts from a fixed seed, so every visitor would get the same "random" tour)
 let RSEED = (Math.random()*4294967296) >>> 0;
 const rrnd = () => { let t = RSEED = (RSEED + 0x6D2B79F5) >>> 0; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0)/4294967296; };   // (mulberry32)
-// what a tour may visit: a real place with views. Not fiction: not the Halo or anything that belongs to it (its drone), nor anything
-// marked fiction:true. (One rule for the random tour, the screensaver and today's discovery.)
+// what a tour may visit: a real place with views that you can pick: in the atlas, or picked in the sky ('your sky' and the naked-eye stars
+// are backdrops, not places; the comets cannot be picked in the sky while you are away from them, but they are in the atlas). Not fiction:
+// not the Halo or anything that belongs to it (its drone), nor anything marked fiction:true. (One rule for the random tour, the
+// screensaver and today's discovery.)
 const isFiction = o => !!(o.fiction || o.key === 'halo' || (o.parent && isFiction(o.parent)));
-const tourable = o => !!(o && o.views && o.views.length) && !o.hidden && !o.marker && !isFiction(o);
+const tourable = o => !!(o && o.views && o.views.length) && !o.hidden && !o.marker && (o.atlas !== false || !o.noPick) && !isFiction(o);
 // two stops are the same place when one sits at the other's centre (the Crab and its pulsar, M87 and its black hole, the Sun and the Oort
 // cloud), or when one belongs to the other or both belong to the same body (Earth, the Moon and the ISS; Jupiter and Io; a star and its
 // planet). The Sun's family is too big for that: its planets and comets are places of their own, unless one sits on or just above the Sun
@@ -148,32 +168,49 @@ function samePlace(a, b){
   if (aroundUs(a) || aroundUs(b)) return false;
   return V.len(V.sub(a.pos, b.pos)) < 4*Math.min(a.rad, b.rad) || kinOf(a, b) || kinOf(b, a) || (!!a.parent && a.parent === b.parent && kinOf(a, a.parent) && kinOf(b, b.parent));
 }
-// from: where it sets off (weighs the first trip; never a stop), first: the first stop if it must be one (a shared link),
-// avoid: object indices to leave out (the stops just played). Returns the stops as [key] rows.
-function dealRandom(from, first, avoid, n = RANDOM_N){
-  const pool = atlasRows.map(r => r.o).filter(tourable), out = first ? [first] : [], per = {}, vps = new Map();
+// the places the random tour deals from: the atlas, as far as a tour may visit it
+const tourPool = () => atlasRows.map(r => r.o).filter(tourable);
+// from: where it sets off (never a stop, and the first stop is never the same place; it weighs the first trip), first: the first stop if it
+// must be one (a shared link), avoid: object indices to leave out (the stops just played). Returns the stops as [key] rows.
+function dealRandom(from, first, avoid, n = RANDOM_N){ const it = dealSteps(from, first, avoid, n); let r; do r = it.next(); while (!r.done); return r.value; }
+// (the same in small steps: dealAhead spreads it over frames)
+function* dealSteps(from, first, avoid, n = RANDOM_N){
+  const pool = tourPool(), cat = pool.map(catOf), out = [], per = {}, vps = new Map(), list = clearList();
+  const same = new Uint8Array(pool.length), take = o => { out.push(o); per[catOf(o)] = (per[catOf(o)] || 0) + 1; pool.forEach((c, i) => { if (samePlace(o, c)) same[i] = 1; }); };   // (same: one place with a stop already taken)
   const at = o => { let v = vps.get(o); if (!v){ const vp = viewParams(o, tourViews(o)[0]); v = { p:V.add(frel(o), vp.off), d:vp.dist }; vps.set(o, v); } return v; };
-  // (the trip from a to b as startFlight would fly it, from a's first tour angle to b's)
-  const far = (a, b) => { const A = at(a), B = at(b); return isScenic(vwPath(V.len(V.sub(B.p, A.p)), A.d, B.d, 1.3), A.d, B.d); };
-  for (const o of out) per[catOf(o)] = 1;
+  // (the trip from a to b as startFlight would fly it, from a's first tour angle to b's: how much less often to pick it)
+  const tripW = (a, b) => {
+    const A = at(a), B = at(b), path = vwPath(V.len(V.sub(B.p, A.p)), A.d, B.d, 1.3), wMax = pathWidest(path), back = wMax/Math.max(A.d, B.d);
+    let x = isScenic(path, A.d, B.d, wMax) ? RANDOM_W.far : 1;
+    for (const [k, f] of RANDOM_W.back) if (back > k){ x *= f; break; }
+    return x; };
+  const pick = (w, t) => { let r = rrnd()*t, j = -1; for (let i = 0; i < w.length; i++) if (w[i] > 0){ j = i; if ((r -= w[i]) < 0) break; } return j; };
+  if (first) take(first);
+  yield 0;   // (pauses for dealAhead: after setting up, every 40 places weighed, and after each trip put back)
   let relax = 0;   // (with nothing left to pick: first allow the places just played, then more than 3 from a category)
   while (out.length < n){
-    const p = out.length ? out[out.length - 1] : from, w = []; let tot = 0;
-    for (const c of pool){
-      let x = (relax < 1 && avoid.has(c.index)) || (relax < 2 && (per[catOf(c)] || 0) >= 3) || (from && samePlace(from, c)) || out.some(q => samePlace(q, c)) ? 0 : 1;
-      if (x && p){ if (catOf(c) === catOf(p)) x *= RANDOM_W.sameCat; if (far(p, c)) x *= RANDOM_W.far; }
-      if (x && SEEN.has(c.key)) x *= RANDOM_W.seen;
-      w.push(x); tot += x;
+    const p = out.length ? out[out.length - 1] : from, k = out.length, w = [], seen = [];
+    // (the kind of the last stops, if the last RANDOM_W.run of them are all of one kind)
+    const run = k >= RANDOM_W.run && out.slice(k - RANDOM_W.run).every(o => catOf(o) === catOf(out[k - 1])) ? catOf(out[k - 1]) : null;
+    for (let i = 0; i < pool.length; i++){
+      const c = pool[i];
+      let x = same[i] || c === from || (relax < 1 && avoid.has(c.index)) || (relax < 2 && (per[cat[i]] || 0) >= 3) || (k === 0 && from && samePlace(from, c)) ? 0 : 1;
+      if (x && p){ x *= tripW(p, c); if (cat[i] === run) x *= RANDOM_W.sameCat; }
+      w.push(x); seen.push(SEEN.has(c.key));
+      if (i % 40 === 39) yield out.length;
     }
-    const pick = (w, t) => { let r = rrnd()*t, j = -1; for (let i = 0; i < w.length; i++) if (w[i] > 0){ j = i; if ((r -= w[i]) < 0) break; } return j; };
-    const wAll = w.slice(); let j = -1, left = tot;
-    while (left > 0){
-      j = pick(w, left); if (j < 0 || !p || tripClear(p, pool[j])) break;
-      left -= w[j]; w[j] = 0; j = -1;   // (the trip there would fly through something on the way: pick another)
+    // (unseen places first; within them, a trip that would fly through something on the way is put back and another one picked)
+    let j = -1;
+    for (const s of [false, true]){
+      const ws = w.map((x, i) => seen[i] === s ? x : 0); let left = ws.reduce((a, b) => a + b, 0);
+      while (left > 0){ const i = pick(ws, left); if (i < 0) break; if (!p || tripClear(p, pool[i], list)){ j = i; break; } left -= ws[i]; ws[i] = 0; yield out.length; }
+      if (j >= 0) break;
     }
-    if (j < 0 && tot > 0) j = pick(wAll, tot);   // (every trip from here would: take one anyway rather than end the tour early)
+    // (every trip from here would: take one anyway, unseen first, rather than end the tour early)
+    for (const s of [false, true]){ if (j >= 0) break; const ws = w.map((x, i) => seen[i] === s ? x : 0), t = ws.reduce((a, b) => a + b, 0); if (t > 0) j = pick(ws, t); }
     if (j < 0){ if (relax++ < 2) continue; break; }
-    out.push(pool[j]); per[catOf(pool[j])] = (per[catOf(pool[j])] || 0) + 1;
+    take(pool[j]);
+    yield out.length;
   }
   return out.map(o => [o.key]);
 }
