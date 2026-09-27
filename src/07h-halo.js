@@ -85,27 +85,30 @@ function passR(tg, act){
 }
 
 // ---------------------------------------------------------------- where next, and how
+// (the dice for its choices: where next, how, which job, which side it banks to. On the site they are the shared rnd(); a test gives them
+// a sequence of their own with dbg.reset, so the ship flies the same route on every run)
+let hrnd = rnd;
 function travelMode(A, B){
   if (S_.force.travel){ const m = S_.force.travel; S_.force.travel = null; return m; }
   const D = V.len(V.sub(B.pos, A.pos));
   if (D < HALO.LS_NEAR || D < 1.2*Math.max(A.rad, B.rad)) return 'light';
-  if (D < HALO.LS_FAR && V.len(A.pos) < 6e4 && V.len(B.pos) < 6e4 && rnd() < HALO.LS_P) return 'light';
+  if (D < HALO.LS_FAR && V.len(A.pos) < 6e4 && V.len(B.pos) < 6e4 && hrnd() < HALO.LS_P) return 'light';
   return 'fold';
 }
 function pickNext(from){
   if (S_.force.target){ const t = BYKEY[S_.force.target]; S_.force.target = null; if (t && t !== from) return t; }
   const c = OBJ[tour.on ? tour.obj : (orbit.lock >= 0 ? orbit.lock : cam.focus)];
-  if (c && c !== ship && c !== from && SHIP_TARGETS.includes(c.key) && rnd() < 0.45) return c;
+  if (c && c !== ship && c !== from && SHIP_TARGETS.includes(c.key) && hrnd() < 0.45) return c;
   const all = SHIP_TARGETS.map(k => BYKEY[k]).filter(o => o && o !== from);
   const near = all.filter(o => V.len(V.sub(o.pos, from.pos)) < HALO.LS_NEAR);
-  if (near.length && rnd() < 0.5) return near[Math.floor(rnd()*near.length)];
-  return all[Math.floor(rnd()*all.length)];
+  if (near.length && hrnd() < 0.5) return near[Math.floor(hrnd()*near.length)];
+  return all[Math.floor(hrnd()*all.length)];
 }
 const actBag = [];
 function chooseAct(tg){
   if (S_.force.act){ const a = S_.force.act; S_.force.act = null; return a; }
-  if (SKIM.has(tg.key) && S_.visits - S_.lastSkim > 2 && rnd() < 0.6){ S_.lastSkim = S_.visits; return 'skim'; }
-  if (!actBag.length){ const b = ['scan', 'probe', 'weapons', 'tractor']; for (let i=b.length - 1;i>0;i--){ const j = Math.floor(rnd()*(i + 1)); [b[i], b[j]] = [b[j], b[i]]; } actBag.push(...b); }
+  if (SKIM.has(tg.key) && S_.visits - S_.lastSkim > 2 && hrnd() < 0.6){ S_.lastSkim = S_.visits; return 'skim'; }
+  if (!actBag.length){ const b = ['scan', 'probe', 'weapons', 'tractor']; for (let i=b.length - 1;i>0;i--){ const j = Math.floor(hrnd()*(i + 1)); [b[i], b[j]] = [b[j], b[i]]; } actBag.push(...b); }
   let a = actBag.shift();
   if (a === S_.lastAct && actBag.length){ actBag.push(a); a = actBag.shift(); }
   return a;
@@ -239,7 +242,7 @@ function foldVisit(tg){
 }
 function beginVisit(tg, plan, next, how){
   S_.plan = plan; S_.next = next;
-  S_.target = tg; S_.phase = 'pass'; S_.t = 0; S_.visits++; S_.lastAct = plan.act; S_.side = rnd() < 0.5 ? -1 : 1;
+  S_.target = tg; S_.phase = 'pass'; S_.t = 0; S_.visits++; S_.lastAct = plan.act; S_.side = hrnd() < 0.5 ? -1 : 1;
   ship.labelRange = Math.max(tg.rad*40, ship.rad*1e4);
   S_.act = ACT[plan.act](plan);
   if (riding() && S_.visits > 1) toast((how === 'fold' ? 'the Halo folds space · ' : '') + 'at ' + tg.name + ': ' + ACT_TOAST[plan.act]);
@@ -840,8 +843,18 @@ function haloReadout(){
   return l + `\nthe Halo is made up · ~4.2 km from needle to engines · visit ${S.visits}`;
 }
 
-// ---------------------------------------------------------------- test hooks (tests/motion.mjs): force the next target, job or way of travel; skip ahead; read the last beams
+// ---------------------------------------------------------------- test hooks (tests/motion.mjs): start over on a route of its own; force the next target, job or way of travel;
+// skip ahead; read the last beams
 ship.dbg = {
+  // start over as on page load (a fold visit to `key`, 3 s in, nothing left of earlier jobs), its choices drawn from lcg(seed) from now on:
+  // with the same seed, clock and camera the ship flies the same route every time
+  reset(seed, key = 'saturn'){
+    if (S_.act && S_.act.end) S_.act.end();
+    hrnd = lcg(seed); actBag.length = 0; FX.length = 0; weapK = 0; rockShape = 0;
+    Object.assign(S_, { phase:'pass', t:0, target:null, spool:0, jg:0, scale:1, scoop:0, em:[0, 0, 0, 0], visits:0, force:{}, lastSkim:-9, lastAct:null, plan:null, next:null,
+      align:null, leg:null, fold:null, act:null, h:[0, 1, 0], belly:null, vel:[0, 0, 0], speed:0, viewA:0, side:1, hFrom:null, jumpAt:0, stretch:0, lsRun:0, emerge:1, seedN:1 });
+    foldVisit(BYKEY[key]); S_.t = 3;
+  },
   force(o){ Object.assign(S_.force, o); },
   replan(){ if (S_.phase !== 'pass') return; const C = pickNext(S_.target); S_.next = { tg:C, mode:travelMode(S_.target, C) }; },
   skip(){ if (S_.phase === 'pass') S_.t = S_.plan.T; else if (S_.phase === 'align') S_.t = S_.jumpAt; },
