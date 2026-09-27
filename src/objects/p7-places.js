@@ -1,6 +1,6 @@
 // ================================================================ content pack (0.9.0): new places that reuse the shared builders
 // Vesta and Bennu (FS_ROCK shapes 3 and 4), three planets of other stars (FS_PLANETG kinds 21 to 23), Gaia BH3 (quietHole), T Coronae Borealis
-// (novaBinary), the Lagoon Nebula and the Hercules Cluster. Mimas and its crater Herschel are in o10-planet.js.
+// (novaBinary), the Lagoon Nebula and the Great Hercules Cluster. Mimas and its crater Herschel are in o10-planet.js.
 // Real positions and sizes; what is sped up or guessed says so in its readout.
 // (this pack draws its random numbers from the shared seeded rnd() and then puts the seed back, so everything made after it,
 // the Halo's route included, gets the same numbers as before the pack existed)
@@ -31,7 +31,7 @@ const bennu = addRock({ key:'bennu', tags:['moons'], name:'Bennu', label:'Bennu'
   views:[{dirFn:() => sunSide(bennu, 0.8, 0.35), k:3.4, hold:8, drift:0.04},
     {dirFn:() => sunSide(bennu, 1.15, 0.02), k:2.6, hold:8, drift:0.02},
     {dirFn:() => sunSide(bennu, 1.35, 0.3), k:1.75, hold:9, drift:0.02}],
-  readout:() => `${heliocentric(bennu).toFixed(2)} AU from the Sun · 505 x 492 x 457 m\none turn every 4.3 hours · one lap of the Sun every 437 days` });
+  readout:() => `${heliocentric(bennu).toFixed(2)} AU from the Sun · 565 x 535 x 508 m\none turn every 4.3 hours · one lap of the Sun every 437 days` });
 
 // ---------------------------------------------------------------- planets of other stars
 // (their periods are sped up so you can see them move; the readout gives the real one. Their host stars stay out of the atlas list)
@@ -44,7 +44,7 @@ const peg51 = namedStar('peg51', '51 Pegasi', hms(22,57,27.98), dms(20,46,7.8), 
   fact:'A Sun-like star a little older than the Sun. In 1995 it became the first star like the Sun known to have a planet.', readout:() => '50.6 light-years · about 5,770 K, as hot as the Sun' });
 const peg51b = exoPlanet({ key:'peg51b', name:'51 Pegasi b', host:peg51, type:'the first planet found around a Sun-like star · Dimidium', R:69911, kind:21, a:0.0527, P:40, locked:true, sortKey:50.6001,
   aka:'dimidium 51 peg b hot jupiter mayor queloz nobel first exoplanet',
-  fact:'Found in 1995 by Michel Mayor and Didier Queloz, who shared the 2019 Nobel Prize in Physics for it. A gas giant about half Jupiter\'s mass, it circles its star every 4.2 days, far closer than Mercury is to the Sun.',
+  fact:'Found in 1995 by Michel Mayor and Didier Queloz, who won half of the 2019 Nobel Prize in Physics for it. A gas giant a little over half Jupiter\'s mass, it circles its star every 4.2 days, far closer than Mercury is to the Sun.',
   readout:() => 'orbit 4.2 days (sped up here) at 0.05 AU · 50.6 light-years\nit never passes in front of its star, so its width is unknown: drawn Jupiter-sized, colours a guess' });
 peg51b.views = exoViews(peg51b);
 orbitRing(peg51, 0.0527, [0.62, 0.55, 0.45]);
@@ -54,7 +54,7 @@ const k218 = namedStar('k218', 'K2-18', hms(11,30,14.52), dms(7,35,18.3), 124.3,
   fact:'A cool red dwarf about half the Sun\'s width, with two known planets.', readout:() => '124 light-years · about 3,600 K' });
 const k218b = exoPlanet({ key:'k218b', name:'K2-18 b', host:k218, type:'sub-Neptune in the habitable zone · studied by JWST', R:2.61*6371, kind:22, a:0.1429, P:60, sortKey:124.3001,
   aka:'k2 18b hycean ocean world jwst methane dms habitable zone leo',
-  fact:'A world 2.6 times Earth\'s width and 8.6 times its mass, orbiting where its star\'s warmth could allow liquid water. In 2023 JWST found methane and carbon dioxide in its hydrogen-rich air, and it may hide a deep ocean. A claimed hint of a gas that on Earth only life makes has not been confirmed.',
+  fact:'A world 2.6 times Earth\'s width and 8.6 times its mass, orbiting where its star\'s warmth could allow liquid water. In 2023 JWST found methane and carbon dioxide in its hydrogen-rich air, and it may hide a deep ocean. A claimed hint of dimethyl sulfide, a gas that on Earth comes only from living things, has not been confirmed, and it can also form without life.',
   readout:() => 'orbit 33 days (sped up here) at 0.14 AU · 124 light-years\nJWST measured its gases, not its looks: the colours are a guess' });
 k218b.views = exoViews(k218b);
 k218b.views[1] = {track:() => sunSide(k218b, 1.7, 0.15), k:3.4, hold:9};   // (its dim red star is small in its sky, so a thin crescent looked empty: half lit instead)
@@ -65,7 +65,7 @@ const hd189733 = namedStar('hd189733', 'HD 189733', hms(20,0,43.71), dms(22,42,3
   fact:'An orange dwarf a little smaller than the Sun, with a red dwarf partner far out and a giant planet close in.', readout:() => '64.5 light-years · about 4,900 K' });
 const hd189733b = exoPlanet({ key:'hd189733b', name:'HD 189733 b', host:hd189733, type:'the deep blue planet · it may rain glass', R:1.13*69911, kind:23, a:0.031, P:36, locked:true, sortKey:64.5001,
   aka:'blue planet glass rain hot jupiter vulpecula hubble azure',
-  fact:'A gas giant a little bigger than Jupiter. In 2013 Hubble found it is a deep azure blue, from a hazy sky thought to be laced with silicate particles. It is over 1,000 °C there, and it may rain glass, sideways, in 7,000 km/h winds.',
+  fact:'A gas giant a little bigger than Jupiter. In 2013 Hubble found it is a deep azure blue, from a hazy sky thought to be laced with silicate particles. It is about 1,000 °C there, and it may rain glass, sideways, in 7,000 km/h winds.',
   readout:() => 'orbit 2.2 days (sped up here) at 0.031 AU · 64.5 light-years\nHubble measured its blue; the cloud bands are drawn' });
 hd189733b.views = exoViews(hd189733b);
 orbitRing(hd189733, 0.031, [0.45, 0.55, 0.85]);
@@ -82,7 +82,7 @@ const gaiabh3 = quietHole({ M:33, dist:1926, pos:radec(hms(19,39,18.71), dms(14,
 // a red giant (published masses 0.7 to 1.1 Suns) and a white dwarf of about 1.37 Suns, 228 days a lap: about 0.93 AU apart for the lighter giant
 const tcrb = novaBinary({ mu1:0.335, RD:0.25, dist:3000, pos:radec(hms(15,59,30.16), dms(25,55,12.6), 3000), rad:1.86*AU_LY, face:[0.2, 0.5, 1],
   obj:{ key:'tcrb', name:'T Coronae Borealis', label:'T CrB', type:'recurrent nova · the Blaze Star', aka:'t crb blaze star nova corona borealis recurrent',
-    fact:'A red giant and a white dwarf, 3,000 light-years away. About every 80 years gas the dwarf has pulled off the giant explodes on its surface, and for a few days the pair can be seen without a telescope. It last erupted in 1946, and before that in 1866.' },
+    fact:'A red giant and a white dwarf, 3,000 light-years away. About every 80 years, gas that the white dwarf has pulled off the giant explodes on the dwarf\'s surface, and for a few days the pair can be seen without a telescope. It last erupted in 1946, and before that in 1866.' },
   readout:(tn, NOVA) => tn < 12 ? 'the nova, replayed: hydrogen piled on the white dwarf explodes\nfor a few days you could see it without a telescope' :
     `the two stars circle each other every 228 days (shown ~18 s)\nlast erupted in 1946 · the replay here comes every ${NOVA} s` });
 
@@ -124,19 +124,19 @@ void main(){
   outCol(col, (1. - T)*0.85);
 }`;
 const lagoon = (() => {
-  const pos = radec(hms(18,3,37), dms(-24,23,12), 4100), RAD = 60, HG = [-0.3, 0.04, 0.06];
+  const pos = radec(hms(18,3,37), dms(-24,23,12), 4300), RAD = 60, HG = [-0.3, 0.04, 0.06];
   const cl = clusterPS(Math.round(380*QUALITY), [0.32, -0.02, 0.08], 0.2, 26000);
-  return addObj({ key:'lagoon', name:'Lagoon Nebula', label:'Lagoon Nebula', type:'star-forming region · M8 · in Sagittarius', group:'nebulae', sortKey:4100,
-    fact:'A cloud of glowing hydrogen about 110 by 50 light-years, where new stars are forming. A lane of dark dust across it gives it its name. Near one side the young star Herschel 36 lights up the Hourglass, and the cluster NGC 6530 sits on the other.',
+  return addObj({ key:'lagoon', name:'Lagoon Nebula', label:'Lagoon Nebula', type:'star-forming region · M8 · in Sagittarius', group:'nebulae', sortKey:4300,
+    fact:'A cloud of glowing hydrogen about 110 by 50 light-years, where new stars are forming. A lane of dark dust across it gives it its name. On one side of the dark lane the young star Herschel 36 lights up the Hourglass; the young cluster NGC 6530 sits on the other.',
     pos, rad:RAD, R0:facingEarth(pos, [0, 0, 1], -20), prog:program(VS_RECT, FS_LAGOON), minZoom:0.03, pxMin:6, farColor:[1, 0.5, 0.58], farLum:0.55, labelRange:1.5e5, labelMin:15,
     aka:'m8 messier 8 lagoon nebula ngc 6523 ngc 6530 hourglass herschel 36 sagittarius',
     visFn(rpx){ return smooth(6, 16, rpx)*(0.2 + 0.8*smooth(2, 30, orbit.dist)); },
     views:nebView(pos, [{ d:[0.55, 0.3, 0.8], k:1.1, hold:8, drift:0.03 }, { dirFn:() => V.norm(V.mul(pos, -1)), k:0.3, off:HG, hold:9, drift:0.02 }]),
     particles:[{ ps:cl.ps, prog:'ptBasic', mode:1, sb:1.1, size:1.8 }, { ps:cl.spikes, prog:'spike', lines:true, mode:1, sb:1.1, size:1, len:0.03, q0:() => [1, 0, 0, 0] }],
-    readout:() => 'about 4,100 light-years (estimates range from 4,000 to 6,000) · 110 x 50 light-years\nfaintly visible to the naked eye from a dark site' });
+    readout:() => 'about 4,300 light-years (Gaia measured its cluster) · 110 x 50 light-years\nfaintly visible to the naked eye from a dark site' });
 })();
 
-// ---------------------------------------------------------------- the Hercules Cluster (M13): the globular cluster the Arecibo message was aimed at
+// ---------------------------------------------------------------- the Great Hercules Cluster (M13): the globular cluster the Arecibo message was aimed at
 const m13 = (() => {
   const RAD = 85, pos = radec(hms(16,41,41.24), dms(36,27,35.5), 25000);
   const n = Math.round(22000*QUALITY), ps = makePS(n);
@@ -150,9 +150,9 @@ const m13 = (() => {
   }
   ps.upload('ac');
   const sent = Date.UTC(1974, 10, 16);   // the Arecibo message went out on 16 November 1974
-  return addObj({ key:'m13', tags:['clusters'], name:'Hercules Cluster', label:'M13', type:'globular cluster · M13, target of the Arecibo message', group:'nebulae', sortKey:25000,
+  return addObj({ key:'m13', tags:['clusters'], name:'Great Hercules Cluster', label:'M13', type:'globular cluster · M13, target of the Arecibo message', group:'nebulae', sortKey:25000,
     fact:'Several hundred thousand stars in a ball about 145 light-years across, around 12 billion years old. In 1974 the Arecibo radio telescope beamed a short message toward it. Travelling at the speed of light, it will take about 25,000 years to get there.',
-    pos, rad:RAD, R0:facingEarth(pos, [0, 0, 1], 0), prog:omegacen.prog, minZoom:0.03, pxMin:5, farColor:[1, 0.9, 0.75], farLum:0.6, labelRange:2e5, aka:'m13 messier 13 ngc 6205 great globular cluster hercules arecibo message',
+    pos, rad:RAD, R0:facingEarth(pos, [0, 0, 1], 0), prog:omegacen.prog, minZoom:0.03, pxMin:5, farColor:[1, 0.9, 0.75], farLum:0.6, labelRange:2e5, aka:'m13 messier 13 ngc 6205 great globular cluster hercules globular cluster arecibo message',
     setU(pr){ gl.uniform4f(pr.u.uP0, 0.6, 0, 0, 0); },
     views:[{d:[0.2, 0.3, 1], k:1.7, hold:9, drift:0.03}, {d:[0.6, 0.4, 0.7], k:0.4, hold:8, drift:0.04}, {d:[0.3, 0.2, 1], k:0.08, hold:8, drift:0.05}],
     particles:[{ps, prog:'ptBasic', mode:0, sb:0.4, size:1.3, cap:0.9}],

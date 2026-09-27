@@ -18,7 +18,7 @@
 Status: `planned`, `in progress`, `done` (then it appears in CATALOG.md and can be removed from here).
 
 ### Done in 0.9.0 (`src/objects/p7-places.js`, Mimas in `src/o10-planet.js`)
-Vesta, Bennu, Mimas and its crater Herschel, 51 Pegasi b, K2-18 b, HD 189733 b, Gaia BH3, T Coronae Borealis, the Lagoon Nebula, the Hercules Cluster (M13); the Other worlds heading and the moons, events, clusters and human-made chips.
+Vesta, Bennu, Mimas and its crater Herschel, 51 Pegasi b, K2-18 b, HD 189733 b, Gaia BH3, T Coronae Borealis, the Lagoon Nebula, the Great Hercules Cluster (M13); the Other worlds heading and the moons, events, clusters and human-made chips.
 
 ### Next packs · planned (one pull request each)
 | Pack | Objects |
