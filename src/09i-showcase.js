@@ -1,7 +1,7 @@
 // ================================================================ the Halo showcase (?showcase=halo): a scripted look at the ship, for reviewing its design.
 // The camera circles the ship once (it holds still for that, which it never does on the site), then rides along through one visit of each
 // kind: a scan at Saturn, light speed to Jupiter (seen from the bridge) and a skim, light speed to the Moon and a weapons test, light speed
-// to Mars and a probe, a fold to the Pillars of Creation and a tractor beam and drill, then a fold back to Saturn and round again.
+// to Mars and a probe (Pip, the drone), a fold to the Pillars of Creation and a tractor beam and drill, then a fold back to Saturn and round again.
 // A caption names each part. Taking the camera (a drag, the pause button, picking something) ends it and the site carries on as usual.
 const SHOWCASE = { on:new URLSearchParams(location.search).get('showcase') === 'halo', t:0, turn:-1, fade:-1, fadeIn:false, visits:-1, wait:-1, loops:0 };
 if (SHOWCASE.on){
@@ -9,7 +9,7 @@ if (SHOWCASE.on){
   const PLAN = [{ key:'saturn', act:'scan', by:'fold' }, { key:'jupiter', act:'skim', by:'light' }, { key:'moon', act:'weapons', by:'light' },
     { key:'mars', act:'probe', by:'light' }, { key:'pillars', act:'tractor', by:'fold' }];
   const JOB = { scan:tg => 'sensor scan of ' + tg.name + ' · every beam ends where it meets the surface',
-    probe:tg => 'a probe goes out, loops round ' + tg.name + ' taking pictures, and docks again',
+    probe:tg => "Pip, the ship's little drone, pops out, says hello, takes pictures of " + tg.name + ' and docks again',
     weapons:tg => 'weapons test on ' + tg.name + ' (fictional): rail gun, plasma lance, antimatter pulse · nothing is harmed',
     skim:tg => 'skimming ' + tg.name + "'s cloud tops to refuel", tractor:() => 'tractor beam and drill · a passing rock is held, cored and let go' };
   // what the ship should do at the stop after next (the ship picks its next stop and job ahead of time)

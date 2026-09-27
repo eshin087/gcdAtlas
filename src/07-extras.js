@@ -370,7 +370,7 @@ void main(){
   col += vec3(0.45, 0.9, 1.)*lamp(o, d, vec3(0.066, 0.2, 0.), 0.01, front + 0.02)*45.*uP2.x;
   col += vec3(0.5, 1., 0.75)*lamp(o, d, vec3(0.07, -0.02, 0.), 0.011, front + 0.02)*45.*uP2.y;
   col += vec3(1., 0.8, 0.55)*pblob(o, d, vec3(0., 0.85, 0.), 0.014)*55.*uP2.z;
-  col += vec3(0.7, 1., 0.8)*lamp(o, d, vec3(0.064, -0.1, 0.), 0.009, front + 0.02)*35.*uP2.w;
+  col += vec3(0.6, 0.83, 1.)*lamp(o, d, vec3(0.064, -0.1, 0.), 0.009, front + 0.02)*35.*uP2.w;   // (the bay Pip, the drone, lives in: ice blue)
   if(uP1.w > 0.01) col += uP3.rgb*(blob(o, d, vec3(0., 0.74, 0.), 0.1)*5. + pblob(o, d, vec3(0., 0.85, 0.), 0.02)*30.)*uP1.w;
 #if SHIELD == 0
   // (no shield: the fold drive's spool lights a round shell as before)
@@ -475,7 +475,7 @@ const ship = (() => {
     dg:0, dm:0, hfl:0, shK:1, sx:0, sy:0, cc:0, cs:0.03 };
   const M0 = new Float32Array(9);
   const o = addObj({ key:'halo', name:'the Halo', label:'Halo', labelClass:'ship', type:'long-range cruiser · a wandering starship that folds space', group:'travel', sortKey:0, layer:3,
-    fact:'A long-range cruiser from a civilisation that learned to fold space. Seen from above it is a trident: a needle-shaped bow and two crescent arms sweeping back to the engines at their tips. Between the arms floats its heart, a captured ball of star plasma inside two rings of light. It hops between the wonders of the universe: light speed for short hops, a fold through space for long ones. On each visit it does one job: a sensor scan, a probe launch, a weapons test, a skim through a gas giant or a star, or drilling a passing rock. (It is the only made-up thing in this atlas.)',
+    fact:'A long-range cruiser from a civilisation that learned to fold space. Seen from above it is a trident: a needle-shaped bow and two crescent arms sweeping back to the engines at their tips. Between the arms floats its heart, a captured ball of star plasma inside two rings of light. It hops between the wonders of the universe: light speed for short hops, a fold through space for long ones. On each visit it does one job: a sensor scan, a photo trip by Pip, its little drone, a weapons test, a skim through a gas giant or a star, or drilling a passing rock. (The Halo and Pip are the only made-up things in this atlas.)',
     // (seen from afar it is an engine glint; its hull fades in over a wide range of sizes, so flying up to it never pops it into view)
     pos:[0, 0, 0], rad:RAD, prog:P.ship, drawK:SHIELD_BOUND[shieldLook], minZoom:1.2, pxMin:3, visFn:rpx => smooth(1.5, 12, rpx), noImpostor:false, farColor:[0.55, 0.8, 1], farLum:0.7, labelRange:1, selfPos:true, aka:'ship starship spaceship ring halo follow trident crescent',
     // locked on, the camera always trails the ship (its frame turns with the ship: see the lock-follow in tick): from behind and a little above (low enough that it reads as flying straight on), lower and to one side, then wide from one side and above

@@ -3,11 +3,11 @@
 // Travel: a short hop (around a planet, across the Solar System, to a neighbouring star) is a light-speed cruise: the stars stretch into
 // streaks and the ship shoots off along a straight line. A long hop is a fold through space: the drive spools up, space swirls in, the ship
 // collapses into a point and bursts out at the other end.
-// Visits: each one is a single smooth pass. The ship flies in, does one job on the way past (a sensor scan, a probe launch, a weapons test,
+// Visits: each one is a single smooth pass. The ship flies in, does one job on the way past (a sensor scan, a photo trip by Pip, its drone, a weapons test,
 // a skim through a gas giant or a star, a tractor beam and drill on a passing rock), turns toward its next stop while still moving, and goes.
 // It never stops and never turns on the spot.
 // Precision: at the scale of a galaxy a float64 offset from the target is only good to ~100 km, so anything that must sit near the 2.5 km
-// ship (beams leaving it, the probe at launch and docking, the rock, sparks) is kept relative to the ship; things near the target (hits,
+// ship (beams leaving it, Pip at launch and docking, the rock, sparks) is kept relative to the ship; things near the target (hits,
 // explosions) relative to the target.
 const HALO = { LS_NEAR:100, LS_FAR:3e4, LS_P:0.35, MAXBEND:1.4, TURN:0.42, T_FAST:10, FOLD_SPOOL:2.8, LS_SPOOL:1.7, FOLD_T:0.4, EMERGE:0.5 };
 // per job: how long it lasts (s), how much the ship slows for it, where on the pass it happens (share of the path); and the framing while it
@@ -277,7 +277,7 @@ function beginVisit(tg, plan, next, how){
   S_.act = ACT[plan.act](plan);
   if (riding() && S_.visits > 1) toast((how === 'fold' ? 'the Halo folds space · ' : '') + 'at ' + tg.name + ': ' + ACT_TOAST[plan.act]);
 }
-const ACT_TOAST = { scan:'a sensor sweep', probe:'a probe goes out to take pictures', weapons:'a weapons test (fictional, nothing is harmed)', skim:'skimming it to refuel', tractor:'catching a passing rock to drill a sample' };
+const ACT_TOAST = { scan:'a sensor sweep', probe:'Pip, its little drone, goes out to take pictures', weapons:'a weapons test (fictional, nothing is harmed)', skim:'skimming it to refuel', tractor:'catching a passing rock to drill a sample' };
 function startAlign(){
   const pl = S_.plan, e = passAt(pl, pl.T), nx = S_.next;
   if (S_.act && S_.act.end) S_.act.end();
@@ -426,7 +426,7 @@ function shieldUpdate(dt){
 }
 ship.update = function(dt){
   if (!S_.plan){ S_.visits = 0; foldVisit(BYKEY.saturn); S_.t = 3; }
-  if (S_.hold){ shieldUpdate(dt); foldUpdate(dt); return; }   // (the showcase holds it still while the camera circles it, the hull still forming if it just folded in; on the site it never stops)
+  if (S_.hold){ shieldUpdate(dt); foldUpdate(dt); drone.ctl(dt); return; }   // (the showcase holds it still while the camera circles it, the hull still forming if it just folded in; on the site it never stops)
   // (a camera flying up to the ship: the ship carries on, but it will not jump until the camera has landed)
   const flying = !!(flight && flight.obj === ship);
   S_.t += dt;
@@ -453,6 +453,7 @@ ship.update = function(dt){
   S_.lsRun = S_.phase === 'light' ? S_.lsRun + dt*(0.5 + 1.6*S_.stretch) : S_.lsRun;
   S_.em = [0, 0, 0, 0]; S_.scoop = 0;
   if (S_.act) S_.act.update(dt, S_.t - S_.plan.tA);
+  drone.ctl(dt);   // (Pip, the drone: here and nowhere else, or it would move twice a tick)
   fxUpdate(dt);
 };
 
@@ -509,53 +510,15 @@ ACT.scan = pl => {
   };
   return A;
 };
-// -- a probe: a little drone drops out of the belly bay, loops round the body taking pictures (tiny flashes), comes back and docks
+// -- a probe: Pip, the ship's little drone (07i-drone.js), pops out of the belly bay, says hello, flies to the body, hovers there taking
+// pictures while it looks at it, flies home and docks (it launches 0.3 s into the job and is back aboard 11.9 s later). The drone moves and
+// draws itself (drone.ctl from ship.update, pipDraw from haloDraw); the job only keeps the time and says what is happening.
 ACT.probe = pl => {
-  const tg = pl.tg, T = ACTS.probe.T, t0 = pl.tA + 0.3;
-  const A = { kind:'probe', tau:-9, kn:null, trail:[], shots:0, flashAt:[] };
-  // knots of the probe's path relative to the ship (so it is exact at launch and docking), at pass times: it drifts out of the bay,
-  // boosts off toward the body, loops round it, comes back, slows down beside the ship and docks
-  function build(){
-    const sp = aimSphere(tg), s = surfOf(tg), Rl = s ? Math.max(s*1.35, tg.holeR ? tg.rad*0.7 : 0) : heartOf(tg)*3;
-    const mid = passAt(pl, t0 + 6.3), u1 = V.norm(mid.p), u2 = V.norm(perpTo(mid.h, u1)), bl = S_.belly || [1, 0, 0], R = ship.rad;
-    const bay = localPt(HULL.bay), hold = V.add(bay, V.add(V.mul(bl, 2.4*R), V.mul(S_.h, 0.6*R)));
-    const kn = [{ t:t0, r:bay, m:V.mul(bl, 1.2*R) }, { t:t0 + 1.3, r:hold, m:V.mul(bl, 2*R) }];
-    for (let j=0;j<8;j++){ const th = -0.4 + j*(2*Math.PI + 0.3)/7, t = t0 + 3.3 + j*6/7, K = V.add(V.mul(u1, Math.cos(th)*Rl), V.mul(u2, Math.sin(th)*Rl)); kn.push({ t, r:V.sub(K, passAt(pl, t).p) }); }
-    kn.push({ t:t0 + 10.6, r:hold, m:V.mul(bl, -2*R) }, { t:t0 + 11.9, r:bay, m:V.mul(bl, -0.6*R) });
-    for (let j=2;j<10;j++){ const a = kn[j - 1], b = kn[j + 1]; kn[j].m = V.mul(V.sub(b.r, a.r), 1/(b.t - a.t)); }
-    A.kn = kn; A.flashAt = [3.9, 4.7, 5.6, 6.4, 7.3, 8.1, 9.0].map(x => t0 + x); A.shots = 0; A.sp = sp;
-  }
-  A.relAt = t => { const kn = A.kn; let j = 0; while (j < kn.length - 2 && kn[j + 1].t < t) j++;
-    const a = kn[j], b = kn[j + 1], D = b.t - a.t, u = clamp((t - a.t)/D, 0, 1), u2 = u*u, u3 = u2*u;
-    return V.add(V.add(V.mul(a.r, 2*u3 - 3*u2 + 1), V.mul(a.m, (u3 - 2*u2 + u)*D)), V.add(V.mul(b.r, -2*u3 + 3*u2), V.mul(b.m, (u3 - u2)*D))); };
-  A.out = () => A.kn && S_.t > A.kn[0].t && S_.t < A.kn[A.kn.length - 1].t;
-  A.update = (dt, tau) => {
-    A.tau = tau;
-    if (!A.kn && S_.t > t0 - 0.5) build();
-    for (const q of A.trail){ q.age += dt; q.r = V.sub(q.r, V.mul(S_.vel, dt)); }
-    while (A.trail.length && A.trail[0].age > 1.3) A.trail.shift();
-    if (A.kn){
-      const t = S_.t, k0 = A.kn[0].t, k1 = A.kn[A.kn.length - 1].t;
-      if (Math.abs(t - k0) < 0.6 || Math.abs(t - k1) < 0.6) S_.em[3] = 1;
-      if (A.out()){ A.tAcc = (A.tAcc || 0) + dt; if (A.tAcc > 0.04){ A.tAcc = 0; A.trail.push({ r:A.relAt(t), age:0 }); } }
-      while (A.shots < A.flashAt.length && t >= A.flashAt[A.shots]){ A.shots++; const q = V.add(ship.offset, A.relAt(t)); fxAdd({ T:0.25, anc:tg, q, draw(fx){ const p = V.add(fx.anc.rel, fx.q), u = fx.t/fx.T; if (behindSphere(p, fx.anc.rel, aimSphere(fx.anc).r*0.998)) return; P_(p, WHITE, 5*(1 - u)*(1 - u), -12); P_(p, [0.85, 0.92, 1], 1.4*(1 - u), -26); } }); }
-      if (t > k0 && !A.puffed){ A.puffed = true; fxPuff(localPt(HULL.bay), [0.7, 1, 0.8], 10); }
-      if (t > k1 && !A.docked){ A.docked = true; fxPuff(localPt(HULL.dock), [0.7, 1, 0.8], 6); }
-    }
-  };
+  const T = ACTS.probe.T, A = { kind:'probe', tau:-9, tg:pl.tg, pl, t0:pl.tA + 0.3 };
+  A.update = (dt, tau) => { A.tau = tau; };
   A.env = () => env(A.tau, T);
-  A.line = () => { if (!A.kn || S_.t < A.kn[0].t) return 'approaching ' + tg.name + ' · readying a probe';
-    const t = S_.t - A.kn[0].t; if (t < 1.3) return 'launching a probe'; if (t < 3.3) return 'probe away · heading for ' + tg.name; if (t < 9.4) return `probe imaging ${tg.name} · picture ${Math.max(A.shots, 1)} of 7`;
-    return t < 11.9 ? 'probe returning to the ship' : 'probe docked · 7 pictures of ' + tg.name; };
-  A.draw = () => {
-    if (!A.kn) return;
-    const C = tg.rel, R = A.sp.r, occ = p => behindSphere(p, C, R*0.998) || behindHull(p);
-    let prev = null, pv = false; for (const q of A.trail){ const p = V.add(ship.rel, q.r), v = !occ(p); if (prev && pv && v) L_(prev, p, [0.5, 0.9, 0.7], 0.35*(1 - q.age/1.3)); prev = p; pv = v; }
-    if (!A.out()) return;
-    const p = V.add(ship.rel, A.relAt(S_.t)); if (occ(p)) return;
-    P_(p, [0.85, 1, 0.9], 3, -5); P_(p, [0.4, 1, 0.7], 0.7, -14);
-    const bl = (S_.t*1.7) % 1; if (bl < 0.15) P_(p, [0.3, 1, 0.45], 5, -10);
-  };
+  A.line = () => pipLine(A);
+  A.draw = () => {};
   A.end = () => {};
   return A;
 };
@@ -795,11 +758,6 @@ const FX = [];
 function fxAdd(e){ e.t = 0; FX.push(e); return e; }
 function fxUpdate(dt){
   for (let i=FX.length - 1;i>=0;i--){ const e = FX[i]; e.t += dt; if (e.drift) e.drift = V.add(e.drift, V.mul(S_.vel, dt)); if (e.step) e.step(dt); if (e.t > e.T) FX.splice(i, 1); }
-}
-// a small puff of glowing grains near the ship (probe launch and docking)
-function fxPuff(l, c, n){
-  const g = []; for (let i=0;i<n;i++) g.push({ v:V.mul(randDir(), ship.rad*(0.3 + 0.6*rnd())) });
-  fxAdd({ T:0.6, base:l, drift:[0, 0, 0], draw(e){ const f = 1 - e.t/e.T; for (const q of g){ const p = V.sub(V.add(ship.rel, V.add(e.base, V.mul(q.v, e.t))), e.drift); if (!behindHull(p)) P_(p, c, 0.8*f, -2); } } });
 }
 // muzzle flash at the gun
 function fxMuzzle(l, kind){
@@ -1138,6 +1096,7 @@ function haloDraw(){
   if (near && inFront && ship.rpx < 3 && S.scale > 0.3) P_(ship.rel, [0.6, 0.95, 1], (0.7 + 0.3*Math.sin(ship.t*5))*ship.farLum/0.7, -2.4);
   if (near && S.act && S.phase === 'pass') S.act.draw();
   for (const e of FX) if (!e.anc || e.anc.dist < Math.max(e.anc.rad*60, ship.labelRange)) e.draw(e);
+  if (near) pipDraw();   // (Pip, the drone: its glint far away, its trail, the spot its lamp lights)
   const hx = localPt([1, 0, 0]), hz = localPt([0, 0, 1]), bx = V.mul(hx, 1/ship.rad), bz_ = V.mul(hz, 1/ship.rad), h = S.h, R = ship.rad;
   // light speed, riding along: star streaks rushing out of a vanishing point ahead
   if (S.stretch > 0.01 && camNear()){
@@ -1195,7 +1154,7 @@ ship.dbg = {
   // with the same seed, clock and camera the ship flies the same route every time
   reset(seed, key = 'saturn'){
     if (S_.act && S_.act.end) S_.act.end();
-    hrnd = lcg(seed); actBag.length = 0; FX.length = 0; weapK = 0; rockShape = 0;
+    hrnd = lcg(seed); actBag.length = 0; FX.length = 0; weapK = 0; rockShape = 0; drone.reset();
     Object.assign(S_, { phase:'pass', t:0, target:null, spool:0, ls:0, scale:1, scoop:0, em:[0, 0, 0, 0], visits:0, force:{}, lastSkim:-9, lastAct:null, plan:null, next:null,
       align:null, leg:null, fold:null, act:null, h:[0, 1, 0], belly:null, vel:[0, 0, 0], speed:0, viewA:0, side:1, hFrom:null, jumpAt:0, stretch:0, lsRun:0, emerge:1, seedN:1, reaim:0,
       ringPh:0, beat:0, load:0, gDir:[0, 1, 0], vesc:0, gTg:null, climbK:0, fk:-9, asm:9, eat:0, csL:false, wz:1, reseat:null, dg:0, dm:0, hfl:0, shK:1, sx:0, sy:0, cc:0 });
