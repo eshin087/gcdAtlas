@@ -1141,11 +1141,12 @@ function haloReadout(){
   // at most three lines. Under a strong pull the shield's power and the pull take the second line (the shield is made up, the pull is real),
   // and with no job line showing, the real escape speed there takes the third
   const L = l.split('\n'), made = `the Halo is made up · ~4.2 km from needle to engines · visit ${S.visits}`;
-  if (!(S.load > 0.12 && S.gTg && shieldLook > 0)) return [L[0], L[1], made].filter(Boolean).join('\n');   // (shieldLook 0: the review's look with no shield)
+  // (shieldLook 0: the review's look with no shield. At light speed none of this: the shield's load fades from the stop it left, far behind.)
+  if (!(S.load > 0.12 && S.gTg && shieldLook > 0 && S.phase !== 'light')) return [L[0], L[1], made].filter(Boolean).join('\n');
   const g = S.gTg, nm = g.label && g.label.length < g.name.length && !/^the /.test(g.name) ? g.label : g.name, job = S.phase === 'pass' && !!S.act;
   const v = S.vesc, esc = v >= 0.01 ? Math.round(v*100) + '% of light speed' : Math.round(v*C_KMS).toLocaleString('en') + ' km/s';
   return [L[0], `shield power ${Math.round(S.load*100)}% · ${S.climbK > 0.5 ? 'climbing out of' : 'holding course in'} ${nm}'s gravity`,
-    job ? `the Halo and its shield are made up · visit ${S.visits}` : `escape speed here: ${esc} (real) · the Halo is made up`].join('\n');
+    job || !(v*C_KMS >= 0.5) ? `the Halo and its shield are made up · visit ${S.visits}` : `escape speed here: ${esc} (real) · the Halo is made up`].join('\n');
 }
 
 // ---------------------------------------------------------------- test hooks (tests/motion.mjs): start over on a route of its own; force the next target, job or way of travel;
