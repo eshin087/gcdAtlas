@@ -206,13 +206,18 @@ const music = (() => {
     if (!offline && typeof onTrack === 'function') onTrack(T);
     // the style's level (set on each note as it is made, so the last song's tail keeps its own) and its textures
     vel = S.level;
+    // (a song is dealt up to 0.25 s ahead, so a skip can land before the skipped song's settings: those are cancelled first)
     const t = at === undefined ? ctx.currentTime : at;
-    crackleG.gain.setTargetAtTime(S.crackle*vel, t, 2);
-    droneG.gain.setTargetAtTime(S.drone*vel, t, 4);
-    if (hissNow && hissNow.end > t + 1.2){ const h = hissNow; h.g.gain.cancelScheduledValues(t); h.g.gain.setTargetAtTime(0, t, 0.3); h.s.stop(t + 1.2); }
+    crackleG.gain.cancelScheduledValues(t); crackleG.gain.setTargetAtTime(S.crackle*vel, t, 2);
+    droneG.gain.cancelScheduledValues(t); droneG.gain.setTargetAtTime(S.drone*vel, t, 4);
+    if (hissNow && hissNow.end > t + 1.2){
+      const h = hissNow; h.g.gain.cancelScheduledValues(t);
+      if (h.start >= t){ h.g.gain.setValueAtTime(0, t); h.s.stop(t); }   // (not started yet: it never plays)
+      else { h.g.gain.setTargetAtTime(0, t, 0.3); h.s.stop(t + 1.2); }
+    }
     hissNow = null;
     if (S.hiss) hiss(t, (sections.length*16 - step)*60/bpm/4, S.hiss*vel);
-    for (const d of [echoL, echoR]) d.delayTime.setTargetAtTime(3*60/bpm/4, t, 0.05);   // a dotted eighth
+    for (const d of [echoL, echoR]){ d.delayTime.cancelScheduledValues(t); d.delayTime.setTargetAtTime(3*60/bpm/4, t, 0.05); }   // a dotted eighth
   }
   let onTrack = null;
   // ---------------------------------------------------------------- synthesis
@@ -519,9 +524,10 @@ const music = (() => {
   function hiss(t, dur, v){
     const s = ctx.createBufferSource(), hp = ctx.createBiquadFilter(), lp = ctx.createBiquadFilter(), g = ctx.createGain();
     s.buffer = noiseBuf; s.loop = true; hp.type = 'highpass'; hp.frequency.value = 1800; lp.type = 'lowpass'; lp.frequency.value = 7000;
+    g.gain.value = 0;   // (a gain starts at 1: if its events are cancelled before t, it must not come back to full noise)
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + 2); g.gain.setValueAtTime(v, t + Math.max(dur - 2, 2)); g.gain.linearRampToValueAtTime(0, t + dur + 1);
     s.connect(hp).connect(lp).connect(g).connect(mixG); s.start(t); s.stop(t + dur + 1.1); tidy(s, [s, hp, lp, g]);
-    hissNow = { s, g, end:t + dur + 1.1 };
+    hissNow = { s, g, start:t, end:t + dur + 1.1 };
   }
   // ---------------------------------------------------------------- the sequencer: sixteenth notes, scheduled a little ahead
   function play(t){
