@@ -255,7 +255,7 @@ function legAt(L, t){
 // ---------------------------------------------------------------- state
 const S_ = ship.S;
 Object.assign(S_, { force:{}, lastSkim:-9, lastAct:null, plan:null, next:null, align:null, leg:null, fold:null, act:null, h:[0, 1, 0], belly:null, vel:[0, 0, 0], speed:0,
-  viewA:0, side:1, hFrom:null, jumpAt:0, stretch:0, lsRun:0, emerge:1, seedN:1 });
+  viewA:0, side:1, hFrom:null, jumpAt:0, stretch:0, lsRun:0, emerge:1, seedN:1, vesc:0, gTg:null, climbK:0 });
 const riding = () => shipCam.on || (!tour.on && orbit.lock === ship.index && cam.focus === ship.index);
 const camNear = () => cam.focus === ship.index && V.len(cam.rel) < ship.rad*80;
 // the camera is not riding but was left looking at the ship: keep it where it is (on the body the ship is leaving) rather than dragging it along
@@ -326,7 +326,7 @@ function startJump(){
     S_.phase = 'light'; S_.t = 0;
     if (angleOf(e.h, d) > 0.005) S_.hFrom = { h:e.h, t:0, T:0.25 };
     fxLightOut(A, e.p, d);
-    if (riding()){ toast('light speed · to ' + B.name); foldFlash('ls'); music.whoosh(S_.leg.T + 0.5); }
+    if (riding()){ toast('light speed · to ' + B.name); foldFlash('blink'); music.whoosh(S_.leg.T + 0.5); }
   } else {
     S_.fold = { A, p:e.p, h:e.h, v:e.v };
     S_.phase = 'fold'; S_.t = 0;
@@ -386,9 +386,44 @@ function placeShip(dt){
   } else ship.viewR = ship.gazeR = ship.R0;
   ship.viewOff = [J.aim[0]*k, J.aim[1]*k, J.aim[2]*k*S_.side]; ship.chaseOff = [J.chaseAim[0]*k, J.chaseAim[1]*k, J.chaseAim[2]*k*S_.side];
 }
+// ---------------------------------------------------------------- the shield (made up, like the ship) and the real gravity it works against
+// Its load follows the real escape speed where the ship is: sqrt(r_s/r) of light speed near a black hole or a neutron star, and a body's
+// surface escape speed x sqrt(R/r) elsewhere. Planets barely register, the Sun's surface is about a quarter, a black-hole pass runs from about
+// half at its start to full at its closest point. (The ship passes 27 to 31 times r_s out: moving that fast it is not caught, so the readout
+// says it holds course in the hole's gravity or climbs out of it, never that it is pulled in.)
+const C_KMS = 299792.458;
+// surface escape speeds (km/s): NASA's planetary and Sun fact sheets; the stars from their mass and radius (sqrt(2GM/R)), the two red
+// supergiants roughly (their masses and sizes are uncertain)
+const VESC = { sun:617.6, earth:11.19, moon:2.38, mars:5.03, jupiter:59.5, saturn:35.5, titan:2.64, io:2.56, europa:2.03, ceres:0.51,
+  alphacen:581, proxima:550, sirius:678, trappist1:537, betelgeuse:95, antares:82 };
+// neutron stars: r_s in km. SGR 1806-20's mass is not measured; 1.4 Suns, a typical neutron star, gives 4.1 km
+const RS_KM = { magnetar:4.1 };
+// (one test for "is it a black hole", for the shield, and later the shots and the sounds)
+const isHoleTarget = tg => !!(tg && tg.holeR > 0);
+function escapeAt(tg, r){
+  if (!tg || !(r > 0)) return 0;
+  if (isHoleTarget(tg)) return Math.sqrt(Math.min(tg.holeR/2.6/r, 1));
+  if (RS_KM[tg.key]) return Math.sqrt(Math.min(RS_KM[tg.key]*KM/r, 1));
+  const v = VESC[tg.key], R = surfOf(tg); return v && R ? v/C_KMS*Math.sqrt(R/Math.max(r, R)) : 0;
+}
+// the load from the escape speed (x = log10 of it as a share of light speed): a quarter at the Sun's surface, the rest from about 6% of light speed up
+const loadOf = x => 0.25*smooth(-4.2, -2.6, x) + 0.75*smooth(-1.25, -0.7, x);
+function shieldUpdate(dt){
+  const tg = ship.parent, off = ship.offset, r = off ? V.len(off) : 0, v = escapeAt(tg, r);
+  S_.vesc = v; S_.gTg = v > 0 ? tg : null;
+  if (r > 0) S_.gDir = V.mul(off, -1/r);
+  // (it works hardest on the way out)
+  S_.climbK += ((r > 0 && V.dot(S_.vel, off) > 0 ? 1 : 0) - S_.climbK)*(1 - Math.exp(-dt*2));
+  const want = v > 0 ? Math.min(1, loadOf(Math.log10(v))*(0.85 + 0.15*S_.climbK)) : 0;
+  S_.load += (want - S_.load)*(1 - Math.exp(-dt*(want > S_.load ? 1.5 : 0.7)));
+  // the rings turn faster as the fold drive spools up and as the shield works (their phase is kept here: 20 pi brings both dotted rings back
+  // to the same pattern), and the heart beats faster, at most 0.6 beats a second with reduced motion
+  S_.ringPh = (S_.ringPh + dt*(0.1 + 1.2*S_.spool + 0.9*S_.load)) % (20*Math.PI);
+  S_.beat = (S_.beat + dt*Math.min(0.3 + 1.7*S_.load, reduceMotion ? 0.6 : 9)) % 1;
+}
 ship.update = function(dt){
   if (!S_.plan){ S_.visits = 0; foldVisit(BYKEY.saturn); S_.t = 3; }
-  if (S_.hold) return;   // (the showcase holds it still while the camera circles it; on the site it never stops)
+  if (S_.hold){ shieldUpdate(dt); return; }   // (the showcase holds it still while the camera circles it; on the site it never stops)
   // (a camera flying up to the ship: the ship carries on, but it will not jump until the camera has landed)
   const flying = !!(flight && flight.obj === ship);
   S_.t += dt;
@@ -397,14 +432,18 @@ ship.update = function(dt){
   if (S_.phase === 'light' && S_.t >= S_.leg.T) endLight();
   if (S_.phase === 'fold' && S_.t >= HALO.FOLD_T) endFold();
   placeShip(dt);
-  // the look of the drive: spool (reactor surge before a fold), jump glow, scale (collapse and emergence)
+  shieldUpdate(dt);
+  // the look of the drive: spool (reactor surge before a fold), light-speed sheen, scale (collapse and emergence)
   const al = S_.phase === 'align', sp = al ? smooth(S_.jumpAt - (S_.next.mode === 'fold' ? HALO.FOLD_SPOOL : HALO.LS_SPOOL), S_.jumpAt, S_.t) : 0;
   S_.spool = al && S_.next.mode === 'fold' ? sp : Math.max(0, S_.spool - dt*2);
   S_.emerge = Math.min(1, S_.emerge + dt/HALO.EMERGE);
-  if (S_.phase === 'fold'){ const u = smooth(0, HALO.FOLD_T, S_.t); S_.scale = 1 - u*u*0.99; S_.jg = Math.min(1, S_.t/0.15); }
+  if (S_.phase === 'fold'){ const u = smooth(0, HALO.FOLD_T, S_.t); S_.scale = 1 - u*u*0.99; }
   else S_.scale = 0.02 + 0.98*smooth(0, 1, S_.emerge);
-  const lsg = S_.phase === 'light' ? (S_.t < 0.4 ? 1 : 0.35 + 0.65*smooth(S_.leg.T - 0.5, S_.leg.T, S_.t)) : (al && S_.next.mode === 'light' ? smooth(S_.jumpAt - 0.6, S_.jumpAt, S_.t) : 0);
-  S_.jg = S_.phase === 'fold' ? S_.jg : Math.max(lsg, (1 - S_.emerge)*1.2, S_.jg - dt*2.5, 0);
+  // the light-speed sheen on the hull's edges: it rises as the ship jumps, settles during the leg, peaks again as it drops out and fades over
+  // 0.4 s after (a fold lights it too while the ship collapses and grows back)
+  const lsg = S_.phase === 'light' ? Math.max(1 - 0.4*smooth(0, 0.6, S_.t), 0.6 + 0.4*smooth(S_.leg.T - 0.5, S_.leg.T, S_.t)) : (al && S_.next.mode === 'light' ? smooth(S_.jumpAt - 0.6, S_.jumpAt, S_.t) : 0);
+  const fg = S_.phase === 'fold' ? Math.min(1, S_.t/0.15) : (1 - S_.emerge)*1.2;
+  S_.ls = Math.max(lsg, fg, S_.ls - dt/0.4, 0);
   // the star streaks: stretch before the jump, full during it, shrinking back as the ship drops out
   S_.stretch = S_.phase === 'light' ? (S_.t < 0.3 ? 0.55 + 0.45*smooth(0, 0.3, S_.t) : 1 - smooth(S_.leg.T - 0.45, S_.leg.T, S_.t)) : (al && S_.next.mode === 'light' ? 0.55*smooth(S_.jumpAt - 0.7, S_.jumpAt, S_.t) : Math.max(0, S_.stretch - dt*3));
   S_.lsRun = S_.phase === 'light' ? S_.lsRun + dt*(0.5 + 1.6*S_.stretch) : S_.lsRun;
@@ -818,8 +857,10 @@ function fxLightOut(A, q, d){
   fxAdd({ T:0.7, anc:A, q, draw(e){ if (camNear()) return; const O = V.add(e.anc.rel, e.q), f = 1 - e.t/e.T, head = ship.rel;
     L_(O, head, [0.6, 0.8, 1], 0.2*f, WHITE, 1.4*f); if (e.t < 0.25) P_(O, WHITE, 2.5*(1 - e.t/0.25), -16); } });
 }
+// (dropping out: a small flash at the needle's tip and a thin ring spreading from it in the ship's plane)
 function fxLightIn(){
-  fxAdd({ T:0.35, draw(e){ const f = 1 - e.t/e.T; P_(ship.rel, WHITE, 2*f*f, camNear() ? -30 : -14); } });
+  fxAdd({ T:0.45, draw(e){ const u = e.t/e.T, f = 1 - u, tip = shipPt(HULL.gun);
+    P_(tip, [0.85, 0.95, 1], 1.6*f*f, -6); ringIn(tip, V.norm(localPt([1, 0, 0])), ship.rad*(0.3 + 3.7*(1 - Math.exp(-u*3))), [0.6, 0.85, 1], 0.3*f*f, 48); } });
 }
 // fold: the swirl of space round the ship during the spool, the collapse (a flash and a shock ring where it was), and the burst when it arrives
 function fxFoldOut(A, q, h){
@@ -858,7 +899,7 @@ function haloDraw(){
       const tail = V.sub(head, V.mul(h, len)), c = V.lerp([0.85, 0.93, 1], [0.45, 0.62, 1], s.c);
       L_(tail, head, c, br*0.15, WHITE, br);
     }
-    if (S.phase === 'light') P_(V.add(ship.rel, V.mul(h, 2000*R)), [0.55, 0.7, 1], 0.12*st, -70);
+    if (S.phase === 'light') P_(V.add(ship.rel, V.mul(h, 2000*R)), [0.75, 0.88, 1], 0.9*st, -6);   // (where it is heading: a pinpoint, not a glow over the needle)
   }
   // the fold drive spooling up: space swirls in round the ship, and arcs leap from its heart
   if (S.phase === 'align' && S.next.mode === 'fold' && S.spool > 0.01 && near){
@@ -889,7 +930,14 @@ function haloReadout(){
   else if (S.phase === 'align') l = S.next.mode === 'fold' ? (S.spool > 0.05 ? 'fold drive spooling up · next stop: ' + S.next.tg.name : 'setting course for ' + S.next.tg.name) : (S.stretch > 0.05 ? 'jumping to light speed' : 'setting course for ' + S.next.tg.name + ' · light speed');
   else if (S.phase === 'light') l = 'light speed · to ' + S.leg.B.name + (S.t > S.leg.T - 0.6 ? ' · dropping out' : '');
   else l = 'folding space · to ' + S.next.tg.name;
-  return l + `\nthe Halo is made up · ~4.2 km from needle to engines · visit ${S.visits}`;
+  // at most three lines. Under a strong pull the shield's power and the pull take the second line (the shield is made up, the pull is real),
+  // and with no job line showing, the real escape speed there takes the third
+  const L = l.split('\n'), made = `the Halo is made up · ~4.2 km from needle to engines · visit ${S.visits}`;
+  if (!(S.load > 0.12 && S.gTg && shieldLook > 0)) return [L[0], L[1], made].filter(Boolean).join('\n');   // (shieldLook 0: the review's look with no shield)
+  const g = S.gTg, nm = g.label && g.label.length < g.name.length && !/^the /.test(g.name) ? g.label : g.name, job = S.phase === 'pass' && !!S.act;
+  const v = S.vesc, esc = v >= 0.01 ? Math.round(v*100) + '% of light speed' : Math.round(v*C_KMS).toLocaleString('en') + ' km/s';
+  return [L[0], `shield power ${Math.round(S.load*100)}% · ${S.climbK > 0.5 ? 'climbing out of' : 'holding course in'} ${nm}'s gravity`,
+    job ? `the Halo and its shield are made up · visit ${S.visits}` : `escape speed here: ${esc} (real) · the Halo is made up`].join('\n');
 }
 
 // ---------------------------------------------------------------- test hooks (tests/motion.mjs): start over on a route of its own; force the next target, job or way of travel;
@@ -900,11 +948,13 @@ ship.dbg = {
   reset(seed, key = 'saturn'){
     if (S_.act && S_.act.end) S_.act.end();
     hrnd = lcg(seed); actBag.length = 0; FX.length = 0; weapK = 0; rockShape = 0;
-    Object.assign(S_, { phase:'pass', t:0, target:null, spool:0, jg:0, scale:1, scoop:0, em:[0, 0, 0, 0], visits:0, force:{}, lastSkim:-9, lastAct:null, plan:null, next:null,
-      align:null, leg:null, fold:null, act:null, h:[0, 1, 0], belly:null, vel:[0, 0, 0], speed:0, viewA:0, side:1, hFrom:null, jumpAt:0, stretch:0, lsRun:0, emerge:1, seedN:1, reaim:0 });
+    Object.assign(S_, { phase:'pass', t:0, target:null, spool:0, ls:0, scale:1, scoop:0, em:[0, 0, 0, 0], visits:0, force:{}, lastSkim:-9, lastAct:null, plan:null, next:null,
+      align:null, leg:null, fold:null, act:null, h:[0, 1, 0], belly:null, vel:[0, 0, 0], speed:0, viewA:0, side:1, hFrom:null, jumpAt:0, stretch:0, lsRun:0, emerge:1, seedN:1, reaim:0,
+      ringPh:0, beat:0, load:0, gDir:[0, 1, 0], vesc:0, gTg:null, climbK:0 });
     foldVisit(BYKEY[key]); S_.t = 3;
   },
   force(o){ Object.assign(S_.force, o); },
+  escapeAt, isHoleTarget, setShield:v => ship.setShield(v),
   replan(){ if (S_.phase !== 'pass') return; const C = pickNext(S_.target); S_.next = { tg:C, mode:travelMode(S_.target, C) }; },
   skip(){ if (S_.phase === 'pass') S_.t = S_.plan.T; else if (S_.phase === 'align') S_.t = S_.jumpAt; },
   get beams(){ return S_.act && S_.act.beams ? S_.act.beams : []; },
