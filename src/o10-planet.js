@@ -127,7 +127,18 @@ const titan = saturnMoon('titan', 'Titan', 11, 2574.7, 1221870, 15.945, 40, 'Big
   views:[{dirFn:() => sunSide(titan, 0.5, 0.15), k:3.2, hold:8, drift:0.03}, {dirFn:() => { const u = V.norm(V.mul(titan.offset, -1)), L = sunDirFrom(titan), pp = V.norm(V.sub(L, V.mul(u, V.dot(L, u)))); return V.norm(V.add(V.mul(u, -Math.cos(0.36)), V.mul(pp, Math.sin(0.36)))); }, k:7, hold:9, drift:0}] });
 const enceladus = saturnMoon('enceladus', 'Enceladus', 12, 252.1, 237948, 1.370218, 200, 'A small, brilliant ice moon whose south pole sprays geysers of salty water from an ocean below into space, feeding Saturn\'s E ring.',
   'radius 252 km · reflects 99% of sunlight\ngeysers of water vapour from its tiger stripes', { atlas:true });
-saturnMoon('mimas', 'Mimas', 13, 198.2, 185539, 0.942422, 120, 'A small icy moon with one giant crater that makes it look like the Death Star.', 'radius 198 km');
+// Mimas and its giant crater Herschel (drawn with its real relief: kind 24 in FS_PLANETG). Herschel is on the side Mimas leads with, so it is
+// in sunlight for half of each 22.6-hour orbit: its close view looks down on it from the sunward side, or at the lit ground nearest it at night
+const herschelDir = () => M3.apply(BYKEY.mimas.rot, [-0.37061, -0.02408, 0.92848]);
+const mimas = saturnMoon('mimas', 'Mimas', 24, 198.2, 185539, 0.942422, 120,
+  'A ball of ice 396 km across with one enormous crater, Herschel, 130 km wide: about a third of the moon\'s own width. Its walls rise about 5 km and a peak 6 km high stands in the middle, which is why Mimas looks like the Death Star from Star Wars.',
+  '396 km across · Herschel is 130 km wide\nits walls rise about 5 km; its central peak stands 6 km tall', { atlas:true, type:'moon of Saturn · the one with the giant crater', aka:'mimas death star herschel crater saturn moon',
+  views:[{dirFn:() => sunSide(mimas, 0.35, 0.15), k:3.2, hold:8, drift:0.03},
+    {dirFn:() => { const h = herschelDir(), L = sunDirFrom(mimas); return V.norm(V.add(h, V.mul(L, V.dot(h, L) > -0.2 ? -0.45 : 1.2))); }, k:2.7, hold:9, drift:0.01},
+    {dirFn:() => sunSide(mimas, 1.45, 0.12), k:2.3, hold:8, drift:0.02}],
+  // (near Saturn's equinox the moons pass through its shadow once an orbit: Mimas is then dark for about two hours)
+  readout:() => { const s = mimas.offset, u = V.norm(saturn.pos), along = V.dot(s, u);
+    return '396 km across · Herschel is 130 km wide\n' + (along > 0 && V.len(V.sub(s, V.mul(u, along))) < 58232*KM ? 'in Saturn\'s shadow right now: the Sun is behind Saturn' : 'its walls rise about 5 km; its central peak stands 6 km tall'); } });
 saturnMoon('tethys', 'Tethys', 13, 531.1, 294619, 1.887802, 300, 'An icy moon scarred by the huge Ithaca Chasma canyon.', 'radius 531 km');
 saturnMoon('dione', 'Dione', 13, 561.4, 377396, 2.736915, 70, 'Icy moon with bright ice cliffs on its trailing side.', 'radius 561 km');
 saturnMoon('rhea', 'Rhea', 13, 763.8, 527108, 4.518212, 160, 'Saturn\'s second-largest moon, a cold ball of ice and rock.', 'radius 764 km');
