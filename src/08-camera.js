@@ -75,12 +75,47 @@ function vwPath(u1, w0, w1, rho){
   const r0 = -Math.asinh(b0), r1 = -Math.asinh(b1);
   return { S:(r1 - r0)/rho, u:s => w0*Math.sinh(rho*s)/(rho*rho*Math.cosh(rho*s + r0)), w:s => w0*Math.cosh(r0)/Math.cosh(rho*s + r0) };
 }
+// a trip that zooms far out on the way (its widest view more than 30 times either end, and over 2,000 light-years): such a trip swings over
+// the galactic pole and takes longer
+function isScenic(path, w0, w1){
+  let wMax = 0; for (let i=0;i<=24;i++) wMax = Math.max(wMax, path.w(path.S*i/24));
+  return wMax > 30*Math.max(w0, w1) && wMax > 2000;
+}
 function slerpDir(a, b, t){
   const c = clamp(V.dot(a, b), -1, 1), th = Math.acos(c);
   if (th < 1e-4) return V.norm(V.lerp(a, b, t));
   if (th > 3.1) { const ax = V.norm(V.cross(a, Math.abs(a[1]) < 0.9 ? [0,1,0] : [1,0,0])); return V.norm(V.add(V.mul(a, Math.cos(th*t)), V.mul(ax, Math.sin(th*t)))); }
   const s = Math.sin(th);
   return V.add(V.mul(a, Math.sin((1 - t)*th)/s), V.mul(b, Math.sin(t*th)/s));
+}
+// (a scenic trip swings the camera round to look along this direction at its widest point)
+const DIR_MID = V.norm([0.3, 0.15, 1]), UP_MID = V.norm(V.sub([1, 0, 0], V.mul(DIR_MID, DIR_MID[0])));
+// progress table: eased at both ends, and for scenic trips slowed right at the widest point so the big picture can sink in
+// (prog[i] = the time fraction at which s/S = i/64)
+function flightProg(path, scenic, pass, glide){
+  let sPeak = 0, wp = -1; for (let i=0;i<=48;i++){ const w = path.w(path.S*i/48); if (w > wp){ wp = w; sPeak = i/48; } }
+  const tbl = [0]; let acc = 0;
+  // (the floor falls from 0.15 at departure to 0.025 on arrival: the camera glides in and settles, rather than arriving at speed and stopping dead)
+  // (passing an object on the way, the camera eases off a little as it goes by, but never stops)
+  const f0 = 0.15, f1 = 0.025;
+  // (glide: a long, slow final approach, used to come up behind the Halo)
+  for (let i=1;i<=64;i++){ const x = (i - 0.5)/64, ease = (Math.sin(Math.PI*x)*0.85 + f0*(1 - x) + f1*x)*(glide ? 1 - 0.55*smooth(0.6, 1, x) : 1), hover = (scenic ? 1 - 0.8*Math.exp(-Math.pow((x - sPeak)/0.07, 2)) : 1)*(pass ? 1 - 0.4*Math.exp(-Math.pow((x - pass.e)/0.08, 2)) : 1); acc += 1/(ease*hover); tbl.push(acc); }
+  return tbl.map(v => v/acc);
+}
+// how far along the path (0 to 1) a flight is at time fraction x
+function flightE(prog, x){
+  let j = 0; while (j < 63 && prog[j + 1] < x) j++;
+  return clamp((j + (x - prog[j])/Math.max(prog[j + 1] - prog[j], 1e-9))/64, 0, 1);
+}
+// which way the camera looks back from at time fraction x (dir points from the target to the camera), and its up
+function flightDir(f, x){
+  let dir, up;
+  if (f.scenic){
+    if (x < 0.5){ const a = smooth(0.04, 0.42, x); dir = slerpDir(f.dir0, f.dirMid, a); up = V.norm(V.lerp(f.up0, f.upMid, a)); }
+    else { const a = smooth(0.58, 0.96, x); dir = slerpDir(f.dirMid, f.dir1, a); up = V.norm(V.lerp(f.upMid, f.up1, a)); }
+  } else { const k = smooth(0.15, 0.85, x); dir = slerpDir(f.dir0, f.dir1, k); up = V.norm(V.lerp(f.up0, f.up1, k)); }
+  const sw = Math.sin(Math.PI*x)*f.spin;
+  return [V.add(V.mul(dir, Math.cos(sw)), V.mul(V.cross(up, dir), Math.sin(sw))), up];
 }
 function startFlight(o, vp, onDone, via, glide){
   const A = orbit.target.slice(), w0 = Math.max(V.len(V.sub(cam.rel, A)), 1e-30);
@@ -89,18 +124,8 @@ function startFlight(o, vp, onDone, via, glide){
   const pass = via ? passBy(via.o, A, B, path) : null;
   const dirEnd = M3.apply(camFrameOf(o), sphL(vp.yaw, vp.pitch));
   // long journeys zoom far out: swing the camera over the galactic pole on the way, so the trip reads as a map
-  let wMax = 0; for (let i=0;i<=24;i++) wMax = Math.max(wMax, path.w(path.S*i/24));
-  const scenic = wMax > 30*Math.max(w0, w1) && wMax > 2000;
-  const dirMid = V.norm([0.3, 0.15, 1]), upMid = V.norm(V.sub([1, 0, 0], V.mul(dirMid, dirMid[0])));
-  // progress table: eased at both ends, and for scenic trips slowed right at the widest point so the big picture can sink in
-  let sPeak = 0, wp = -1; for (let i=0;i<=48;i++){ const w = path.w(path.S*i/48); if (w > wp){ wp = w; sPeak = i/48; } }
-  const tbl = [0]; let acc = 0;
-  // (the floor falls from 0.15 at departure to 0.025 on arrival: the camera glides in and settles, rather than arriving at speed and stopping dead)
-  // (passing an object on the way, the camera eases off a little as it goes by, but never stops)
-  const f0 = 0.15, f1 = 0.025;
-  // (glide: a long, slow final approach, used to come up behind the Halo)
-  for (let i=1;i<=64;i++){ const x = (i - 0.5)/64, ease = (Math.sin(Math.PI*x)*0.85 + f0*(1 - x) + f1*x)*(glide ? 1 - 0.55*smooth(0.6, 1, x) : 1), hover = (scenic ? 1 - 0.8*Math.exp(-Math.pow((x - sPeak)/0.07, 2)) : 1)*(pass ? 1 - 0.4*Math.exp(-Math.pow((x - pass.e)/0.08, 2)) : 1); acc += 1/(ease*hover); tbl.push(acc); }
-  const prog = tbl.map(v => v/acc);   // prog[i] = time fraction at which s/S = i/64
+  const scenic = isScenic(path, w0, w1), dirMid = DIR_MID, upMid = UP_MID;
+  const prog = flightProg(path, scenic, pass, glide);
   // travel speed: cinematic (slow and scenic), quick (default), warp (near-instant, same path and effects compressed)
   // (the speed you pick always wins, also on computers that ask for reduced motion; changing it mid-flight re-times the rest of the trip)
   const durs = { cinematic:clamp(1.6 + path.S*0.42, 2.4, 13) + (scenic ? 3 : 0), quick:clamp(1.3 + path.S*0.2, 1.8, 6.5) + (scenic ? 1.4 : 0), warp:clamp(0.85 + path.S*0.03, 0.95, 1.6) };
@@ -165,8 +190,7 @@ function flyTo(o, vp, onDone){
 function updateFlight(dt){
   const f = flight; f.t += dt;
   const x = clamp(f.t/f.dur, 0, 1);
-  let j = 0; while (j < 63 && f.prog[j + 1] < x) j++;
-  const e = clamp((j + (x - f.prog[j])/Math.max(f.prog[j + 1] - f.prog[j], 1e-9))/64, 0, 1), s = f.path.S*e;
+  const e = flightE(f.prog, x), s = f.path.S*e;
   // aim at where the destination is now, not where it was at take-off: planets and moons keep moving during the flight,
   // and aiming at a stale point meant closing in on empty space and then jumping to the real object in the last frame
   const Bnow = V.add(frel(f.obj), f.vp.offFn ? f.vp.offFn() : (f.vp.off || [0, 0, 0]));
@@ -180,14 +204,7 @@ function updateFlight(dt){
     f.A = V.sub(f.A, D); tgt[0] -= D[0]; tgt[1] -= D[1]; tgt[2] -= D[2];
     cam.focus = f.obj.index; f.switched = true;
   }
-  const k = smooth(0.15, 0.85, x);
-  let dir, up;
-  if (f.scenic){
-    if (x < 0.5){ const a = smooth(0.04, 0.42, x); dir = slerpDir(f.dir0, f.dirMid, a); up = V.norm(V.lerp(f.up0, f.upMid, a)); }
-    else { const a = smooth(0.58, 0.96, x); dir = slerpDir(f.dirMid, f.dir1, a); up = V.norm(V.lerp(f.upMid, f.up1, a)); }
-  } else { dir = slerpDir(f.dir0, f.dir1, k); up = V.norm(V.lerp(f.up0, f.up1, k)); }
-  const sw = Math.sin(Math.PI*x)*f.spin;
-  dir = V.add(V.mul(dir, Math.cos(sw)), V.mul(V.cross(up, dir), Math.sin(sw)));
+  const [dir, up] = flightDir(f, x);
   orbit.target = tgt; orbit.dist = orbit.distT = w;
   cam.rel = V.add(tgt, V.mul(dir, w));
   setBasis(V.mul(dir, -1), up);
