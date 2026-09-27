@@ -115,7 +115,7 @@ await page.tap('#toursClose'); await page.waitForTimeout(300);
 const rowInView = whole => page.evaluate(whole => { const b = document.querySelectorAll('#tourList .trow')[1], r = (whole ? b : b.querySelector('b')).getBoundingClientRect(), p = document.querySelector('#tours').getBoundingClientRect();
   const e = document.elementFromPoint((r.left + r.right)/2, (r.top + r.bottom)/2);
   return { name:b.querySelector('b').textContent, shown:r.top >= p.top - 1 && r.bottom <= Math.min(p.bottom, innerHeight) + 1 && r.left >= p.left - 1 && r.right <= p.right + 1 && !!e && e.closest('.trow') === b }; }, whole);
-await page.evaluate(() => __cosmos.randomSeed(1));
+const grandAt = await page.evaluate(() => { __cosmos.randomSeed(1); return __cosmos.tour.obj; });
 await page.tap('#btnTours'); await page.waitForTimeout(500); await shot('7d-tours-random');
 const rrow = await rowInView(true);
 if (rrow.name !== 'random tour' || !rrow.shown) fail('the random tour is not second in view in the list of tours: ' + JSON.stringify(rrow));
@@ -127,7 +127,10 @@ else {
   if (rs.open || rs.id !== 'random' || rs.name !== 'random tour ▾' || rs.stop !== 'stop 1 / 12' || !/^next stop · .+›$/.test(rs.go) || !rs.goIn) fail('tapping the random tour did not start it: ' + JSON.stringify(rs));
 }
 
-// dragging breaks the tour (here the random tour, at its first stop): still on the same stop, the green button goes on to the next stop, and picks the tour up again
+// back on the grand tour at the stop it was on, so the checks below do not depend on what a random deal holds
+await page.evaluate(i => { const C = __cosmos; C.startTour('grand'); C.land(0.1); C.tourGo(i); C.land(0.1); }, grandAt);
+
+// dragging breaks the tour: still on the same stop, the green button goes on to the next stop, and picks the tour up again
 await page.evaluate(() => { __cosmos.land(0.1); });
 await page.mouse.move(120, 300); await page.mouse.down(); await page.mouse.move(210, 310, { steps:8 }); await page.mouse.up();
 await page.waitForTimeout(500); await page.evaluate(() => __cosmos.hud()); await shot('7b-free-camera');
