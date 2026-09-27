@@ -7,53 +7,75 @@
 // click, tap or key press. The first track skips its intro so the groove is there at once.
 const music = (() => {
   const AC = window.AudioContext || window.webkitAudioContext;
-  let ctx = null, master = null, verbSend = null, drumBus = null, drumLP = null, musBus = null, duck = null, crackleG = null, droneG = null, wobble = null, noiseBuf = null;
+  let ctx = null, master = null, mixG = null, verbSend = null, drumBus = null, drumLP = null, musBus = null, duck = null, crackleG = null, droneG = null, wobble = null, noiseBuf = null;
   let wantOn = false, running = false, timer = 0, first = true;
   const hz = m => 440*Math.pow(2, (m - 69)/12);
-  const R = Math.random, pick = a => a[Math.floor(R()*a.length)];
+  let R = Math.random;   // (swapped for a seeded generator in offline renders)
+  const pick = a => a[Math.floor(R()*a.length)];
   // ---------------------------------------------------------------- harmony
   const TYPES = { maj9:[0, 4, 7, 11, 14], m9:[0, 3, 7, 10, 14], dom9:[0, 4, 10, 14, 21], m11:[0, 3, 10, 14, 17], sus:[0, 5, 7, 10, 14], maj7:[0, 4, 7, 11], m7:[0, 3, 7, 10] };
-  const PROGS = {
-    lofi:[[[2, 'm9'], [7, 'dom9'], [0, 'maj9'], [9, 'm9']], [[0, 'maj9'], [9, 'm9'], [5, 'maj9'], [7, 'dom9']], [[5, 'maj7'], [4, 'm7'], [2, 'm9'], [0, 'maj9']],
-      [[9, 'm9'], [2, 'm11'], [7, 'dom9'], [0, 'maj9']], [[0, 'maj9'], [5, 'maj9']], [[4, 'm7'], [9, 'm9'], [2, 'm9'], [7, 'sus']]],
-    house:[[[0, 'm9'], [8, 'maj9'], [3, 'maj9'], [10, 'dom9']], [[0, 'm9'], [5, 'm9']], [[0, 'm11'], [10, 'sus'], [8, 'maj9'], [7, 'm7']], [[9, 'm9'], [5, 'maj9'], [0, 'maj9'], [7, 'sus']]],
-    ambient:[[[0, 'maj9'], [9, 'm9'], [5, 'maj9'], [2, 'm11']], [[0, 'sus'], [10, 'maj9'], [5, 'maj9']], [[2, 'm11'], [0, 'maj9'], [7, 'sus'], [9, 'm9']]],
-  };
   const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21];
-  let lastVoicing = null;
   function voice(root, type, lo = 52, hi = 72){
     const v = TYPES[type].map(i => { let m = root + i; while (m < lo) m += 12; while (m > hi) m -= 12; return m; });
     return [...new Set(v)].sort((a, b) => a - b);
   }
+  // the chord under every bar of a track: a progression is [root, type, bars?] entries (bars defaults to barsPerChord);
+  // it starts again at each new section, and B sections may have their own (progB)
+  function chordPlan(sections, progA, progB, bpc){
+    const out = []; let runStart = 0;
+    for (let b = 0; b < sections.length; b++){
+      if (b > 0 && sections[b] !== sections[b - 1]) runStart = b;
+      const pr = sections[b] === 'B' && progB ? progB : progA, len = c => c[2] || bpc;
+      let p = (b - runStart) % pr.reduce((n, c) => n + len(c), 0), i = 0;
+      while (p >= len(pr[i])){ p -= len(pr[i]); i++; }
+      out.push({ root:pr[i][0], type:pr[i][1], start:p === 0 });
+    }
+    return out;
+  }
+  // ---------------------------------------------------------------- styles
+  // Each style sets its tempo range, its chord progressions (degrees above the key), its arrangement (plan), textures and trim,
+  // and plays one sixteenth note at a time in step(c).
+  const STYLES = {
+    lofi:{ label:'lofi', bpm:[70, 85], swing:() => 0.14 + R()*0.08, bpc:prog => prog.length <= 2 ? 2 : 1, crackle:0.022, drone:0.012, trim:1,
+      progs:[[[2, 'm9'], [7, 'dom9'], [0, 'maj9'], [9, 'm9']], [[0, 'maj9'], [9, 'm9'], [5, 'maj9'], [7, 'dom9']], [[5, 'maj7'], [4, 'm7'], [2, 'm9'], [0, 'maj9']],
+        [[9, 'm9'], [2, 'm11'], [7, 'dom9'], [0, 'maj9']], [[0, 'maj9'], [5, 'maj9']], [[4, 'm7'], [9, 'm9'], [2, 'm9'], [7, 'sus']]],
+      plan:() => [['intro', 4], ['A', 8], ['B', 8], ['break', 4], ['A', 8], ['B', 8], ['outro', 4]], step:lofiStep },
+    house:{ label:'chill house', bpm:[110, 118], bpc:prog => prog.length <= 2 ? 2 : 1, crackle:0.005, drone:0.012, trim:1,
+      progs:[[[0, 'm9'], [8, 'maj9'], [3, 'maj9'], [10, 'dom9']], [[0, 'm9'], [5, 'm9']], [[0, 'm11'], [10, 'sus'], [8, 'maj9'], [7, 'm7']], [[9, 'm9'], [5, 'maj9'], [0, 'maj9'], [7, 'sus']]],
+      plan:() => [['intro', 8], ['A', 16], ['B', 16], ['break', 8], ['drop', 16], ['outro', 8]], step:houseStep },
+    ambient:{ label:'ambient', bpm:[60, 60], bpc:() => 4, crackle:0, drone:0.05, trim:1,
+      progs:[[[0, 'maj9'], [9, 'm9'], [5, 'maj9'], [2, 'm11']], [[0, 'sus'], [10, 'maj9'], [5, 'maj9']], [[2, 'm11'], [0, 'maj9'], [7, 'sus'], [9, 'm9']]],
+      plan:() => [['A', 12 + 4*Math.floor(R()*3)]], step:ambientStep },
+  };
   // ---------------------------------------------------------------- tracks
   const WORDS1 = ['Midnight', 'Slow', 'Blue', 'Quiet', 'Tidal', 'Amber', 'Lunar', 'Violet', 'Drifting', 'Distant', 'Soft', 'Golden', 'Faint', 'Warm', 'Silver', 'Late'];
   const WORDS2 = ['orbit', 'over Europa', 'shift', 'lock', 'nebula', 'transit', 'light-years', 'horizon', 'drift', 'aurora', 'redshift', 'perihelion', 'cassette', 'Lagrange point', 'dust lanes', 'eclipse', 'signal', 'parallax'];
   const MIX = ['lofi', 'house', 'lofi', 'ambient', 'house', 'lofi', 'house', 'ambient'];
-  let mixIdx = Math.floor(R()*MIX.length), T = null, nextT = 0, step = 0;
-  function newTrack(){
-    const want = SET.musicStyle && SET.musicStyle !== 'mix' ? SET.musicStyle : MIX[mixIdx++ % MIX.length];
-    const style = want;
+  let mixIdx = Math.floor(R()*MIX.length), T = null, nextT = 0, step = 0, forceStyle = null;
+  // (at: the time the track starts; a new track is made a little ahead of the music)
+  function newTrack(at){
+    const style = forceStyle || (SET.musicStyle && STYLES[SET.musicStyle] ? SET.musicStyle : MIX[mixIdx++ % MIX.length]), S = STYLES[style];
     const key = 50 + Math.floor(R()*8);   // D3 .. A3
-    const bpm = style === 'lofi' ? 70 + Math.floor(R()*16) : style === 'house' ? 110 + Math.floor(R()*9) : 60;
-    const prog = pick(PROGS[style]).map(([deg, type]) => [key + deg, type]);
-    const plan = style === 'lofi' ? [['intro', 4], ['A', 8], ['B', 8], ['break', 4], ['A', 8], ['B', 8], ['outro', 4]]
-      : style === 'house' ? [['intro', 8], ['A', 16], ['B', 16], ['break', 8], ['drop', 16], ['outro', 8]]
-      : [['A', 12 + 4*Math.floor(R()*3)]];
+    const bpm = S.bpm[0] + (S.bpm[1] > S.bpm[0] ? Math.floor(R()*(S.bpm[1] - S.bpm[0] + 1)) : 0);
+    const prog = pick(S.progs).map(([deg, type, bars]) => [key + deg, type, bars]);
+    const plan = S.plan();
     const sections = []; plan.forEach(([n, b]) => { for (let i=0;i<b;i++) sections.push(n); });
     // a short motif from the pentatonic scale, reused and varied through the track
     const rhythm = pick([[0, 3, 6, 10], [2, 6, 8, 12, 14], [0, 4, 7, 10, 12], [0, 6, 8, 14], [3, 6, 10, 11, 14]]);
     const motif = rhythm.map(s => ({ s, n:key + 12 + pick(PENTA), d:pick([1, 2, 2, 3, 4]) }));
-    const names = ['Rhodes', 'keys', 'pads'];
-    T = { style, key, bpm, prog, sections, motif, swing:style === 'lofi' ? 0.14 + R()*0.08 : 0, barsPerChord:style === 'ambient' ? 4 : (prog.length <= 2 ? 2 : 1),
+    T = { style, key, bpm, prog, sections, motif, swing:S.swing ? S.swing() : 0, swing8:0, barsPerChord:S.bpc(prog),
       kickPat:pick([[0, 7, 10], [0, 10], [0, 3, 10], [0, 8, 11]]), hatDensity:0.55 + R()*0.4, lead:R() < 0.8,
-      title:pick(WORDS1) + ' ' + pick(WORDS2), label:(style === 'lofi' ? 'lofi' : style === 'house' ? 'chill house' : 'ambient') + ' · ' + bpm + ' bpm' };
+      title:pick(WORDS1) + ' ' + pick(WORDS2), label:S.label + ' · ' + bpm + ' bpm' };
+    T.chords = chordPlan(sections, prog, T.progB, T.barsPerChord);
+    T.cur = [prog[0][0], prog[0][1]];   // the chord playing now (for sounds that should stay in tune with the music)
     T.name = `${T.title} · ${T.label}`;
     step = first ? Math.max(sections.indexOf('A'), 0)*16 : 0; first = false;
     if (typeof onTrack === 'function') onTrack(T);
-    // style-dependent textures
-    const t = ctx.currentTime;
-    crackleG.gain.setTargetAtTime(style === 'lofi' ? 0.022 : style === 'house' ? 0.005 : 0, t, 2);
-    droneG.gain.setTargetAtTime(style === 'ambient' ? 0.05 : 0.012, t, 4);
+    // style-dependent textures and level
+    const t = at === undefined ? ctx.currentTime : at;
+    crackleG.gain.setTargetAtTime(S.crackle, t, 2);
+    droneG.gain.setTargetAtTime(S.drone, t, 4);
+    mixG.gain.setTargetAtTime(S.trim, t, 1);
   }
   let onTrack = null;
   // ---------------------------------------------------------------- synthesis
@@ -69,12 +91,13 @@ const music = (() => {
     const tone = ctx.createBiquadFilter(); tone.type = 'lowpass'; tone.frequency.value = 9000; tone.Q.value = 0.3;
     master = ctx.createGain(); master.gain.value = 0;
     master.connect(tone).connect(comp).connect(ctx.destination);
+    mixG = ctx.createGain(); mixG.connect(master);   // the music (everything but the whooshes), with each style's trim
     const verb = ctx.createConvolver(); verb.buffer = impulse(4.5, 1.4);
-    const verbOut = ctx.createGain(); verbOut.gain.value = 0.7; verb.connect(verbOut).connect(master);
+    const verbOut = ctx.createGain(); verbOut.gain.value = 0.7; verb.connect(verbOut).connect(mixG);
     verbSend = ctx.createGain(); verbSend.connect(verb);
     drumLP = ctx.createBiquadFilter(); drumLP.type = 'lowpass'; drumLP.frequency.value = 12000; drumLP.Q.value = 0.5;
-    drumBus = ctx.createGain(); drumBus.gain.value = 0.9; drumBus.connect(drumLP).connect(master);
-    duck = ctx.createGain(); duck.gain.value = 1; duck.connect(master);
+    drumBus = ctx.createGain(); drumBus.gain.value = 0.9; drumBus.connect(drumLP).connect(mixG);
+    duck = ctx.createGain(); duck.gain.value = 1; duck.connect(mixG);
     musBus = ctx.createGain(); musBus.gain.value = 1; musBus.connect(duck);
     const mv = ctx.createGain(); mv.gain.value = 0.35; musBus.connect(mv).connect(verbSend);
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate*2, ctx.sampleRate); const nd = noiseBuf.getChannelData(0); for (let i=0;i<nd.length;i++) nd[i] = R()*2 - 1;
@@ -83,12 +106,12 @@ const music = (() => {
     for (let i=0;i<cd.length;i++) cd[i] = (R()*2 - 1)*0.05 + (R() < 0.0009 ? (R()*2 - 1)*(0.4 + R()) : 0);
     const cs = ctx.createBufferSource(); cs.buffer = cb; cs.loop = true;
     const chp = ctx.createBiquadFilter(); chp.type = 'highpass'; chp.frequency.value = 900;
-    crackleG = ctx.createGain(); crackleG.gain.value = 0; cs.connect(chp).connect(crackleG).connect(master); cs.start();
+    crackleG = ctx.createGain(); crackleG.gain.value = 0; cs.connect(chp).connect(crackleG).connect(mixG); cs.start();
     // tape wobble shared by the keys
     wobble = ctx.createGain(); wobble.gain.value = 7; const wo = ctx.createOscillator(); wo.frequency.value = 0.35; wo.connect(wobble); wo.start();
     // a low drone that thickens in the ambient sections
     droneG = ctx.createGain(); droneG.gain.value = 0;
-    const dl = ctx.createBiquadFilter(); dl.type = 'lowpass'; dl.frequency.value = 170; droneG.connect(dl).connect(master);
+    const dl = ctx.createBiquadFilter(); dl.type = 'lowpass'; dl.frequency.value = 170; droneG.connect(dl).connect(mixG);
     for (const [m, g] of [[38, 0.6], [45, 0.35], [50, 0.18]]){ const o = ctx.createOscillator(); o.frequency.value = hz(m); const vg = ctx.createGain(); vg.gain.value = g; o.connect(vg).connect(droneG); o.start(); }
   }
   const tidy = (src, nodes) => { src.onended = () => { for (const n of nodes) try { n.disconnect(); } catch (e) {} }; };
@@ -166,64 +189,72 @@ const music = (() => {
     mod.connect(mg).connect(car.frequency);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(amp, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + 5.5);
     pan.pan.value = (R()*2 - 1)*0.8; car.connect(g).connect(pan); pan.connect(verbSend);
-    const dry = ctx.createGain(); dry.gain.value = 0.25; pan.connect(dry).connect(master);
+    const dry = ctx.createGain(); dry.gain.value = 0.25; pan.connect(dry).connect(mixG);
     car.start(t); mod.start(t); car.stop(t + 6); mod.stop(t + 6); tidy(car, [car, mod, mg, g, pan, dry]);
   }
   // ---------------------------------------------------------------- the sequencer: sixteenth notes, scheduled a little ahead
   function play(t){
-    if (!T || step >= T.sections.length*16){ newTrack(); }
-    const sd = 60/T.bpm/4, s = step % 16, bar = Math.floor(step/16), sec = T.sections[bar], st = T.style;
-    const swing = s % 2 ? sd*T.swing : 0, hum = () => (R() - 0.5)*0.008, tt = t + swing;
-    const ci = Math.floor(bar/T.barsPerChord) % T.prog.length, [root, type] = T.prog[ci], chordStart = bar % T.barsPerChord === 0 && s === 0;
+    if (!T || step >= T.sections.length*16){ newTrack(t); }
+    const sd = 60/T.bpm/4, s = step % 16, bar = Math.floor(step/16), sec = T.sections[bar];
+    // swing: every odd sixteenth (lofi), and the off-beat eighths (the jazz styles)
+    const swing = (s % 2 ? sd*T.swing : 0) + (s % 4 === 2 ? sd*T.swing8 : 0), hum = () => (R() - 0.5)*0.008, tt = t + swing;
+    const ch = T.chords[bar], root = ch.root, type = ch.type, chordStart = ch.start && s === 0;
+    if (chordStart) T.cur = [root, type];
     const lastBar = bar === T.sections.length - 1;
     // the drum filter opens through the intro and closes for breakdowns and the outro
     if (s === 0){
       const target = sec === 'intro' ? 900 + 9000*Math.pow(bar/Math.max(T.sections.indexOf('A'), 1), 2) : sec === 'break' ? 700 : sec === 'outro' ? 1400 : 12000;
       drumLP.frequency.setTargetAtTime(Math.min(target, 12000), t, 0.6);
     }
-    if (st === 'lofi'){
-      if (chordStart){
-        const v = voice(root, type, 52, 71), dur = sd*16*T.barsPerChord;
-        v.forEach((m, i) => rhodes(t + i*0.012 + hum(), m, dur*0.9, 0.05 + 0.015*R(), (i/(v.length - 1) - 0.5)*0.5));
-        if (sec !== 'intro') bass(t, root - 24 + (root - 24 < 33 ? 12 : 0), sd*6, 0.2);
-      }
-      if (s === 10 && sec !== 'break' && R() < 0.5){ voice(root, type, 55, 72).slice(1).forEach((m, i) => rhodes(tt + i*0.01, m, sd*5, 0.03, 0.2)); }
-      if (s === 8 && sec !== 'intro' && sec !== 'break') bass(tt, root - 24 + (R() < 0.5 ? 7 : 12) + (root - 24 < 33 ? 12 : 0), sd*3, 0.14);
-      if (sec !== 'break' && !(sec === 'outro' && bar > T.sections.length - 3)){
-        if (T.kickPat.includes(s) || (s === 14 && R() < 0.15)) kick(t + hum(), s === 0 ? 0.75 : 0.55);
-        if (s === 4 || s === 12) snare(tt + 0.01 + hum(), 0.32, true);
-        if (s % 2 === 0 || R() < 0.25*T.hatDensity) hat(tt + hum(), (s % 4 === 2 ? 0.085 : 0.05)*(0.6 + 0.8*R()), false);
-        if ((s === 7 || s === 15) && R() < 0.2) snare(tt, 0.07, true);   // ghost notes
-      }
-      if ((sec === 'B' || (sec === 'A' && bar % 8 >= 4 && T.lead)) && !lastBar){
-        for (const n of T.motif) if (n.s === s && R() < 0.9){ const up = bar % 4 === 3 && R() < 0.4 ? 2 : 0; lead(tt + hum(), n.n + up, sd*n.d, 0.045); }
-      }
-    } else if (st === 'house'){
-      if (chordStart){
-        const v = voice(root, type, 55, 74), dur = sd*16*T.barsPerChord;
-        pad(t, v, dur, sec === 'break' ? 0.035 : 0.022, sec === 'break' ? 1800 : 1100);
-      }
-      const drums = sec !== 'break' && !(sec === 'intro' && bar < 4);
-      if (drums){
-        if (s % 4 === 0){ kick(t, 0.8);
-          // the sidechain pump: everything but the drums ducks on each kick
-          duck.gain.cancelScheduledValues(t); duck.gain.setValueAtTime(0.3, t); duck.gain.linearRampToValueAtTime(1, t + sd*3.2); }
-        if ((s === 4 || s === 12) && sec !== 'intro') clap(t + 0.004, 0.28);
-        if (s % 4 === 2) hat(t, 0.09, true);
-        else if (R() < 0.7) hat(t + hum(), 0.04*(0.5 + R()), false);
-      }
-      if (sec !== 'intro' && s % 4 === 2 && sec !== 'break') bass(t, root - 24 + (root - 24 < 33 ? 12 : 0) + (R() < 0.12 ? 12 : 0), sd*1.6, 0.22);
-      if ((sec === 'B' || sec === 'drop') && (s % 2 === 0 || R() < 0.3)){
-        const v = voice(root, type, 64, 88), idx = (Math.floor(step/2) + (sec === 'drop' ? bar : 0)) % v.length;
-        pluck(t, v[s % 4 === 0 ? 0 : idx], 0.05*(s % 4 === 0 ? 1.2 : 0.8));
-      }
-      if (sec === 'break' && s % 8 === 0 && R() < 0.6) bell(t, voice(root, type, 72, 90)[Math.floor(R()*3)], 0.03);
-    } else {
-      if (bar % 4 === 0 && s === 0) pad(t, voice(root, type, 50, 74), sd*16*4 + 4, 0.04, 800);
-      if (R() < 0.022) bell(t + R()*sd, voice(root, type, 74, 94)[Math.floor(R()*4)], 0.02 + R()*0.02);
-    }
+    STYLES[T.style].step({ t, tt, sd, s, bar, sec, root, type, chordStart, lastBar, hum });
     step++;
     return sd;
+  }
+  // ---------------------------------------------------------------- lofi: dusty drums, Rhodes chords, a lead motif
+  function lofiStep({ t, tt, sd, s, bar, sec, root, type, chordStart, lastBar, hum }){
+    if (chordStart){
+      const v = voice(root, type, 52, 71), dur = sd*16*T.barsPerChord;
+      v.forEach((m, i) => rhodes(t + i*0.012 + hum(), m, dur*0.9, 0.05 + 0.015*R(), (i/(v.length - 1) - 0.5)*0.5));
+      if (sec !== 'intro') bass(t, root - 24 + (root - 24 < 33 ? 12 : 0), sd*6, 0.2);
+    }
+    if (s === 10 && sec !== 'break' && R() < 0.5){ voice(root, type, 55, 72).slice(1).forEach((m, i) => rhodes(tt + i*0.01, m, sd*5, 0.03, 0.2)); }
+    if (s === 8 && sec !== 'intro' && sec !== 'break') bass(tt, root - 24 + (R() < 0.5 ? 7 : 12) + (root - 24 < 33 ? 12 : 0), sd*3, 0.14);
+    if (sec !== 'break' && !(sec === 'outro' && bar > T.sections.length - 3)){
+      if (T.kickPat.includes(s) || (s === 14 && R() < 0.15)) kick(t + hum(), s === 0 ? 0.75 : 0.55);
+      if (s === 4 || s === 12) snare(tt + 0.01 + hum(), 0.32, true);
+      if (s % 2 === 0 || R() < 0.25*T.hatDensity) hat(tt + hum(), (s % 4 === 2 ? 0.085 : 0.05)*(0.6 + 0.8*R()), false);
+      if ((s === 7 || s === 15) && R() < 0.2) snare(tt, 0.07, true);   // ghost notes
+    }
+    if ((sec === 'B' || (sec === 'A' && bar % 8 >= 4 && T.lead)) && !lastBar){
+      for (const n of T.motif) if (n.s === s && R() < 0.9){ const up = bar % 4 === 3 && R() < 0.4 ? 2 : 0; lead(tt + hum(), n.n + up, sd*n.d, 0.045); }
+    }
+  }
+  // ---------------------------------------------------------------- chill house: soft four-on-the-floor, sidechained pads, plucks
+  function houseStep({ t, sd, s, bar, sec, root, type, chordStart, hum }){
+    if (chordStart){
+      const v = voice(root, type, 55, 74), dur = sd*16*T.barsPerChord;
+      pad(t, v, dur, sec === 'break' ? 0.035 : 0.022, sec === 'break' ? 1800 : 1100);
+    }
+    const drums = sec !== 'break' && !(sec === 'intro' && bar < 4);
+    if (drums){
+      if (s % 4 === 0){ kick(t, 0.8);
+        // the sidechain pump: everything but the drums ducks on each kick
+        duck.gain.cancelScheduledValues(t); duck.gain.setValueAtTime(0.3, t); duck.gain.linearRampToValueAtTime(1, t + sd*3.2); }
+      if ((s === 4 || s === 12) && sec !== 'intro') clap(t + 0.004, 0.28);
+      if (s % 4 === 2) hat(t, 0.09, true);
+      else if (R() < 0.7) hat(t + hum(), 0.04*(0.5 + R()), false);
+    }
+    if (sec !== 'intro' && s % 4 === 2 && sec !== 'break') bass(t, root - 24 + (root - 24 < 33 ? 12 : 0) + (R() < 0.12 ? 12 : 0), sd*1.6, 0.22);
+    if ((sec === 'B' || sec === 'drop') && (s % 2 === 0 || R() < 0.3)){
+      const v = voice(root, type, 64, 88), idx = (Math.floor(step/2) + (sec === 'drop' ? bar : 0)) % v.length;
+      pluck(t, v[s % 4 === 0 ? 0 : idx], 0.05*(s % 4 === 0 ? 1.2 : 0.8));
+    }
+    if (sec === 'break' && s % 8 === 0 && R() < 0.6) bell(t, voice(root, type, 72, 90)[Math.floor(R()*3)], 0.03);
+  }
+  // ---------------------------------------------------------------- ambient: slow pads over the drone, distant chimes
+  function ambientStep({ t, sd, s, bar, root, type }){
+    if (bar % 4 === 0 && s === 0) pad(t, voice(root, type, 50, 74), sd*16*4 + 4, 0.04, 800);
+    if (R() < 0.022) bell(t + R()*sd, voice(root, type, 74, 94)[Math.floor(R()*4)], 0.02 + R()*0.02);
   }
   function pump(){
     if (!ctx || !running) return;
