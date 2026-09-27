@@ -117,7 +117,8 @@ const music = (() => {
       plan:() => [['intro', 8], ['A', 16], ['B', 16], ['break', 8], ['B', 16], ['outro', 8]], step:waveStep },
   };
   // ---------------------------------------------------------------- the shuffle
-  // A mood picks the styles, with weights. The default mix plays only the calm ones; chill house and synthwave play under groove.
+  // A mood picks the styles, with weights. The default mix plays the gentle ones: all but chill house and synthwave, which play
+  // under groove. (calm is the mood of ambient and ambient piano, and CALM those two styles.)
   const MOODS = {
     mix:{ ambient:2, piano:2, bossa:2, lounge:3, lofi:3, downtempo:2 },
     calm:{ ambient:1, piano:1 },
