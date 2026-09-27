@@ -76,11 +76,11 @@ void main(){
   vec3 col = vec3(0.), irisC = mix(uP3.rgb, white, clamp(uP0.y - 1., 0., 1.)); float alpha = 0.;
   if(hit){
     vec3 p = o + d*t, n = nrmD(p);
-    float dif = max(dot(n, L), 0.), mu = max(dot(n, -d), 0.), rim = pow(1. - mu, 2.2);
+    float dif = max(dot(n, L), 0.), mu = max(dot(n, -d), 0.), rim = pow(1. - mu, 6.);
     float spec = pow(max(dot(n, normalize(L - d)), 0.), 40.);
-    // black lacquer with a faint grain, like the ship's hull, and a silver rim all round its outline (whatever side the Sun is on), so even a
-    // small Pip shows its shape against black space: a black silhouette, a silver outline, one blue eye
-    vec3 hull = vec3(0.075, 0.08, 0.095)*(0.85 + 0.3*ridge(p*14.)), body = hull*(dif*1.3 + 0.2) + silver*(spec*1.2 + rim*1.3);
+    // smooth black lacquer and a thin silver rim all round its outline (whatever side the Sun is on), so even a small Pip shows its shape
+    // against black space: a black silhouette, a crisp silver outline, one big blue eye. (A broad rim and a grainy hull made it a dotted oval.)
+    vec3 hull = vec3(0.05, 0.055, 0.07), body = hull*(dif*1.3 + 0.2) + silver*(spec*1.1 + rim*1.8);
     col = body;
     if(id > 2.5) col = hull*(dif*1.3 + 0.4) + silver*(0.25 + 1.2*rim + spec);               // fins, antenna, wings
     else if(id > 1.5) col = silver*(0.4 + 0.9*dif + 0.9*rim) + white*spec;                 // the bezel and the thruster ring
@@ -93,7 +93,7 @@ void main(){
       vec2 pp = uP2.xy*0.32; float di = length(e - pp);
       float iris = smoothstep(0.68, 0.56, di)*(1. - 0.9*smoothstep(0.3, 0.2, di)), ringI = exp(-sq((di - 0.52)/0.1));
       vec2 cq = e - pp - vec2(-0.26, 0.3); float cat = exp(-dot(cq, cq)/0.012);
-      vec3 eyeC = vec3(0.02, 0.035, 0.07) + silver*spec*0.8 + (irisC*vec3(0.55, 0.8, 1.)*iris*1.1 + irisC*ringI*1.3)*uP0.y + white*cat*1.4*uP0.x;
+      vec3 eyeC = vec3(0.02, 0.035, 0.07) + silver*spec*0.8 + (irisC*vec3(0.55, 0.8, 1.)*iris*1.6 + irisC*ringI*1.9)*uP0.y + white*cat*1.4*uP0.x;
       col = mix(body + silver*0.4*exp(-sq((abs(e.y - c) - hw)/0.07)), eyeC, lid);
     }
 #if LOOK == 1
@@ -111,7 +111,7 @@ void main(){
   // the lens lamp: light pouring out of the eye onto what it looks at
   if(uP2.w > 0.01) col += mix(ice, white, 0.5)*blob(o, d, EC + vec3(0., 0.24, 0.), 0.1)*uP2.w*face*1.4;
 #if LOOK == 1
-  col += white*lampD(o, d, vec3(0., -0.125, 0.53 + 0.17*uP1.w), 0.03, front + 0.02)*(6. + 24.*uP2.z);   // the antenna's lamp, winking now and then
+  col += white*lampD(o, d, vec3(0., -0.125, 0.53 + 0.17*uP1.w), 0.03, front + 0.02)*(10. + 24.*uP2.z);   // the antenna's lamp, winking now and then
 #endif
 #if LOOK == 2
   // the ring of lights round it, tilted a little, turning (like the ship's dotted rings round its heart); it hides behind the pod
@@ -123,7 +123,7 @@ void main(){
       if(tp > 0. && tp < front){
         vec3 pp = o + d*tp; float rr = length(pp), an = atan(dot(pp, ey), dot(pp, ex)), lw = max(0.02, uPix*tp*0.8);
         float ring = exp(-sq((rr - 0.63)/lw))*0.02/lw, dots = pow(0.5 + 0.5*cos(an*10. + uM0[0].y), 4.);
-        col += (ice*dots*9. + silver*0.9)*ring;
+        col += (ice*dots*13. + silver*1.1)*ring;
       }
     }
   }
@@ -170,6 +170,9 @@ drone.setLook = v => { if (!(v >= 1 && v <= 3)) return; droneLook = v; drone.pro
 // pop out of the bay, say hello (looking at you, then at the ship), turn to the body, fly there, work, fly home, a happy look, dock
 const PT = { POP:0.5, HI:1.1, SEE:1.45, TURN:1.75, GO:2.2, AT:4.4, WK:8.8, HM:10.4, DK:10.8, IN:11.9 };
 const PB1 = [0.2, -0.1, 0];   // just under the bay (ship radii, ship axes: x the belly, y forward, z the side)
+// where it waits near a black hole or a magnetar: 0.12 ship radii off the deck on the dorsal side, aft of the heart and to the side the ship
+// banks toward (0.37 of the way out to shield B's bubble, (x/0.27)^2 + ((y + 0.02)/1.1)^2 + (z/0.62)^2)
+const PNEAR = () => [-0.12, -0.4, 0.14*S_.side];
 const pipKind = tg => isHoleTarget(tg) || RS_KM[tg.key] ? 'near' : !surfOf(tg) ? 'cloud' : tg === sun || tg.group === 'stars' ? 'star' : 'land';
 const pipName = tg => tg.label && tg.label.length < tg.name.length && !/^the /.test(tg.name) ? tg.label : tg.name;
 const backOut = x => { const y = x - 1; return 1 + 2.7*y*y*y + 1.7*y*y; };
@@ -189,14 +192,15 @@ function pipPlan(A){
 }
 // the spot it says hello from and comes home to. With the camera near the ship it is a spot in the camera's frame (c: right and up as shares of
 // the view, and how far ahead), so Pip hovers where you can see it even while the camera turns toward the work: a little off to the side the
-// ship banks toward and below the middle, 1.4 ship radii away (at most halfway to the ship); on a phone, where the ship is wider than the
-// screen, 1 ship radius away in the sky above it; on the bridge (the camera inside the ship's sphere), 1.3 ship radii ahead and a little above
+// ship banks toward and below the middle, 1 ship radius away (at most 0.4 of the way to the ship; close enough that its face fills several
+// characters); on a phone, where the ship is wider than the screen, 0.8 ship radii away in the sky above it; on the bridge (the camera inside
+// the ship's sphere), 1.3 ship radii ahead and a little above
 // the horizon, clear of the needle below it. The first such spot that the hull does not hide, with a margin (the hull's outline in behindHull
 // is rough). With the camera far away, a spot beside the belly pod (l: ship axes, ship radii).
 function pipHello(){
   const sd = S_.side, sp = camNear() ? V.len(ship.rel) : -1;
   if (sp >= 0){
-    const bridge = sp < ship.rad, D = bridge ? 1.3*ship.rad : Math.min((isCompact() ? 1 : 1.4)*ship.rad, sp*0.5), m = ship.rad*0.15;
+    const bridge = sp < ship.rad, D = bridge ? 1.3*ship.rad : Math.min((isCompact() ? 0.8 : 1)*ship.rad, sp*0.4), m = ship.rad*0.15;
     const C = bridge ? [[0.4*sd, 0.12], [-0.4*sd, 0.12], [0.2*sd, 0.35]] : isCompact() ? [[0.3*sd, 0.3], [-0.3*sd, 0.3], [0.3*sd, 0.45]] : [[0.42*sd, -0.16], [0.42*sd, 0.14], [-0.42*sd, -0.16], [0.25*sd, 0.35]];
     for (let i=0;i<C.length;i++){
       const h = { c:[C[i][0], C[i][1], D] }, p = camSpot(h.c);
@@ -216,9 +220,10 @@ function pipWork(q, u){
     const W = V.mul(V.norm(V.add(q.wd, V.mul(q.wt, sw))), surfDrawn(tg)*(1 + q.alt));
     return { r:V.sub(W, ps.p), m:V.mul(ps.h, -ps.v) };
   }
+  // (near a black hole or a magnetar: tucked in over the deck beside the heart, on the side away from the pull, where the chase camera and a
+  // camera above the ship see it against the ship, not against the hole's disc; inside shield B's bubble, but not inside the thin skins of A and C)
+  if (q.kind === 'near') return { r:localPt(PNEAR()), m:[0, 0, 0] };
   const H = localPt(q.H.l);
-  // (near a black hole or a magnetar: closer in to the ship, inside its shield, a little toward the pull)
-  if (q.kind === 'near') return { r:V.add(V.mul(H, 0.55), V.mul(V.norm(V.mul(ship.offset, -1)), ship.rad*0.2)), m:[0, 0, 0] };
   // a cloud: out ahead toward its heart (moving with the ship: the ship crosses a nebula or a galaxy far too fast to leave it behind)
   return { r:V.add(H, V.mul(V.norm(V.mul(ship.offset, -1)), ship.rad*14)), m:[0, 0, 0] };
 }
@@ -295,6 +300,8 @@ drone.ctl = dt => {
   else if (u < PT.TURN) want = toBridge;
   else if (u < PT.WK){
     if (q.kind === 'land') want = u < PT.AT ? V.norm(V.sub(pipWork(q, PT.AT).r, pos)) : V.norm(V.add(toTg, V.mul(q.wt, 0.55)));
+    // (near a black hole it keeps its face to you, or to the heart with no one riding along, and only glances at the hole for each picture)
+    else if (q.kind === 'near') want = q.at.some(a => Math.abs(u - a + 0.1) < 0.35) ? toTg : camNear() ? toCam : V.norm(V.sub(localPt(HULL.core), pos));
     else want = toTg;
   } else if (u < PT.HM - 0.3) want = V.norm(V.mul(pos, -1));
   else if (u < 11.2) want = camNear() ? toCam : toBridge;
@@ -381,19 +388,28 @@ function pipLine(A){
   if (u < 0) return 'approaching ' + A.tg.name + " · Pip, the ship's drone, gets ready";
   if (u < PT.POP) return 'Pip pops out of the belly bay';
   if (u < PT.TURN) return 'Pip says hello';
-  const near = `Pip stays inside the Halo's shield this close to ${nm}`;
-  if (u < PT.AT) return k === 'near' ? near : k === 'cloud' ? 'Pip flies out ahead toward ' + nm : 'Pip flies down to ' + nm;
+  // (near a black hole it waits over the deck: inside shield B's bubble, but A and C are skins on the hull, too thin for a 400 m drone)
+  const near = shieldLook === 2 ? `Pip stays inside the Halo's shield this close to ${nm}` : `Pip stays right by the ship this close to ${nm}`;
+  if (u < PT.AT) return k === 'near' ? `Pip tucks in by the ship: ${nm} is too close to fly out` : k === 'cloud' ? 'Pip flies out ahead toward ' + nm : 'Pip flies down to ' + nm;
   if (u < PT.WK){ const n = ` · picture ${Math.max(q.shots, 1)} of ${q.nShots}`;
     return (k === 'land' ? `Pip lights up ${q.gas ? 'the cloud tops' : 'the ground'}` : k === 'star' ? 'Pip squints at ' + nm : k === 'near' ? near : 'Pip takes pictures of ' + nm) + n; }
-  if (u < PT.DK) return 'Pip flies home to the Halo';
+  if (u < PT.DK) return k === 'near' ? 'Pip heads back to the bay' : 'Pip flies home to the Halo';
   if (u < PT.IN) return 'Pip docks in the belly bay';
   return `Pip is back aboard · ${q.nShots} pictures of ${nm}`;
 }
 drone.reset = () => { pipStow(); Object.assign(PIP, { A:null, pose:null, r:lcg(7), blinkIn:3, blinkT:9, ring:0, thr:0, mood:0, shots:0 }); };
+// whether it is in the picture: in front of the camera and inside the view, big enough to draw, and not hidden by the hull or the body (the
+// geometry only, so a test can ask without drawing)
+function pipShows(){
+  const q = PIP; if (q.st === 'stowed') return false;
+  const rpx = drone.rad*q.scale/Math.max(drone.dist, 1e-300)*sceneH*0.5/tanY;
+  return rpx > 1.5 && onScreen(drone.rel, 1) && !pipHidden(drone.rel);
+}
 // a read-only view of it (for the Halo's sounds later), and the test hooks: its state, a pose to hold it in, its look
-// (bayD: how far it is from the bay, in ship radii; minAlt: its lowest height over the drawn surface on this job, in surface radii)
+// (bayD: how far it is from the bay, in ship radii; minAlt: its lowest height over the drawn surface on this job, in surface radii, as the
+// controller keeps it; shows: pipShows)
 Object.defineProperty(drone, 'state', { get:() => ({ st:PIP.st, kind:PIP.kind, shots:PIP.shots, flash:PIP.flash, thr:PIP.thr, vis:PIP.vis, pos:PIP.pos.slice(), minAlt:PIP.minAlt,
-  bayD:V.len(V.sub(PIP.pos, localPt(HULL.bay)))/ship.rad }) });
+  bayD:V.len(V.sub(PIP.pos, localPt(HULL.bay)))/ship.rad, shows:pipShows(), scale:PIP.scale }) });
 ship.dbg.drone = { get state(){ return drone.state; }, pose(o){ PIP.pose = o || null; if (!o) pipStow(); }, setLook:v => drone.setLook(v), get look(){ return droneLook; }, PT };
 // review only: with ?drone= in the address (or the looks review), a small chip switches between the looks (under the shield's and the fold's: reviewChip)
 if (DRONE_Q || REVIEW_SC){
