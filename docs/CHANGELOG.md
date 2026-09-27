@@ -4,6 +4,32 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.8.4 · 2026-09-26
+
+**Stay with it: phone gestures**
+- A pinch only zooms, and it follows your fingers exactly: spread them three times apart and the view comes three times closer (it used to zoom almost six times). It stays on the object and stops at its surface.
+- Two fingers moving together slide the object across the screen on a leash. The camera stays locked on, and the object's centre never goes further than about a third of the screen from the middle, so it cannot leave the screen or hide behind the card. It glides back to the middle when you press play, a tour takes over or you fly somewhere. A double-tap on the sky brings it back too.
+- Lifting one finger of a pinch no longer swings the camera round.
+- A pinch that starts on the info card no longer zooms the whole page (it could blow it up five times). One finger still scrolls the card.
+- While the camera is paused, the card shows one hint line: "drag to turn · pinch to zoom · double-tap to centre".
+- On a desk nothing changes here: a right-drag still lets go of the object and pans freely.
+
+**Home**
+- A home button: first in the dock on a phone, right after the search box on a desk ("⌂ home"). The logo, H and the Home key do the same. It flies to Earth's opening view from anywhere. A running tour pauses, and "resume tour" stays so you can pick it up again.
+- On narrow phones (under 380 px wide) the dock buttons share the width by the length of their words, so "settings" still fits beside home.
+- Help moved to the ? key and the ? button.
+
+**Free camera**
+- Once you let go of an object, the view keeps moving with it while you are near it. The Solar System clock used to carry it away: Earth moved out of view within a second.
+- The play button says where it goes: "back to the Moon" (space does the same). It flies back to the object you left and plays its angles again.
+- When that object has been off screen for a moment, a small pill at the edge of the screen points the way: "› back to the Moon · 10,000 km". Tap it to fly back.
+- The card no longer says "you are here" once you have left Earth. In free camera it reads "free camera · H for home" (on a phone, "free camera · ⌂ for home").
+- W A S D can no longer take you out into empty black space: the camera stays close to the nearest object, never more than eight times your viewing distance from its surface. Flying back toward it is always allowed; scroll out to go further. A note says so when you reach the edge.
+- The planets no longer swell around you. The enlarged Solar System overview used to switch on anywhere 1 to 2,000 AU from the Sun, so a camera that had just let go of Jupiter saw it grow hundreds of times around it. In free camera it now switches on only when you look at the system from outside: a wide view, with no planet near the camera.
+
+**Top bar (desk)**
+- Travel, resume tour and play / pause always sit together on the second row, with play at the far right. The play button's words can change ("pause", "back to the Moon") without anything else moving.
+
 ## 0.8.3 · 2026-09-26
 
 **Quick wins**

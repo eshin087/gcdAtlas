@@ -152,14 +152,21 @@ function drawDrift(){
 const SYSMAG = { k:0, SUN_F:0.04, G:0.15, P:0.3, list:[['sun', 0], ['jupiter', 1.84], ['saturn', 2.2], ['uranus', 4.7], ['neptune', 4.7], ['earth', 0.14], ['venus', 0.14],
   ['mars', 0.26], ['mercury', 0.16], ['pluto', 4.7]].filter(([k]) => BYKEY[k]).map(([k, cap]) => ({ o:BYKEY[k], cap:cap*AU_LY })), moons:OBJ.filter(o => o.parent && o.parent !== sun && o.parent.parent === sun && !o.marker && o.key !== 'halo') };
 const coreOf = o => o.solid ? o.rad*o.solid : o.rad;
+// In free camera the overview only turns on while you look at the system from outside: a wide view (the camera at least ~1 AU from what it
+// looks at) and no planet near the camera (each at least 8 to 20 times its enlarged size away). It used to turn on anywhere 1 to 2,000 AU
+// from the Sun, so a camera that had just let go of Jupiter saw it swell hundreds of times around it.
 function updateSysMag(dt){
   const fo = flight ? flight.obj : OBJ[tour.on ? tour.obj : orbit.lock];
   const dSun = V.len(sun.rel)*(1/AU_LY), far = 1 - smooth(1500, 20000, dSun);
-  const want = fo === BYKEY.solarsystem ? far : !fo && dSun > 1 && dSun < 2000 ? smooth(0.6, 2.5, dSun)*far : 0;
-  SYSMAG.k += (want - SYSMAG.k)*(1 - Math.exp(-dt*2.2));
-  const k = SYSMAG.k < 0.002 ? 0 : SYSMAG.k;
   const H = 2*tanY*Math.max(sun.dist, 1e-30), sunCore = coreOf(sun);   // screen height, in light-years, at the Sun's distance
   const S = Math.max(sunCore, Math.min(SYSMAG.SUN_F*Math.pow(Math.max(H/(50*AU_LY), 1e-4), -SYSMAG.G), 0.12)*H);
+  let want = fo === BYKEY.solarsystem ? far : !fo && dSun > 1 && dSun < 2000 ? smooth(0.6, 2.5, dSun)*far : 0;
+  if (!fo && want > 0){
+    want *= smooth(0.25*AU_LY, 1.2*AU_LY, orbit.dist);
+    for (const e of SYSMAG.list){ if (want <= 0) break; if (e.o !== sun){ const s = Math.min(S*Math.pow(coreOf(e.o)/sunCore, SYSMAG.P), e.cap); want *= smooth(8*s, 20*s, e.o.dist); } }
+  }
+  SYSMAG.k += (want - SYSMAG.k)*(1 - Math.exp(-dt*2.2));
+  const k = SYSMAG.k < 0.002 ? 0 : SYSMAG.k;
   for (const e of SYSMAG.list){
     const o = e.o, core = coreOf(o), size = o === sun ? S : Math.min(S*Math.pow(core/sunCore, SYSMAG.P), e.cap);
     o.mag = 1 + Math.max(size/core - 1, 0)*k;
@@ -295,21 +302,30 @@ function setInfo(i){
   $('#objName').textContent = o.name; $('#objType').textContent = o.type; $('#objFact').textContent = o.fact || '';
   const k = TOUR.indexOf(i);
   $('#stopNum').textContent = k >= 0 ? String(k + 1).padStart(2, '0') : '--';
-  $('#objDist').textContent = o.key === 'earth' ? 'you are here' : (o.distEarth ? o.distEarth + (/away|here|around|from|edge|centre|inside/.test(o.distEarth) ? '' : ' away') : distFromEarth(o));
+  syncWhere();
   setReadout(o.readout ? o.readout() : '');
   $('#btnFlyby').hidden = !o.flyby;
   atlasMark(i);
+}
+// where the object is, under its name; honest once the camera has let go of it (it used to say "you are here" 48 billion light-years out)
+const freeCam = () => orbit.lock < 0 && !tour.on && !flight && !cmp && !SKYV.on;
+function syncWhere(){
+  const o = OBJ[infoObj], el = $('#objDist');
+  const t = freeCam() ? (isCompact() ? 'free camera · ⌂ for home' : 'free camera · H for home') : o.key === 'earth' ? 'you are here' :
+    (o.distEarth ? o.distEarth + (/away|here|around|from|edge|centre|inside/.test(o.distEarth) ? '' : ' away') : distFromEarth(o));
+  if (el.textContent !== t) el.textContent = t;
 }
 function updateModeUI(){
   const m = cmp ? 'size compare' : tour.on ? tourName() : (orbit.lock >= 0 || flight ? 'locked on' : 'free camera'), me = $('#mode');
   if (me.textContent !== m){ me.textContent = m; me.className = 'mode ' + (tour.on ? 'm-tour' : m === 'free camera' ? 'm-free' : 'm-lock'); }
   $('#btnTours').classList.toggle('touring', tour.on);
-  const playing = isPlaying();
+  const playing = isPlaying(), back = playing ? null : backTarget();
   for (const b of [$('#btnPlay'), $('#btnPlayM')]){
     b.classList.toggle('paused', !playing); b.setAttribute('aria-pressed', String(!playing));
-    b.setAttribute('aria-label', playing ? 'Pause the camera (space)' : (motion.last === 'tour' || orbit.lock < 0 ? 'Play the tour (space)' : 'Play the angles (space)')); b.title = b.getAttribute('aria-label');
+    b.setAttribute('aria-label', playing ? 'Pause the camera (space)' : back ? 'Back to ' + back.name + ' (space)' : (motion.last === 'tour' || orbit.lock < 0 ? 'Play the tour (space)' : 'Play the angles (space)')); b.title = b.getAttribute('aria-label');
   }
-  $('#btnPlay').lastChild.textContent = playing ? 'pause' : 'play';
+  $('#btnPlay').lastChild.textContent = playing ? 'pause' : back ? 'back to ' + back.name : 'play';
+  syncWhere();
   $('#btnResume').hidden = $('#btnResumeI').hidden = tour.on || tour.last == null || !!cmp;
   $('#btnShip').setAttribute('aria-pressed', String(!!SET.haloMark));
   const riding = shipCam.on || (shipCam.pending && !!flight), rb = $('#btnRide'); rb.classList.toggle('following', riding); rb.textContent = riding ? 'riding' : 'ride';
@@ -412,7 +428,7 @@ function updateHUD(dt){
   if (roTimer <= 0){
     roTimer = 0.15;
     const o = OBJ[infoObj]; setReadout(o.readout ? o.readout() : '');
-    let p = '', f = -1;
+    let p = '', f = -1, tip = false;
     if (tour.on){
       const obj = OBJ[tour.obj];
       if (tour.phase === 'fly') p = 'en route ' + '>'.repeat(1 + Math.floor(performance.now()/250) % 3);
@@ -421,11 +437,14 @@ function updateHUD(dt){
     } else if (show.on && OBJ[show.obj] && OBJ[show.obj].views.length > 1){
       const obj = OBJ[show.obj], v = obj.views[show.view], n = obj.views.length; f = show.phase === 'swing' ? 1 : clamp(show.t/holdOf(v), 0, 1); const k = Math.round(f*18);
       p = `angle ${show.view + 1}/${n}  [${'#'.repeat(k)}${'-'.repeat(18 - k)}]`;
-    } else if (orbit.lock >= 0 || flight) p = 'drag to orbit · scroll out to the edge of the universe';
-    else p = 'free camera · W A S D to fly · tap an object to lock on';
+    } else if (orbit.lock >= 0 && !flight && isCompact() && !isPlaying()){ p = 'drag to turn · pinch to zoom · double-tap to centre'; tip = true; }   // (paused on a phone: the gestures)
+    else if (orbit.lock >= 0 || flight) p = 'drag to orbit · scroll out to the edge of the universe';
+    else { const b = backTarget(); p = 'W A S D to fly · ' + (b ? 'space goes back to ' + b.name : 'tap an object to lock on'); }
     const pl = $('#progLabel');
     if (pl.textContent !== p) pl.textContent = p;
-    $('#progress').classList.toggle('hintish', !tour.on && f < 0);
+    $('#progress').classList.toggle('hintish', !tour.on && f < 0 && !tip);
+    $('#progress').classList.toggle('tip', tip);
+    syncWhere();
     updateTourTrack();
     updateScale();
     syncSoundBtn();   // (the browser may let the music start, or stop it, at any moment)
@@ -434,6 +453,7 @@ function updateHUD(dt){
   updateLadder();
   updateLabels();
   updateShipFinder();
+  updateBackPill(dt);
 }
 
 // ---------------------------------------------------------------- the ruler (top left): a bar whose length equals a real distance at the object you are looking at
@@ -603,30 +623,47 @@ function updateShipFinder(){
       shipMarkEl.style.transform = `translate3d(${(pr.x - r).toFixed(1)}px, ${(pr.y - r).toFixed(1)}px, 0)`;
       const sp = shipMarkEl.lastChild; if (sp.textContent !== dtxt) sp.textContent = dtxt;
       showM = true;
-    } else {
-      const x = V.dot(s.rel, cam.right)/tanX, y = V.dot(s.rel, cam.up)/tanY, z = V.dot(s.rel, cam.fwd);
-      let dx = x*(z < 0 ? -1 : 1), dy = -y*(z < 0 ? -1 : 1);
-      if (z < 0 && Math.hypot(dx, dy) < 1e-6*Math.abs(z)) dx = 1;
-      const L = Math.hypot(dx*W, dy*H) || 1; dx = dx*W/L; dy = dy*H/L;
-      const m = 40, cx = W/2, cy = H/2, t = Math.min((cx - m)/Math.max(Math.abs(dx), 1e-6), (cy - m)/Math.max(Math.abs(dy), 1e-6));
-      const w = shipArrowEl.offsetWidth || 110, h = shipArrowEl.offsetHeight || 20;
-      let ax = clamp(cx + dx*t - w/2, 8, W - w - 8), ay = clamp(cy + dy*t - h/2, 8, H - h - 8);
-      const onSide = Math.abs(dx)*(cy - m) > Math.abs(dy)*(cx - m), avoid = uiRects();
-      const clash = (x, y) => avoid.some(r => x < r.right + 6 && x + w > r.left - 6 && y < r.bottom + 6 && y + h > r.top - 6);
-      for (let k=1; k<40 && clash(ax, ay); k++){
-        const off = Math.ceil(k/2)*24*(k % 2 ? 1 : -1);
-        const nx = onSide ? ax : clamp(cx + dx*t - w/2 + off, 8, W - w - 8), ny = onSide ? clamp(cy + dy*t - h/2 + off, 8, H - h - 8) : ay;
-        if (!clash(nx, ny)){ ax = nx; ay = ny; break; }
-      }
-      shipArrowEl.style.transform = `translate3d(${ax.toFixed(1)}px, ${ay.toFixed(1)}px, 0)`;
-      shipArrowEl.firstChild.style.transform = `rotate(${(Math.atan2(dy, dx)*180/Math.PI).toFixed(0)}deg)`;
-      const sp = shipArrowEl.lastChild; if (sp.textContent !== dtxt) sp.textContent = dtxt;
-      showA = true;
-    }
+    } else { edgeArrow(shipArrowEl, s.rel, dtxt); showA = true; }
   }
   if (shipMarkEl.hidden === showM) shipMarkEl.hidden = !showM;
   if (shipArrowEl.hidden === showA) shipArrowEl.hidden = !showA;
 }
+// an arrow button at the edge of the screen, in the direction of something off screen (rel: relative to the camera), clear of the interface;
+// its first child turns to point that way, its last child holds the text
+function edgeArrow(el, rel, txt){
+  const W = innerWidth, H = innerHeight;
+  const x = V.dot(rel, cam.right)/tanX, y = V.dot(rel, cam.up)/tanY, z = V.dot(rel, cam.fwd);
+  let dx = x*(z < 0 ? -1 : 1), dy = -y*(z < 0 ? -1 : 1);
+  if (z < 0 && Math.hypot(dx, dy) < 1e-6*Math.abs(z)) dx = 1;
+  const L = Math.hypot(dx*W, dy*H) || 1; dx = dx*W/L; dy = dy*H/L;
+  const sp = el.lastChild; if (sp.textContent !== txt) sp.textContent = txt;
+  const m = 40, cx = W/2, cy = H/2, t = Math.min((cx - m)/Math.max(Math.abs(dx), 1e-6), (cy - m)/Math.max(Math.abs(dy), 1e-6));
+  const w = el.offsetWidth || 110, h = el.offsetHeight || 20;
+  let ax = clamp(cx + dx*t - w/2, 8, W - w - 8), ay = clamp(cy + dy*t - h/2, 8, H - h - 8);
+  const onSide = Math.abs(dx)*(cy - m) > Math.abs(dy)*(cx - m), avoid = uiRects();
+  const clash = (x, y) => avoid.some(r => x < r.right + 6 && x + w > r.left - 6 && y < r.bottom + 6 && y + h > r.top - 6);
+  for (let k=1; k<40 && clash(ax, ay); k++){
+    const off = Math.ceil(k/2)*24*(k % 2 ? 1 : -1);
+    const nx = onSide ? ax : clamp(cx + dx*t - w/2 + off, 8, W - w - 8), ny = onSide ? clamp(cy + dy*t - h/2 + off, 8, H - h - 8) : ay;
+    if (!clash(nx, ny)){ ax = nx; ay = ny; break; }
+  }
+  el.style.transform = `translate3d(${ax.toFixed(1)}px, ${ay.toFixed(1)}px, 0)`;
+  el.firstChild.style.transform = `rotate(${(Math.atan2(dy, dx)*180/Math.PI).toFixed(0)}deg)`;
+}
+// ---------------------------------------------------------------- in free camera: once the object you let go of has been off screen for 0.8 s,
+// a pill at the edge of the screen points the way back to it ("› back to the Moon · 10,000 km"); tapping it flies back
+const backPillEl = $('#backPill'); let backOffT = 0;
+function updateBackPill(dt){
+  const o = backTarget(); let on = false;
+  if (o && !shipCam.on){
+    const pr = projectCSS(o.rel), r = pr ? o.rad*(o.solid || 0.6)*magOf(o)/(pr.z*tanY)*(viewHcss/2) : 0;
+    const seen = pr && pr.x > -r && pr.x < innerWidth + r && pr.y > -r && pr.y < innerHeight + r;
+    backOffT = seen ? 0 : backOffT + dt;
+    if (backOffT > 0.8){ edgeArrow(backPillEl, o.rel, 'back to ' + o.name + ' · ' + fmtLen(o.dist*LY, 2)); on = true; }
+  } else backOffT = 0;
+  if (backPillEl.hidden === on) backPillEl.hidden = !on;
+}
+backPillEl.addEventListener('click', () => { backPillEl.hidden = true; goBack(); });
 // ride along with the Halo (chase camera); the flash when it folds space with you aboard
 const followShip = () => { if (typeof ship === 'undefined') return; hideHint(); if (shipCam.on) return; startShipCam('chase'); toast('riding along with the Halo · chase view (C switches to the cockpit)'); };
 const foldEl = $('#foldFlash');
@@ -807,7 +844,7 @@ function focusSearch(){ if (IS_SMALL || getComputedStyle(searchEl.parentElement)
 $('#prevObj').addEventListener('click', () => { hideHint(); stepAngle(-1); });
 $('#nextObj').addEventListener('click', () => { hideHint(); stepAngle(1); });
 $('#btnTour').addEventListener('click', () => { hideHint(); setTour(!tour.on); });
-$('#btnFree').addEventListener('click', () => { hideHint(); unlock(); toast('free camera · W A S D to fly, drag to look around'); });
+$('#btnFree').addEventListener('click', () => { hideHint(); unlock(); toast(isCompact() ? 'free camera · drag to look around · ⌂ for home' : 'free camera · W A S D to fly, drag to look around · H for home'); });
 $('#btnShip').addEventListener('click', () => setOpt('haloMark', !SET.haloMark));
 const toggleRide = () => { if (shipCam.on || (shipCam.pending && flight)){ if (flight) finishFlightHere(); shipCam.pending = false; stopShipCam(); toast('stopped riding · the camera stays with the Halo'); updateModeUI(); } else followShip(); };
 $('#btnRide').addEventListener('click', toggleRide);
@@ -825,6 +862,10 @@ music.onTrack = tr => { $('#nowPlaying').textContent = tr.name; if (SET.sound &&
 $('#npSkip').addEventListener('click', () => { music.skip(); if (!SET.sound) toast('music is off · turn it on to hear the next track'); });
 $('#btnResume').addEventListener('click', () => { hideHint(); if (cmp) endCompare(false); setTour(true); });
 for (const b of ['#btnPlay', '#btnPlayM']) $(b).addEventListener('click', () => { hideHint(); if (cmp) endCompare(false); togglePlay(); });
+// home: the button (first in the dock on phones, after the search box on desks) and the logo
+$('#btnHome').addEventListener('click', goHome);
+brandEl.addEventListener('click', goHome);
+brandEl.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); e.stopPropagation(); goHome(); } });
 $('#btnResumeI').addEventListener('click', () => $('#btnResume').click());
 $('#settingsHelp').addEventListener('click', () => { togglePanel('settings', false); toggleHelp(true); });
 $('#tourPrev').addEventListener('click', () => { hideHint(); stepObject(-1); });
@@ -852,10 +893,21 @@ function riseAboveDisk(dt){
   const nd = V.norm(V.add(V.mul(d, Math.cos(step)), V.mul(up, Math.sin(step))));
   const n = M3.applyT(orbit.frame, nd); orbit.yaw = Math.atan2(n[0], n[2]); orbit.pitch = Math.asin(clamp(n[1], -0.999, 0.999));
 }
-// in free flight, keep the nearest object as the precision anchor
+// in free flight the camera moves with an anchor object (the focus it is positioned relative to, which also keeps precision):
+// the object you let go of while you are still near it (within ANCHOR_R of its radii), so the Solar System clock does not carry it
+// out of view; otherwise the nearest object you are not inside (the Oort cloud or the Milky Way around you would not move with anything near).
+// The Halo is never an anchor: the camera would fold across the galaxy with it.
+const ANCHOR_R = 1000;
+function nearAnchor(){ const F = OBJ[freeFrom]; return F && F !== ship && !F.hidden && F.dist < ANCHOR_R*F.rad ? F : null; }
+function anchorObject(){
+  const F = nearAnchor(); if (F) return F.index;
+  let b = -1, bd = 1e300, b2 = 0, bd2 = 1e300;
+  OBJ.forEach((o, i) => { if (o.layer < 2 || o.noPick || o.marker || o === ship) return; const d = o.dist/o.rad; if (d < bd2){ bd2 = d; b2 = i; } if (d >= 1 && d < bd){ bd = d; b = i; } });
+  return b >= 0 ? b : b2;
+}
 function refocus(dt){
   refocusT -= dt; if (refocusT > 0 || orbit.lock >= 0 || flight) return; refocusT = 0.5;
-  const i = nearestObject(); if (i === cam.focus) return;
+  const i = anchorObject(); if (i === cam.focus) return;
   const D = frel(OBJ[i]); cam.rel = V.sub(cam.rel, D); orbit.target = V.sub(orbit.target, D); cam.focus = i;
 }
 // CPU simulations (N-body collisions, gas streams, ejecta) only run while someone can see them
@@ -1042,6 +1094,7 @@ function tick(dt){
   for (const f of TICKS) f(dt);
   ssDays += sdt*ssRate;
   for (const o of OBJ){ o.t += sdt; if (o.update && (!o.sim || simActive(o))) o.update(sdt); if (o.parent && !o.selfPos) o.pos = V.add(o.parent.pos, o.offset); }
+  updateLeash(dt);
   if (flight) updateFlight(dt);
   else if (shipCam.on) updateShipCam(dt);
   else {
@@ -1109,7 +1162,8 @@ window.__cosmos = { startTour, playFlyby, setMove(o, v, f){ flight = null; tween
   land:(extra = 0.2) => { let n = 0; while (flight && n < 60*180){ tick(1/60); n++; } for (let i=0;i<extra*60;i++) tick(1/60); return n/60; },
   setDays:d => { ssDays = d; }, stepObject, stepAngle, get stepTarget(){ return flight ? (flight.dest || flight.obj).key : null; }, get via(){ return flight && flight.via ? flight.via.key : null; }, PASS,
   startShipCam, stopShipCam, setShipCamMode, get shipCam(){ return shipCam; }, get show(){ return show; }, togglePlay, get flight(){ return flight; },
+  goHome, goBack, unlock, leash, get freeFrom(){ return freeFrom; }, proj:k => { const o = typeof k === 'string' ? BYKEY[k] : k, p = projectCSS(o.rel); return p && { x:p.x, y:p.y, z:p.z }; }, get SYSMAG(){ return SYSMAG; },
   setDetail:i => setOpt('detail', i, true), render, zoomTo, tick, caption:dt => updateCaption(dt), get showcap(){ return SHOWCAP.txt; }, flightDur:() => flight ? flight.dur : 0, hud:() => { roTimer = 0; updateHUD(0.2); },
   simulate:(sec) => { for (let k=0; k<sec*30; k++) tick(1/30); return { obj:tour.obj, view:tour.view, phase:tour.phase, lock:orbit.lock }; },
-  view:(i, v) => { if (typeof i === 'string') i = BYKEY[i].index; const o = OBJ[i], vp = viewParams(o, v); flight = null; shipCam.on = false; tween = null; cam.focus = i; orbit.lock = i; orbit.frame = camFrameOf(o); orbit.yaw = vp.yaw; orbit.pitch = vp.pitch; orbit.dist = orbit.distT = vp.dist; orbit.off = vp.off; orbit.offFn = vp.offFn; orbit.target = V.add(frel(o), vp.off); setInfo(i); applyOrbit(); tick(0); } };
+  view:(i, v) => { if (typeof i === 'string') i = BYKEY[i].index; const o = OBJ[i], vp = viewParams(o, v); flight = null; shipCam.on = false; tween = null; cam.focus = i; leash.x = leash.y = 0; orbit.lock = i; orbit.frame = camFrameOf(o); orbit.yaw = vp.yaw; orbit.pitch = vp.pitch; orbit.dist = orbit.distT = vp.dist; orbit.off = vp.off; orbit.offFn = vp.offFn; orbit.target = V.add(frel(o), vp.off); setInfo(i); applyOrbit(); tick(0); } };
 requestAnimationFrame(frame);

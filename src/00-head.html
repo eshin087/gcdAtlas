@@ -24,6 +24,8 @@
 [hidden]{display:none!important}
 html,body{height:100%;margin:0;background:var(--void);color:var(--ink);overflow:hidden}
 body{font:calc(12.5px*var(--ts))/1.5 var(--mono);-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+/* the page itself never zooms: a pinch that starts on the card or a panel must not blow up the whole page (their own scrolling still works) */
+html,body{touch-action:pan-x pan-y}
 button,input{font:inherit}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 #view{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab;background:var(--void);outline:none}
@@ -38,7 +40,7 @@ body:has(#view.dragging) *{-webkit-user-select:none;user-select:none}
   max-width:min(440px,calc(100vw - 32px));pointer-events:none;text-shadow:0 0 14px #000,0 0 4px #000;z-index:2}
 .info::before{content:"";position:absolute;inset:-100px -120px -50px -80px;z-index:-1;pointer-events:none;transition:opacity .25s;
   background:radial-gradient(closest-side,rgba(3,4,9,.9),rgba(3,4,9,.7) 55%,rgba(3,4,9,0))}
-.brand{position:fixed;left:calc(16px + env(safe-area-inset-left,0px));top:calc(14px + env(safe-area-inset-top,0px));z-index:2;pointer-events:none;
+.brand{position:fixed;left:calc(16px + env(safe-area-inset-left,0px));top:calc(14px + env(safe-area-inset-top,0px));z-index:2;cursor:pointer;   /* (the logo goes home) */
   font-family:var(--disp);font-size:calc(19px*var(--ts));line-height:1.5;letter-spacing:.08em;color:var(--ink);text-shadow:0 0 12px rgba(143,200,255,.35),0 0 14px #000}
 .tbadge{font-family:var(--mono);font-size:calc(10.5px*var(--ts));letter-spacing:.06em;color:var(--void);background:var(--flare);border-radius:2px;padding:1px 6px;margin-left:8px;vertical-align:1px}
 .stop{margin-top:0;color:var(--flare);display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:calc(11px*var(--ts));letter-spacing:.14em;text-transform:uppercase;font-variant-numeric:tabular-nums}
@@ -82,14 +84,14 @@ body.info-hidden .info{display:none}
 
 /* idle: after a few quiet seconds the interface fades, leaving the object's name; any touch, key or mouse move brings it back */
 .brand,.lad-chip,.play-m,.info-pill,.itools,.resume-i,.grip,.info .nav,.info .stop,.info .title,.info .acts,.info .type,.info .where,.info .fact,.info .readout,.info .scale,.info .progress{transition:opacity .25s}
-body.ui-idle .controls,body.ui-idle .ladder,body.ui-idle .lad-chip,body.ui-idle .play-m,body.ui-idle .brand,body.ui-idle .info-pill,body.ui-idle .daily,body.ui-idle .shiparrow,
+body.ui-idle .controls,body.ui-idle .ladder,body.ui-idle .lad-chip,body.ui-idle .play-m,body.ui-idle .brand,body.ui-idle .info-pill,body.ui-idle .daily,body.ui-idle .shiparrow,body.ui-idle .backpill,
 body.ui-idle .itools,body.ui-idle .resume-i,body.ui-idle .grip,body.ui-idle .info .nav,body.ui-idle .info .acts,body.ui-idle .info .type,body.ui-idle .info .where,body.ui-idle .info .fact,body.ui-idle .info .readout,body.ui-idle .info .scale{opacity:0!important;transition:opacity 1s ease-in}
 /* on touch screens the first tap only wakes the interface, so faded controls let it through; a mouse wakes them on the way to a button */
 @media (pointer:coarse){
-  body.ui-idle .controls,body.ui-idle .ladder,body.ui-idle .lad-chip,body.ui-idle .play-m,body.ui-idle .info-pill,body.ui-idle .daily,body.ui-idle .shiparrow,body.ui-idle .itools,body.ui-idle .resume-i,body.ui-idle .grip,body.ui-idle .info .acts,body.ui-idle .info .nav{pointer-events:none!important}
+  body.ui-idle .controls,body.ui-idle .ladder,body.ui-idle .lad-chip,body.ui-idle .play-m,body.ui-idle .info-pill,body.ui-idle .daily,body.ui-idle .shiparrow,body.ui-idle .backpill,body.ui-idle .brand,body.ui-idle .itools,body.ui-idle .resume-i,body.ui-idle .grip,body.ui-idle .info .acts,body.ui-idle .info .nav{pointer-events:none!important}
 }
 body.ui-idle .info .stop,body.ui-idle .info .title,body.ui-idle .info .progress{opacity:.5;transition:opacity 1s ease-in}
-body.ui-idle .info .progress.hintish{opacity:0}
+body.ui-idle .info .progress.hintish,body.ui-idle .info .progress.tip{opacity:0}
 body.ui-idle .info::before{opacity:0;transition:opacity 1s}
 body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border-left-color:var(--flare);transition:background 1s,border-color 1s}
 
@@ -124,8 +126,14 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .seg.mini{flex-wrap:nowrap;gap:0;background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:1px;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
 .seg.mini button{flex:0 0 auto;border:0;background:none;padding:4px 7px;font-size:calc(11px*var(--ts));border-radius:2px}
 .seg.mini .seg-l{align-self:center;padding:0 4px 0 7px;color:var(--faint);font-size:calc(10px*var(--ts));letter-spacing:.08em}
-.controls .seg.mini{order:10}
-.btn.play{order:8;display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
+/* two rows on a desk: the tools on top; travel, resume tour and play / pause below (right-aligned), so the play button's words
+   ("pause", "back to the Moon") can change without anything on the top row moving or a button jumping between rows */
+.controls::after{content:"";order:7;flex-basis:100%;height:0}
+.controls .seg.mini,.controls .btn.resume,.controls .btn.play{margin-top:-6px}   /* (the break adds a second gap: the lower row keeps its old place) */
+.controls .seg.mini{order:8}
+.btn.play{order:10;display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
+.btn.play span{display:inline-block;max-width:24ch;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom}   /* ("back to the Large Magellanic Cloud" in free camera) */
+#btnHome::before{content:attr(data-ico);margin-right:5px}
 .btn.play b::before,.play-m b::before{content:"\275A\275A";font-size:.82em;letter-spacing:-.12em;font-weight:400}
 .btn.play.paused b::before,.play-m.paused b::before{content:"\25B6\FE0E";letter-spacing:0}
 .btn.play.paused{color:var(--cyan);border-color:rgba(127,220,255,.6);background:rgba(127,220,255,.1)}
@@ -143,7 +151,7 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .fold-flash.ls{background:radial-gradient(ellipse at 50% 50%,rgba(255,255,255,.9) 0%,rgba(200,225,255,.35) 30%,rgba(20,40,70,0) 70%)}
 .fold-flash.go.ls{animation:foldFlash .5s ease-out}
 @media (prefers-reduced-motion:reduce){.fold-flash.go{animation-duration:.4s}}
-.btn:focus-visible,.lab:focus-visible,.arow:focus-visible,.tick:focus-visible,.nav:focus-visible,.seg button:focus-visible,.tog button:focus-visible,.ladmark:focus-visible{outline:1px solid var(--flare);outline-offset:2px}
+.btn:focus-visible,.brand:focus-visible,.backpill:focus-visible,.lab:focus-visible,.arow:focus-visible,.tick:focus-visible,.nav:focus-visible,.seg button:focus-visible,.tog button:focus-visible,.ladmark:focus-visible{outline:1px solid var(--flare);outline-offset:2px}
 .search{position:relative;display:flex;align-items:center}
 .search input{width:190px;box-sizing:border-box;font-size:calc(12px*var(--ts));color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:6px 30px 6px 10px;outline:none;
   -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
@@ -190,6 +198,11 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
   font-size:calc(10px*var(--ts));letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;cursor:pointer;z-index:4;will-change:transform;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
 .shiparrow b{display:inline-block;font-weight:600;transition:transform .2s}
 .shiparrow:hover,.shipmark:hover span{color:#fff}
+/* free camera: the pill that points back to the object you let go of */
+.backpill{position:fixed;left:0;top:0;display:flex;align-items:center;gap:7px;padding:4px 11px 4px 9px;color:var(--flare);background:rgba(10,8,5,.72);border:1px solid rgba(255,179,92,.45);border-radius:14px;
+  font-size:calc(11px*var(--ts));letter-spacing:.03em;white-space:nowrap;cursor:pointer;z-index:4;will-change:transform;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.backpill b{display:inline-block;font-weight:600;font-size:1.25em;line-height:1;transition:transform .2s}
+.backpill:hover{color:#ffd29c;border-color:rgba(255,179,92,.75)}
 @keyframes shipPulse{0%,100%{opacity:.55}50%{opacity:1}}
 
 /* ---- side panels: atlas and settings (their text has its own size on top of the page's: menu text in settings) */
@@ -321,8 +334,8 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .d-type{color:var(--dim);font-size:calc(11px*var(--ts))}
 .d-acts{display:flex;gap:6px;margin-top:8px}
 /* screensaver: everything fades away */
-.info,.controls,.ladder,.labels,.strip,.caption,.daily,.atlas,.panel,.shipmark,.shiparrow{transition:opacity .25s}
-body.saver .info,body.saver .brand,body.saver .topr,body.saver .info-pill,body.saver .controls,body.saver .ladder,body.saver .labels,body.saver .strip,body.saver .caption,body.saver .daily,body.saver .atlas,body.saver .panel,body.saver .shipmark,body.saver .shiparrow{opacity:0!important;pointer-events:none!important;transition:opacity 1.2s}
+.info,.controls,.ladder,.labels,.strip,.caption,.daily,.atlas,.panel,.shipmark,.shiparrow,.backpill{transition:opacity .25s}
+body.saver .info,body.saver .brand,body.saver .topr,body.saver .info-pill,body.saver .controls,body.saver .ladder,body.saver .labels,body.saver .strip,body.saver .caption,body.saver .daily,body.saver .atlas,body.saver .panel,body.saver .shipmark,body.saver .shiparrow,body.saver .backpill{opacity:0!important;pointer-events:none!important;transition:opacity 1.2s}
 body.saver #view{cursor:none}
 .saver-hud{position:fixed;left:calc(28px + env(safe-area-inset-left,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));max-width:min(520px,calc(100vw - 56px));color:var(--soft);z-index:5;pointer-events:none;text-shadow:0 0 12px #000,0 0 4px #000;opacity:.8}
 .sv-time{font-family:var(--disp);font-size:calc(34px*var(--ts));color:var(--ink);letter-spacing:.06em}
@@ -331,7 +344,7 @@ body.saver #view{cursor:none}
 .sv-np{margin-top:8px;font-size:calc(11px*var(--ts));color:var(--flare)}
 .btn.saver-go{width:100%;color:#a8f0b0;border-color:rgba(168,240,176,.5)}
 /* photo mode: the interface hides, a small bar stays */
-body.photo .info,body.photo .brand,body.photo .topr,body.photo .info-pill,body.photo .controls,body.photo .ladder,body.photo .strip,body.photo .caption,body.photo .daily,body.photo .atlas,body.photo .panel,body.photo .shipmark,body.photo .shiparrow{opacity:0!important;pointer-events:none!important}
+body.photo .info,body.photo .brand,body.photo .topr,body.photo .info-pill,body.photo .controls,body.photo .ladder,body.photo .strip,body.photo .caption,body.photo .daily,body.photo .atlas,body.photo .panel,body.photo .shipmark,body.photo .shiparrow,body.photo .backpill{opacity:0!important;pointer-events:none!important}
 body.photo:not(.photo-labels) .labels{opacity:0}
 .photo-bar{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;padding:6px 8px;
   background:rgba(5,7,14,.82);border:1px solid var(--line);border-radius:4px;z-index:8;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);max-width:calc(100vw - 24px);box-sizing:border-box}
@@ -364,11 +377,13 @@ body.sky .info .acts,body.sky .ladder,body.sky .lad-chip,body.sky .progress{opac
   /* the dock */
   .controls{top:auto;left:calc(8px + env(safe-area-inset-left,0px));right:calc(8px + env(safe-area-inset-right,0px));bottom:calc(6px + env(safe-area-inset-bottom,0px));max-width:none;box-sizing:border-box;
     flex-wrap:nowrap;justify-content:space-between;gap:2px;padding:3px;background:rgba(5,7,14,.66);border:1px solid var(--line);border-radius:14px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+  .controls::after{display:none}
   .controls .search,.controls .seg.mini,.controls #btnResume,.controls .btn.tskip,.controls #btnHelp{display:none}
   .controls .tourgrp{display:contents}
   .controls .btn{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:46px;padding:4px 2px 3px;
     border:0;border-radius:10px;background:none;font-size:calc(10px*var(--ts));letter-spacing:.03em;overflow:hidden;text-overflow:ellipsis;-webkit-backdrop-filter:none;backdrop-filter:none}
   .controls .btn[data-ico]::before{content:attr(data-ico);font-size:calc(17px*var(--ts));line-height:1.15}
+  .controls #btnHome::before{margin-right:0}
   .controls .btn:hover{border-color:transparent}
   .controls .btn[aria-expanded="true"]{background:var(--flare-bg);color:var(--flare)}
   .controls #btnSound{min-width:0}
@@ -379,7 +394,7 @@ body.sky .info .acts,body.sky .ladder,body.sky .lad-chip,body.sky .progress{opac
   /* the info card */
   .info{top:auto;bottom:calc(var(--dock-h,64px) + 6px);box-sizing:border-box;padding:0 12px 10px;pointer-events:auto;
     background:rgba(5,7,14,.7);border:1px solid var(--line);border-radius:14px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
-    max-height:calc(100% - var(--dock-h,64px) - 60px - env(safe-area-inset-top,0px));overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;text-shadow:0 0 8px #000;
+    max-height:calc(100% - var(--dock-h,64px) - 60px - env(safe-area-inset-top,0px));overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;text-shadow:0 0 8px #000;touch-action:pan-y;
     transition:background .25s,border-color .25s,opacity .25s,-webkit-backdrop-filter .25s,backdrop-filter .25s}
   .info::-webkit-scrollbar{display:none}
   .info::before{display:none}
@@ -448,6 +463,8 @@ body.sky .info .acts,body.sky .ladder,body.sky .lad-chip,body.sky .progress{opac
   .strip{padding-bottom:calc(var(--dock-h,64px) + var(--sheet-h,0px) + 10px)}
   .daily{left:calc(8px + env(safe-area-inset-left,0px));bottom:calc(var(--dock-h,64px) + var(--sheet-h,0px) + 10px)}
 }
+/* narrow phones: the seven dock buttons share the width by the length of their words, so "settings" is not cut off */
+@media (max-width:379px){ .controls .btn{flex:1 1 auto} }
 /* phones on their side: the card sits bottom left, panels and captions on the right, the dock in the middle */
 @media (max-height:520px) and (max-width:1000px){
   .controls{left:50%;right:auto;transform:translateX(-50%);width:min(500px,calc(100vw - 16px))}

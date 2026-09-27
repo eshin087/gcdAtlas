@@ -188,5 +188,38 @@ if (Object.keys(halo.acts).length < 4) fail('the Halo did fewer than 4 kinds of 
 if (halo.beams < 20 || halo.beamWorst > 1e-3) fail('scan beams do not end on the surface: ' + JSON.stringify({ beams:halo.beams, worst:halo.beamWorst }));
 if (!halo.blasts || halo.leftAfter) fail('the weapons test did not blast, or left something behind: ' + JSON.stringify({ blasts:halo.blasts, left:halo.leftAfter }));
 
-report('motion', errors, `Saturn loops through ${loop.views} angles · pause, play and space work · universe to Earth, largest frame-to-frame change x${fl.worstFrameToFrameScale} · ladder picks keep moving · riding the Halo through a fold and a light-speed jump (camera within ${ride.farAfterFold} / ${ride.farInLightSpeed} ship radii) · the Halo always moving (tightest turn ${halo.minTurnRadius} ship lengths, at most ${halo.maxTurn20s} degrees in 20 s), ${Object.keys(halo.acts).length} kinds of job, ${halo.beams} scan beams on the surface (error ${halo.beamWorst.toExponential(1)}) · Moon → ${nav.next} → ${nav.next2} · mid-flight speed change ${nav.slow}s → ${nav.fast}s · ${trips.n} tour trips without dips (${trips.passes} pass-bys)`);
+// 9. staying with it: H goes home to Earth's opening view and pauses a running tour ("resume tour" stays); a camera that lets go of
+// Earth keeps moving with it (the Solar System clock does not carry it away) and says so; play and the "back to" pill fly back;
+// letting go of Jupiter does not blow it up around the camera (the overview still enlarges it); W A S D stays within reach of something
+const stay = await page.evaluate(() => {
+  const C = __cosmos, E = C.BYKEY.earth, J = C.BYKEY.jupiter, cam = C.cam, r = {}, key = (k, type = 'keydown') => dispatchEvent(new KeyboardEvent(type, { key:k, bubbles:true }));
+  const txt = s => document.querySelector(s).textContent, off = o => { const v = o.rel, l = Math.hypot(...v); return Math.acos(Math.min(1, (v[0]*cam.fwd[0] + v[1]*cam.fwd[1] + v[2]*cam.fwd[2])/l))*180/Math.PI; };
+  C.startTour('grand'); C.land(0.1); C.tourGo(C.BYKEY.crab.index, true); C.tick(1/60);   // (really at the Crab: the flight to the first stop has landed)
+  const at = C.flight ? 'flying' : C.OBJ[C.orbit.lock].key;
+  key('h'); r.home = { at, tour:C.tour.on, last:C.tour.last != null ? C.OBJ[C.tour.last].key : null, to:C.stepTarget };
+  C.land(0.3); C.hud(); r.home.lock = C.orbit.lock >= 0 ? C.OBJ[C.orbit.lock].key : null; r.home.view = C.show.view; r.home.resume = !document.getElementById('btnResume').hidden;
+  C.setTour(false); C.view('earth', 0); C.hud(); r.here = txt('#objDist');
+  key('Escape'); for (let i=0;i<60*5;i++) C.tick(1/60); C.hud();
+  r.drift = { off:+off(E).toFixed(2), focus:C.OBJ[cam.focus].key, free:C.orbit.lock < 0, where:txt('#objDist'), play:document.getElementById('btnPlay').getAttribute('aria-label') };
+  key(' '); r.back = C.stepTarget; C.land(0.3); r.backLock = C.orbit.lock >= 0 ? C.OBJ[C.orbit.lock].key : null;
+  C.unlock(); C.orbit.target = C.orbit.target.map((v, i) => v + cam.right[i]*E.rad*12); for (let i=0;i<60;i++){ C.tick(1/60); C.hud(); }
+  const pill = document.getElementById('backPill'); r.pill = pill.hidden ? null : pill.textContent; pill.click(); r.pillTo = C.stepTarget; C.land(0.3);
+  C.view('jupiter', 0); for (let i=0;i<60;i++) C.tick(1/60); C.unlock(); for (let i=0;i<60*5;i++) C.tick(1/60); r.jupiterFree = +(J.mag || 1).toFixed(2);
+  C.view('solarsystem', 0); C.unlock(); for (let i=0;i<60*5;i++) C.tick(1/60); r.overviewFree = +(J.mag || 1).toFixed(1);
+  C.view('earth', 0); C.unlock(); for (let i=0;i<30;i++) C.tick(1/60);
+  key('s'); let worst = 0; for (let i=0;i<60*30;i++){ C.tick(1/60); let g = Infinity; for (const o of C.OBJ) if (o.layer >= 2 && !o.noPick && !o.marker && !o.hidden && o.key !== 'halo' && o.dist > o.rad) g = Math.min(g, o.dist - o.rad*(o.solid || 1)); worst = Math.max(worst, g/C.orbit.dist); }
+  key('s', 'keyup'); r.reach = +worst.toFixed(2);
+  return r;
+});
+if (stay.home.at !== 'crab' || stay.home.tour || stay.home.last !== 'crab' || stay.home.to !== 'earth' || stay.home.lock !== 'earth' || stay.home.view !== 0 || !stay.home.resume) fail('H did not fly home to Earth and pause the tour: ' + JSON.stringify(stay.home));
+if (stay.here !== 'you are here') fail('Earth\'s card does not say "you are here": ' + stay.here);
+if (!(stay.drift.off <= 2) || stay.drift.focus !== 'earth' || !stay.drift.free) fail('the free camera did not keep moving with Earth: ' + JSON.stringify(stay.drift));
+if (stay.drift.where !== 'free camera · H for home') fail('the card still says "' + stay.drift.where + '" in free camera');
+if (stay.drift.play !== 'Back to Earth (space)' || stay.back !== 'earth' || stay.backLock !== 'earth') fail('play in free camera did not fly back to Earth: ' + JSON.stringify(stay));
+if (!stay.pill || !/^.back to Earth · [\d,]+ km$/.test(stay.pill) || stay.pillTo !== 'earth') fail('no "back to Earth" pill, or it did not fly back: ' + JSON.stringify({ pill:stay.pill, to:stay.pillTo }));
+if (stay.jupiterFree > 1.5) fail('Jupiter swelled x' + stay.jupiterFree + ' around a camera that had just let go of it');
+if (!(stay.overviewFree > 5)) fail('the Solar System overview no longer enlarges Jupiter in free camera (x' + stay.overviewFree + ')');
+if (stay.reach > 8.2) fail('W A S D took the camera ' + stay.reach + ' view distances from anything');
+
+report('motion', errors, `home from the Crab pauses the tour · free camera stays with Earth (${stay.drift.off.toFixed(1)}° off centre after 5 s), back by play and by the pill ("${(stay.pill || '').replace(/^\W/, '› ')}") · Jupiter x${stay.jupiterFree} after letting go, x${stay.overviewFree} in the overview · W A S D within ${stay.reach} view distances · Saturn loops through ${loop.views} angles · pause, play and space work · universe to Earth, largest frame-to-frame change x${fl.worstFrameToFrameScale} · ladder picks keep moving · riding the Halo through a fold and a light-speed jump (camera within ${ride.farAfterFold} / ${ride.farInLightSpeed} ship radii) · the Halo always moving (tightest turn ${halo.minTurnRadius} ship lengths, at most ${halo.maxTurn20s} degrees in 20 s), ${Object.keys(halo.acts).length} kinds of job, ${halo.beams} scan beams on the surface (error ${halo.beamWorst.toExponential(1)}) · Moon → ${nav.next} → ${nav.next2} · mid-flight speed change ${nav.slow}s → ${nav.fast}s · ${trips.n} tour trips without dips (${trips.passes} pass-bys)`);
 await browser.close();
