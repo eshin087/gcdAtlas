@@ -1023,7 +1023,11 @@ let capFull = '', capShown = 0, capT = 0;
 const SHOWCAP = { txt:'' };   // a caption set by the Halo showcase
 function setCaption(txt, btn){
   if (txt === capFull){ return; }
-  capFull = txt; capShown = 0; capT = 0; capText.textContent = ''; capEl.classList.remove('done');
+  // (a caption that only changes toward its end, like a live number, keeps what is already typed and types on from where the two differ;
+  // a new caption is typed from the start)
+  let k = 0; const m = Math.min(capShown, txt.length); while (k < m && txt.charCodeAt(k) === capFull.charCodeAt(k)) k++;
+  if (!(k >= 8 || (k > 0 && k === capShown))) k = 0;
+  capFull = txt; capShown = k; capT = k; capText.textContent = txt.slice(0, k); capEl.classList.toggle('done', !!txt && k >= txt.length);
   capEl.hidden = !txt; capBtn.hidden = !btn; if (btn) capBtn.textContent = btn;
 }
 function updateCaption(dt){

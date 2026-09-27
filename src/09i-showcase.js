@@ -4,12 +4,12 @@
 // to Mars and a probe (Pip, the drone), a fold to the Pillars of Creation and a tractor beam and drill, then a fold back to Saturn and round again.
 // ?showcase=review, the looks review (about 85 s a round, in the looks the address picks: ?shield=a|b|c|off, ?fold=a|b|c, ?drone=a|b|c, with a
 // switch for each at the top): the ship held at Saturn while the camera circles it (the shield at rest), a fold to Sgr A* in the chosen style,
-// a pass there (the shield flares as the pull grows, the heart beats harder, Pip stays inside the shield) seen from the chase camera, from above
-// at the closest point and from the bridge, a light-speed hop to SGR 1806-20 seen from behind, and a fold back to Saturn. The route is the
+// a pass there (the shield flares as the pull grows, the heart beats harder, Pip waits by the ship) seen from the chase camera (at the closest
+// point too, as riders see it), from above and from the bridge, a light-speed hop to SGR 1806-20 seen from behind, and a fold back to Saturn. The route is the
 // site's own: the review only picks the stops and the jobs, and starts each Saturn visit a few seconds before its pass ends (S_.onFoldIn,
 // before it is first drawn), so the fold comes soon after the turn.
 // A caption names each part. Taking the camera (a drag, the pause button, picking something) ends it and the site carries on as usual.
-const SHOWCASE = { on:REVIEW_SC || new URLSearchParams(location.search).get('showcase') === 'halo', review:REVIEW_SC, t:0, turn:-1, fade:-1, fadeIn:false, visits:-1, wait:-1, loops:0, part:'', cam:null };
+const SHOWCASE = { on:REVIEW_SC || new URLSearchParams(location.search).get('showcase') === 'halo', review:REVIEW_SC, t:0, turn:-1, fade:-1, fadeIn:false, visits:-1, wait:-1, loops:0, part:'', partT:0, cam:null };
 if (SHOWCASE.on){
   const SC = SHOWCASE, D = Math.PI/180, TURN_T = 22, LIGHT = [-0.55, 0.35, 0.6];   // (the light during the turn, in the ship's frame: above, ahead, starboard)
   const PLAN = [{ key:'saturn', act:'scan', by:'fold' }, { key:'jupiter', act:'skim', by:'light' }, { key:'moon', act:'weapons', by:'light' },
@@ -61,8 +61,9 @@ if (SHOWCASE.on){
   function abovePose(dt){
     const c = SC.cam, k = smooth(0, 1.6, c.t += dt), fit = Math.max(1, 0.42/tanX), A = ABOVE;   // (on a tall, narrow screen it stands further back)
     // (in the ship's axes: g toward the hole; the camera on the far side of the ship from it and a little behind, looking past the ship toward it)
+    // (on a tall, narrow screen it aims less toward the hole, or the ship would sit half off the side of the screen)
     const g = M3.applyT(ship.R0, V.norm(V.mul(ship.offset, -1))), e = V.norm(V.add(V.mul(g, -A.eye[0]), [-(A.eye[3] || 0), A.eye[1], 0]));
-    const eye = V.mul(e, A.eye[2]*fit), look = V.add(V.mul(g, A.look[0]), [0, A.look[1], 0]), f = V.norm(V.sub(look, eye)), up = V.norm(V.sub(A.up, V.mul(f, V.dot(A.up, f))));
+    const eye = V.mul(e, A.eye[2]*fit), look = V.add(V.mul(g, A.look[0]*Math.min(1, tanX/tanY)), [0, A.look[1], 0]), f = V.norm(V.sub(look, eye)), up = V.norm(V.sub(A.up, V.mul(f, V.dot(A.up, f))));
     shipCam.turn = { eye:V.lerp(c.e0, eye, k), look:V.lerp(c.l0, look, k), up:V.norm(V.lerp(c.u0, up, k)) };
   }
   function reviewStart(){
@@ -74,14 +75,15 @@ if (SHOWCASE.on){
   // the looks' names for the captions: 'fold A (ember wind)', 'Pip A (eye-pod)'
   const named = s => { const p = s.split(' · '); return p.length > 1 ? `${p[0]} (${p[1]})` : s; };
   const nm = tg => tg.label && tg.label.length < tg.name.length && !/^the /.test(tg.name) ? tg.label : tg.name;
-  // the shield's work: its power, and what drives it (the pull there is real, the shield made up)
+  // the shield's work: what drives it (the pull there is real, the shield made up) and its power, last, so the caption's typing only redoes the
+  // number as it changes (setCaption keeps what the old and new text share)
   function shieldBit(){
-    const S = S_; if (!shieldLook) return 'no shield';
-    if (!(S.load > 0.12 && S.gTg)) return named(SHIELD_NAMES[shieldLook]) + ' at rest';
-    return `shield power ${Math.round(S.load*100)}% · ` + (S.load > 0.7 ? 'the heart beats harder to feed it' : `${S.climbK > 0.5 ? 'climbing out of' : 'holding course in'} ${nm(S.gTg)}'s gravity`);
+    const S = S_, pw = shieldPower(); if (!shieldLook) return 'no shield';
+    if (!(pw > 0.12)) return named(SHIELD_NAMES[shieldLook]) + ' at rest';
+    return (pw > 0.7 ? 'the heart beats harder to feed the shield' : `${S.climbK > 0.5 ? 'climbing out of' : 'holding course in'} ${nm(S.gTg)}'s gravity`) + ` · shield power ${Math.round(pw*100)}%`;
   }
   function reviewCaption(){
-    const S = S_, tg = S.target, nx = S.next, fold = named(FOLD_NAMES[foldLook]), bridge = shipCam.mode === 'cockpit' ? 'from the bridge · ' : '';
+    const S = S_, tg = S.target, nx = S.next, fold = named(FOLD_NAMES[foldLook]);
     if (SC.turn >= 0) return (shieldLook ? named(SHIELD_NAMES[shieldLook]) + ' · at rest' : 'no shield, to compare') + (SC.turn < 4 ? ' · seen from above like the concept art' : ' · from every side (the ship holds still while the camera circles it)');
     const fl = foldLine(); if (fl) return fold + ' · ' + fl;
     if (S.phase === 'fold') return fold + ' · folding space · to ' + nm(nx.tg);
@@ -92,11 +94,12 @@ if (SHOWCASE.on){
     }
     if (tg === BYKEY.saturn) return 'riding along · chase view · next: ' + fold + ' to ' + nm(nx.tg);
     const hole = isHoleTarget(tg), r = V.len(ship.offset), close = r < S.plan.Rc*1.06 && S.act && S.act.tau > 0;
-    const above = shipCam.mode === 'turn' ? 'from above · ' : '';
-    let where = hole ? (close ? 'closest point to ' + nm(tg) : bridge || above ? nm(tg) : nm(tg) + ' pass · chase view') : 'at ' + tg.name + (RS_KM[tg.key] ? ', a magnetar' : '');
-    if (hole) where = bridge + above + where;
-    const pip = PIP.st === 'out' ? ' · ' + named(DRONE_NAMES[droneLook]) + (PIP.kind !== 'near' ? ' is out' : shieldLook ? ' stays inside the shield' : ' stays by the ship') : '';
-    return where + ' · ' + shieldBit() + pip;
+    const view = shipCam.mode === 'cockpit' ? 'from the bridge' : shipCam.mode === 'turn' ? 'from above' : SC.part === 'close' ? 'chase view, as riders see it' : 'chase view';
+    const where = hole ? (close ? 'closest point to ' + nm(tg) : nm(tg) + ' pass') + ' · ' + view : 'at ' + tg.name + (RS_KM[tg.key] ? ', a magnetar' : '');
+    // (Pip waits over the deck: inside shield B's bubble; A and C are skins on the hull, too thin for it)
+    const pu = PIP.A ? S.t - PIP.A.t0 : 0, pip = PIP.st !== 'out' ? '' : ' · ' + named(DRONE_NAMES[droneLook]) + (PIP.kind !== 'near' ? ' is out' : pu > PT.WK ? ' heads back to the bay'
+      : shieldLook === 2 ? ' stays inside the shield' : ' stays right by the ship');
+    return where + pip + ' · ' + shieldBit();
   }
 
   function begin(){
@@ -109,7 +112,10 @@ if (SHOWCASE.on){
     setInfo(ship.index); updateModeUI();
   }
   function end(){
-    SC.on = false; S_.hold = false; S_.light = null; S_.onFoldIn = null; SHOWCAP.txt = ''; document.body.classList.remove('showcase'); applyInfoState();
+    SC.on = false; S_.hold = false; S_.light = null; S_.onFoldIn = null; SHOWCAP.txt = ''; document.body.classList.remove('showcase');
+    // (a camera of the showcase's own, circling the ship or the view from above, is not left behind for when the visitor rides along again)
+    if (shipCam.mode === 'turn') shipCam.mode = 'chase'; SC.cam = null; SC.turn = -1;
+    updateModeUI(); applyInfoState();
     toast('showcase over · the camera is yours');
   }
   function caption(){
@@ -147,13 +153,16 @@ if (SHOWCASE.on){
         SC.part = 'chase'; SC.cam = null;
       }
       if (SC.wait >= 0 && (SC.wait -= dt) < 0){ SC.wait = -1; startTurn(); }
-      // at Sgr A*: the chase camera until the ship is nearly at its closest point, the view from above until Pip is back aboard, the bridge until
-      // the pass ends, and the chase camera again as the ship turns for light speed (switched only as each part starts: the view button still
-      // works in between)
+      // at Sgr A*: the chase camera until the ship is nearly at its closest point, the view from above there for 5 s (Pip waiting by the ship,
+      // then coming home), the chase camera again for 3.5 s (what a visitor riding along sees there: the ship banks toward the hole, nearly
+      // edge-on), the bridge until the pass ends, and the chase camera as the ship turns for light speed (switched only as each part starts:
+      // the view button still works in between)
       if (SC.turn < 0 && S_.target === BYKEY.sgra){
         const A = S_.act, u = A && A.kind === 'probe' ? S_.t - A.t0 : -9;
-        if (SC.part === 'chase' && S_.phase === 'pass' && u > 0 && V.len(ship.offset) < S_.plan.Rc*1.12){ SC.part = 'above'; toAbove(); }
-        else if (SC.part === 'above' && (S_.phase !== 'pass' || u > PT.IN + 0.2)){ SC.part = 'bridge'; SC.cam = null; setMode('cockpit'); }
+        SC.partT += dt;
+        if (SC.part === 'chase' && S_.phase === 'pass' && u > 0 && V.len(ship.offset) < S_.plan.Rc*1.12){ SC.part = 'above'; SC.partT = 0; toAbove(); }
+        else if (SC.part === 'above' && (S_.phase !== 'pass' || SC.partT > 5)){ SC.part = 'close'; SC.partT = 0; SC.cam = null; setMode('chase'); }
+        else if (SC.part === 'close' && (S_.phase !== 'pass' || SC.partT > 3.5)){ SC.part = 'bridge'; setMode('cockpit'); }
         else if (SC.part === 'bridge' && S_.phase !== 'pass'){ SC.part = 'leave'; setMode('chase'); }
       }
       if (SC.cam){ if (shipCam.mode === 'turn' && SC.turn < 0) abovePose(dt); else SC.cam = null; }
