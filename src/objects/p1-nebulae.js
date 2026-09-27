@@ -179,6 +179,7 @@ const ringNeb = addRingPN({ key:'ringneb', name:'Ring Nebula', label:'Ring Nebul
   aka:'m57 ngc 6720 planetary nebula lyra', hero:V.norm([0.05, 0.1, 1]), roll:-30,
   u:[[0.46, 0.1, 0.55, 0.45], [0, 0, 0, 0.9], [0.35, 0, 0.8, 0]],
   views:[{ dirFn:() => V.norm(V.mul(ringNeb.pos, -1)), k:1.8, hold:9, drift:0.02 }, { d:[1, 0.2, 0.1], k:1.5, hold:8, drift:0.03 }, { d:[0.3, 0.15, 1], k:0.7, hold:7, drift:0.02 }],
+  tourViews:[0, 1],   // (tours skip the closest angle: the rim fills the screen with bright characters, on a phone too)
   readout:() => '2,570 light-years · about a light-year across\nseen from the side it is a hollow barrel, not a ring' });
 
 // ---------------------------------------------------------------- the Carina Nebula: one of the biggest star-forming regions in the Milky Way, home of Eta Carinae

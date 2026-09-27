@@ -182,7 +182,9 @@ const kep16b = exoPlanet({ key:'kepler16b', name:'Kepler-16b', host:kep16, type:
 orbitRing(kep16, 0.7048, [0.5, 0.6, 0.8]);
 // 55 Cancri e: a lava world so close to its star that its year lasts 18 hours
 const cnc55 = namedStar('cnc55', '55 Cancri', hms(8,52,35.8), dms(28,19,51), 41, 0.943, 5196, { type:'Sun-like star with five planets', star:{ cells:36, act:0.4 }, bound:30, farLum:0.6, labelRange:400,
-  fact:'A yellow dwarf a little smaller than the Sun with five known planets, one of them a lava world skimming its surface.', aka:'55 cancri copernicus', readout:() => '41 light-years · visible to the eye from a dark site' });
+  fact:'A yellow dwarf a little smaller than the Sun with five known planets, one of them a lava world skimming its surface.', aka:'55 cancri copernicus', readout:() => '41 light-years · visible to the eye from a dark site',
+  // (closer than a plain star's angles: its bound reaches out to the lava world's orbit, and from the usual distance the star was a speck on a phone)
+  views:[{d:[0.3, 0.35, 1], k:0.2, hold:8, drift:0.04}, {d:[0.9, 0.3, 0.3], k:0.11, hold:7, drift:0.04}] });
 exoPlanet({ key:'cnc55e', name:'55 Cancri e', host:cnc55, type:'lava world · a year of 18 hours', R:1.875*6371, kind:15, a:0.01544, P:5, locked:true, sortKey:41.001, aka:'janssen lava world super earth',
   fact:'Almost twice Earth\'s width and eight times its mass, so close to its star that its surface is probably molten rock. JWST measured its day side at about 1,500 °C, cooler than bare rock would be, a hint of a thick atmosphere perhaps breathed out by the magma.',
   readout:() => 'orbit 17.7 hours (sped up here) at 0.015 AU\nday side ~1,500 °C: hot enough to melt rock' });
