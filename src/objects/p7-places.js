@@ -12,7 +12,7 @@ const vesta = addRock({ key:'vesta', tags:['moons'], name:'Vesta', label:'Vesta'
   el:{ a:2.361241, e:0.090230, i:7.143879, om:103.6998, w:151.4364, tp:2460901.4973 }, orbitCol:[0.55, 0.6, 0.78], R0:poleFrame(309.031, 42.235),
   farLum:0.5, farColor:[0.85, 0.82, 0.76], labelRange:1.5*AU_LY, pxMin:6,
   tick(){ this.rot = bodyFrame(309.031, 42.235, 285.39 + 1617.3329428*(jdNow() - 2451545)); },
-  fact:'The second-heaviest body in the asteroid belt, a squashed ball about 525 km across. A giant impact dug Rheasilvia, a crater 500 km wide around its south pole, and left a mountain in the middle about 22 km high. NASA\'s Dawn orbited Vesta in 2011 and 2012.',
+  fact:'The second-heaviest body in the asteroid belt, a squashed ball about 525 km across. A giant impact dug Rheasilvia, a crater about 500 km wide around its south pole, and left a mountain in the middle about 22 km high. NASA\'s Dawn orbited Vesta in 2011 and 2012.',
   aka:'4 vesta asteroid rheasilvia divalia dawn protoplanet hed meteorites',
   // (the second angle looks up at the south pole from the sunward side, so Rheasilvia and its peak are in view with the Sun low over them)
   views:[{dirFn:() => sunSide(vesta, 0.8, 0.35), k:3.4, hold:8, drift:0.04},
@@ -36,8 +36,7 @@ const bennu = addRock({ key:'bennu', tags:['moons'], name:'Bennu', label:'Bennu'
 // ---------------------------------------------------------------- planets of other stars
 // (their periods are sped up so you can see them move; the readout gives the real one. Their host stars stay out of the atlas list)
 // the views turn with the planet round its star (track), so each keeps its phase: the day side, a crescent with its star beyond the limb,
-// and low over the line between day and night. (Each planet's frame is its star's, so 'horizontal' in sunSide is the plane of its orbit;
-// and each star's drawing area, bound, ends inside the planet's orbit: from inside a star's bounding sphere the star is not drawn.)
+// and low over the line between day and night. (Each planet's frame is its star's, so 'horizontal' in sunSide is the plane of its orbit.)
 const exoViews = b => { b.R0 = b.host.R0; return [{track:() => sunSide(b, 0.65, 0.25), k:3, hold:8}, {track:() => sunSide(b, 2.55, 0.1), k:4.2, hold:9}, {track:() => sunSide(b, 1.3, 0.12), k:1.7, hold:9}]; };
 // 51 Pegasi b: the first planet found around a Sun-like star (1995)
 const peg51 = namedStar('peg51', '51 Pegasi', hms(22,57,27.98), dms(20,46,7.8), 50.6, 1.152, 5768, { label:'51 Peg', atlas:false, type:'Sun-like star · Helvetios',
@@ -58,6 +57,7 @@ const k218b = exoPlanet({ key:'k218b', name:'K2-18 b', host:k218, type:'sub-Nept
   fact:'A world 2.6 times Earth\'s width and 8.6 times its mass, orbiting where its star\'s warmth could allow liquid water. In 2023 JWST found methane and carbon dioxide in its hydrogen-rich air, and it may hide a deep ocean. A claimed hint of a gas that on Earth only life makes has not been confirmed.',
   readout:() => 'orbit 33 days (sped up here) at 0.14 AU · 124 light-years\nJWST measured its gases, not its looks: the colours are a guess' });
 k218b.views = exoViews(k218b);
+k218b.views[1] = {track:() => sunSide(k218b, 1.7, 0.15), k:3.4, hold:9};   // (its dim red star is small in its sky, so a thin crescent looked empty: half lit instead)
 orbitRing(k218, 0.1429, [0.5, 0.62, 0.75]);
 // HD 189733 b: the deep blue planet Hubble measured the colour of (2013)
 const hd189733 = namedStar('hd189733', 'HD 189733', hms(20,0,43.71), dms(22,42,39.1), 64.5, 0.805, 4875, { atlas:false, type:'orange dwarf in Vulpecula',
@@ -79,7 +79,7 @@ const gaiabh3 = quietHole({ M:33, dist:1926, pos:radec(hms(19,39,18.71), dms(14,
   readout:() => 'event horizon about 195 km across · 33 times the Sun\'s mass\nits star swings between 4.5 and 28.6 AU from it (the orbit is sped up here)' });
 
 // ---------------------------------------------------------------- T Coronae Borealis, the Blaze Star: a recurrent nova that erupts about every 80 years
-// a red giant of ~0.7 Suns and a white dwarf of ~1.4 Suns, 228 days a lap (so about 0.93 AU apart)
+// a red giant (published masses 0.7 to 1.1 Suns) and a white dwarf of about 1.37 Suns, 228 days a lap: about 0.93 AU apart for the lighter giant
 const tcrb = novaBinary({ mu1:0.335, RD:0.25, dist:3000, pos:radec(hms(15,59,30.16), dms(25,55,12.6), 3000), rad:1.86*AU_LY, face:[0.2, 0.5, 1],
   obj:{ key:'tcrb', name:'T Coronae Borealis', label:'T CrB', type:'recurrent nova · the Blaze Star', aka:'t crb blaze star nova corona borealis recurrent',
     fact:'A red giant and a white dwarf, 3,000 light-years away. About every 80 years gas the dwarf has pulled off the giant explodes on its surface, and for a few days the pair can be seen without a telescope. It last erupted in 1946, and before that in 1866.' },
