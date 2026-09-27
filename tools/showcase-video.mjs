@@ -1,7 +1,10 @@
-// Records the Halo showcase (the page opened with ?showcase=halo) to a WebM video, for reviewing the ship without opening the site.
+// Records the Halo showcase (the page opened with ?showcase=halo, or the looks review with ?showcase=review) to a WebM video, for reviewing the ship
+// without opening the site.
 // Frame by frame and deterministic (the page's own clock is stepped 1/fps at a time), drawn on the GPU where Chromium can use it.
 // Encodes with the ffmpeg that Playwright installs next to its browsers (VP8 in WebM).
-// Usage: npm run showcase:video [-- out.webm --dur=167 --w=1280 --h=720 --fps=30]   (one full loop is about 167 s)
+// Usage: npm run showcase:video [-- out.webm --dur=167 --w=1280 --h=720 --fps=30 --kbps=2400 --url="shield=b&fold=c"]
+// --url adds to the page's address, or replaces what is there: --url="showcase=review&shield=b" records the looks review with shield B.
+// One full loop of ?showcase=halo is about 167 s, of the looks review (?showcase=review) about 85 s; --dur defaults to one loop.
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -10,9 +13,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'), PAGE = 'file://' + path.join(ROOT, 'dist', 'index.html');
-const args = process.argv.slice(2), opt = (k, d) => { const a = args.find(a => a.startsWith('--' + k + '=')); return a ? +a.split('=')[1] : d; };
-const out = args.find(a => !a.startsWith('--')) || path.join(ROOT, 'tests', 'out', 'halo-showcase.webm');
-const dur = opt('dur', 167), W = opt('w', 1280), H = opt('h', 720), FPS = opt('fps', 30);
+const args = process.argv.slice(2), str = k => { const a = args.find(a => a.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : undefined; }, opt = (k, d) => str(k) === undefined ? d : +str(k);
+const query = new URLSearchParams('showcase=halo'); for (const [k, v] of new URLSearchParams(str('url') || '')) query.set(k, v);
+const review = query.get('showcase') === 'review';
+const out = args.find(a => !a.startsWith('--')) || path.join(ROOT, 'tests', 'out', review ? 'review-showcase.webm' : 'halo-showcase.webm');
+const dur = opt('dur', review ? 86 : 167), W = opt('w', 1280), H = opt('h', 720), FPS = opt('fps', 30), KBPS = opt('kbps', 2400);
 if (!fs.existsSync(path.join(ROOT, 'dist', 'index.html'))) throw new Error('build first: node build.mjs');
 // Playwright's ffmpeg: %LOCALAPPDATA%\ms-playwright (Windows), ~/Library/Caches/ms-playwright (macOS), ~/.cache/ms-playwright (Linux)
 const cache = process.env.PLAYWRIGHT_BROWSERS_PATH || (process.platform === 'win32' ? path.join(os.homedir(), 'AppData', 'Local', 'ms-playwright')
@@ -22,7 +27,7 @@ const ffexe = ffdir && fs.readdirSync(path.join(cache, ffdir)).find(f => f.start
 if (!ffexe) throw new Error('no ffmpeg found in ' + cache + ' (npx playwright install ffmpeg)');
 fs.mkdirSync(path.dirname(path.resolve(out)), { recursive:true });
 const ff = spawn(path.join(cache, ffdir, ffexe), ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-c:v', 'mjpeg', '-r', String(FPS), '-i', 'pipe:0',
-  '-c:v', 'libvpx', '-crf', '12', '-b:v', '2400k', '-qmin', '4', '-qmax', '42', '-deadline', 'good', '-cpu-used', '1', '-g', String(FPS*4), '-pix_fmt', 'yuv420p', out], { stdio:['pipe', 'inherit', 'inherit'] });
+  '-c:v', 'libvpx', '-crf', '12', '-b:v', KBPS + 'k', '-qmin', '4', '-qmax', '42', '-deadline', 'good', '-cpu-used', '1', '-g', String(FPS*4), '-pix_fmt', 'yuv420p', out], { stdio:['pipe', 'inherit', 'inherit'] });
 const gpu = process.platform === 'win32' ? ['--use-angle=d3d11'] : [];
 const browser = await chromium.launch({ args:[...gpu, '--ignore-gpu-blocklist', '--enable-gpu'] });
 const page = await (await browser.newContext({ viewport:{ width:W, height:H } })).newPage();
@@ -32,7 +37,7 @@ page.on('console', m => { if (m.type() === 'error' && !/ERR_|Failed to load reso
 // full quality, shaders compiled up front, the page's own frame loop stopped (this script steps it), no daily card, the interface never fades, sound off
 await page.addInitScript(() => { window.__noAdapt = true; window.__syncCompile = true; window.__freeze = true;
   try { localStorage.setItem('gcdatlas.dailySeen', JSON.stringify(new Date().toISOString().slice(0, 10))); localStorage.setItem('gcdatlas.settings', JSON.stringify({ fadeUI:'off', sound:false })); } catch (e) {} });
-await page.goto(PAGE + '?showcase=halo');
+await page.goto(PAGE + '?' + query.toString());
 await page.waitForFunction(() => window.__cosmos && window.__cosmos.OBJ, null, { timeout:60000 });
 const N = Math.round(dur*FPS), t0 = Date.now();
 for (let i=0;i<N;i++){
