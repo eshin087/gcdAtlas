@@ -4,6 +4,13 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+**Review build: the Halo's new look** (branch `review/halo-looks`, not for release; the owner picks before the real versions are cut)
+- Light speed without the white glow. The white wash over the hull and the white ball in the middle of the ship are gone. Instead a thin blue-white line runs along the hull's edges, brighter toward the needle, a small star sits on the needle's tip and the engines burn brighter. The glow where the ship is heading is a pinpoint now (it covered the needle), and riding along, the jump blinks the screen for 0.35 s instead of flashing it white. Dropping out, a small flash at the tip and a thin ring replace the white disc on the ship.
+- A shield, in three looks to choose from (`?shield=a`, `b`, `c` or `off`; keys 1 2 3 0 and a small switch at the top while that is in the address): A, a fine silver-blue line just outside the hull; B, a see-through egg round the whole ship, faint except its rim; C, a skin of small cells a little outside the hull that light up in waves from the heart. All are faint in open space. Near strong gravity the shield works harder: it brightens, most on the side facing the pull, the heart beats faster and harder, beads of light run out along its chains, and the rings spin faster. How hard it works follows the real escape speed where the ship is: nothing at the planets, about a quarter at the Sun's surface, about half as a black-hole pass begins and all of it at the closest point. On a phone, where the ship is small, the flare shows as a glow round its outline.
+- The readout says so, in at most three lines: "shield power 96% · climbing out of Sgr A*'s gravity", and with no job line the real escape speed there ("escape speed here: 19% of light speed (real)").
+- With reduced motion the heart beats at most 0.6 times a second and the shield's flicker is damped.
+- Fixed: the dotted rings round the heart whipped round and flickered while the fold drive spooled up, more so the longer the page had been open (their speed was multiplied by the time since the page loaded).
+
 ## 0.8.7 · 2026-09-27
 
 **Fixed: how the Halo flies** (the ship is fictional; these were mistakes in its route, found by the motion test once it flew fixed routes)
