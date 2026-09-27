@@ -82,7 +82,7 @@ const music = (() => {
         [[9, 'm9'], [2, 'm11'], [7, 'dom9'], [0, 'maj9']], [[0, 'maj9'], [5, 'maj9']], [[4, 'm7'], [9, 'm9'], [2, 'm9'], [7, 'sus']]],
       plan:() => [['intro', 4], ['A', 8], ['B', 8], ['break', 4], ['A', 8], ['B', 8], ['outro', 4]], step:lofiStep },
     house:{ label:'chill house', minor:true, bpm:[110, 118], bpc:prog => prog.length <= 2 ? 2 : 1, crackle:0.005, drone:0.012, level:1,
-      progs:[[[0, 'm9'], [8, 'maj9'], [3, 'maj9'], [10, 'dom9']], [[0, 'm9'], [5, 'm9']], [[0, 'm11'], [10, 'sus'], [8, 'maj9'], [7, 'm7']], [[9, 'm9'], [5, 'maj9'], [0, 'maj9'], [7, 'sus']]],
+      progs:[[[0, 'm9'], [8, 'maj9'], [3, 'maj9'], [10, 'dom9']], [[0, 'm9'], [5, 'm9']], [[0, 'm11'], [10, 'sus'], [8, 'maj9'], [7, 'm7']], [[0, 'm9'], [8, 'maj9'], [3, 'maj9'], [10, 'sus']]],
       plan:() => [['intro', 8], ['A', 16], ['B', 16], ['break', 8], ['drop', 16], ['outro', 8]], step:houseStep },
     ambient:{ label:'ambient', bpm:[60, 60], bpc:() => 4, crackle:0, drone:0.05, level:1.29,
       progs:[[[0, 'maj9'], [9, 'm9'], [5, 'maj9'], [2, 'm11']], [[0, 'sus'], [10, 'maj9'], [5, 'maj9']], [[2, 'm11'], [0, 'maj9'], [7, 'sus'], [9, 'm9']]],
@@ -635,7 +635,7 @@ const music = (() => {
     const near = m => { while (m - T.bassPrev > 6) m -= 12; while (T.bassPrev - m > 6) m += 12; return Math.max(31, Math.min(50, m)); };
     if (end){ if (bar === n - 2 && s === 0){ T.bassPrev = low(root, 36, 47); upright(t, T.bassPrev, sd*28, 0.17); } }
     else if (walk && s % 4 === 0){
-      const beat = s/4, r = low(root, 36, 47), third = root + (/^m/.test(type) ? 3 : type === 'sus' ? 5 : 4);
+      const beat = s/4, r = low(root, 36, 47), third = root + (CTONES[type] || CTONES.maj9)[1];   // (the chord's own third: 4 on maj9, 3 on m9, 5 on sus)
       const m = beat === 0 ? r : beat === 1 ? near(pick([third, third, root + 7, root + 2])) : beat === 2 ? near(pick([root + 7, third, root + 9, root + 12]))
         : near(pick([(nx ? nx.root : root) - 1, (nx ? nx.root : root) + 1, (nx ? nx.root : root) + 7]));
       T.bassPrev = m; upright(t + hum(), m, sd*3.6, beat === 0 ? 0.17 : 0.14);
@@ -691,7 +691,7 @@ const music = (() => {
       const r = low(root, 33, 45);
       // (a second note on the and-of-3 in most bars; otherwise the first one holds through the bar)
       if (s === 0){ T.subTwo = !end && R() < 0.7; sub(t, r, end ? sd*30 : T.subTwo ? sd*9 : sd*15, 0.036, T.subPrev && T.subPrev !== r && R() < 0.5 ? T.subPrev : 0); T.subPrev = r; }
-      else if (s === 10 && T.subTwo){ const m = r + pick([7, 12, 10]); sub(tt, m, sd*5, 0.025, r); }
+      else if (s === 10 && T.subTwo){ const m = r + pick(CTONES[type].includes(10) ? [7, 12, 10] : [7, 12]); sub(tt, m, sd*5, 0.025, r); }   // (no flat seventh under a maj9)
     }
     // drums: kick on 1 and the and-of-3, snare on 3, lightly swung sixteenth hats
     if (!(sec === 'intro' && bar < 2) && sec !== 'break' && !end){
