@@ -42,7 +42,7 @@ Suggested wording for the site or for sharing:
 | Voyager 1 (0.8.3) | **Real path, straight-line model** | It moves with the Solar System clock along a straight line through its JPL Horizons position and velocity for 18 November 2026. Since its 1980 Saturn flyby it has barely curved: the line stays within about 0.02 AU of Horizons from 2020 to 2030 and within 1 AU back to 2000. Before 1990 it is drawn where it was in 1990, and its readout says so. The one-light-day countdown uses this path and Earth's real position; it gives 18 November 2026, the date NASA announced. |
 | TRAPPIST-1e's surface (0.8.3) | **Illustrative** | Its size and orbit are measured. It is drawn as a temperate world that keeps one side to its star (expected for a planet this close, not observed): open sea under the star, a few rocky islands, ice beyond and across the night side, clouds over the warmest water and a thin blue haze of air. Nobody knows yet whether it has air or water; its readout says so. |
 | The Halo | **Fiction** | The only invented object, and everything it does is invented too: its light-speed jumps and folds through space, scans, probe, weapons tests, skims and the rock it drills. Weapons tests are purely visual: nothing about the body changes and every blast fades completely. Its path and speed are cinematic, scaled to the body it visits, not physical. What is real: it flies round the real bodies at their true positions and sizes, and its scan beams end on each body's real surface. |
-| Music | **Fiction** | Space is silent. |
+| Music | **Fiction** | Space is silent. The songs are made up live in your browser; their names borrow places in the atlas and say nothing about them. |
 
 ## Where the numbers come from
 

@@ -4,6 +4,19 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.8.9 · 2026-09-27
+
+**More music, for hours of calm listening**
+- Five new styles, made live in your browser like the others: bossa nova (nylon guitar, upright bass, a soft shaker and vibraphone), lounge jazz (electric piano, a walking bass, brushes and a vibraphone or piano solo), ambient piano (a soft felt piano over a faint pad), downtempo (slow drums, electric piano, a gliding bass and a soft choir) and soft synthwave (warm pads and a gentle arpeggio with an echo).
+- The style buttons are now moods: mix, calm (ambient and ambient piano), lounge (bossa nova and lounge jazz), beats (lofi and downtempo) and groove (chill house and synthwave). A line under them says what the chosen mood plays.
+- The mix plays only the calm styles: ambient, ambient piano, bossa nova, lounge jazz, lofi and downtempo. Chill house and synthwave play when you pick groove.
+- A style you picked before carries over: lofi becomes beats, chill house becomes groove and ambient becomes calm.
+- The shuffle deals songs from a weighted deck. The same style never plays twice in a row, and the mix plays a calm song (ambient or ambient piano) at least every fifth song.
+- Each song starts in a key close to the last one's, so one song flows into the next.
+- Songs are named after places in the atlas, such as "Bossa for Europa" or "Rain on Titan". No name comes back within 60 songs, about two hours.
+- Every style plays at the same loudness, on headphones and on laptop or phone speakers alike. Ambient plays about 2 dB louder than before to match the others. Lofi and chill house sound exactly as before.
+- In the new styles the melody always fits the chord under it, and every song ends on its home chord.
+
 ## 0.8.6 · 2026-09-27
 
 **Calmer ASCII**
