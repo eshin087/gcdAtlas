@@ -1,9 +1,10 @@
 
 // ================================================================ soundtrack: gcd radio, a generative mix that never repeats
 // Eight styles (STYLES): lofi beats, chill house, ambient, bossa nova, lounge jazz, ambient piano, downtempo and soft synthwave.
-// A mood in the settings (MOODS) picks which ones play: the default mix plays only the calm ones, chill house and synthwave
-// play under 'groove'. Every track gets its own key (close to the last one's), tempo, chord progression, melody, arrangement
-// and a name from a place in the atlas, so nothing loops audibly. The styles are equally loud (tests/music.mjs checks).
+// A mood in the settings (MOODS) picks which ones play: the default mix plays all but chill house and synthwave, which play
+// under 'groove'. Every track gets its own key (close to the last one's), tempo, chord progression, melody, arrangement
+// and a name from a place in the atlas, so nothing loops audibly. Every style is about as loud as lofi, on headphones and on
+// small speakers (tests/music.mjs checks both).
 // Everything is synthesised in the browser: no audio files. It tries to start on load; browsers that block that start it on the first
 // click, tap or key press. The first track skips its intro so the groove is there at once.
 const music = (() => {
@@ -84,33 +85,33 @@ const music = (() => {
     house:{ label:'chill house', minor:true, bpm:[110, 118], bpc:prog => prog.length <= 2 ? 2 : 1, crackle:0.005, drone:0.012, level:1,
       progs:[[[0, 'm9'], [8, 'maj9'], [3, 'maj9'], [10, 'dom9']], [[0, 'm9'], [5, 'm9']], [[0, 'm11'], [10, 'sus'], [8, 'maj9'], [7, 'm7']], [[0, 'm9'], [8, 'maj9'], [3, 'maj9'], [10, 'sus']]],
       plan:() => [['intro', 8], ['A', 16], ['B', 16], ['break', 8], ['drop', 16], ['outro', 8]], step:houseStep },
-    ambient:{ label:'ambient', bpm:[60, 60], bpc:() => 4, crackle:0, drone:0.05, level:1.29,
+    ambient:{ label:'ambient', bpm:[60, 60], bpc:() => 4, crackle:0, drone:0.05, level:1.02,
       progs:[[[0, 'maj9'], [9, 'm9'], [5, 'maj9'], [2, 'm11']], [[0, 'sus'], [10, 'maj9'], [5, 'maj9']], [[2, 'm11'], [0, 'maj9'], [7, 'sus'], [9, 'm9']]],
-      plan:() => [['A', 12 + 4*Math.floor(R()*3)]], step:ambientStep },
+      plan:() => [['A', 20 + 4*Math.floor(R()*4)]], step:ambientStep },   // (20 to 32 bars: 1:20 to 2:08)
     // the newer styles: gentle, for hours in the background. mode sets the melody's scale, home the chord the song ends on.
-    bossa:{ label:'bossa nova', bpm:[124, 138], mode:'major', home:'maj9', bpc:() => 2, crackle:0, drone:0, level:5.1,
+    bossa:{ label:'bossa nova', bpm:[124, 138], mode:'major', home:'maj9', bpc:() => 2, crackle:0, drone:0, level:3.8,
       progs:[[[0, 'maj9', 2], [2, 'dom9', 2], [2, 'm9', 1], [1, 'dom9', 1], [0, 'maj9', 2]], [[2, 'm9', 1], [7, 'dom9', 1], [0, 'maj9', 1], [9, 'dom9', 1]],
         [[0, 'maj9'], [9, 'm9'], [2, 'm9'], [7, 'dom9']], [[0, 'six9'], [5, 'dom9']]],
       progsB:[[[5, 'maj9'], [5, 'm6'], [4, 'm7', 1], [9, 'dom9', 1], [2, 'm9', 1], [7, 'dom9', 1]], [[5, 'maj9'], [10, 'dom9'], [4, 'm7'], [9, 'dom9']]],
       cells:[[0, 3, 6, 10, 14, 16, 22], [2, 6, 8, 12, 18, 22, 24], [0, 4, 6, 10, 12, 20, 24, 28], [3, 6, 10, 16, 19, 22]],
       plan:() => [['intro', 4], ['A', 24], ['B', 16], ['A', 16], ['outro', 4]], step:bossaStep },
-    lounge:{ label:'lounge jazz', bpm:[72, 88], mode:'major', home:'six9', bpc:() => 1, crackle:0, drone:0, level:2.8,
+    lounge:{ label:'lounge jazz', bpm:[72, 88], mode:'major', home:'six9', bpc:() => 1, crackle:0, drone:0, level:1.87,
       progs:[[[2, 'm9'], [7, 'dom9'], [0, 'maj9'], [9, 'dom9']], [[5, 'm9'], [10, 'dom9'], [0, 'maj9', 2]], [[4, 'm7'], [9, 'dom9'], [2, 'm9'], [7, 'dom9']],
         [[0, 'maj9'], [5, 'maj9'], [4, 'm7'], [9, 'dom9'], [2, 'm9'], [7, 'dom9'], [0, 'six9', 2]]],
       progsB:[[[5, 'maj9'], [5, 'm6'], [0, 'maj9'], [9, 'dom9'], [2, 'm9'], [7, 'dom9'], [0, 'six9'], [7, 'dom9']], [[2, 'm9'], [7, 'dom9'], [4, 'm7'], [9, 'dom9']]],
       cells:[[0, 4, 6, 10, 12, 16, 20], [2, 6, 8, 12, 18, 22, 24], [0, 6, 8, 14, 16, 24], [4, 6, 8, 12, 14, 20, 22, 24]],
       setup:T => { T.swing8 = 0.5 + R()*0.15; T.solo = R() < 0.6 ? 'vibes' : 'rhodes'; },
       plan:() => [['intro', 4], ['A', 16], ['B', 16], ['A', 8], ['outro', 4]], step:loungeStep },
-    piano:{ label:'ambient piano', bpm:[60, 72], mode:'major', home:'maj9', bpc:() => 2, crackle:0, drone:0, hiss:0.0005, level:11.6,
+    piano:{ label:'ambient piano', bpm:[60, 72], mode:'major', home:'maj9', bpc:() => 2, crackle:0, drone:0, hiss:0.0005, level:9.0,
       progs:[[[0, 'maj9'], [7, 'sus'], [9, 'm9'], [5, 'maj9']], [[9, 'm9'], [5, 'maj9'], [0, 'maj9'], [7, 'sus']], [[0, 'maj9'], [4, 'm7'], [5, 'maj9'], [5, 'm6']]],
       cells:[[0, 8, 12, 16, 24], [0, 4, 8, 16, 20, 24], [4, 8, 16, 28], [0, 12, 16, 20]],
       setup:T => { T.drift = 0.015; T.driftPh = R()*6; },   // the tempo breathes by about 1.5%
       plan:() => [['intro', 2], ['A', 12], ['B', 12], ['A', 8], ['outro', 2]], step:pianoStep },
-    downtempo:{ label:'downtempo', minor:true, bpm:[86, 96], mode:'minor', home:'m9', swing:() => 0.08 + R()*0.06, bpc:() => 2, crackle:0.012, drone:0, level:3.6,
+    downtempo:{ label:'downtempo', minor:true, bpm:[86, 96], mode:'minor', home:'m9', swing:() => 0.08 + R()*0.06, bpc:() => 2, crackle:0.012, drone:0, level:3.3,
       progs:[[[0, 'm9'], [5, 'dom9']], [[0, 'm11'], [3, 'maj9'], [8, 'maj9'], [7, 'm7']], [[0, 'm9'], [10, 'sus'], [8, 'maj9'], [10, 'dom9']]],
       cells:[[0, 6, 10, 16], [4, 8, 14, 24], [0, 3, 8, 20], [2, 6, 18, 22]],
       plan:() => [['intro', 4], ['A', 12], ['B', 12], ['break', 4], ['A', 8], ['outro', 4]], step:downStep },
-    synthwave:{ label:'synthwave', minor:true, bpm:[84, 100], mode:'minor', home:'m9', bpc:() => 2, crackle:0, drone:0, level:2.4,
+    synthwave:{ label:'synthwave', minor:true, bpm:[84, 100], mode:'minor', home:'m9', bpc:() => 2, crackle:0, drone:0, level:2.0,
       progs:[[[0, 'm9'], [8, 'maj9'], [3, 'maj9'], [10, 'sus']], [[0, 'm9'], [10, 'dom9'], [8, 'maj9'], [10, 'dom9']], [[0, 'm9'], [8, 'maj9'], [5, 'm9'], [7, 'm7']]],
       cells:[[0, 4, 8, 12, 16, 20, 24], [0, 6, 8, 14, 16, 22, 24], [0, 8, 12, 16, 24, 28], [2, 4, 8, 14, 18, 20, 24]],
       setup:T => { T.arpUD = R() < 0.5; },
@@ -402,7 +403,8 @@ const music = (() => {
     p.pan.value = pan; s.connect(g).connect(p).connect(gtrBus);
     s.start(t); s.stop(end + 0.14); tidy(s, [s, g, p]);
   }
-  // the upright bass settles into tune from 15 cents sharp, as a plucked string does
+  // the upright bass settles into tune from 15 cents sharp, as a plucked string does. Under the string, a pickup: a sine on
+  // the fundamental that fades to 40% (as a bass amp adds under the microphone), so the bass is as full as lofi's on headphones.
   function upright(t, m, dur, v){
     v *= vel;
     const w = stringOf(m, 'upright'), s = ctx.createBufferSource(), g = ctx.createGain();
@@ -410,6 +412,9 @@ const music = (() => {
     const end = t + Math.min(dur, w.len - 0.15);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.008); g.gain.setValueAtTime(v, end); g.gain.exponentialRampToValueAtTime(0.0001, end + 0.1);
     s.connect(g).connect(uprBus); s.start(t); s.stop(end + 0.12); tidy(s, [s, g]);
+    const o = ctx.createOscillator(), og = ctx.createGain(), a = v*0.7; o.frequency.value = hz(m);
+    og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(a, t + 0.012); og.gain.setTargetAtTime(a*0.4, t + 0.012, 0.6); og.gain.setTargetAtTime(0, end, 0.03);
+    o.connect(og).connect(uprBus); o.start(t); o.stop(end + 0.25); tidy(o, [o, og]);
   }
   // vibraphone: a sine bar with its tuned fourth partial and a faint tenth, through the motor tremolo
   function vibes(t, m, dur, v, pan = 0, echo = 0){
@@ -525,6 +530,13 @@ const music = (() => {
       o.connect(lp).connect(g).connect(p).connect(musBus); o.start(t); o.stop(t + dur + 1.6); tidy(o, [o, lp, g, p]);
     }
   }
+  // a soft sine under the chord's root (ambient and ambient piano): slow in and out, dry and in the middle, no random draws
+  function subPad(t, m, dur, v){
+    v *= vel;
+    const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = hz(m);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + 2.5); g.gain.setValueAtTime(v, t + Math.max(dur - 2, 2.5)); g.gain.linearRampToValueAtTime(0, t + dur + 1.5);
+    o.connect(g).connect(duck); o.start(t); o.stop(t + dur + 1.6); tidy(o, [o, g]);
+  }
   // tape hiss for one song (it fades out early if the next song starts sooner)
   let hissNow = null;
   function hiss(t, dur, v){
@@ -595,9 +607,9 @@ const music = (() => {
     }
     if (sec === 'break' && s % 8 === 0 && R() < 0.6) bell(t, voice(root, type, 72, 90)[Math.floor(R()*3)], 0.03);
   }
-  // ---------------------------------------------------------------- ambient: slow pads over the drone, distant chimes
+  // ---------------------------------------------------------------- ambient: slow pads over the drone and a low root, distant chimes
   function ambientStep({ t, sd, s, bar, root, type }){
-    if (bar % 4 === 0 && s === 0) pad(t, voice(root, type, 50, 74), sd*16*4 + 4, 0.04, 800);
+    if (bar % 4 === 0 && s === 0){ pad(t, voice(root, type, 50, 74), sd*16*4 + 4, 0.04, 800); subPad(t, low(root, 36, 47), sd*16*4 + 2, 0.12); }
     if (R() < 0.022) bell(t + R()*sd, voice(root, type, 74, 94)[Math.floor(R()*4)], 0.02 + R()*0.02);
   }
   // ---------------------------------------------------------------- bossa nova: nylon guitar, upright bass, cross-stick and shaker, vibes
@@ -673,11 +685,12 @@ const music = (() => {
   // ---------------------------------------------------------------- ambient piano: felt piano, broken chords, a slow melody, a faint pad
   function pianoStep({ t, sd, s, bar, sec, root, type, chordStart, lastBar }){
     const n = T.sections.length, k = T.chords[bar].k, loose = () => (R() - 0.5)*0.03, left = chordLeft(bar, s, sd);
-    // left hand: root and fifth, low, under the pedal until the next chord
+    // left hand: root and fifth, low, under the pedal until the next chord, with a soft sine on the same root
     if (chordStart){
       const r = low(root, 36, 47);
       piano(t + loose(), r, left, 0.042); piano(t + 0.05 + loose(), r + 7, left, 0.03);
       if (sec !== 'intro') warm(t, voice(root, type, 52, 67), left + 0.5, 0.0025, 650);
+      subPad(t, r, left + 0.5, 0.018);
     }
     // right hand: broken chords in eighths, rising and falling over two bars, about a quarter of the notes left out
     if (s % 2 === 0 && sec !== 'outro' && !(sec === 'intro' && bar === 0)){
@@ -702,8 +715,8 @@ const music = (() => {
     if (sec !== 'intro' && sec !== 'break' && !(end && bar === n - 1)){
       const r = low(root, 33, 45);
       // (a second note on the and-of-3 in most bars; otherwise the first one holds through the bar)
-      if (s === 0){ T.subTwo = !end && R() < 0.7; sub(t, r, end ? sd*30 : T.subTwo ? sd*9 : sd*15, 0.036, T.subPrev && T.subPrev !== r && R() < 0.5 ? T.subPrev : 0); T.subPrev = r; }
-      else if (s === 10 && T.subTwo){ const m = r + pick(CTONES[type].includes(10) ? [7, 12, 10] : [7, 12]); sub(tt, m, sd*5, 0.025, r); }   // (no flat seventh under a maj9)
+      if (s === 0){ T.subTwo = !end && R() < 0.7; sub(t, r, end ? sd*30 : T.subTwo ? sd*9 : sd*15, 0.043, T.subPrev && T.subPrev !== r && R() < 0.5 ? T.subPrev : 0); T.subPrev = r; }
+      else if (s === 10 && T.subTwo){ const m = r + pick(CTONES[type].includes(10) ? [7, 12, 10] : [7, 12]); sub(tt, m, sd*5, 0.03, r); }   // (no flat seventh under a maj9)
     }
     // drums: kick on 1 and the and-of-3, snare on 3, lightly swung sixteenth hats
     if (!(sec === 'intro' && bar < 2) && sec !== 'break' && !end){
@@ -730,9 +743,9 @@ const music = (() => {
     }
     const drums = sec === 'A' || sec === 'B' || (sec === 'outro' && k < 4);
     // bass: eighth notes jumping an octave
-    if ((drums || (sec === 'intro' && k >= 4)) && s % 2 === 0) bass(t, low(root, 33, 45) + (s % 4 === 2 ? 12 : 0), sd*1.5, s % 4 === 0 ? 0.057 : 0.038);
+    if ((drums || (sec === 'intro' && k >= 4)) && s % 2 === 0) bass(t, low(root, 33, 45) + (s % 4 === 2 ? 12 : 0), sd*1.5, s % 4 === 0 ? 0.085 : 0.057);
     if (drums){
-      if (s === 0 || s === 8){ kick(t, 0.19);
+      if (s === 0 || s === 8){ kick(t, 0.25);
         // a gentle pump: the music dips a little on each kick
         duck.gain.cancelScheduledValues(t); duck.gain.setValueAtTime(0.6, t); duck.gain.linearRampToValueAtTime(1, t + sd*3.5); }
       if (s === 4 || s === 12) snare(t + 0.005, 0.18, true);

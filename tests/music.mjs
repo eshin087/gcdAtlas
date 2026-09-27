@@ -1,7 +1,8 @@
-// Music test: renders every style offline (seeded, so every run gives the same songs) and checks that the styles are equally
-// loud and never clip. Loudness is measured as in ITU-R BS.1770 (K-weighted and gated, the way streaming services even out
-// songs), twice: full range (headphones) and above 200 Hz (a laptop or phone speaker, which cannot play deep bass). A style's
-// loudness is the average of the two, so a bass-heavy style (lofi) and a light one (piano) sound alike on either.
+// Music test: renders every style offline (seeded, so every run gives the same songs) and checks that the styles are about
+// as loud as lofi and never clip. Loudness is measured as in ITU-R BS.1770 (K-weighted and gated, the way streaming services
+// even out songs), twice: full range (headphones) and above 200 Hz (a laptop or phone speaker, which cannot play deep bass).
+// The average of the two must be within TOL of lofi's, and each one within TOL_EACH: a style with less bass than lofi comes
+// out quieter on headphones and louder on small speakers, so its bass has to be close to lofi's for both to hold.
 // Also writes a one-minute WAV of each style to tests/out/music/ for listening.
 //   node tests/music.mjs                      all styles
 //   node tests/music.mjs --styles bossa,lofi  some styles (lofi, the reference, is always measured)
@@ -10,7 +11,7 @@ import { openPage, report, OUT } from './lib.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
-const TOL = 1.5, PEAK_MAX = -1;   // dB from lofi; dBFS at full volume
+const TOL = 1.5, TOL_EACH = 2.5, PEAK_MAX = -1;   // dB from lofi (the average, each measure); dBFS at full volume
 const SEEDS = [[1, 60], [2, 40], [3, 40]];   // [seed, seconds], rendered side by side; the first one is also the WAV
 const wav = !process.argv.includes('--no-wav');
 const { browser, page, errors } = await openPage({ settings:{ sound:false }, init:() => { window.__freeze = true; } });
@@ -105,8 +106,11 @@ for (const st of want){
   const r = res[st], d = r.loud - ref.loud, sg = x => (x >= 0 ? '+' : '') + x.toFixed(1);
   lines.push(`${st.padEnd(10)} ${sg(d).padStart(5)} dB vs lofi (full range ${sg(r.full - ref.full)}, small speakers ${sg(r.small - ref.small)})  peak ${r.peak.toFixed(1)} dBFS  · ${r.runs[0].name} (${r.sec.toFixed(0)} s)`);
   if (!(Math.abs(d) <= TOL)) errors.push(`${st} is ${sg(d)} dB from lofi (at most ${TOL})`);
+  for (const [k, what] of [['full', 'on headphones'], ['small', 'on small speakers']]){
+    const dk = r[k] - ref[k]; if (!(Math.abs(dk) <= TOL_EACH)) errors.push(`${st} is ${sg(dk)} dB from lofi ${what} (at most ${TOL_EACH})`);
+  }
   if (!(r.peak <= PEAK_MAX)) errors.push(`${st} peaks at ${r.peak.toFixed(1)} dBFS (at most ${PEAK_MAX})`);
 }
 console.log(`lofi: ${ref.full.toFixed(1)} LUFS full range, ${ref.small.toFixed(1)} on small speakers (at full volume)\n` + lines.join('\n'));
-report('music', errors, `${want.length} styles within ${TOL} dB of lofi, peaks under ${PEAK_MAX} dBFS` + (wav ? ' · WAVs in tests/out/music' : ''));
+report('music', errors, `${want.length} styles within ${TOL} dB of lofi (${TOL_EACH} dB on headphones and on small speakers), peaks under ${PEAK_MAX} dBFS` + (wav ? ' · WAVs in tests/out/music' : ''));
 await browser.close();

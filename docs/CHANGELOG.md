@@ -14,7 +14,8 @@ All notable changes, newest first. Dates are UTC.
 - The shuffle deals songs from a weighted deck. The same style never plays twice in a row, and the mix plays an ambient or ambient piano song at least every fifth song.
 - Each song starts in a key close to the last one's, so one song flows into the next.
 - Songs are named after places in the atlas, such as "Bossa for Europa" or "Rain on Titan". No name comes back within 60 songs, about two hours.
-- Every style plays at the same loudness, on headphones and on laptop or phone speakers alike. Ambient plays about 2 dB louder than before to match the others. Lofi and chill house sound exactly as before.
+- The new styles have a full, low bass like lofi's, so the volume stays about even when the style changes: every style is within about 2 dB of lofi's loudness, both on headphones and on laptop or phone speakers.
+- Ambient has a soft low note under its chords now, and its songs last 1 min 20 s to 2 min 8 s instead of about a minute, so the calm mood changes songs less often. Lofi and chill house keep the same sounds and levels.
 - In the new styles the melody always fits the chord under it, and every song ends on its home chord.
 
 ## 0.8.6 · 2026-09-27
