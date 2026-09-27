@@ -892,7 +892,7 @@ function fxFoldIn(){
 // light that snaps away; on arrival the thread pours back into it, the needle first.
 // Its own clocks, so the route's timing is untouched: fk counts to the jump (negative before it, 0 to FOLD_T in the fold; it runs back, and
 // the hull forms again, if the jump is put off), asm from the arrival. The shield folds into the heart first and forms again last.
-const FLK = { SH0:-2.6, SH1:-2.1, D0:[0, -2.1, -2.1, -1.6][foldLook], D1:-0.5, P:[0, 1, 1, 1.25][foldLook], A0:0.15, A1:[0, 1.7, 1.55, 1.3][foldLook], SHR:0.7, RIMW:0.1 };
+const FLK = { SH0:-2.6, SH1:-2.1, D0:[0, -2.1, -2.1, -1.6][foldLook], D1:-0.5, P:[0, 1, 1, 1.25][foldLook], A0:[0, 0.15, 0.15, 0.4][foldLook], A1:[0, 1.7, 1.55, 1.4][foldLook], SHR:0.7, RIMW:0.1 };
 const FLK_END = FLK.A1 + FLK.SHR + 0.1;
 // the ship's outline in its plane (y, w = |z|): the same shapes as bowPlan, armPlan and the nacelles in the shader
 const KS_ = [-0.041, 0.108], KN_ = [-0.187, 0], N1_ = [0.1225, 0.9925], N2_ = [-0.5947, 0.8039];
@@ -980,12 +980,13 @@ function foldUpdate(dt){
     cc = Math.max(fk - FLK.D1, 0);
     if (foldLook === 1) hfl += 1.1*smooth(0, 0.3, cc)*(1 - smooth(0.55, 0.9, cc));
     else if (foldLook === 2){
-      sx = smooth(FLK.D0 - 0.3, FLK.D0 + 0.3, fk); sy = smooth(FLK.D0, FLK.D1, fk);
+      // (the dark heart grows as it eats, then in the last half second before the jump it pinches in, its ring spinning faster and burning brighter)
+      sx = smooth(FLK.D0 - 0.3, FLK.D0 + 0.3, fk); sy = smooth(FLK.D0, FLK.D1, fk)*(1 - 0.7*smooth(0.05, 0.5, cc));
       // (it flares as each piece falls in)
       let n = 0; if (dm && CEL.n) for (let i=0;i<CEL.n;i++){ const c = i*CW, e = CEL.a[c + 6] + 0.3 + 0.75*Math.hypot(CEL.a[c] + 0.3, CEL.a[c + 1]); if (e > fk - dt && e <= fk) n++; }
       S.eat = S.eat*Math.exp(-dt/0.15) + n*0.03;
-      hfl += Math.min(S.eat, 0.9) + 1.4*smooth(-0.15, 0.05, fk)*(1 - smooth(0.2, 0.4, fk));
-      S.ringPh += dt*6*sx;
+      hfl += Math.min(S.eat, 0.9) + 0.5*smooth(0.05, 0.5, cc) + 1.4*smooth(-0.15, 0.05, fk)*(1 - smooth(0.2, 0.4, fk));
+      S.ringPh += dt*(reduceMotion ? 1.5 : 6 + 30*cc)*sx;
     } else { sx = smooth(-0.45, 0.2, fk); hfl += 0.5*smooth(-0.6, 0, fk); }
   } else if (S.asm < FLK_END){
     const a = S.asm += dt;
@@ -1012,9 +1013,11 @@ function emberAt(out, c, fk, t, leaving, sd){
     // a wind carries it off to one side (S_.wz, new for each fold), lifting it toward the camera's side of the plate and a little aft, with
     // eddies; arriving, the same stream runs backwards and settles each grain on its own spot
     const a = leaving ? fk - A[c + 6] : A[c + 7] - t; if (a < 0 && (leaving || t > A[c + 7] + 0.1)) return false;
+    // (it rises off the plate as it drifts: dust lifting away, not rain; each grain turns in a small eddy of its own, so the stream curls)
     const aa = Math.max(a, 0), e0 = 1 - Math.exp(-aa/0.2), wz = leaving ? S_.wz : -S_.wz, gust = 0.6 + 0.8*k0;
-    let x = xs + sd*(0.05*e0 + 0.3*k1*aa*aa), y = y0 - (0.15*aa + 0.35*aa*aa)*(0.5 + k2), z = z0 + wz*(0.4*aa + 1.0*aa*aa)*gust;
-    x += still*0.1*aa*Math.cos(aa*3.3 + z0*11 + 6.283*k3); z += still*0.1*aa*Math.sin(aa*4.1 + y0*9 + 6.283*k2);
+    let x = xs + sd*(0.05*e0 + (0.12 + 0.3*k1)*aa*aa), y = y0 - (0.12*aa + 0.3*aa*aa)*(0.5 + k2), z = z0 + wz*(0.3*aa + 0.75*aa*aa)*gust;
+    const er = still*(0.05 + 0.12*k3)*Math.min(aa*2.2, 1)*(1 + aa), ea = aa*(3.2 + 3*k2)*(k0 < 0.5 ? 1 : -1) + 6.283*k3;
+    x += sd*er*(Math.cos(ea) - Math.cos(6.283*k3)); z += er*(Math.sin(ea) - Math.sin(6.283*k3));
     let w = 0;
     if (leaving){
       // (in the last half second the heart pulls it all back in)
@@ -1058,7 +1061,7 @@ function foldDraw(){
     }
   }
   if (!CEL.n || !S.csL) return;
-  const fk = S.fk, t = S.asm, A = CEL.a, E = [0, 0, 0, 0, 0], E2 = [0, 0, 0, 0, 0]; let nE = 0;
+  const fk = S.fk, t = S.asm, A = CEL.a, E = [0, 0, 0, 0, 0], E2 = [0, 0, 0, 0, 0]; let nE = 0, yMax = 1;
   for (let i=0;i<CEL.n;i++){
     // (B, arriving: fewer, since they all start from one spot)
     const c = i*CW; if (A[c + 12] > keep*(foldLook === 2 && !leaving ? 0.45 : 1)) continue;
@@ -1075,14 +1078,14 @@ function foldDraw(){
         b *= (ash ? 1 : 0.85 + 0.15*Math.sin(fk*23 + k2*40))*(1 + 0.8*w)*(1 - smooth(0.85, 1, w));
         if (ash) ECOL[0] = ASH_[0], ECOL[1] = ASH_[1], ECOL[2] = ASH_[2]; else if (a < 0.2) mix3(ECOL, WHITE, ICE_, a/0.2); else mix3(ECOL, ICE_, DEEP_, Math.min((a - 0.2)/1.4, 1));
         P_(EP, ECOL, b, ash ? -3 : -2);
-        if (!ash && !reduceMotion && emberAt(E2, c, fk - (w > 0.1 ? 0.035 : 0.07), t, true, sd)){ toShip(EQ, E2[0], E2[1], E2[2]); L_(EQ, EP, DEEP_, b*0.05, ECOL, b*0.3); }
+        if (!ash && !reduceMotion && emberAt(E2, c, fk - (w > 0.1 ? 0.025 : 0.03), t, true, sd)){ toShip(EQ, E2[0], E2[1], E2[2]); L_(EQ, EP, DEEP_, b*0.05, ECOL, b*0.3); }
       } else {
         // (arriving: a grain drifting back in, warming as it nears its spot, a spark as it lands)
         const a = E[3];
         if (a <= 0){ P_(EP, WHITE, 1.8*(1 - (t - A[c + 7])/0.1), -2); continue; }
-        const b = (0.5 + 1.6*Math.exp(-a/0.22))*smooth(1.4, 1.0, a); mix3(ECOL, DEEP_, WHITE, Math.exp(-a/0.3));
+        const b = (0.75 + 1.6*Math.exp(-a/0.22))*smooth(1.4, 0.95, a); mix3(ECOL, DEEP_, WHITE, Math.exp(-a/0.3));
         P_(EP, ECOL, b, k1 < 0.22 ? -3 : -2);
-        if (!reduceMotion && emberAt(E2, c, fk, t - 0.05, false, sd)){ toShip(EQ, E2[0], E2[1], E2[2]); L_(EQ, EP, DEEP_, b*0.05, ECOL, b*0.3); }
+        if (!reduceMotion && emberAt(E2, c, fk, t - 0.03, false, sd)){ toShip(EQ, E2[0], E2[1], E2[2]); L_(EQ, EP, DEEP_, b*0.05, ECOL, b*0.3); }
       }
     } else if (foldLook === 2){
       const u = E[3];
@@ -1094,7 +1097,8 @@ function foldDraw(){
       else P_(EP, ECOL, b, -2);
     } else {
       // (a dash of light, white as it leaves its cell, stretching as it speeds up)
-      const a = E[3], y = E[1], fade = 1 - smooth(12, 22, y), b = (0.8 + 1.4*Math.exp(-a/0.2))*fade*(leaving && fk > 0 ? 1 - fk/0.4 : 1);
+      const a = E[3], y = E[1], fade = 1 - smooth(12, 22, y); if (y < 12 && y > yMax) yMax = y;
+      const b = (0.8 + 1.4*Math.exp(-a/0.2))*fade*(leaving && fk > 0 ? 1 - fk/0.4 : 1);
       mix3(ECOL, WHITE, CYAN_, Math.min(a/0.6, 1));
       if (!leaving && a <= 0){ P_(EP, WHITE, 1.8*(1 - (t - A[c + 7])/0.1), -2); continue; }
       const back = leaving ? emberAt(E2, c, fk - 0.07, t, true, sd) : emberAt(E2, c, fk, t + 0.07, false, sd);
@@ -1103,10 +1107,23 @@ function foldDraw(){
     }
   }
   S.embN = nE;
-  // C: the head of the thread, racing off as it snaps (and racing back in on arrival)
+  // C: the thread itself, a line of light from the needle's tip out along the heading as far as the dashes have run (so the ship reads as
+  // pouring out of its own tip; once the needle is gone, not before, so it never lies over the hull, it reaches back to the heart, which
+  // stretches into it), and its head, racing off as it snaps: the thread's end runs after the head and the two meet and go out.
+  // Arriving, the head races back in and the thread shortens into the needle as the dashes pour back into their cells.
   if (foldLook === 3){
-    if (leaving && fk > -0.3){ const u = Math.max(fk + 0.3, 0), y = 1 + 30*u*u, k = smooth(-0.3, -0.1, fk)*(1 - smooth(0.25, 0.4, fk)); toShip(EP, 0, y, 0); P_(EP, WHITE, 2.2*k, -12); P_(EP, HALO_, 0.6*k, -40); }
-    if (arriving && t < 0.35){ const y = 12*(1 - smooth(0, 0.35, t)) + 0.9, k = 1 - smooth(0.2, 0.35, t); toShip(EP, 0, y, 0); P_(EP, WHITE, 2.2*k, -12); P_(EP, HALO_, 0.6*k, -40); }
+    // (the head's spark and its halo follow the ship's size on screen, so on a phone it is a spark, not a glowing ball)
+    const hs = clamp(ship.rpx*0.25, 6, 12), hh = clamp((ship.rpx - 15)*1.1, 12, 40);
+    if (leaving){
+      const u = Math.max(fk + 0.3, 0), yh = Math.max(1 + 30*u*u, yMax), snap = fk > 0 ? 70*fk*fk : 0, yt = Math.min(0.86 - 1.1*smooth(FLK.D1 - 0.05, FLK.D1 + 0.35, fk) + snap*1.6, yh), k = smooth(FLK.D0 + 0.3, FLK.D0 + 0.9, fk)*(1 - smooth(0.25, 0.4, fk));
+      if (k > 0.01 && yh - yt > 0.05){ toShip(EP, 0, yt, 0); toShip(EQ, 0, yh, 0); L_(EP, EQ, WHITE, 0.55*k, CYAN_, 0.25*k); }
+      if (fk > -0.3){ const kh = smooth(-0.3, -0.1, fk)*(1 - smooth(0.25, 0.4, fk)); toShip(EP, 0, yh, 0); P_(EP, WHITE, 2.2*kh, -hs); P_(EP, HALO_, 0.6*kh, -hh); }
+    }
+    if (arriving && t < FLK.A1){
+      const yh = 12*(1 - smooth(0, 0.35, t)) + 0.9, k = 1 - smooth(0.2, 0.35, t), kt = 1 - smooth(0.3, FLK.A1*0.8, t);
+      if (kt > 0.01){ toShip(EP, 0, 0.86, 0); toShip(EQ, 0, Math.max(yh, 0.9 + 3*kt*kt), 0); L_(EP, EQ, WHITE, 0.55*kt, CYAN_, 0.25*kt); }
+      if (k > 0.01){ toShip(EP, 0, yh, 0); P_(EP, WHITE, 2.2*k, -hs); P_(EP, HALO_, 0.6*k, -hh); }
+    }
   }
 }
 
