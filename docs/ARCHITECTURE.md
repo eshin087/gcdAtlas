@@ -68,7 +68,7 @@ Objects that stand for a past moment or a replay (the comets frozen at their bes
 
 - `orbit` (yaw, pitch, dist, target, frame) drives the camera around the locked object; `applyOrbit()` builds the basis. `skyCamera()` replaces it in planetarium mode.
 - `startFlight(o, viewParams)` flies with a van Wijk–Nuij zoom-and-pan path; duration depends on the travel setting.
-- Tours (`08t-tours.js`): named lists of stops with captions. `tourGo`, `updateTour` (holds and swings between views, plays flyby moves), `stopTour` remembers `tour.last` for the green *back to the tour* button beside the name (`goNextState` in `09-render.js`). `tourViews(o)` lists the angles a tour plays at a stop: all of them unless the object sets `tourViews` (Earth plays three).
+- Tours (`08t-tours.js`): named lists of stops with captions. `tourGo`, `updateTour` (holds and swings between views, plays flyby moves), `stopTour` remembers `tour.last` for the green *back to the tour* button beside the name (`goNextState` in `09-render.js`). `tourViews(o)` lists the angles a tour plays at a stop: all of them unless the object sets `tourViews` (Earth plays three). A tour with `deal:true` (the random tour) has no fixed stops: `useTour` deals them with `dealRandom` each time it starts, and `tourNext` deals again on its last stop. `TOUR_GEN` goes up with every rebuild of `TOUR` (the scale bar's tour track keys on it). `tourable(o)` says what a tour may visit, `samePlace(a, b)` what counts as one place, and `tripClear(a, b)` (`08-camera.js`) whether a trip would fly through a third object; it works out the camera path with the same helpers as `startFlight` / `updateFlight` (`isScenic`, `flightProg`, `flightE`, `flightDir`).
 
 ## 7. Interface modules
 
