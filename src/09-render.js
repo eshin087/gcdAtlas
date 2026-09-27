@@ -837,11 +837,18 @@ const catBtns = CATS.map(([id, name]) => {
 sortBtns.forEach(b => b.addEventListener('click', () => { if (ATL.sort === b.dataset.sort) ATL.dir = -ATL.dir; else { ATL.sort = b.dataset.sort; ATL.dir = b.dataset.sort === 'size' ? -1 : 1; } saveAtl(); renderAtlas(); }));
 dirBtn.addEventListener('click', () => { ATL.dir = -ATL.dir; saveAtl(); renderAtlas(); });
 $('#atlasReset').addEventListener('click', () => { Object.assign(ATL, ATL_DEF); saveAtl(); searchEl.value = atlasSearch.value = ''; renderAtlas(); toast('atlas reset'); });
+// on a phone the chips scroll sideways: keep the chosen one in sight (a saved choice can be far along the row)
+function showCat(){
+  const on = catBtns.find(b => b.dataset.cat === ATL.cat); if (!on || catRow.scrollWidth <= catRow.clientWidth) return;
+  const rr = catRow.getBoundingClientRect(), br = on.getBoundingClientRect();
+  if (br.left < rr.left || br.right > rr.right) catRow.scrollLeft += br.left - rr.left - 40;
+}
 function renderAtlas(){
   const dirWords = { distance:['nearest first', 'farthest first'], size:['smallest first', 'biggest first'], name:['A to Z', 'Z to A'] }[ATL.sort];
   sortBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.sort === ATL.sort)));
   dirBtn.innerHTML = (ATL.dir > 0 ? '&darr; ' : '&uarr; ') + dirWords[ATL.dir > 0 ? 0 : 1];
   catBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cat === ATL.cat)));
+  showCat();
   const isDefault = ATL.sort === ATL_DEF.sort && ATL.dir === ATL_DEF.dir && ATL.cat === ATL_DEF.cat;
   $('#atlasReset').hidden = isDefault && !searchEl.value;
   const rows = atlasRows.filter(catMatch);
@@ -878,7 +885,7 @@ function setKb(k){
 function toggleAtlas(on){
   atlasEl.hidden = !on; document.body.classList.toggle('atlas-open', on); $('#btnAtlas').setAttribute('aria-expanded', String(on));   // (the scale bar hides while it is open)
   if (on && document.body.classList.contains('lad-open')) setLadOpen(false);   // (on a phone the ladder folds away)
-  if (on){ filterAtlas(searchEl.value); const cur = atlasRows.find(r => r.o.index === infoObj); if (cur && !searchEl.value && !cur.b.hidden) cur.b.scrollIntoView({ block:'center' }); }
+  if (on){ filterAtlas(searchEl.value); showCat(); const cur = atlasRows.find(r => r.o.index === infoObj); if (cur && !searchEl.value && !cur.b.hidden) cur.b.scrollIntoView({ block:'center' }); }
   else { atlasRows.forEach(r => r.b.classList.remove('kb')); kbRow = -1; }
 }
 function filterAtlas(q){
