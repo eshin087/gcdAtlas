@@ -9,29 +9,32 @@ function orbitLine(a, e, n = 180, col = [0.45, 0.62, 1]){
   ps.upload('ac'); return ps;
 }
 
-// ---------------------------------------------------------------- Gaia BH1: the nearest known black hole, found only by the wobble of the Sun-like star circling it
-const gaiabh1 = (() => {
-  const M = 9.62, rs = schwarzschild(M), RB = 20, pos = radec(hms(17,28,41.09), dms(-0,34,51.9), 1560);
-  const A = 1.4*AU_LY, E = 0.45, PER = 26;
-  const bh = addObj({ key:'gaiabh1', name:'Gaia BH1', label:'Gaia BH1', type:'the nearest known black hole · dormant · 9.6 Suns', group:'galaxies', sortKey:1560,
-    fact:'The closest black hole we know of, 1,560 light-years away. It is not feeding, so it gives off no light at all: astronomers found it in 2022 from the wobble of the Sun-like star that circles it every 186 days. Look through it at that star and its light bends into arcs around the shadow.',
-    pos, rad:rs*RB, solid:0.13, R0:facingEarth(pos, V.norm([0.3, 0.8, 0.4]), 0), prog:P.blackhole, minZoom:0.053, pxMin:6, farColor:[0.4, 0.45, 0.6], farLum:0.08, labelRange:4e4, noImpostor:true,
-    aka:'gaia bh1 nearest black hole dormant',
+// ---------------------------------------------------------------- dormant black holes found only by the wobble of the star circling them (Gaia BH1, Gaia BH3)
+// M: mass in Suns; A: the orbit's semi-major axis (ly), E: eccentricity, PER: one orbit in seconds (sped up); star: the companion's addStar fields
+function quietHole(def){
+  const M = def.M, rs = schwarzschild(M), RB = 20, pos = def.pos, A = def.A, E = def.E, PER = def.PER;
+  const bh = addObj(Object.assign({ group:'galaxies', sortKey:def.dist,
+    pos, rad:rs*RB, solid:0.13, R0:facingEarth(pos, V.norm(def.face || [0.3, 0.8, 0.4]), 0), prog:P.blackhole, minZoom:0.053, pxMin:6, farColor:[0.4, 0.45, 0.6], farLum:0.08, labelRange:4e4, noImpostor:true,
     setU(pr){ noDisk(pr); const d = V.norm(V.sub(star.pos, bh.pos)); gl.uniform4f(pr.u.uP2, d[0], d[1], d[2], 0.04); },
-    views:[{ d:[0.2, 1, 0.3], k:A*2.6/(rs*RB), hold:10, drift:0.02 },
+    views:[{ d:[0.2, 1, 0.3], k:A*(def.k0 ?? (1 + E)*1.8)/(rs*RB), hold:10, drift:0.02 },
       // behind the hole, looking at its star: the camera follows the star round its orbit, a little off the line, so its image breaks into two arcs that swing into a ring and out again
       // (closer, and nearer the line, than it was: from 2.2 radii and 0.09 rad off, the arcs were two small smudges and the angle looked empty)
       { track:() => { const a = V.norm(V.sub(bh.pos, star.pos)), n = V.norm(V.cross(a, M3.apply(bh.R0, [0, 1, 0]))); return V.norm(V.add(a, V.mul(n, 0.03*Math.sin(GT*0.45)))); }, k:1.7, hold:12 },
       { d:[0.05, 0.08, 1], k:0.3, hold:8, drift:0.01 }],
     particleVis:rpx => smooth(4, 14, rpx*A/(rs*RB)),
-    particles:[{ ps:orbitLine(A/(rs*RB), E), prog:'lnBasic', lines:true, mode:3, sb:0.25, size:1, vis:() => smooth(A*0.2, A*0.8, orbit.dist) }],
-    readout:() => orbit.lock === bh.index && V.len(bh.rel) < bh.rad*0.4 ? bhReadout(bh, M, '')() : 'event horizon 57 km across, smaller than a city\nits companion orbits 1.4 AU away, about the distance of Mars from the Sun' });
-  var star = addStar({ key:'gaiabh1-star', name:'Gaia BH1 companion', label:'Sun-like star', parent:bh, offset:[A, 0, 0], R:1, T:5850, star:{ cells:36, act:0.25 }, atlas:false, noImpostor:false, farLum:0.8, labelRange:A*40, labelMin:A*0.05,
-    fact:'An ordinary Sun-like star on a 186-day orbit around an invisible partner ten times its mass.',
-    update(){ const Mn = this.t*2*Math.PI/PER, Ea = keplerE(Mn, E); this.offset = M3.apply(bh.R0, [A*(Math.cos(Ea) - E), 0, -A*Math.sqrt(1 - E*E)*Math.sin(Ea)]); } });
+    particles:[{ ps:orbitLine(A/(rs*RB), E), prog:'lnBasic', lines:true, mode:3, sb:def.lineSb ?? 0.25, size:1, vis:() => smooth(A*0.2, A*0.8, orbit.dist) }],
+    readout:() => orbit.lock === bh.index && V.len(bh.rel) < bh.rad*0.4 ? bhReadout(bh, M, '')() : def.readout() }, def.obj));
+  var star = addStar(Object.assign({ parent:bh, offset:[A, 0, 0], atlas:false, noImpostor:false, farLum:0.8, labelRange:A*40, labelMin:A*0.05,
+    update(){ const Mn = this.t*2*Math.PI/PER, Ea = keplerE(Mn, E); this.offset = M3.apply(bh.R0, [A*(Math.cos(Ea) - E), 0, -A*Math.sqrt(1 - E*E)*Math.sin(Ea)]); } }, def.star));
   star.update();
   return bh;
-})();
+}
+const gaiabh1 = quietHole({ M:9.62, dist:1560, pos:radec(hms(17,28,41.09), dms(-0,34,51.9), 1560), A:1.4*AU_LY, E:0.45, PER:26, k0:2.6,
+  obj:{ key:'gaiabh1', name:'Gaia BH1', label:'Gaia BH1', type:'the nearest known black hole · dormant · 9.6 Suns', aka:'gaia bh1 nearest black hole dormant',
+    fact:'The closest black hole we know of, 1,560 light-years away. It is not feeding, so it gives off no light at all: astronomers found it in 2022 from the wobble of the Sun-like star that circles it every 186 days. Look through it at that star and its light bends into arcs around the shadow.' },
+  star:{ key:'gaiabh1-star', name:'Gaia BH1 companion', label:'Sun-like star', R:1, T:5850, star:{ cells:36, act:0.25 },
+    fact:'An ordinary Sun-like star on a 186-day orbit around an invisible partner ten times its mass.' },
+  readout:() => 'event horizon 57 km across, smaller than a city\nits companion orbits 1.4 AU away, about the distance of Mars from the Sun' });
 
 // ---------------------------------------------------------------- Cygnus X-1: a black hole eating a blue supergiant
 const PB_KEPDISK = `void body(out vec3 p, out float br, out vec3 col){
