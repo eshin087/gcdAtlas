@@ -4,6 +4,8 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.8.6 · 2026-09-27
+
 **Calmer ASCII**
 - Bright areas are calm now. Seven heavy characters (`& # 8 % W @ $`) put almost the same ink on screen, so bright cores such as the Milky Way's bulge or the heart of the Orion Nebula looked like confetti. The brightest levels now use only `& 8 @`, in order of the ink each one really has in the page's font. The faint characters are unchanged.
 - Smoother brightness. Each character's colour now makes up for the ink it has more or less than its brightness asks for, so gradients rise smoothly instead of in bands. The overall brightness of a view stays within about 2%.
