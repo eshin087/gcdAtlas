@@ -90,7 +90,7 @@ const oumuamua = addRock({ key:'oumuamua', name:"'Oumuamua", label:"'Oumuamua", 
   aka:'oumuamua 1i interstellar asteroid comet', farLum:0.2,
   readout:() => `${heliocentric(oumuamua).toFixed(0)} AU from the Sun and leaving at ~26 km/s\ndrawn as a long thin body, one of the shapes that fit its light curve` });
 // Arrokoth: a pristine contact binary in the Kuiper belt, visited by New Horizons on 1 January 2019
-const arrokoth = addRock({ key:'arrokoth', name:'Arrokoth', label:'Arrokoth', type:'contact binary in the Kuiper belt · the farthest world ever visited', shape:1, rad:19*KM, spin:0.15, sortKey:44.6,
+const arrokoth = addRock({ key:'arrokoth', tags:['moons'], name:'Arrokoth', label:'Arrokoth', type:'contact binary in the Kuiper belt · the farthest world ever visited', shape:1, rad:19*KM, spin:0.15, sortKey:44.6,
   el:{ a:44.18, e:0.0356, i:2.45, om:158.9, w:189.1, tp:2475741.404 },
   fact:'Two flattened lumps of ice that drifted together gently 4.5 billion years ago and stuck. New Horizons flew past it in 2019, 6.6 billion km from home: the most distant world any spacecraft has visited.',
   aka:'ultima thule 2014 mu69 kuiper belt new horizons', R0:R0of(0.3, 0.8, 0.2),
@@ -145,7 +145,7 @@ halleyTail.update();
 // ---------------------------------------------------------------- Ceres: the largest body in the asteroid belt (elements from the JPL small-body database, time of perihelion)
 {
   const a = 2.7663, n = 0.9856076686/Math.pow(a, 1.5), tp = 2461599.841, om = 80.25, w = 73.29, L0 = w + om + n*(2451545 - tp);
-  addBody({ key:'ceres', name:'Ceres', type:'dwarf planet · the largest body in the asteroid belt', parent:sun, R:469.7, pole:[291.4, 66.8], W:[170.65, 952.1532], kind:19,
+  addBody({ key:'ceres', tags:['moons'], name:'Ceres', type:'dwarf planet · the largest body in the asteroid belt', parent:sun, R:469.7, pole:[291.4, 66.8], W:[170.65, 952.1532], kind:19,
     el:[a, 0.0797, 10.587, L0, w + om, om, 0, 0, 0, n*36525, 0, 0], farLum:0.35, farColor:[0.8, 0.8, 0.8], sortKey:2.77, labelRange:1.5*AU_LY, aka:'ceres dwarf planet asteroid dawn occator',
     fact:'A round world 940 km across holding a quarter of the asteroid belt\'s mass. NASA\'s Dawn found bright patches of salt in Occator crater, left by briny water welling up from below.',
     readout:() => '940 km across · 2.8 AU from the Sun\none day lasts 9 hours; a year, 4.6 of ours' });
@@ -155,7 +155,7 @@ halleyTail.update();
 // a planet on a circular orbit around its host (periods shortened so you can see them move; the readout gives the real one)
 function exoPlanet(def){
   const host = def.host, a = def.a*AU_LY;
-  const b = addBody(Object.assign({ parent:host, pole:[0, 90], lightFrom:host, group:'stars', labelRange:Math.max(a*30, def.R*KM*3e3), farLum:0.3, atlas:true }, def));
+  const b = addBody(Object.assign({ parent:host, pole:[0, 90], lightFrom:host, group:'worlds', labelRange:Math.max(a*30, def.R*KM*3e3), farLum:0.3, atlas:true }, def));
   b.update = function(){ const th = (def.phase || 0) + this.t*2*Math.PI/def.P; this.offset = M3.apply(host.R0, [a*Math.cos(th), 0, -a*Math.sin(th)]); this.pos = V.add(host.pos, this.offset);
     this.rot = def.locked ? M3.mul(host.R0, M3.rotY(th)) : M3.mul(host.R0, M3.rotY(this.t*0.4)); };
   b.views = def.views || [{dirFn:() => sunSide(b, 0.7, 0.25), k:3, hold:8, drift:0.03}, {dirFn:() => sunSide(b, 2.5, 0.2), k:2, hold:7, drift:0.04}];
@@ -236,7 +236,7 @@ void main(){
 }`.replace('void main(){', 'vec2 vorc2(vec2 p){ vec2 i = floor(p), f = fract(p); float d1 = 8., d2 = 8.; for(int y=-1;y<=1;y++) for(int x=-1;x<=1;x++){ vec2 g = vec2(float(x), float(y)); vec2 r = g + vec2(hash12(i + g), hash12(i + g + 7.3)) - f; float dd = dot(r, r); if(dd < d1){ d2 = d1; d1 = dd; } else if(dd < d2) d2 = dd; } return vec2(sqrt(d1), sqrt(d2)); }\nvoid main(){');
 {
   const pos = radec(hms(23,23,24), dms(58,48,54), 11000);
-  addObj({ key:'casa', name:'Cassiopeia A', label:'Cas A', type:'supernova remnant · the youngest known from a massive star', group:'nebulae', sortKey:11000,
+  addObj({ key:'casa', tags:['events'], name:'Cassiopeia A', label:'Cas A', type:'supernova remnant · the youngest known from a massive star', group:'nebulae', sortKey:11000,
     fact:'The shredded remains of a massive star whose light from the explosion reached Earth around the 1660s, though nobody is known to have seen it. JWST sees its debris as knots of orange and pink, a shock front ahead of it, and a curious green curtain nicknamed the Green Monster.',
     pos, rad:6.5, R0:facingEarth(pos, [0, 0, 1], 0), prog:program(VS_RECT, FS_CASA), minZoom:0.1, pxMin:6, farColor:[1, 0.6, 0.45], farLum:0.5, labelRange:9e4, aka:'cas a cassiopeia supernova remnant green monster jwst',
     views:nebView(pos, [{ d:[0.5, 0.3, 0.8], k:1.1, hold:8, drift:0.03 }, { d:[0.1, 0.05, 1], k:0.55, off:[0.1, -0.02, 0.2], hold:8, drift:0.02 }]),
@@ -365,7 +365,7 @@ void main(){
   const bps = makePS(bright.length); bright.forEach((b, i) => { bps.a.set([...b.p, b.w], i*4); bps.c.set([...b.c, 0], i*4); }); bps.upload('ac');
   const sp = makeSpikes(bright.map(b => ({ p:b.p, w:b.w, c:b.c })));
   const lit = [4, 0, 3, 2].map(i => bright[i]);   // Merope lights the brightest nebula
-  addObj({ key:'pleiades', name:'the Pleiades', label:'Pleiades', type:'young star cluster · the Seven Sisters · M45', group:'nebulae', sortKey:444,
+  addObj({ key:'pleiades', tags:['clusters'], name:'the Pleiades', label:'Pleiades', type:'young star cluster · the Seven Sisters · M45', group:'nebulae', sortKey:444,
     fact:'About a thousand young stars born together some 100 to 125 million years ago. Their brightest members light up a dust cloud the cluster happens to be passing through, in streaks of blue.',
     pos, rad:RAD, R0, prog:program(VS_RECT, FS_PLEIADES), minZoom:0.08, pxMin:6, farColor:[0.7, 0.8, 1], farLum:0.9, labelRange:3e4, aka:'m45 seven sisters subaru pleiades',
     setU(pr){ lit.forEach((b, i) => gl.uniform4f(pr.u['uP' + i], b.p[0], b.p[1], b.p[2], b.w)); gl.uniformMatrix3fv(pr.u.uM0, false, [...bright[1].p, ...bright[5].p, ...bright[6].p]); },
@@ -465,7 +465,7 @@ void main(){
   for (let i=0;i<n;i++){ const b = rnd() < 0.55, c0 = b ? [-0.3, 0.08, 0] : [0.32, -0.05, 0], s = b ? 0.16 : 0.13, c = rnd() < 0.8 ? [1, 0.78, 0.55] : [0.75, 0.8, 1];
     ps.a.set([c0[0] + rndn()*s, c0[1] + rndn()*s, c0[2] + rndn()*s, 0.7 + rnd()], i*4); ps.c.set([...c, 0], i*4); }
   ps.upload('ac');
-  addObj({ key:'elgordo', name:'El Gordo', label:'El Gordo', type:'colliding galaxy clusters · the fat one', group:'cosmic', sortKey:9.9e9,
+  addObj({ key:'elgordo', tags:['events'], name:'El Gordo', label:'El Gordo', type:'colliding galaxy clusters · the fat one', group:'cosmic', sortKey:9.9e9,
     fact:'Two giant clusters of galaxies smashing together, together weighing about 3 million billion Suns. The collision heats its gas to about 170 million °C and drives shock waves that glow in radio at both ends.',
     pos, rad:6e6, R0:facingEarth(pos, [0, 0, 1], 20), prog:program(VS_RECT, FS_ELGORDO), minZoom:0.1, pxMin:6, farColor:[1, 0.6, 0.85], farLum:0.8, labelRange:3e10, aka:'act-cl j0102-4915 el gordo cluster',
     distEarth:'light left it 7 billion years ago · now ~10 billion ly', views:[{d:[0, 0.1, 1], k:2, hold:9, drift:0.02}, {d:[0.4, 0.8, 0.4], k:1.6, hold:8, drift:0.03}],

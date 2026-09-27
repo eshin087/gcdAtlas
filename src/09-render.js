@@ -795,17 +795,24 @@ $('#settingsClose').addEventListener('click', () => toggleSettings(false));
 
 // ---------------------------------------------------------------- atlas and search
 const atlasList = $('#atlasList'), searchEl = $('#search'), atlasSearch = $('#atlasSearch');
-const GROUPS = [['solar', 'Solar System'], ['comets', 'Comets & meteors'], ['stars', 'Stars & stellar remnants'], ['nebulae', 'Nebulae & star clusters'], ['galaxies', 'Galaxies & black holes'], ['cosmic', 'The large-scale universe'], ['travel', 'Travellers']];
-// categories for the atlas filter (black holes get their own, whatever group they are listed under)
-const CATS = [['all', 'all'], ['solar', 'solar system'], ['comets', 'comets & meteors'], ['stars', 'stars'], ['bh', 'black holes'], ['nebulae', 'nebulae'], ['galaxies', 'galaxies'], ['cosmic', 'large-scale'], ['travel', 'spacecraft']];
+const GROUPS = [['solar', 'Solar System'], ['comets', 'Comets & meteors'], ['stars', 'Stars & stellar remnants'], ['worlds', 'Other worlds'], ['nebulae', 'Nebulae & star clusters'], ['galaxies', 'Galaxies & black holes'], ['cosmic', 'The large-scale universe'], ['travel', 'Travellers']];
+// categories for the atlas filter. Each object has one main category, catOf (its group; black holes get their own, whatever group they are
+// listed under), and its `tags` put it in more chips (catsOf): moons and small worlds, explosions and collisions, star clusters, human-made.
+// The atlas headings still list every object once, under its group. (The human-made chip matches the tag only, so the made-up Halo is not in it.)
+const CATS = [['all', 'all'], ['solar', 'solar system'], ['moons', 'moons & small worlds'], ['comets', 'comets & meteors'], ['stars', 'stars'], ['worlds', 'other worlds'], ['bh', 'black holes'],
+  ['nebulae', 'nebulae'], ['clusters', 'star clusters'], ['galaxies', 'galaxies'], ['cosmic', 'large-scale'], ['events', 'explosions & collisions'], ['human', 'human-made']];
 const catOf = o => (o.prog === P.blackhole || o.isBH) ? 'bh' : o.group;
+const catsOf = o => [catOf(o), ...(o.tags || [])];
 // true size (radius in light-years): a black hole's event horizon, a star's surface, otherwise the object's extent
 const atlasSize = o => o.prog === P.blackhole ? o.rad/20 : (o.sizeR || (o.starR ? o.starR*o.rad : o.rad*(o.solid || 0.6)));
 const earthDist = o => o.key === 'earth' ? 0 : o.distNow ? o.distNow() : V.len(V.sub(o.pos, earth.pos));   // (distNow: drawn at a past moment, sorted by where it is now)
 const SEEN = new Set((() => { try { return JSON.parse(localStorage.getItem('gcdatlas.seen') || '[]'); } catch (e) { return []; } })());
-const catMatch = r => ATL.cat === 'all' || (ATL.cat === 'unseen' ? !SEEN.has(r.o.key) : r.cat === ATL.cat);
+const catMatch = r => ATL.cat === 'all' || (ATL.cat === 'unseen' ? !SEEN.has(r.o.key) : r.cats.includes(ATL.cat));
 const ATL_DEF = { sort:'distance', dir:1, cat:'all' };
 const ATL = Object.assign({}, ATL_DEF, (() => { try { return JSON.parse(localStorage.getItem('gcdatlas.atlas') || '{}'); } catch (e) { return {}; } })());
+// a saved chip keeps working: 'travel' (the old spacecraft chip) is now human-made; anything else unknown goes back to all
+if (ATL.cat === 'travel') ATL.cat = 'human';
+if (ATL.cat !== 'unseen' && !CATS.some(([id]) => id === ATL.cat)) ATL.cat = 'all';
 const saveAtl = () => { try { localStorage.setItem('gcdatlas.atlas', JSON.stringify(ATL)); } catch (e) {} };
 const atlasRows = [], groupHeads = {};
 GROUPS.forEach(([g, title]) => { const h = document.createElement('div'); h.className = 'agroup'; h.textContent = title; groupHeads[g] = h; });
@@ -816,13 +823,13 @@ OBJ.filter(o => o.atlas !== false && !o.marker && GROUPS.some(([g]) => g === o.g
   b.title = o.type;
   b.addEventListener('click', () => goTo(o.index));
   const dtxt = o.key === 'earth' ? 'home' : (o.atlasDist || (o.distEarth && o.distEarth.length < 14 ? o.distEarth : fmtDist(V.len(V.sub(o.pos, earth.pos)))));
-  atlasRows.push({ b, o, cat:catOf(o), dtxt, stxt:fmtLen(2*atlasSize(o)*LY, 2) + ' across', text:(o.name + ' ' + (o.label || '') + ' ' + o.type + ' ' + (o.aka || '')).toLowerCase() });
+  atlasRows.push({ b, o, cat:catOf(o), cats:catsOf(o), dtxt, stxt:fmtLen(2*atlasSize(o)*LY, 2) + ' across', text:(o.name + ' ' + (o.label || '') + ' ' + o.type + ' ' + (o.aka || '')).toLowerCase() });
 });
 const atlasEmpty = document.createElement('div'); atlasEmpty.className = 'atlas-empty'; atlasEmpty.textContent = 'nothing found yet · try a planet, star, nebula or galaxy';
 // the tools: sort (distance, size, name, either direction), a category filter, and reset
 const sortBtns = [...document.querySelectorAll('#atlasSort [data-sort]')], dirBtn = $('#atlasDir'), catRow = $('#atlasCats');
 const catBtns = CATS.map(([id, name]) => {
-  const n = id === 'all' ? atlasRows.length : atlasRows.filter(r => r.cat === id).length; if (!n) return null;
+  const n = id === 'all' ? atlasRows.length : atlasRows.filter(r => r.cats.includes(id)).length; if (!n) return null;
   const b = document.createElement('button'); b.className = 'chip'; b.dataset.cat = id; b.textContent = name; b.title = n + (n === 1 ? ' object' : ' objects');
   b.addEventListener('click', () => { ATL.cat = id; saveAtl(); renderAtlas(); });
   catRow.appendChild(b); return b;
@@ -1243,4 +1250,6 @@ window.__cosmos = { startTour, playFlyby, setMove(o, v, f){ flight = null; tween
   setDetail:i => setOpt('detail', i, true), render, zoomTo, tick, caption:dt => updateCaption(dt), get showcap(){ return SHOWCAP.txt; }, flightDur:() => flight ? flight.dur : 0, hud:() => { roTimer = 0; updateHUD(0.2); },
   simulate:(sec) => { for (let k=0; k<sec*30; k++) tick(1/30); return { obj:tour.obj, view:tour.view, phase:tour.phase, lock:orbit.lock }; },
   view:(i, v) => { if (typeof i === 'string') i = BYKEY[i].index; const o = OBJ[i], vp = viewParams(o, v); flight = null; shipCam.on = false; tween = null; cam.focus = i; leash.x = leash.y = 0; orbit.lock = i; orbit.frame = camFrameOf(o); orbit.yaw = vp.yaw; orbit.pitch = vp.pitch; orbit.dist = orbit.distT = vp.dist; orbit.off = vp.off; orbit.offFn = vp.offFn; orbit.target = V.add(frel(o), vp.off); setInfo(i); applyOrbit(); tick(0); } };
+// (the atlas headings and chips, for tools/catalog.mjs; a line of its own so it stays clear of edits to the hooks above)
+Object.assign(window.__cosmos.dbg, { GROUPS, CATS, catsOf });
 requestAnimationFrame(frame);

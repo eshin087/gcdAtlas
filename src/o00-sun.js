@@ -475,7 +475,7 @@ const uranus = addBody({ key:'uranus', name:'Uranus', type:'ice giant · tipped 
 const neptune = addBody({ key:'neptune', name:'Neptune', type:'ice giant · outermost planet', parent:sun, el:PLANET_EL.neptune, R:24622, pole:[299.36, 43.46], W:[249.978, 541.1397757], kind:4,
   fact:'The windiest world known: storms race at 2,000 km/h around a deep-blue methane atmosphere. It takes 165 years to orbit the Sun once.', farLum:0.35, farColor:[0.5, 0.65, 1], sortKey:30,
   readout:() => 'radius 24,620 km · 30 AU from the Sun\nfound in 1846 by mathematics before telescopes' });
-const pluto = addBody({ key:'pluto', name:'Pluto', type:'dwarf planet · Kuiper belt', parent:sun, R:1188.3, pole:[132.993, -6.163], W:[302.695, 56.3625225], kind:5,
+const pluto = addBody({ key:'pluto', tags:['moons'], name:'Pluto', type:'dwarf planet · Kuiper belt', parent:sun, R:1188.3, pole:[132.993, -6.163], W:[302.695, 56.3625225], kind:5,
   el:[39.48211675, 0.24882730, 17.14001206, 238.92903833, 224.06891629, 110.30393684, -0.00031596, 0.00005170, 0.00004818, 145.20780515, -0.04062942, -0.01183482],
   fact:'A world of nitrogen glaciers, water-ice mountains and a vast pale heart, seen close up only once, by New Horizons in 2015.', farLum:0.2, farColor:[0.9, 0.8, 0.7], sortKey:39.5,
   readout:() => 'radius 1,188 km, smaller than our Moon\nsunlight there is 1,000 times dimmer than at Earth' });

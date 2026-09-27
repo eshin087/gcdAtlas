@@ -49,7 +49,7 @@ const etacar = (() => {
   const pos = radec(hms(10,45,3.6), dms(-59,41,4), 7500);
   // hero orientation: the near (south-east) lobe tipped ~41 degrees toward us
   const n = 5, spikes = makeSpikes([{ p:[0, 0, 0], w:2.5, c:[0.8, 0.9, 1] }]);
-  return addObj({ key:'etacar', name:'Eta Carinae', label:'Eta Carinae', type:'hypergiant binary inside the Homunculus Nebula', group:'stars', sortKey:7500,
+  return addObj({ key:'etacar', tags:['events'], name:'Eta Carinae', label:'Eta Carinae', type:'hypergiant binary inside the Homunculus Nebula', group:'stars', sortKey:7500,
     fact:'In the 1840s this star blew off ten Suns\' worth of gas and briefly became the second-brightest star in the sky. That debris is the Homunculus. It may explode as a supernova or hypernova.',
     pos, rad:0.4, R0:facingEarth(pos, V.norm([0, 0.66, 0.75]), -40), prog:program(VS_RECT, FS_ETACAR), minZoom:0.1, pxMin:6, farColor:[1, 0.75, 0.55], farLum:0.9, labelRange:3e4, aka:'homunculus carina hypergiant',
     views:[{d:[0, 0.66, 0.75], k:2.2, hold:9, drift:0.03}, {d:[1, 0.05, 0.15], k:1.8, hold:8, drift:0.03}, {d:[0.3, 0.2, 1], k:0.6, hold:8, drift:0.04}],

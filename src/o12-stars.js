@@ -47,7 +47,7 @@ const proxima = namedStar('proxima', 'Proxima Centauri', hms(14,29,43), dms(-62,
   star:{ cells:30, act:1, prom:0.8 }, bound:4, farLum:0.3, labelRange:300, aka:'proxima centauri',
   views:[{d:[0.3, 0.3, 1], k:1.3, hold:8, drift:0.04}, {d:[0.5, 0.3, 1], k:60, hold:9, drift:0.01}],
   readout:() => '15% of the Sun\'s width, 0.2% of its light\nfrequent flares brighten it many times over' });
-const proximaB = addBody({ key:'proximab', name:'Proxima b', type:'exoplanet · rocky, probably tidally locked', parent:proxima, R:6371*1.07, pole:[0, 90], kind:14, lightFrom:proxima, group:'stars', atlas:true, sortKey:4.2466,
+const proximaB = addBody({ key:'proximab', name:'Proxima b', type:'exoplanet · rocky, probably tidally locked', parent:proxima, R:6371*1.07, pole:[0, 90], kind:14, lightFrom:proxima, group:'worlds', atlas:true, sortKey:4.2466,
   offsetFn:null, labelRange:0.02, farLum:0.3,
   fact:'An Earth-mass planet 7.5 million km from its star, closer than Mercury is to the Sun, yet only warm because Proxima is so dim.',
   readout:() => 'orbit 11.2 days · 0.049 AU from Proxima\ntidally locked: one hemisphere always faces its star' });
@@ -112,7 +112,7 @@ const trappist = namedStar('trappist1', 'TRAPPIST-1', hms(23,6,29), dms(-5,2,29)
   readout:() => 'all seven planets fit within 0.062 AU of the star\nfrom one planet, the others look bigger than our Moon' });
 // (e is drawn as a temperate world locked to its star, kind 20: sea under the star, ice beyond and on the night side; a guess, and its readout says so)
 [['b', 1.116, 0.01154, 1.51, 14], ['c', 1.097, 0.0158, 2.42, 14], ['d', 0.788, 0.02227, 4.05, 15], ['e', 0.920, 0.02925, 6.10, 20], ['f', 1.045, 0.03849, 9.21, 13], ['g', 1.129, 0.04683, 12.35, 13], ['h', 0.755, 0.06189, 18.77, 13]].forEach(([l, r, a, P, kind], i) => {
-  const b = addBody({ key:'trappist1' + l, name:'TRAPPIST-1' + l, type:'exoplanet', parent:trappist, R:6371*r, pole:[0, 90], kind, lightFrom:trappist, group:'stars', atlas:l === 'e', sortKey:40.7 + i*1e-6,
+  const b = addBody({ key:'trappist1' + l, name:'TRAPPIST-1' + l, type:'exoplanet', parent:trappist, R:6371*r, pole:[0, 90], kind, lightFrom:trappist, group:'worlds', atlas:l === 'e', sortKey:40.7 + i*1e-6,
     labelRange:0.004, farLum:0.25, fact:l === 'e' ? 'The most Earth-like of the seven: about Earth\'s size and density, in the zone where water could stay liquid. It probably keeps one side facing its star, as the Moon does with Earth.' : 'One of seven rocky planets circling TRAPPIST-1.',
     readout:() => `orbit ${P} days at ${a} AU` + (l === 'e' ? ' · 0.92 times Earth\'s width\nillustrative: the sea under its star and the ice around it are a guess; no one knows yet if it has air or water' : '') });
   b.update = function(){ const th = i*2.1 + this.t*2*Math.PI/(P*4); this.offset = M3.apply(trappist.R0, [a*AU_LY*Math.cos(th), 0, -a*AU_LY*Math.sin(th)]); this.pos = V.add(trappist.pos, this.offset); this.rot = M3.mul(trappist.R0, M3.rotY(th)); };

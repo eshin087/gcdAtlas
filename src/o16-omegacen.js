@@ -23,7 +23,7 @@ const omegacen = (() => {
     ps.a.set([d[0]*r, d[1]*r*0.93, d[2]*r, w], i*4); ps.c.set([c[0], c[1], c[2], 0], i*4);
   }
   ps.upload('ac');
-  return addObj({ key:'omegacen', name:'Omega Centauri', label:'ω Centauri', type:'globular cluster · 10 million stars', group:'nebulae', sortKey:17090,
+  return addObj({ key:'omegacen', tags:['clusters'], name:'Omega Centauri', label:'ω Centauri', type:'globular cluster · 10 million stars', group:'nebulae', sortKey:17090,
     fact:'Ten million stars packed into a ball 150 light-years across, possibly the stripped core of a small galaxy the Milky Way swallowed. Fast stars at its centre betray a black hole of ~8,000 Suns.',
     pos, rad:RAD, R0:facingEarth(pos, [0, 0, 1], 0), prog:program(VS_RECT, FS_GLOBULAR), minZoom:0.03, pxMin:5, farColor:[1, 0.88, 0.7], farLum:0.7, labelRange:2e5, aka:'omega centauri ngc 5139 globular cluster',
     setU(pr){ gl.uniform4f(pr.u.uP0, 0.9, 0, 0, 0); },

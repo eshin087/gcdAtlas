@@ -124,7 +124,7 @@ const tde = (() => {
   path.upload('ac');
   // where the hole is (too small to see from out here), flaring as the debris comes home
   const core = makePS(1); core.a.set([0, 0, 0, 1]); core.c.set([0.75, 0.85, 1, 0]); core.upload('ac');
-  const bh = addObj({ key:'tde', name:'A star torn apart', label:'tidal disruption', type:'tidal disruption event · modelled on AT2019qiz', group:'galaxies', sortKey:215e6, isBH:true, sizeR:rs,
+  const bh = addObj({ key:'tde', tags:['events'], name:'A star torn apart', label:'tidal disruption', type:'tidal disruption event · modelled on AT2019qiz', group:'galaxies', sortKey:215e6, isBH:true, sizeR:rs,
     fact:'When a star wanders too close to a giant black hole, the difference in gravity across it pulls it into a long stream of gas: "spaghettification". Half the debris is flung away; the rest falls back, forms a disk and flares for months. This one is modelled on AT2019qiz, the closest such flare yet seen.',
     pos, rad:L*rs, R0:facingEarth(pos, V.norm([0.2, 1, 0.3]), 0), minZoom:0.01, pxMin:4, farColor:[0.8, 0.85, 1], farLum:0.5, labelRange:2e9, noImpostor:false, aka:'tde tidal disruption spaghettification at2019qiz star eaten',
     particleVis:rpx => smooth(3, 10, rpx), sim:st,
@@ -193,7 +193,7 @@ const gw150914 = (() => {
   const m1 = 36, m2 = 29, Tin = 20, a0 = 0.42, w0 = 1.05, CYCLE = 34, RS1 = 0.032, RS2 = RS1*m2/m1, RSF = RS1*62/m1;
   const f1 = m2/(m1 + m2), f2 = m1/(m1 + m2);
   const st = { t:0, a:a0, ph:0, merged:false };
-  const o = addObj({ key:'gw150914', name:'GW150914', label:'GW150914', type:'two black holes merging · the first gravitational waves detected', group:'galaxies', sortKey:1.3e9, isBH:true, sizeR:schwarzschild(62),
+  const o = addObj({ key:'gw150914', tags:['events'], name:'GW150914', label:'GW150914', type:'two black holes merging · the first gravitational waves detected', group:'galaxies', sortKey:1.3e9, isBH:true, sizeR:schwarzschild(62),
     fact:'1.3 billion years ago two black holes of 36 and 29 Suns spiralled together and merged. They gave off no light, but three Suns\' worth of energy left as ripples in spacetime, which reached detectors on Earth on 14 September 2015.',
     pos, rad:3320*KM, R0:facingEarth(pos, V.norm([0.15, 0.55, 0.8]), 0), prog:program(VS_RECT, FS_BBH), minZoom:0.08, pxMin:6, farColor:[0.6, 0.7, 1], farLum:0.2, labelRange:5e9, noImpostor:true, sim:st,
     aka:'gw150914 ligo binary black hole merger gravitational waves 2015',

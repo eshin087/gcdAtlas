@@ -7,7 +7,7 @@ const sculptor = addGalaxy({ key:'sculptor', name:'Sculptor Galaxy', label:'Scul
   g:{ arms:2, pitch:16, bulge:0.35, dust:2.2, H:0.012, sf:1.6, Rd:0.28, irr:0.2, seed:31, armRef:0.35, bar:0.08, barAng:15 }, farLum:0.9, labelRange:6e8,
   readout:() => '11.4 million light-years · about 90,000 light-years across\nits starburst core makes stars dozens of times faster than the Milky Way' });
 
-const cartwheel = addGalaxy({ key:'cartwheel', name:'Cartwheel Galaxy', label:'Cartwheel', type:'ring galaxy · ESO 350-40', sortKey:500*MLY,
+const cartwheel = addGalaxy({ key:'cartwheel', tags:['events'], name:'Cartwheel Galaxy', label:'Cartwheel', type:'ring galaxy · ESO 350-40', sortKey:500*MLY,
   fact:'A smaller galaxy punched straight through this one a few hundred million years ago. The collision sent a ripple outward like a stone dropped in a pond, and the expanding ring is lit up with new stars.',
   pos:radec(hms(0,37,41.1), dms(-33,42,59), 500*MLY), rad:75000, incl:48, pa:30, stars:9000, aka:'eso 350-40 ring galaxy collision cartwheel',
   g:{ arms:10, pitch:84, bulge:0.35, dust:0.6, H:0.012, sf:1.2, Rd:0.45, irr:0.1, seed:47, armRef:0.3, ringR:0.8, ringW:0.045, ringGain:5.5, ringStars:0.65, gain:0.32 }, farLum:0.8, labelRange:3e9,
@@ -40,7 +40,7 @@ const quintet = (() => {
   const side = V.norm(V.cross(V.sub(B, A), V.norm(c)));
   for (let i=0;i<n;i++){ const u = rnd(), p = V.add(V.add(V.lerp(A, B, 0.2 + 0.6*u), V.mul(side, 25000*Math.sin(Math.PI*u) + rndn()*4000)), V.mul(randDir(), 3000*rnd())); ps.a.set([p[0], p[1], p[2], 0.5 + rnd()], i*4); ps.c.set(rnd() < 0.7 ? [0.35, 1, 0.6, 0] : [0.5, 0.8, 1, 0], i*4); }
   ps.upload('ac');
-  const o = addObj({ key:'quintet', name:"Stephan's Quintet", label:"Stephan's Quintet", type:'compact galaxy group · four colliding galaxies (and one impostor)', group:'galaxies', sortKey:D, layer:2,
+  const o = addObj({ key:'quintet', tags:['events'], name:"Stephan's Quintet", label:"Stephan's Quintet", type:'compact galaxy group · four colliding galaxies (and one impostor)', group:'galaxies', sortKey:D, layer:2,
     fact:'Four galaxies caught in a slow-motion pile-up 290 million light-years away. One of them is ramming through the group so fast it has lit a shock wave bigger than the Milky Way. The fifth galaxy is a foreground impostor.',
     pos:c, rad:150000, R0:facingEarth(c, [0, 0, 1], 0), minZoom:0.1, pxMin:4, noImpostor:true, labelRange:4e9, labelMin:5e4, aka:'hickson compact group 92 ngc 7317 7318 7319 7320 shock',
     particleVis:rpx => smooth(3, 10, rpx),

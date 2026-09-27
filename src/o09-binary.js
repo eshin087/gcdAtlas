@@ -150,7 +150,7 @@ const binary = (() => {
     ps.upload('ac');
   };
   const pos = radec(hms(17,50,13.2), dms(-6,42,28), 5000);
-  const o = addObj({ key:'rsoph', name:'RS Ophiuchi', label:'RS Oph', type:'recurrent nova · red giant feeding a white dwarf', group:'stars', sortKey:5000,
+  const o = addObj({ key:'rsoph', tags:['events'], name:'RS Ophiuchi', label:'RS Oph', type:'recurrent nova · red giant feeding a white dwarf', group:'stars', sortKey:5000,
     fact:'A red giant overflows its Roche lobe and feeds a white dwarf. Every ~15 years the piled-up hydrogen ignites in a nova that blasts out an hourglass shell (last in 2021).',
     pos, rad:2.96*AU_LY, R0:facingEarth(pos, V.norm([0, 0.45, 1]), 0), prog:program(VS_RECT, FS_BINARY), minZoom:0.1, pxMin:6, farColor:[1, 0.6, 0.4], farLum:0.5, labelRange:2e3, aka:'nova binary white dwarf red giant',
     views:[{d:[0,0.45,1],k:1.3,hold:9,drift:0},{d:[0.05,1,0.05],k:1.6,hold:9,drift:0},{d:[0.3,0.55,1],k:0.42,off:()=>M3.apply(M3.rotY(st.phase), [X2*S*0.8, 0, 0]),hold:8,drift:0}],

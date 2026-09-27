@@ -38,7 +38,7 @@ const bullet = (() => {
   for (let i=0;i<n;i++){ const b = rnd() < 0.6, c0 = b ? [-0.42, 0, 0] : [0.5, 0.02, 0], s = b ? 0.18 : 0.12, e = [rndn()*s, rndn()*s, rndn()*s], c = rnd() < 0.8 ? [1, 0.8, 0.55] : [0.75, 0.8, 1];
     ps.a.set([c0[0] + e[0], c0[1] + e[1], c0[2] + e[2], 0.7 + rnd()], i*4); ps.c.set([...c, 0], i*4); }
   ps.upload('ac');
-  return addObj({ key:'bullet', name:'Bullet Cluster', label:'Bullet Cluster', type:'colliding galaxy clusters · dark matter made visible', group:'cosmic', sortKey:3.9e9,
+  return addObj({ key:'bullet', tags:['events'], name:'Bullet Cluster', label:'Bullet Cluster', type:'colliding galaxy clusters · dark matter made visible', group:'cosmic', sortKey:3.9e9,
     fact:'Two clusters collided at 4,500 km/s. Their galaxies and invisible dark matter (blue, mapped by gravitational lensing) sailed through; their hot gas (pink, seen in X-rays) crashed and lagged behind.',
     pos, rad:3e6, R0:facingEarth(pos, [0, 0, 1], 0), prog:program(VS_RECT, FS_BULLET), minZoom:0.1, pxMin:6, farColor:[1, 0.6, 0.85], farLum:0.8, labelRange:2e10, aka:'1e 0657-56 dark matter',
     distEarth:'3.9 billion ly', views:[{d:[0, 0.1, 1], k:2, hold:9, drift:0.02}, {d:[0.3, 0.8, 0.5], k:1.6, hold:8, drift:0.03}],

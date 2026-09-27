@@ -119,7 +119,7 @@ const saturn = (() => {
   o.bodyFrac = RPL;
   return o;
 })();
-const saturnMoon = (key, name, kind, R, a, P, ph, fact, readout, extra = {}) => addBody(Object.assign({ key, name, type:'moon of Saturn', parent:saturn, moonOf:saturn, R, a, L0:ph, n:360/P, kind,
+const saturnMoon = (key, name, kind, R, a, P, ph, fact, readout, extra = {}) => addBody(Object.assign({ key, name, type:'moon of Saturn', tags:['moons'], parent:saturn, moonOf:saturn, R, a, L0:ph, n:360/P, kind,
   pole:[40.589, 83.537], W:[ph + 180, 360/P], shadowOf:saturn, farLum:0.45, labelRange:0.0004, sortKey:9.5 + a*1e-9, fact, readout:() => readout, atlas:false, minZoom:1.2,
   views:[{dirFn:() => sunSide(BYKEY[key], 0.4, 0.15), k:3.2, hold:8, drift:0.03}, {dirFn:() => sunSide(BYKEY[key], 1.5, 0.1), k:1.9, hold:7, drift:0.03}] }, extra));
 const titan = saturnMoon('titan', 'Titan', 11, 2574.7, 1221870, 15.945, 40, 'Bigger than Mercury and wrapped in a thick orange haze. Beneath it lie lakes and seas of liquid methane, rain and rivers: the only other world with standing liquid on its surface.',

@@ -90,7 +90,7 @@ void main(){
 }`;
 P.probe = program(VS_RECT, FS_PROBE);
 function addProbe(def){
-  const o = addObj(Object.assign({ layer:3, prog:P.probe, group:'travel', minZoom:1.2, pxMin:4, farColor:[0.8, 0.9, 1], farLum:0.35, noImpostor:false, labelClass:'ship',
+  const o = addObj(Object.assign({ layer:3, prog:P.probe, group:'travel', tags:['human'], minZoom:1.2, pxMin:4, farColor:[0.8, 0.9, 1], farLum:0.35, noImpostor:false, labelClass:'ship',
     setU(pr){ const L = sunDirFrom(this); gl.uniform4f(pr.u.uP0, def.kind, 0, 0, 0); gl.uniform4f(pr.u.uP1, L[0], L[1], L[2], 0); } }, def));
   return o;
 }
