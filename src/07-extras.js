@@ -1,5 +1,8 @@
 
 // ================================================================ travellers and transients: the Halo (a starship that folds space), comets, meteors, gamma-ray bursts
+// (the shared random seed once every object exists: the Halo's route and all that follows draw from here, so a pack that uses rnd() and
+// forgets to put the seed back changes them; the smoke test checks this value)
+const SEED_OBJECTS = seed;
 // ---------------------------------------------------------------- the Halo: a long-range cruiser shaped like a trident, its star-heart held between two crescent arms (local: bounding sphere 1, +y = forward)
 const FS_SHIP = COMMON + `
 // the Halo (0.8.2, drawn after the owner's concept art): an original long-range cruiser. Local frame: bounding sphere 1, forward +y (the needle's

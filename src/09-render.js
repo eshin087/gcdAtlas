@@ -1269,6 +1269,6 @@ window.__cosmos = { startTour, playFlyby, setMove(o, v, f){ flight = null; tween
   setDetail:i => setOpt('detail', i, true), render, zoomTo, tick, caption:dt => updateCaption(dt), get showcap(){ return SHOWCAP.txt; }, flightDur:() => flight ? flight.dur : 0, hud:() => { roTimer = 0; updateHUD(0.2); },
   simulate:(sec) => { for (let k=0; k<sec*30; k++) tick(1/30); return { obj:tour.obj, view:tour.view, phase:tour.phase, lock:orbit.lock }; },
   view:(i, v) => { if (typeof i === 'string') i = BYKEY[i].index; const o = OBJ[i], vp = viewParams(o, v); flight = null; shipCam.on = false; tween = null; cam.focus = i; leash.x = leash.y = 0; orbit.lock = i; orbit.frame = camFrameOf(o); orbit.yaw = vp.yaw; orbit.pitch = vp.pitch; orbit.dist = orbit.distT = vp.dist; orbit.off = vp.off; orbit.offFn = vp.offFn; orbit.target = V.add(frel(o), vp.off); setInfo(i); applyOrbit(); tick(0); } };
-// (the atlas headings and chips, for tools/catalog.mjs; a line of its own so it stays clear of edits to the hooks above)
-Object.assign(window.__cosmos.dbg, { GROUPS, CATS, catsOf });
+// (the atlas headings and chips, for tools/catalog.mjs, and the seed the smoke test checks; a line of its own so it stays clear of edits to the hooks above)
+Object.assign(window.__cosmos.dbg, { GROUPS, CATS, catsOf, seedObjects:SEED_OBJECTS });
 requestAnimationFrame(frame);

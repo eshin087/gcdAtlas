@@ -46,6 +46,16 @@ bad.push(...await page.evaluate(() => { const c = window.__cosmos; c.setTour(fal
 for (const id of ['#btnAtlas', '#btnTours', '#btnTime', '#btnSettings']){ await page.click(id); await page.waitForTimeout(150); await page.click(id); }
 const ui = await page.evaluate(() => ({ rows:document.querySelectorAll('.arow').length, readout:document.querySelector('#readout').textContent.length }));
 if (ui.rows < 50) bad.push('atlas has only ' + ui.rows + ' rows');
+// atlas categories: every chip has places; the made-up Halo is not human-made, every real craft is
+bad.push(...await page.evaluate(() => { const c = window.__cosmos, d = c.dbg, out = [];
+  const listed = c.OBJ.filter(o => o.atlas !== false && !o.marker && d.GROUPS.some(([g]) => g === o.group));
+  for (const [id] of d.CATS) if (id !== 'all' && !listed.some(o => d.catsOf(o).includes(id))) out.push('atlas chip ' + id + ' has no places');
+  if (d.catsOf(c.BYKEY.halo).includes('human')) out.push('the Halo is in the human-made chip');
+  for (const o of listed) if (o.group === 'travel' && o.key !== 'halo' && !d.catsOf(o).includes('human')) out.push(o.key + ' is not in the human-made chip');
+  return out; }));
+// the shared random seed once every object exists: packs that draw from rnd() put it back, so the Halo's route stays the same (value of 0.8.6)
+const seedObjects = await page.evaluate(() => window.__cosmos.dbg.seedObjects);
+if (seedObjects !== 3186211718) bad.push('the random seed after the objects changed (' + seedObjects + '): a pack that uses rnd() must put seed back');
 // a planet whose angle follows its orbit (track): a flight to its day side lands on the day side, not where it was at take-off
 bad.push(...await page.evaluate(() => { const c = window.__cosmos, out = [], n = v => { const l = Math.hypot(...v); return v.map(x => x/l); };
   for (const k of ['peg51b', 'hd189733b']){
@@ -56,6 +66,16 @@ bad.push(...await page.evaluate(() => { const c = window.__cosmos, out = [], n =
   }
   return out; }));
 errors.push(...bad);
+// a saved chip keeps working: 'travel' (the old spacecraft chip) opens human-made, and the chosen chip is in sight in its sideways row
+await page.evaluate(() => localStorage.setItem('gcdatlas.atlas', JSON.stringify({ cat:'travel' })));
+await page.goto('about:blank'); await page.goto(PAGE);
+await page.waitForFunction(() => window.__cosmos && window.__cosmos.OBJ, null, { timeout:60000 });
+await page.click('#btnAtlas'); await page.waitForTimeout(150);
+const chip = await page.evaluate(() => { const b = document.querySelector('#atlasCats [aria-pressed="true"]'), r = document.querySelector('#atlasCats').getBoundingClientRect(), q = b && b.getBoundingClientRect();
+  return b && { cat:b.dataset.cat, inSight:q.left >= r.left - 1 && q.right <= r.right + 1 }; });
+if (!chip || chip.cat !== 'human') errors.push('a saved travel chip opens ' + (chip && chip.cat));
+else if (!chip.inSight) errors.push('the chosen atlas chip is scrolled out of sight');
+await page.evaluate(() => localStorage.removeItem('gcdatlas.atlas'));
 // crafted share links must not stop the page from starting (they used to: #o=constructor, a non-numeric date)
 for (const h of ['#o=constructor', '#o=__proto__', '#o=earth&jd=abc&deep=x&c=1,NaN,-5']){
   await page.goto('about:blank'); await page.goto(PAGE + h);   // (a real load: changing only the hash would not restart the page)
