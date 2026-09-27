@@ -35,9 +35,14 @@ const bennu = addRock({ key:'bennu', tags:['moons'], name:'Bennu', label:'Bennu'
 
 // ---------------------------------------------------------------- planets of other stars
 // (their periods are sped up so you can see them move; the readout gives the real one. Their host stars stay out of the atlas list)
-// the views turn with the planet round its star (track), so each keeps its phase: the day side, a crescent with its star beyond the limb,
-// and low over the line between day and night. (Each planet's frame is its star's, so 'horizontal' in sunSide is the plane of its orbit.)
-const exoViews = b => { b.R0 = b.host.R0; return [{track:() => sunSide(b, 0.65, 0.25), k:3, hold:8}, {track:() => sunSide(b, 2.55, 0.1), k:4.2, hold:9}, {track:() => sunSide(b, 1.3, 0.12), k:1.7, hold:9}]; };
+// the views turn with the planet round its star (track), so each keeps its phase: the day side, half lit, and closer in from above its
+// orbit, over the line between day and night. (Each planet's frame is its star's, so 'horizontal' in sunSide is the plane of its orbit.)
+// (a thin crescent with the star beyond the limb looked empty: a sliver of light and half a star at the edge of the screen; and from
+// closer in the old third angle's lit edge fell off a phone's screen)
+const exoViews = b => { b.R0 = b.host.R0; return [{track:() => sunSide(b, 0.65, 0.25), k:3, hold:8}, {track:() => sunSide(b, 1.7, 0.15), k:3.4, hold:9}, {track:() => sunSide(b, 1.3, 0.75), k:2.4, hold:9}]; };
+// K2-18 b and HD 189733 b pass in front of their stars, so we see their orbits almost edge-on (tilted 89.6 and 85.7 degrees): their stars get
+// a frame whose orbit plane (local xz) is tilted that way to our line of sight
+const edgeOn = (pos, inc) => { const c = Math.cos(inc*DEG), s = Math.sqrt(1 - c*c), h = V.norm([0.3, 0, 1]); return facingEarth(pos, [h[0]*s, c, h[2]*s], 0); };
 // 51 Pegasi b: the first planet found around a Sun-like star (1995)
 const peg51 = namedStar('peg51', '51 Pegasi', hms(22,57,27.98), dms(20,46,7.8), 50.6, 1.152, 5768, { label:'51 Peg', atlas:false, type:'Sun-like star · Helvetios',
   star:{ cells:36, act:0.3 }, bound:8, farLum:0.6, labelRange:400, aka:'51 pegasi helvetios',
@@ -49,7 +54,7 @@ const peg51b = exoPlanet({ key:'peg51b', name:'51 Pegasi b', host:peg51, type:'t
 peg51b.views = exoViews(peg51b);
 orbitRing(peg51, 0.0527, [0.62, 0.55, 0.45]);
 // K2-18 b: a world between Earth and Neptune in size, in its star's habitable zone, whose air JWST has analysed
-const k218 = namedStar('k218', 'K2-18', hms(11,30,14.52), dms(7,35,18.3), 124.3, 0.469, 3645, { atlas:false, type:'red dwarf in Leo',
+const k218 = namedStar('k218', 'K2-18', hms(11,30,14.52), dms(7,35,18.3), 124.3, 0.469, 3645, { atlas:false, type:'red dwarf in Leo', R0:edgeOn(radec(hms(11,30,14.52), dms(7,35,18.3), 124.3), 89.6),
   star:{ cells:30, act:0.8, prom:0.4 }, bound:20, farLum:0.25, labelRange:600, aka:'k2 18',
   fact:'A cool red dwarf about half the Sun\'s width, with two known planets.', readout:() => '124 light-years · about 3,600 K' });
 const k218b = exoPlanet({ key:'k218b', name:'K2-18 b', host:k218, type:'sub-Neptune in the habitable zone · studied by JWST', R:2.61*6371, kind:22, a:0.1429, P:60, sortKey:124.3001,
@@ -57,10 +62,9 @@ const k218b = exoPlanet({ key:'k218b', name:'K2-18 b', host:k218, type:'sub-Nept
   fact:'A world 2.6 times Earth\'s width and 8.6 times its mass, orbiting where its star\'s warmth could allow liquid water. In 2023 JWST found methane and carbon dioxide in its hydrogen-rich air, and it may hide a deep ocean. A claimed hint of dimethyl sulfide, a gas that on Earth comes only from living things, has not been confirmed, and it can also form without life.',
   readout:() => 'orbit 33 days (sped up here) at 0.14 AU · 124 light-years\nJWST measured its gases, not its looks: the colours are a guess' });
 k218b.views = exoViews(k218b);
-k218b.views[1] = {track:() => sunSide(k218b, 1.7, 0.15), k:3.4, hold:9};   // (its dim red star is small in its sky, so a thin crescent looked empty: half lit instead)
 orbitRing(k218, 0.1429, [0.5, 0.62, 0.75]);
 // HD 189733 b: the deep blue planet Hubble measured the colour of (2013)
-const hd189733 = namedStar('hd189733', 'HD 189733', hms(20,0,43.71), dms(22,42,39.1), 64.5, 0.805, 4875, { atlas:false, type:'orange dwarf in Vulpecula',
+const hd189733 = namedStar('hd189733', 'HD 189733', hms(20,0,43.71), dms(22,42,39.1), 64.5, 0.805, 4875, { atlas:false, type:'orange dwarf in Vulpecula', R0:edgeOn(radec(hms(20,0,43.71), dms(22,42,39.1), 64.5), 85.7),
   star:{ cells:36, act:0.6 }, bound:6.5, farLum:0.5, labelRange:500, aka:'hd 189733 a',
   fact:'An orange dwarf a little smaller than the Sun, with a red dwarf partner far out and a giant planet close in.', readout:() => '64.5 light-years · about 4,900 K' });
 const hd189733b = exoPlanet({ key:'hd189733b', name:'HD 189733 b', host:hd189733, type:'the deep blue planet · it may rain glass', R:1.13*69911, kind:23, a:0.031, P:36, locked:true, sortKey:64.5001,
