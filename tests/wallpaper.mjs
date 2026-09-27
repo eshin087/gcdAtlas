@@ -10,7 +10,7 @@ page.on('request', r => { const u = r.url(); if (!/^(file|data|blob):/.test(u) &
 await page.waitForFunction(() => window.__cosmos.saver.on, null, { timeout:30000 });
 
 const state = () => page.evaluate(() => { const c = window.__cosmos, b = document.body.classList;
-  return { wallpaper:b.contains('wallpaper'), saver:b.contains('saver'), embedded:c.saver.embedded, tourOn:c.tour.on, tourId:c.tourId, obj:c.tour.obj,
+  return { wallpaper:document.documentElement.classList.contains('wallpaper'), saver:b.contains('saver'), embedded:c.saver.embedded, tourOn:c.tour.on, tourId:c.tourId, obj:c.tour.obj,
     travel:c.SET.travel, sound:c.SET.sound, glow:c.SET.glow, labels:c.SET.labels, musicOn:c.music.on, musicCtx:!!c.music._dbg.ctx,
     shown:[...document.body.children].filter(e => !['view', 'foldFlash', 'nogl'].includes(e.id) && getComputedStyle(e).display !== 'none' && !e.hidden).map(e => e.id || e.className) }; });
 let s = await state();

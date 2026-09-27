@@ -1318,7 +1318,6 @@ function frame(now){
   if (!hintHidden && performance.now() > 18000) hideHint();
   queueNextFrame();
 }
-document.body.classList.toggle('wallpaper', WALLPAPER);
 resize();
 ladTitles();
 if (document.fonts) document.fonts.load('500 20px "IBM Plex Mono"').then(() => buildAtlas(cellW, cellH)).catch(() => {});
