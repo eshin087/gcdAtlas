@@ -109,6 +109,7 @@ const saturn = (() => {
       {dirFn:() => sunSide(o, 2.9, 0.3), k:2.7, hold:7, drift:0.02},
       sunBack('saturn', 5, 0.34),
     ],
+    tourViews:[0, 1, 2],   // (tours skip the night side and the view back at the Sun: a thin crescent and a dark disc, they looked empty)
     update(){ const jd = jdNow(); this.offset = planetPos(PLANET_EL.saturn, jd); this.pos = V.add(this.parent.pos, this.offset); this.rot = bodyFrame(40.589, 83.537, 38.90 + 810.7939024*(jd - 2451545)); },
     setU(pr){ const L = sunDirFrom(this); gl.uniform4f(pr.u.uP1, L[0], L[1], L[2], 0); },
     particles:[{ps:ring, prog:'ptRing', mode:2, sb:0.0025, size:0.0016, rot:() => o.R0}],

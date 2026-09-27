@@ -103,10 +103,10 @@ addEventListener('pointermove', e => {
   }
   wakeUI();
 }, { capture:true, passive:true });
-// on a touch screen the first tap after a fade only brings the interface back: it does not pick an object on the canvas,
-// and its click does not reach a label or anything else under the finger
+// on a touch screen the first tap after a fade on the sky only brings the interface back: it does not pick an object on the canvas,
+// and its click does not reach a label (they stay on screen, part of the sky). A tap on a faded button works at once, and brings the rest back.
 addEventListener('pointerdown', e => {
-  if (IDLE.on && e.pointerType !== 'mouse'){ wakeTapAt = performance.now(); IDLE.eatClick = performance.now(); }
+  if (IDLE.on && e.pointerType !== 'mouse' && (e.target === canvas || (e.target.closest && e.target.closest('#labels, #shipMark')))){ wakeTapAt = performance.now(); IDLE.eatClick = performance.now(); }
   wakeUI();
 }, { capture:true, passive:true });
 addEventListener('click', e => { if (IDLE.eatClick && performance.now() - IDLE.eatClick < 900){ IDLE.eatClick = 0; e.stopPropagation(); e.preventDefault(); } }, { capture:true });

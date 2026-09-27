@@ -101,6 +101,7 @@ const jupiter = (() => {
       {dirFn:() => sunSide(o, 1.3, 0.05), k:40, hold:9, drift:0.003},
       sunBack('jupiter', 6, 0.27),
     ],
+    tourViews:[0, 1, 2],   // (tours skip the wide view of the moons and the view back at the Sun: specks and a dark disc, they looked empty)
     update(){ const jd = jdNow(); this.offset = planetPos(PLANET_EL.jupiter, jd); this.pos = V.add(this.parent.pos, this.offset); this.rot = bodyFrame(268.056595, 64.495303, 284.95 + 870.536*(jd - 2451545)); },
     setU(pr){ const L = sunDirFrom(this); gl.uniform4f(pr.u.uP1, L[0], L[1], L[2], 0);
       const ms = [io, europa, ganymede, callisto].map(m => { const c = M3.applyT(this.rot, V.mul(V.sub(m.rel, this.rel), 1/this.rad)); return [c[0], c[1], c[2], m.rad*0.9/this.rad]; });

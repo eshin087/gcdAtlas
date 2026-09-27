@@ -20,7 +20,8 @@ const gaiabh1 = (() => {
     setU(pr){ noDisk(pr); const d = V.norm(V.sub(star.pos, bh.pos)); gl.uniform4f(pr.u.uP2, d[0], d[1], d[2], 0.04); },
     views:[{ d:[0.2, 1, 0.3], k:A*2.6/(rs*RB), hold:10, drift:0.02 },
       // behind the hole, looking at its star: the camera follows the star round its orbit, a little off the line, so its image breaks into two arcs that swing into a ring and out again
-      { track:() => { const a = V.norm(V.sub(bh.pos, star.pos)), n = V.norm(V.cross(a, M3.apply(bh.R0, [0, 1, 0]))); return V.norm(V.add(a, V.mul(n, 0.09*Math.sin(GT*0.45)))); }, k:2.2, hold:12 },
+      // (closer, and nearer the line, than it was: from 2.2 radii and 0.09 rad off, the arcs were two small smudges and the angle looked empty)
+      { track:() => { const a = V.norm(V.sub(bh.pos, star.pos)), n = V.norm(V.cross(a, M3.apply(bh.R0, [0, 1, 0]))); return V.norm(V.add(a, V.mul(n, 0.03*Math.sin(GT*0.45)))); }, k:1.7, hold:12 },
       { d:[0.05, 0.08, 1], k:0.3, hold:8, drift:0.01 }],
     particleVis:rpx => smooth(4, 14, rpx*A/(rs*RB)),
     particles:[{ ps:orbitLine(A/(rs*RB), E), prog:'lnBasic', lines:true, mode:3, sb:0.25, size:1, vis:() => smooth(A*0.2, A*0.8, orbit.dist) }],

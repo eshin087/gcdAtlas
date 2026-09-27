@@ -1,5 +1,6 @@
 // Phone layout regression: the dock fits, the info card sits above it and can be expanded, collapsed and hidden,
-// the scale chip opens the ladder, the interface fades when idle and the first tap only brings it back.
+// the scale chip opens the ladder, the interface fades when idle and a first tap on the sky only brings it back
+// (a first tap on a faded button works), the card's green "next stop" button, the tour name and the angle arrows.
 // Screenshots of every state go to tests/out/mobile/. Usage: node tests/mobile.mjs
 import { openPage, report, OUT } from './lib.mjs';
 import path from 'node:path';
@@ -81,14 +82,41 @@ if (lab){
   if (!(await page.evaluate(() => __cosmos.tour.on))) fail(`a wake-up tap on the label "${lab.t}" flew there and stopped the tour`);
   if (await has('ui-idle')) fail('a tap on a label did not bring the interface back');
 }
+// a faded button works on the first tap (it used to only bring the interface back): the green "next stop" button flies on
+await page.evaluate(() => { const C = __cosmos; C.land(0.1); C.hud(); });
+await page.waitForFunction(() => document.body.classList.contains('ui-idle'), null, { timeout:15000 }).catch(() => fail('the interface did not fade before the button tap'));
+await page.waitForTimeout(1300);   // (the fade takes a second)
+const gn = await page.evaluate(() => { const C = __cosmos, b = document.querySelector('#goNext'), r = b.getBoundingClientRect(), k = C.TOUR.indexOf(C.tour.obj);
+  return { x:r.left + r.width/2, y:r.top + r.height/2, txt:b.textContent, next:C.OBJ[C.TOUR[(k + 1) % C.TOUR.length]].key, op:getComputedStyle(b).opacity }; });
+await page.touchscreen.tap(gn.x, gn.y); await page.waitForTimeout(400);
+const gnAfter = await page.evaluate(() => ({ to:__cosmos.stepTarget, tour:__cosmos.tour.on, obj:__cosmos.OBJ[__cosmos.tour.obj].key }));
+if (!/^next stop · .+›$|^start again›$/.test(gn.txt)) fail('the green button does not say where it goes: "' + gn.txt + '"');
+if (gn.op !== '0') fail('the green button did not fade with the interface (opacity ' + gn.op + ')');
+if (!gnAfter.tour || gnAfter.obj !== gn.next) fail(`the first tap on the faded "${gn.txt}" did not fly on to ${gn.next}: ` + JSON.stringify(gnAfter));
+if (await has('ui-idle')) fail('a tap on a faded button did not bring the interface back');
+await page.evaluate(() => { __cosmos.land(0.1); __cosmos.hud(); });
+await shot('7a-next-stop');
 await fade('off');
 
-// dragging breaks the tour: the card offers "resume tour", which picks it up again
+// the card: "stop 3 / 31" and the tour's name, which opens the list of tours; the angle arrows sit on the angle line
+const cardTxt = await page.evaluate(() => { const C = __cosmos; C.hud(); const k = C.TOUR.indexOf(C.tour.obj), p = document.querySelector('#progress');
+  return { stop:document.querySelector('#stopInfo').textContent, want:'stop ' + (k + 1) + ' / ' + C.TOUR.length, name:document.querySelector('#modeTour').textContent, arrows:!!p.querySelector('#prevObj') && !!p.querySelector('#nextObj') && p.classList.contains('angles') }; });
+if (cardTxt.stop !== cardTxt.want) fail('the card does not say which stop this is: "' + cardTxt.stop + '"');
+if (cardTxt.name !== 'grand tour ▾') fail('the tour name is not "grand tour ▾": ' + cardTxt.name);
+if (!cardTxt.arrows || !(await rect('#nextObj')).shown) fail('the angle arrows are not on the angle line');
+await page.tap('#modeTour'); await page.waitForTimeout(400);
+if (!(await rect('#tours')).shown) fail('the tour name did not open the list of tours');
+await shot('7c-tours-from-name');
+await page.tap('#toursClose'); await page.waitForTimeout(300);
+
+// dragging breaks the tour: still on the same stop, the green button goes on to the next stop, and picks the tour up again
+await page.evaluate(() => { __cosmos.land(0.1); });
 await page.mouse.move(120, 300); await page.mouse.down(); await page.mouse.move(210, 310, { steps:8 }); await page.mouse.up();
-await page.waitForTimeout(500); await shot('7b-free-camera');
+await page.waitForTimeout(500); await page.evaluate(() => __cosmos.hud()); await shot('7b-free-camera');
 if (await page.evaluate(() => __cosmos.tour.on)) fail('dragging did not break the tour');
-if (!(await rect('#btnResumeI')).shown) fail('no resume button in the card after breaking the tour');
-else { await page.tap('#btnResumeI'); await page.waitForTimeout(400); if (!(await page.evaluate(() => __cosmos.tour.on))) fail('resume in the card did not resume the tour'); }
+const dg = await page.evaluate(() => { const C = __cosmos, k = C.TOUR.indexOf(C.tour.last), n = C.OBJ[C.TOUR[(k + 1) % C.TOUR.length]]; return { txt:document.querySelector('#goNext').textContent, want:k === C.TOUR.length - 1 ? 'start again›' : 'next stop · ' + (n.label || n.name) + '›', next:n.key }; });
+if (!(await rect('#goNext')).shown || dg.txt !== dg.want) fail(`after breaking the tour the green button reads "${dg.txt}", not "${dg.want}"`);
+else { await page.tap('#goNext'); await page.waitForTimeout(400); const r = await page.evaluate(() => ({ tour:__cosmos.tour.on, obj:__cosmos.OBJ[__cosmos.tour.obj].key })); if (!r.tour || r.obj !== dg.next) fail(`"${dg.txt}" in the card did not go on with the tour: ` + JSON.stringify(r)); }
 
 // two fingers (real touch events): a pinch zooms exactly as far as the fingers spread and stays on the object; moving both fingers together
 // slides the object on a leash (still locked on, still on screen, clear of the card); lifting one finger does not turn the gesture into an
@@ -167,7 +195,9 @@ await page.evaluate(() => document.querySelector('#btnHome').click());
 const hm = await page.evaluate(at => { const C = __cosmos; const r = { at, tour:C.tour.on, to:C.stepTarget }; C.land(0.3); r.lock = C.orbit.lock >= 0 ? C.OBJ[C.orbit.lock].key : null; return r; }, hmAt);
 await page.waitForTimeout(400); await shot('11-home');
 if (hm.at !== 'crab' || hm.tour || hm.to !== 'earth' || hm.lock !== 'earth') fail('home did not fly to Earth and pause the tour: ' + JSON.stringify(hm));
-if (!(await rect('#btnResumeI')).shown) fail('no resume tour in the card after going home');
+const hmBtn = await page.evaluate(() => { __cosmos.hud(); const b = document.querySelector('#goNext'); return { txt:b.textContent, back:b.classList.contains('back'), stop:document.querySelector('#stopInfo').textContent }; });
+if (!(await rect('#goNext')).shown || hmBtn.txt !== 'back to the tour · Crab Nebula›' || !hmBtn.back) fail('no "back to the tour · Crab Nebula" in the card after going home: ' + JSON.stringify(hmBtn));
+if (hmBtn.stop !== 'rocky planet') fail('off the tour the card does not say what Earth is: "' + hmBtn.stop + '"');
 await page.evaluate(() => __cosmos.setOpt('labels', true, true));
 
 // on its side
@@ -176,6 +206,11 @@ await page.waitForTimeout(1200); await wake(); await shot('8-landscape');
 const ld = await page.evaluate(() => { const c = document.querySelector('.controls'), i = document.querySelector('#info'); const a = c.getBoundingClientRect(), b = i.getBoundingClientRect(); return { over:c.scrollWidth - c.clientWidth, dockTop:a.top, cardBottom:b.bottom, cardRight:b.right }; });
 if (ld.over > 1) fail('landscape dock overflows');
 if (ld.cardBottom > ld.dockTop + 1) fail('landscape card overlaps the dock');
+// the green button and the angle arrows stay inside the card, however long the name
+const inCard = await page.evaluate(() => { const i = document.querySelector('#info').getBoundingClientRect(), out = [];
+  for (const id of ['#goNext', '#prevObj', '#nextObj', '#modeTour', '#infoHide']){ const e = document.querySelector(id), r = e.getBoundingClientRect(); if (r.width && (r.left < i.left - 1 || r.right > i.right + 1)) out.push(id); }
+  return out; });
+if (inCard.length) fail('on its side these stick out of the card: ' + inCard.join(', '));
 await page.tap('#btnAtlas'); await page.waitForTimeout(800); await shot('9-landscape-atlas');
 // on its side the card sits beside the object: a two-finger slide toward it stops with the object's centre on screen and off the card
 await page.evaluate(() => { document.querySelector('#atlasClose').click(); const C = __cosmos; C.setTour(false); C.view('earth', 0); C.tick(1/60); });
@@ -189,5 +224,5 @@ await shot('12-landscape-slide');
 if (ls.lock !== 'earth' || !(ls.x > 0 && ls.x < 844 && ls.y > 0 && ls.y < 390) || (ls.x > ls.card[0] + 1 && ls.x < ls.card[2] - 1 && ls.y > ls.card[1] + 1 && ls.y < ls.card[3] - 1))
   fail('on its side a two-finger slide put Earth off screen or under the card: ' + JSON.stringify(ls));
 
-report('mobile', errors, 'screenshots in tests/out/mobile' + (lab ? ` · wake-up tap on "${lab.t}" checked` : '') + ` · pinch x${ratio.toFixed(2)} for fingers 3x apart · two-finger slide stays locked, Earth at ${Math.round(g2.x)}, ${Math.round(g2.y)} · home first in the dock`);
+report('mobile', errors, 'screenshots in tests/out/mobile' + (lab ? ` · wake-up tap on "${lab.t}" checked` : '') + ` · pinch x${ratio.toFixed(2)} for fingers 3x apart · two-finger slide stays locked, Earth at ${Math.round(g2.x)}, ${Math.round(g2.y)} · home first in the dock · first tap on the faded "${gn.txt}" flew on to ${gn.next}`);
 await browser.close();

@@ -18,10 +18,12 @@
 <!-- about the object in view: full, compact or hidden (I); on phones a card above the dock -->
 <section class="info" id="info" aria-live="polite">
   <button class="grip" id="infoGrip" aria-label="Show more"><i></i></button>
-  <div class="stop"><span><span id="stopNum">01</span> / <span id="stopCount">11</span></span><span id="mode" class="mode">tour</span><button class="act resume-i" id="btnResumeI" hidden>&#9656; resume tour</button><span class="itools"><button class="itool" id="infoMore" aria-expanded="true" aria-controls="info">less</button><button class="itool" id="infoHide" aria-label="Hide the info panel" title="Hide this panel (I)">hide</button></span></div>
+  <!-- on a tour: the stop number and the tour's name, which opens the list of tours; otherwise what kind of thing this is (while the type line below is folded away) and the camera's mode -->
+  <div class="stop"><span id="stopInfo" class="stopinfo"></span><button id="modeTour" class="mode m-tour tourpick" hidden aria-haspopup="true" aria-expanded="false" aria-controls="tours" title="Pick another tour"><span id="modeTourName">grand tour</span> &#9662;</button><span id="mode" class="mode">tour</span><span class="itools"><button class="itool" id="infoMore" aria-expanded="true" aria-controls="info">less</button><button class="itool" id="infoHide" aria-label="Hide the info panel" title="Hide this panel (I)">hide</button></span></div>
   <div class="title">
     <h1 id="objName">Earth</h1>
-    <button class="nav" id="prevObj" aria-label="Previous angle" title="Previous camera angle">&lsaquo;</button><button class="nav" id="nextObj" aria-label="Next angle" title="Next camera angle">&rsaquo;</button>
+    <!-- the green button says where it goes: the next tour stop, the start of the tour again, or back to the tour you left (hidden when no tour is involved) -->
+    <button class="gonext" id="goNext" hidden><span id="goNextTxt"></span><b aria-hidden="true">&rsaquo;</b></button>
   </div>
   <div class="acts"><button class="act" id="btnShare" title="Copy a link to exactly this view">share</button><button class="act" id="btnCompare" title="Put another object beside this one at true scale">compare size</button><button class="act" id="btnRideI" hidden>ride along</button><button class="act" id="btnCamI" hidden>cockpit view</button><button class="act" id="btnFlyby" hidden title="A sweeping camera move that shows how big this is">flyby</button><button class="act" id="btnPhoto" title="Photo mode: frame a shot, save it as a picture or copy it as ASCII text (P)">photo</button></div>
   <div id="objType" class="type"></div>
@@ -31,7 +33,8 @@
   <div class="scale" title="A ruler for what you are looking at: at the distance of this object, the bar's length on screen equals the distance written next to it.">
     <span class="rlab">ruler</span><span id="scaleBar" class="bar"></span><span id="scaleTxt"></span>
   </div>
-  <div id="progress" class="progress"><span id="progLabel" class="plab"></span></div>
+  <!-- the angle line, "‹ angle 1/5  [#####-----] ›": the arrows step through the camera angles -->
+  <div id="progress" class="progress"><button class="nav anav" id="prevObj" aria-label="Previous camera angle" title="Previous camera angle">&lsaquo;</button><span id="progLabel" class="plab"></span><button class="nav anav" id="nextObj" aria-label="Next camera angle" title="Next camera angle">&rsaquo;</button></div>
 </section>
 <button id="infoPill" class="info-pill" hidden aria-controls="info" title="Show the info panel (I)"><b aria-hidden="true">i</b><span id="infoPillName"></span></button>
 
@@ -41,8 +44,7 @@
   </label>
   <button class="btn home" data-ico="&#8962;" id="btnHome" title="Home: fly back to Earth (H)" aria-label="Home: fly back to Earth (H)">home</button>
   <button class="btn primary" data-ico="&#8801;" id="btnAtlas" aria-expanded="false" aria-controls="atlas">atlas</button>
-  <button class="btn resume" id="btnResume" hidden title="Go back to where the tour left off (space)">&#9656; resume tour</button>
-  <span class="tourgrp"><button class="btn tskip" id="tourPrev" aria-label="Previous tour stop" title="Previous stop ([)">&lsaquo;</button><button class="btn" data-ico="&#9656;" id="btnTours" aria-expanded="false" aria-controls="tours">tours</button><button class="btn tskip" id="tourNext" aria-label="Next tour stop" title="Next stop (])">&rsaquo;</button></span>
+  <button class="btn" data-ico="&#9656;" id="btnTours" aria-expanded="false" aria-controls="tours">tours</button>
   <button class="btn" data-ico="&#9719;" id="btnTime" aria-expanded="false" aria-controls="timem">time</button>
   <div class="seg mini" data-key="travel" role="radiogroup" aria-label="Travel speed" title="How fast you fly between objects (Y)"><span class="seg-l">travel</span><button data-v="cinematic" role="radio">slow</button><button data-v="quick" role="radio">quick</button><button data-v="warp" role="radio">warp</button></div>
   <button class="btn" data-ico="&#9790;" id="btnShip" aria-pressed="false" title="Show where the Halo is (a blue marker)">ship</button><button class="btn ride" id="btnRide" title="Ride along with the Halo: chase view behind the ship, C for the cockpit">ride</button>
@@ -231,12 +233,14 @@
       <dt>two fingers</dt><dd>on a touch screen: pinch to zoom; slide both fingers to move the object across the screen (the camera stays on it); double-tap the sky to centre it again</dd>
       <dt>/ or the search box</dt><dd>search everything in the atlas; arrow keys and Enter pick a result</dd>
       <dt>right-drag / shift-drag</dt><dd>pan: the camera lets go of the object (free camera); play, space or the "back to" pill flies back to it</dd>
-      <dt>[ ] or ‹ › (top right)</dt><dd>on a tour: previous / next stop; otherwise down / up the scale bar (Moon, Earth, Jupiter, the Sun, ...)</dd>
-      <dt>‹ › beside the name</dt><dd>previous / next camera angle of the object in view</dd>
+      <dt>next stop · Moon ›</dt><dd>the green button beside the name: on a tour, fly on to the next stop ("start again" on the last one); after you leave a tour, "back to the tour" picks it up where you left it</dd>
+      <dt>GRAND TOUR ▾</dt><dd>the tour's name above the object's name opens the list of tours</dd>
+      <dt>[ ]</dt><dd>on a tour: previous / next stop; otherwise down / up the scale bar (Moon, Earth, Jupiter, the Sun, ...)</dd>
+      <dt>‹ angle 1/5 ›</dt><dd>the arrows on the angle line: previous / next camera angle of the object in view (every tap moves one angle)</dd>
       <dt>W A S D · R F</dt><dd>fly freely, within reach of the nearest object (scroll out to go further)</dd>
       <dt>space · &#10074;&#10074; / &#9654;&#xFE0E;</dt><dd>pause or play: the tour, or the angles of an object you picked (they loop until you take the camera); in free camera, back to the object you left</dd>
-      <dt>H · Home · &#8962; home · the logo</dt><dd>home: fly back to Earth; a running tour pauses and "resume tour" picks it up again</dd>
-      <dt>esc</dt><dd>close panels, then unlock (free camera)</dd>
+      <dt>H · Home · &#8962; home · the logo</dt><dd>home: fly back to Earth; a running tour pauses and "back to the tour" picks it up again</dd>
+      <dt>esc</dt><dd>close what is open first (help, search, the atlas, tours, time, settings, photo mode); with nothing open, let go of the object (free camera)</dd>
       <dt>V · Y · T</dt><dd>detail · travel speed · time speed</dd>
       <dt>G · L · M</dt><dd>glow · labels · music</dd>
       <dt>Z · P</dt><dd>screensaver · photo mode</dd>

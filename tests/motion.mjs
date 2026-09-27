@@ -1,6 +1,7 @@
 // Camera motion regression: the angle loop after picking an object, play / pause (button and space), flights that land
 // exactly on a moving destination (no jump on arrival), ladder picks that keep moving, riding along with the Halo, tour trips without zoom dips,
-// and the Halo at work (always travelling, light speed and folds, its jobs, scan beams on the surface). Deterministic: steps the simulation with __cosmos.tick.
+// the Halo at work (always travelling, light speed and folds, its jobs, scan beams on the surface), and the controls that say where they go
+// (next stop, angle arrows that count every tap, Esc closing panels first, the tour's angles at Earth). Deterministic: steps the simulation with __cosmos.tick.
 // Usage: node tests/motion.mjs
 import { openPage, report } from './lib.mjs';
 
@@ -100,12 +101,18 @@ const nav = await page.evaluate(() => {
   C.stepObject(1); const next2 = C.stepTarget; land();
   const v0 = C.show.view; document.getElementById('nextObj').click(); for (let i=0;i<60*4;i++) C.tick(1/60);
   const angle = { from:v0, to:C.show.view, looping:C.show.on };
+  // fast taps while the camera is still swinging: each one counts (three taps, three angles on), and the angle line shows where it is going
+  const v1 = C.show.view, nv = C.OBJ[C.orbit.lock].views.length, b = document.getElementById('nextObj');
+  b.click(); for (let i=0;i<6;i++) C.tick(1/60); b.click(); for (let i=0;i<6;i++) C.tick(1/60); b.click(); C.hud();
+  angle.fast = { want:(v1 + 3) % nv, label:document.getElementById('progLabel').textContent }; for (let i=0;i<60*4;i++) C.tick(1/60); angle.fast.got = C.show.view;
+  angle.fast.arrowsOnLine = document.getElementById('progress').contains(b) && document.getElementById('progress').classList.contains('angles');
   C.setOpt('travel', 'cinematic', true); C.lockOn(C.BYKEY.sun.index); for (let i=0;i<30;i++) C.tick(1/60);
   const slow = C.flightDur(); C.setOpt('travel', 'warp', true); const fast = C.flightDur(); C.setOpt('travel', 'quick', true); land();
   return { next, next2, angle, slow:+slow.toFixed(2), fast:+fast.toFixed(2) };
 });
 if (nav.next !== 'earth' || nav.next2 !== 'jupiter') fail('next did not follow the scale bar from the Moon: ' + JSON.stringify(nav));
 if (nav.angle.to === nav.angle.from || !nav.angle.looping) fail('the angle arrows did not step the loop: ' + JSON.stringify(nav.angle));
+if (nav.angle.fast.got !== nav.angle.fast.want || !nav.angle.fast.label.startsWith(`angle ${nav.angle.fast.want + 1}/`) || !nav.angle.fast.arrowsOnLine) fail('three fast taps on the angle arrow did not move three angles: ' + JSON.stringify(nav.angle.fast));
 if (!(nav.fast < nav.slow)) fail('changing the speed mid-flight did not re-time it: ' + JSON.stringify(nav));
 
 // 7. every grand tour trip is one smooth flight: the zoom never dips and comes back out on the way (that read as locking on to
@@ -197,7 +204,7 @@ const stay = await page.evaluate(() => {
   C.startTour('grand'); C.land(0.1); C.tourGo(C.BYKEY.crab.index, true); C.tick(1/60);   // (really at the Crab: the flight to the first stop has landed)
   const at = C.flight ? 'flying' : C.OBJ[C.orbit.lock].key;
   key('h'); r.home = { at, tour:C.tour.on, last:C.tour.last != null ? C.OBJ[C.tour.last].key : null, to:C.stepTarget };
-  C.land(0.3); C.hud(); r.home.lock = C.orbit.lock >= 0 ? C.OBJ[C.orbit.lock].key : null; r.home.view = C.show.view; r.home.resume = !document.getElementById('btnResume').hidden;
+  C.land(0.3); C.hud(); r.home.lock = C.orbit.lock >= 0 ? C.OBJ[C.orbit.lock].key : null; r.home.view = C.show.view; r.home.resume = !document.getElementById('goNext').hidden && document.getElementById('goNext').textContent === 'back to the tour · Crab Nebula›';
   C.setTour(false); C.view('earth', 0); C.hud(); r.here = txt('#objDist');
   key('Escape'); for (let i=0;i<60*5;i++) C.tick(1/60); C.hud();
   r.drift = { off:+off(E).toFixed(2), focus:C.OBJ[cam.focus].key, free:C.orbit.lock < 0, where:txt('#objDist'), play:document.getElementById('btnPlay').getAttribute('aria-label') };
@@ -221,5 +228,46 @@ if (stay.jupiterFree > 1.5) fail('Jupiter swelled x' + stay.jupiterFree + ' arou
 if (!(stay.overviewFree > 5)) fail('the Solar System overview no longer enlarges Jupiter in free camera (x' + stay.overviewFree + ')');
 if (stay.reach > 8.2) fail('W A S D took the camera ' + stay.reach + ' view distances from anything');
 
-report('motion', errors, `home from the Crab pauses the tour · free camera stays with Earth (${stay.drift.off.toFixed(1)}° off centre after 5 s), back by play and by the pill ("${(stay.pill || '').replace(/^\W/, '› ')}") · Jupiter x${stay.jupiterFree} after letting go, x${stay.overviewFree} in the overview · W A S D within ${stay.reach} view distances · Saturn loops through ${loop.views} angles · pause, play and space work · universe to Earth, largest frame-to-frame change x${fl.worstFrameToFrameScale} · ladder picks keep moving · riding the Halo through a fold and a light-speed jump (camera within ${ride.farAfterFold} / ${ride.farInLightSpeed} ship radii) · the Halo always moving (tightest turn ${halo.minTurnRadius} ship lengths, at most ${halo.maxTurn20s} degrees in 20 s), ${Object.keys(halo.acts).length} kinds of job, ${halo.beams} scan beams on the surface (error ${halo.beamWorst.toExponential(1)}) · Moon → ${nav.next} → ${nav.next2} · mid-flight speed change ${nav.slow}s → ${nav.fast}s · ${trips.n} tour trips without dips (${trips.passes} pass-bys)`);
+// 10. saying where it goes: the green button beside the name ("next stop · Moon", "start again" on the last stop, "back to the tour" after
+// leaving it, hidden with no tour); the tour's name opens the tours; the ‹ › around "tours" and the second resume button are gone;
+// [ ] step tour stops on a tour; Esc closes an open panel or the search before it lets go; the scale bar hides while the atlas is open,
+// and a pick empties the search box; on the tour Earth plays three angles, about 30 s
+const say = await page.evaluate(() => {
+  const C = __cosmos, g = document.getElementById('goNext'), key = k => dispatchEvent(new KeyboardEvent('keydown', { key:k, bubbles:true })), r = {};
+  const btn = () => g.hidden ? null : g.textContent, lock = () => C.orbit.lock >= 0 ? C.OBJ[C.orbit.lock].key : null;
+  C.startTour('grand'); C.land(0.1); C.hud(); r.first = btn(); r.stop = document.getElementById('stopInfo').textContent;
+  g.click(); r.clickTo = C.stepTarget; C.land(0.1);
+  key(']'); r.keyNext = C.stepTarget; C.land(0.1); key('['); r.keyPrev = C.stepTarget; C.land(0.1);
+  C.tourGo(C.TOUR[C.TOUR.length - 1], true); C.tick(1/60); C.hud(); r.last = btn(); g.click(); r.againTo = C.stepTarget; C.land(0.1);
+  C.lockOn(C.BYKEY.mars.index); C.land(0.1); C.hud(); r.left = btn(); r.leftBack = g.classList.contains('back'); g.click(); r.backTo = C.stepTarget; r.backTour = C.tour.on; C.land(0.1);
+  C.setTour(false); C.tour.last = null; C.lockOn(C.BYKEY.mars.index); C.land(0.1); C.hud(); r.none = btn();
+  r.gone = ['tourPrev', 'tourNext', 'btnResume', 'btnResumeI'].filter(id => document.getElementById(id));
+  document.getElementById('btnSettings').click(); key('Escape'); r.escSettings = { open:!document.getElementById('settings').hidden, lock:lock() };
+  document.getElementById('btnAtlas').click(); r.ladderInAtlas = getComputedStyle(document.getElementById('ladder')).display; key('Escape'); r.escAtlas = { open:!document.getElementById('atlas').hidden, lock:lock() };
+  const s = document.getElementById('search'); s.focus(); s.value = 'jupiter'; s.dispatchEvent(new Event('input', { bubbles:true }));
+  s.dispatchEvent(new KeyboardEvent('keydown', { key:'Enter', bubbles:true })); r.pick = { to:C.stepTarget, box:s.value, box2:document.getElementById('atlasSearch').value }; C.land(0.1);
+  s.focus(); s.value = 'sat'; s.dispatchEvent(new Event('input', { bubbles:true })); s.dispatchEvent(new KeyboardEvent('keydown', { key:'Escape', bubbles:true }));
+  r.escSearch = { atlas:!document.getElementById('atlas').hidden, box:s.value, lock:lock() };
+  key('Escape'); r.escNothing = lock();
+  // Earth on the tour: three angles, about 30 s (it was five, a minute)
+  C.setOpt('travel', 'cinematic', true); C.startTour('grand'); C.land(0.1); C.tourGo(C.BYKEY.earth.index, true);
+  let t = 0; const seen = []; while (C.tour.obj === C.BYKEY.earth.index && t < 120){ C.tick(1/30); t += 1/30; if (C.tour.obj === C.BYKEY.earth.index && seen[seen.length - 1] !== C.tour.view) seen.push(C.tour.view); }
+  r.earth = { t:+t.toFixed(1), views:seen }; C.setOpt('travel', 'quick', true); C.setTour(false);
+  return r;
+});
+if (say.first !== 'next stop · Moon›' || say.stop !== 'stop 1 / 31' || say.clickTo !== 'moon') fail('the green button on the tour: ' + JSON.stringify(say));
+if (say.keyNext !== 'sun' || say.keyPrev !== 'moon') fail('[ ] did not step the tour stops: ' + JSON.stringify({ next:say.keyNext, prev:say.keyPrev }));
+if (say.last !== 'start again›' || say.againTo !== 'earth') fail('the last stop does not offer "start again": ' + JSON.stringify({ last:say.last, to:say.againTo }));
+if (say.left !== 'back to the tour · Earth›' || !say.leftBack || say.backTo !== 'earth' || !say.backTour) fail('leaving the tour does not offer the way back: ' + JSON.stringify({ left:say.left, to:say.backTo, tour:say.backTour }));
+if (say.none !== null) fail('the green button shows with no tour involved: ' + say.none);
+if (say.gone.length) fail('these should be gone: ' + say.gone.join(', '));
+if (say.escSettings.open || say.escSettings.lock !== 'mars') fail('Esc did not close settings first: ' + JSON.stringify(say.escSettings));
+if (say.ladderInAtlas !== 'none') fail('the scale bar shows while the atlas is open');
+if (say.escAtlas.open || say.escAtlas.lock !== 'mars') fail('Esc did not close the atlas first: ' + JSON.stringify(say.escAtlas));
+if (say.pick.to !== 'jupiter' || say.pick.box || say.pick.box2) fail('a pick from the search did not empty the box: ' + JSON.stringify(say.pick));
+if (say.escSearch.atlas || say.escSearch.box || !say.escSearch.lock) fail('Esc in the search did not close it (or let go): ' + JSON.stringify(say.escSearch));
+if (say.escNothing !== null) fail('Esc with nothing open did not let go of the object');
+if (say.earth.views.join() !== '0,2,1' || say.earth.t < 26 || say.earth.t > 36) fail('the tour does not play three Earth angles in about 30 s: ' + JSON.stringify(say.earth));
+
+report('motion', errors, `next stop, start again and back to the tour · three fast angle taps, three angles · Esc closes panels first · Earth on the tour: angles ${say.earth.views.join(', ')} in ${say.earth.t} s · home from the Crab pauses the tour · free camera stays with Earth (${stay.drift.off.toFixed(1)}° off centre after 5 s), back by play and by the pill ("${(stay.pill || '').replace(/^\W/, '› ')}") · Jupiter x${stay.jupiterFree} after letting go, x${stay.overviewFree} in the overview · W A S D within ${stay.reach} view distances · Saturn loops through ${loop.views} angles · pause, play and space work · universe to Earth, largest frame-to-frame change x${fl.worstFrameToFrameScale} · ladder picks keep moving · riding the Halo through a fold and a light-speed jump (camera within ${ride.farAfterFold} / ${ride.farInLightSpeed} ship radii) · the Halo always moving (tightest turn ${halo.minTurnRadius} ship lengths, at most ${halo.maxTurn20s} degrees in 20 s), ${Object.keys(halo.acts).length} kinds of job, ${halo.beams} scan beams on the surface (error ${halo.beamWorst.toExponential(1)}) · Moon → ${nav.next} → ${nav.next2} · mid-flight speed change ${nav.slow}s → ${nav.fast}s · ${trips.n} tour trips without dips (${trips.passes} pass-bys)`);
 await browser.close();
