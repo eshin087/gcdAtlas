@@ -49,6 +49,8 @@ kpackagetool6 -t Plasma/Wallpaper -i gcdatlas-plasma-wallpaper.tar.gz
 3. Choose your preferred settings:
    - **Travel between places**: *Slow and scenic* (`cinematic`) or *Quick* (`quick`).
    - **Frames per second**: `15`, `30`, or `60`.
+   - **Object name**: Position of the viewed object name (*Hide*, *Top left*, *Top center*, *Top right*, *Bottom left*, *Bottom center*, or *Bottom right*).
+   - **Text size**: Size of the object name (*Extra small*, *Small*, *Normal*, *Large*, or *Extra large*).
    - **Save power**: Pause while a maximized or full screen window covers the screen.
 4. Click **Apply**.
 
@@ -82,6 +84,8 @@ Supported query parameters:
 - `wallpaper=1`: enables wallpaper mode.
 - `travel=cinematic|quick`: flight duration between stops (`cinematic` is slower and calmer).
 - `fps=N`: caps the target frame rate (clamped between 10 and 60).
+- `title=none|top-left|top-center|top-right|bottom-left|bottom-center|bottom-right`: position of the object name overlay.
+- `textSize=xsmall|small|normal|large|xlarge`: size of the object name text.
 
 ---
 

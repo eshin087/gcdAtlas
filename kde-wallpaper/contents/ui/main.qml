@@ -11,10 +11,23 @@ WallpaperItem {
     readonly property string travel: (root.configuration && root.configuration.Travel === "quick") ? "quick" : "cinematic"
     readonly property int fps: (root.configuration && root.configuration.Fps) ? Math.max(10, Math.min(60, root.configuration.Fps)) : 30
     readonly property bool pauseEnabled: root.configuration ? root.configuration.PauseWhenCovered : true
+    readonly property string titlePos: (root.configuration && root.configuration.TitlePos) ? root.configuration.TitlePos : "none"
+    readonly property string textSize: (root.configuration && root.configuration.TextSize) ? root.configuration.TextSize : "normal"
 
     // True when a maximized or fullscreen window covers the wallpaper on this screen
     readonly property bool covered: (activeWindowMonitor.count > 0) && !KWindowSystem.showingDesktop
     readonly property bool paused: pauseEnabled && covered
+
+    function wallpaperUrl() {
+        var base = Qt.resolvedUrl("../gcdatlas.html") + "?wallpaper=1&travel=" + root.travel + "&fps=" + root.fps;
+        if (root.titlePos && root.titlePos !== "none") {
+            base += "&title=" + encodeURIComponent(root.titlePos);
+        }
+        if (root.textSize && root.textSize !== "normal") {
+            base += "&textSize=" + encodeURIComponent(root.textSize);
+        }
+        return base;
+    }
 
     contextualActions: [
         PlasmaCore.Action {
@@ -50,7 +63,7 @@ WallpaperItem {
         anchors.fill: parent
         audioMuted: true
         backgroundColor: "black"
-        url: Qt.resolvedUrl("../gcdatlas.html") + "?wallpaper=1&travel=" + root.travel + "&fps=" + root.fps
+        url: root.wallpaperUrl()
         visible: !root.paused
         onVisibleChanged: {
             if (!visible && root.paused) {
@@ -66,15 +79,23 @@ WallpaperItem {
         onLoadingChanged: function(loadRequest) {
             if (loadRequest.status === WebEngineView.LoadSucceededStatus) {
                 root.applyFreeze();
+                web.runJavaScript("if (window.setWallpaperTitlePos) { window.setWallpaperTitlePos('" + root.titlePos + "'); }");
+                web.runJavaScript("if (window.setWallpaperTextSize) { window.setWallpaperTextSize('" + root.textSize + "'); }");
             }
         }
     }
 
     onTravelChanged: {
-        web.url = Qt.resolvedUrl("../gcdatlas.html") + "?wallpaper=1&travel=" + root.travel + "&fps=" + root.fps;
+        web.url = root.wallpaperUrl();
     }
     onFpsChanged: {
         web.runJavaScript("if (window.setWallpaperFps) { window.setWallpaperFps(" + root.fps + "); } else { window.WALLPAPER_FPS = " + root.fps + "; }");
+    }
+    onTitlePosChanged: {
+        web.runJavaScript("if (window.setWallpaperTitlePos) { window.setWallpaperTitlePos('" + root.titlePos + "'); }");
+    }
+    onTextSizeChanged: {
+        web.runJavaScript("if (window.setWallpaperTextSize) { window.setWallpaperTextSize('" + root.textSize + "'); }");
     }
 
     Component.onCompleted: root.applyFreeze()

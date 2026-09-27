@@ -18,6 +18,14 @@
       <label>Pause while a maximized or full screen window covers this screen</label>
       <default>true</default>
     </entry>
+    <entry name="TitlePos" type="String">
+      <label>Position of the viewed object's name on screen</label>
+      <default>none</default>
+    </entry>
+    <entry name="TextSize" type="String">
+      <label>Size of the object name text</label>
+      <default>normal</default>
+    </entry>
   </group>
 
 </kcfg>

@@ -41,6 +41,21 @@ const fpsCheck = await page.evaluate(() => {
 });
 if (fpsCheck.a !== 20 || fpsCheck.b !== 15 || fpsCheck.prop !== 15) bad.push('dynamic wallpaper FPS was not updated: ' + JSON.stringify(fpsCheck));
 
+// wallpaper title positions
+const titleCheck = await page.evaluate(() => {
+  const el = document.getElementById("wallpaperTitle");
+  const initialHidden = el.hidden;
+  window.setWallpaperTitlePos("top-center");
+  window.setWallpaperTextSize("xsmall");
+  const shown = !el.hidden && el.classList.contains("pos-top-center") && el.classList.contains("size-xsmall") && el.textContent.length > 0;
+  window.setWallpaperTitlePos("none");
+  const hiddenAgain = el.hidden;
+  return { initialHidden, shown, hiddenAgain };
+});
+if (!titleCheck.initialHidden || !titleCheck.shown || !titleCheck.hiddenAgain) {
+  bad.push("wallpaper title position/size was not applied correctly: " + JSON.stringify(titleCheck));
+}
+
 // freeze / unfreeze control halts and resumes rendering
 const freezeCheck = await page.evaluate(async () => {
   window.setFreeze(true);

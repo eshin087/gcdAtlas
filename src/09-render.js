@@ -321,6 +321,7 @@ function setInfo(i){
   $('#objName').textContent = o.name; $('#objType').textContent = o.type; $('#objFact').textContent = o.fact || '';
   syncStop();
   syncWhere();
+  if (WALLPAPER && wpTitleEl && !wpTitleEl.hidden && o) wpTitleEl.textContent = o.name;
   setReadout(o.readout ? o.readout() : '');
   $('#btnFlyby').hidden = !o.flyby;
   atlasMark(i);
@@ -975,6 +976,33 @@ try {
     configurable: true
   });
 } catch (e) {}
+const wpTitleEl = $('#wallpaperTitle');
+const VALID_TITLE_POS = ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'];
+let wallpaperTextSize = URLQ.get('textSize') || URLQ.get('titleSize') || 'normal';
+const VALID_TITLE_SIZES = ['xsmall', 'small', 'normal', 'large', 'xlarge'];
+function updateWallpaperTitle(){
+  if (!wpTitleEl) return;
+  const pos = VALID_TITLE_POS.includes(wallpaperTitlePos) ? wallpaperTitlePos : 'none';
+  const size = VALID_TITLE_SIZES.includes(wallpaperTextSize) ? wallpaperTextSize : 'normal';
+  const show = WALLPAPER && pos !== 'none';
+  wpTitleEl.hidden = !show;
+  if (show){
+    wpTitleEl.className = 'wallpaper-title pos-' + pos + ' size-' + size;
+    const oi = infoObj >= 0 ? infoObj : (tour.obj >= 0 ? tour.obj : (orbit.lock >= 0 ? orbit.lock : 0));
+    const o = OBJ[oi];
+    if (o && wpTitleEl.textContent !== o.name) wpTitleEl.textContent = o.name;
+  }
+}
+function setWallpaperTitlePos(pos){
+  wallpaperTitlePos = pos || 'none';
+  updateWallpaperTitle();
+}
+window.setWallpaperTitlePos = setWallpaperTitlePos;
+function setWallpaperTextSize(size){
+  wallpaperTextSize = size || 'normal';
+  updateWallpaperTitle();
+}
+window.setWallpaperTextSize = setWallpaperTextSize;
 let tmT = 0, last = performance.now(), ema = 16, adaptCount = 0, raised = 0, calmT = 0, runTime = 0, resizePending = false, refocusT = 0, lodT = 0;
 addEventListener('resize', () => { if (resizePending) return; resizePending = true; requestAnimationFrame(() => { resizePending = false; resize(); ladTitles(); }); });
 // when zooming out from inside the galaxy, rise gently above the disk so the Milky Way unfolds instead of staying edge-on
@@ -1301,13 +1329,13 @@ syncSettingsUI();
 tick(0);
 if (!applyHash()) tourGo(TOUR[0], true);
 tick(0);
-updateModeUI(); syncTimeUI();
+updateModeUI(); syncTimeUI(); updateWallpaperTitle();
 window.__cosmos = { startTour, playFlyby, setMove(o, v, f){ flight = null; tween = null; tourGo(o.index, true); tour.on = false; flyMove = { o, v, t:f*v.hold, frozen:true }; },  get flyMove(){ return flyMove; }, startCompare, endCompare, setDeep, viewHash, applyHash, get cmp(){ return cmp; }, get ssRate(){ return ssRate; }, dbg:{ imp, impSpec, atlas, sphereRect, get tan(){ return [tanX, tanY]; }, get cols(){ return cols; }, get sceneH(){ return sceneH; }, get LODK(){ return LODK; }, PROGS }, OBJ, BYKEY, tourGo, lockOn, setTour, cam, orbit, tour, TOUR, SET, setOpt, music, LADDER, goLadder,
   land:(extra = 0.2) => { let n = 0; while (flight && n < 60*180){ tick(1/60); n++; } for (let i=0;i<extra*60;i++) tick(1/60); return n/60; },
   setDays:d => { ssDays = d; }, stepObject, stepAngle, get stepTarget(){ return flight ? (flight.dest || flight.obj).key : null; }, get via(){ return flight && flight.via ? flight.via.key : null; }, PASS,
   startShipCam, stopShipCam, setShipCamMode, get shipCam(){ return shipCam; }, get saver(){ return SAVER; }, get tourId(){ return TOUR_ID; }, get show(){ return show; }, togglePlay, get flight(){ return flight; },
   goHome, goBack, unlock, leash, get freeFrom(){ return freeFrom; }, proj:k => { const o = typeof k === 'string' ? BYKEY[k] : k, p = projectCSS(o.rel); return p && { x:p.x, y:p.y, z:p.z }; }, get SYSMAG(){ return SYSMAG; },
-  setDetail:i => setOpt('detail', i, true), render, zoomTo, tick, caption:dt => updateCaption(dt), get showcap(){ return SHOWCAP.txt; }, flightDur:() => flight ? flight.dur : 0, hud:() => { roTimer = 0; updateHUD(0.2); }, get wallpaperFps(){ return wallpaperFps; }, setWallpaperFps, setFreeze,
+  setDetail:i => setOpt('detail', i, true), render, zoomTo, tick, caption:dt => updateCaption(dt), get showcap(){ return SHOWCAP.txt; }, flightDur:() => flight ? flight.dur : 0, hud:() => { roTimer = 0; updateHUD(0.2); }, get wallpaperFps(){ return wallpaperFps; }, setWallpaperFps, setFreeze, get wallpaperTitlePos(){ return wallpaperTitlePos; }, setWallpaperTitlePos, get wallpaperTextSize(){ return wallpaperTextSize; }, setWallpaperTextSize,
   simulate:(sec) => { for (let k=0; k<sec*30; k++) tick(1/30); return { obj:tour.obj, view:tour.view, phase:tour.phase, lock:orbit.lock }; },
   view:(i, v) => { if (typeof i === 'string') i = BYKEY[i].index; const o = OBJ[i], vp = viewParams(o, v); flight = null; shipCam.on = false; tween = null; cam.focus = i; leash.x = leash.y = 0; orbit.lock = i; orbit.frame = camFrameOf(o); orbit.yaw = vp.yaw; orbit.pitch = vp.pitch; orbit.dist = orbit.distT = vp.dist; orbit.off = vp.off; orbit.offFn = vp.offFn; orbit.target = V.add(frel(o), vp.off); setInfo(i); applyOrbit(); tick(0); } };
 queueNextFrame();
