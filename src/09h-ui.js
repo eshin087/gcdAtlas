@@ -123,6 +123,7 @@ function updateIdle(){
 // ---------------------------------------------------------------- phones: frame the object in the space the interface leaves free, not behind the card or an open panel
 let shiftT0 = 0, shiftTx = 0, shiftTy = 0;
 function shiftTarget(){
+  leash.fx = leash.fy = 0.7;
   if (!isCompact() || SKYV.on){ shiftTx = shiftTy = 0; return; }
   const W = innerWidth, H = innerHeight, top = 44;
   if (PORTRAIT_MQ.matches){
@@ -135,6 +136,8 @@ function shiftTarget(){
     for (const el of els){ const r = el.getBoundingClientRect(); if (r.height > 0) bottom = Math.min(bottom, r.top); }
     const s = Math.max(0, (H - bottom - top)/2);
     shiftTx = 0; shiftTy = Math.atan(2*s/Math.max(viewHcss, 1)*tanY);
+    // the leash: the object slid by two fingers stays within 35% of the free space from its middle, clear of the card and the dock
+    leash.fy = 0.7*clamp((bottom - top)/Math.max(viewHcss, 1), 0.2, 1);
   } else {
     // on its side: panels open on the right, the card sits on the left; move the object into the free middle
     let left = 0, right = W, bottom = controlsEl.getBoundingClientRect().top;
@@ -147,8 +150,13 @@ function shiftTarget(){
     const sx = (left + right)/2 - W/2, sy = (H - bottom - top)/2;
     shiftTx = Math.atan(2*sx/Math.max(viewWcss, 1)*tanX);
     shiftTy = Math.atan(2*Math.max(0, sy)/Math.max(viewHcss, 1)*tanY);
+    leash.fx = 0.7*clamp((right - left)/Math.max(viewWcss, 1), 0.2, 1); leash.fy = 0.7*clamp((bottom - top)/Math.max(viewHcss, 1), 0.2, 1);
   }
 }
+// a pinch that starts on the card must not zoom the whole page (the CSS says so too; Safari also needs its gesture events stopped),
+// while one finger still scrolls the card
+for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev, e => e.preventDefault(), { passive:false });
+infoEl.addEventListener('touchmove', e => { if (e.touches.length > 1 && e.cancelable) e.preventDefault(); }, { passive:false });
 function updateShift(dt){
   shiftT0 -= dt; if (shiftT0 <= 0){ shiftT0 = 0.2; shiftTarget(); }
   const k = Math.min(1, dt*3.5);
