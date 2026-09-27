@@ -4,6 +4,24 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.8.5 · 2026-09-26
+
+**Say where it goes**
+- A green button beside the object's name says where it goes. On a tour it reads "next stop · Moon ›", and on the last stop "start again ›". Once you leave a tour it reads "back to the tour · Earth ›" and flies back to the stop you left. If you only paused on a stop (a drag, the pause button), it goes on to the next stop. With no tour involved it is hidden. The phone card has it too.
+- The camera-angle arrows moved onto the angle line: "‹ angle 1/5 [#####-----] ›". The grey ASCII bar is unchanged. Every tap moves one angle, also while the camera is still swinging to the last one (fast taps used to be lost), and the line shows the angle it is swinging to.
+- The tour's name above the object's name is a button: "GRAND TOUR ▾" opens the list of tours.
+- The row above the name says something useful: "stop 3 / 31" on a tour. Off a tour it names the kind of object ("gas giant") while the type line below is folded away. It used to read "-- / 31".
+- The ‹ › around "tours" in the top bar are gone, and so are both "resume tour" buttons (the green button does that now). [ and ] still step through the stops on a tour and along the scale bar otherwise. Pausing from the tours panel remembers the stop, like the pause button.
+- On a touch screen the first tap on a faded button works (it used to only bring the interface back). A tap on the sky still only brings it back.
+- Esc closes whatever is open first: help, photo mode, Earth's story, the tours, time or settings panel, the atlas or the search. It lets go of the object only when nothing is open.
+- The scale bar hides while the search or the atlas is open (it used to move out into the scene). Picking something from the search empties the search box.
+
+**Tour angles**
+- On a tour Earth plays three of its angles, about 30 s instead of a minute: the day side, the horizon up close and the night side. Picked by itself it still loops through all five.
+- Earth's night-side angle looked empty, especially on a phone: a dark disc with a few city lights. It now looks from a little further round, so a lit crescent sits beside the city lights.
+- Gaia BH1's second angle showed two small smudges. The camera now sits closer and nearer the line to the star, so the star's light bends into two long arcs around the shadow that close into a ring and open again.
+- Every grand tour angle was checked on a desk and a phone. Tours now skip the angles that looked empty: Jupiter's wide view of its moons (specks at that distance), and the views back at the Sun from behind Jupiter and Saturn, and Saturn's night side (a dark disc and a thin crescent). They still play when you pick the planet yourself.
+
 ## 0.8.4 · 2026-09-26
 
 **Stay with it: phone gestures**
