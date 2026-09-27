@@ -1,6 +1,6 @@
 // Camera motion regression: the angle loop after picking an object, play / pause (button and space), flights that land
 // exactly on a moving destination (no jump on arrival), ladder picks that keep moving, riding along with the Halo, tour trips without zoom dips,
-// the Halo at work (always travelling, light speed and folds, its jobs, scan beams on the surface), and the controls that say where they go
+// the Halo at work (always travelling, light speed and folds, its jobs, scan beams on the surface, Pip the drone), and the controls that say where they go
 // (next stop, angle arrows that count every tap, Esc closing panels first, the tour's angles at Earth). Deterministic: the page's clock is fixed and
 // its own animation loop frozen, so only __cosmos.tick moves the simulation, and the Halo flies a route of its own (dbg.reset): every run is the same.
 // Usage: node tests/motion.mjs
@@ -194,6 +194,12 @@ const halo = await page.evaluate(HALO_SEED => {
   const made = new Set(); let blasts = 0; n = 0; while (D.act === 'weapons' && n++ < 30*40){ C.tick(dt); const b = D.FX.filter(e => e.anc === C.BYKEY.moon); b.forEach(e => made.add(e)); blasts = Math.max(blasts, b.length); }
   for (let i=0;i<30*6;i++) C.tick(dt);
   r.blasts = blasts; r.leftAfter = D.FX.filter(e => made.has(e)).length;
+  // a probe at Mars: Pip, the drone, is out during the job, never below the drawn surface, back at the bay before it hides, and stowed after
+  D.force({ target:'mars', act:'probe', travel:'fold' }); D.replan(); D.skip();
+  n = 0; while (!(S.phase === 'pass' && S.target.key === 'mars') && n++ < 30*60) C.tick(dt);
+  const pip = D.drone; let outN = 0, lastOut = null, said = false; n = 0;
+  while (D.act === 'probe' && n++ < 30*40){ C.tick(dt); const s = pip.state; if (s.st === 'out'){ outN++; lastOut = s; } if (/Pip/.test(h.readout())) said = true; }
+  r.pip = { at:S.target.key, out:outN, bayD:lastOut ? +lastOut.bayD.toFixed(4) : -1, minAlt:lastOut ? +lastOut.minAlt.toFixed(4) : -1, after:pip.state.st, said };
   return r;
 }, HALO_SEED);
 if (halo.stopped) fail('the Halo stood still for ' + halo.stopped + ' steps');
@@ -203,6 +209,7 @@ if (halo.maxRate > halo.rateLimit) fail('the Halo turned at ' + halo.maxRate + '
 if (!halo.modes.light || !halo.modes.fold) fail('the Halo did not use both light speed and folds: ' + JSON.stringify(halo.modes));
 if (Object.keys(halo.acts).length < 4) fail('the Halo did fewer than 4 kinds of job: ' + JSON.stringify(halo.acts));
 if (halo.beams < 20 || halo.beamWorst > 1e-3) fail('scan beams do not end on the surface: ' + JSON.stringify({ beams:halo.beams, worst:halo.beamWorst }));
+if (halo.pip.at !== 'mars' || halo.pip.out < 30*10 || !(halo.pip.bayD >= 0 && halo.pip.bayD < 0.05) || !(halo.pip.minAlt >= 0) || halo.pip.after !== 'stowed' || !halo.pip.said) fail('Pip, the drone, did not go out, stay above the ground and dock: ' + JSON.stringify(halo.pip));
 if (!halo.blasts || halo.leftAfter) fail('the weapons test did not blast, or left something behind: ' + JSON.stringify({ blasts:halo.blasts, left:halo.leftAfter }));
 
 // 8b. hops that went wrong before 0.8.7, each flown on purpose from a pass that showed it: into a galaxy the ship is inside (it flew out to the
@@ -312,5 +319,5 @@ if (say.escSearch.atlas || say.escSearch.box || !say.escSearch.lock) fail('Esc i
 if (say.escNothing !== null) fail('Esc with nothing open did not let go of the object');
 if (say.earth.views.join() !== '0,2,1' || say.earth.t < 26 || say.earth.t > 36) fail('the tour does not play three Earth angles in about 30 s: ' + JSON.stringify(say.earth));
 
-report('motion', errors, `next stop, start again and back to the tour · three fast angle taps, three angles · Esc closes panels first · Earth on the tour: angles ${say.earth.views.join(', ')} in ${say.earth.t} s · home from the Crab pauses the tour · free camera stays with Earth (${stay.drift.off.toFixed(1)}° off centre after 5 s), back by play and by the pill ("${(stay.pill || '').replace(/^\W/, '› ')}") · Jupiter x${stay.jupiterFree} after letting go, x${stay.overviewFree} in the overview · W A S D within ${stay.reach} view distances · Saturn loops through ${loop.views} angles · pause, play and space work · universe to Earth, largest frame-to-frame change x${fl.worstFrameToFrameScale} · ladder picks keep moving · riding the Halo through a fold and a light-speed jump (camera within ${ride.farAfterFold.toFixed(2)} / ${ride.farInLightSpeed.toFixed(2)} of ${ride.rig.toFixed(2)} ship radii) · the Halo always moving (tightest turn ${halo.minTurnRadius} ship lengths, at most ${halo.maxTurn20s} degrees in 20 s and ${halo.maxRate} of ${halo.rateLimit} degrees a second) · ${hops.out.length} hops that used to go wrong, now at most ${Math.max(...hops.out.map(o => o.rate))} degrees a second (${hops.out.filter(o => o.by === 'fold').map(o => o.hop).join(', ')} fold), ${Object.keys(halo.acts).length} kinds of job, ${halo.beams} scan beams on the surface (error ${halo.beamWorst.toExponential(1)}) · Moon → ${nav.next} → ${nav.next2} · mid-flight speed change ${nav.slow}s → ${nav.fast}s · ${trips.n} tour trips without dips (${trips.passes} pass-bys)`);
+report('motion', errors, `next stop, start again and back to the tour · three fast angle taps, three angles · Esc closes panels first · Earth on the tour: angles ${say.earth.views.join(', ')} in ${say.earth.t} s · home from the Crab pauses the tour · free camera stays with Earth (${stay.drift.off.toFixed(1)}° off centre after 5 s), back by play and by the pill ("${(stay.pill || '').replace(/^\W/, '› ')}") · Jupiter x${stay.jupiterFree} after letting go, x${stay.overviewFree} in the overview · W A S D within ${stay.reach} view distances · Saturn loops through ${loop.views} angles · pause, play and space work · universe to Earth, largest frame-to-frame change x${fl.worstFrameToFrameScale} · ladder picks keep moving · riding the Halo through a fold and a light-speed jump (camera within ${ride.farAfterFold.toFixed(2)} / ${ride.farInLightSpeed.toFixed(2)} of ${ride.rig.toFixed(2)} ship radii) · the Halo always moving (tightest turn ${halo.minTurnRadius} ship lengths, at most ${halo.maxTurn20s} degrees in 20 s and ${halo.maxRate} of ${halo.rateLimit} degrees a second) · ${hops.out.length} hops that used to go wrong, now at most ${Math.max(...hops.out.map(o => o.rate))} degrees a second (${hops.out.filter(o => o.by === 'fold').map(o => o.hop).join(', ')} fold), ${Object.keys(halo.acts).length} kinds of job, ${halo.beams} scan beams on the surface (error ${halo.beamWorst.toExponential(1)}), Pip out ${(halo.pip.out/30).toFixed(1)} s at Mars and docked (${halo.pip.bayD} ship radii from the bay, lowest ${halo.pip.minAlt} surface radii up) · Moon → ${nav.next} → ${nav.next2} · mid-flight speed change ${nav.slow}s → ${nav.fast}s · ${trips.n} tour trips without dips (${trips.passes} pass-bys)`);
 await browser.close();
