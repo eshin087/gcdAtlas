@@ -12,8 +12,8 @@ All notable changes, newest first. Dates are UTC.
 - The tour's name above the object's name is a button: "GRAND TOUR ▾" opens the list of tours.
 - The row above the name says something useful: "stop 3 / 31" on a tour. Off a tour it names the kind of object ("gas giant") while the type line below is folded away. It used to read "-- / 31".
 - The ‹ › around "tours" in the top bar are gone, and so are both "resume tour" buttons (the green button does that now). [ and ] still step through the stops on a tour and along the scale bar otherwise. Pausing from the tours panel remembers the stop, like the pause button.
-- On a touch screen the first tap on a faded button works (it used to only bring the interface back). A tap on the sky still only brings it back.
-- Esc closes whatever is open first: help, photo mode, Earth's story, the tours, time or settings panel, the atlas or the search. It lets go of the object only when nothing is open.
+- On a touch screen the first tap on a faded button works (it used to only bring the interface back). A tap on the sky still only brings it back. So does a tap on the line of the faded scale bar on a tablet (its names are buttons and work at once).
+- Esc closes whatever is open first: help, photo mode, Earth's story, the tours, time or settings panel, the atlas or the search. It lets go of the object only when nothing is open. It also closes a panel while one of its sliders has the focus.
 - The scale bar hides while the search or the atlas is open (it used to move out into the scene). Picking something from the search empties the search box.
 
 **Tour angles**
@@ -22,6 +22,7 @@ All notable changes, newest first. Dates are UTC.
 - Gaia BH1's second angle showed two small smudges. The camera now sits closer and nearer the line to the star, so the star's light bends into two long arcs around the shadow that close into a ring and open again.
 - Betelgeuse seen from above and SN 1987A's first angle (the rings before the flash) were small specks on a phone. Both cameras now sit closer.
 - Every grand tour angle was checked on a desk and a phone. Tours now skip the angles that looked empty: Jupiter's wide view of its moons (specks at that distance), and the views back at the Sun from behind Jupiter and Saturn, and Saturn's night side (a dark disc and a thin crescent). They still play when you pick the planet yourself.
+- Tours also skip the Crab Pulsar's closest angle: from 80 km its glow filled the whole screen with bright characters. Picked by itself it still plays.
 
 ## 0.8.4 · 2026-09-26
 

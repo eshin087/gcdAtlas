@@ -109,7 +109,9 @@ body.info-hidden .info{display:none}
 .brand,.lad-chip,.play-m,.info-pill,.itools,.grip,.info .nav,.info .gonext,.info .stop,.info .title,.info .acts,.info .type,.info .where,.info .fact,.info .readout,.info .scale,.info .progress{transition:opacity .25s}
 body.ui-idle .controls,body.ui-idle .ladder,body.ui-idle .lad-chip,body.ui-idle .play-m,body.ui-idle .brand,body.ui-idle .info-pill,body.ui-idle .daily,body.ui-idle .shiparrow,body.ui-idle .backpill,
 body.ui-idle .itools,body.ui-idle .grip,body.ui-idle .info .nav,body.ui-idle .info .gonext,body.ui-idle .info .acts,body.ui-idle .info .type,body.ui-idle .info .where,body.ui-idle .info .fact,body.ui-idle .info .readout,body.ui-idle .info .scale{opacity:0!important;transition:opacity 1s ease-in}
-/* a faded button still works on the first tap (it also brings the interface back); a tap on the sky only brings it back (src/09h-ui.js) */
+/* a faded button still works on the first tap (it also brings the interface back); a tap on the sky only brings it back (src/09h-ui.js).
+   The scale bar's faded track is sky too: on a touch screen a tap there would otherwise fly to the nearest marker (tablets keep the desk layout) */
+@media (pointer:coarse){ body.ui-idle .lad-track,body.ui-idle .ladmark{pointer-events:none} }
 body.ui-idle .info .stop,body.ui-idle .info .title,body.ui-idle .info .progress{opacity:.5;transition:opacity 1s ease-in}
 body.ui-idle .info .progress.hintish,body.ui-idle .info .progress.tip{opacity:0}
 body.ui-idle .info::before{opacity:0;transition:opacity 1s}

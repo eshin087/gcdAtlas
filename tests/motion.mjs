@@ -243,6 +243,9 @@ const say = await page.evaluate(() => {
   C.setTour(false); C.tour.last = null; C.lockOn(C.BYKEY.mars.index); C.land(0.1); C.hud(); r.none = btn();
   r.gone = ['tourPrev', 'tourNext', 'btnResume', 'btnResumeI'].filter(id => document.getElementById(id));
   document.getElementById('btnSettings').click(); key('Escape'); r.escSettings = { open:!document.getElementById('settings').hidden, lock:lock() };
+  // (also with the focus on one of its sliders)
+  document.getElementById('btnSettings').click(); const ts = document.getElementById('textSize'); ts.focus(); ts.dispatchEvent(new KeyboardEvent('keydown', { key:'Escape', bubbles:true }));
+  r.escSlider = { open:!document.getElementById('settings').hidden, lock:lock() };
   document.getElementById('btnAtlas').click(); r.ladderInAtlas = getComputedStyle(document.getElementById('ladder')).display; key('Escape'); r.escAtlas = { open:!document.getElementById('atlas').hidden, lock:lock() };
   const s = document.getElementById('search'); s.focus(); s.value = 'jupiter'; s.dispatchEvent(new Event('input', { bubbles:true }));
   s.dispatchEvent(new KeyboardEvent('keydown', { key:'Enter', bubbles:true })); r.pick = { to:C.stepTarget, box:s.value, box2:document.getElementById('atlasSearch').value }; C.land(0.1);
@@ -262,6 +265,7 @@ if (say.left !== 'back to the tour · Earth›' || !say.leftBack || say.backTo !
 if (say.none !== null) fail('the green button shows with no tour involved: ' + say.none);
 if (say.gone.length) fail('these should be gone: ' + say.gone.join(', '));
 if (say.escSettings.open || say.escSettings.lock !== 'mars') fail('Esc did not close settings first: ' + JSON.stringify(say.escSettings));
+if (say.escSlider.open || say.escSlider.lock !== 'mars') fail('Esc on a settings slider did not close settings (or let go): ' + JSON.stringify(say.escSlider));
 if (say.ladderInAtlas !== 'none') fail('the scale bar shows while the atlas is open');
 if (say.escAtlas.open || say.escAtlas.lock !== 'mars') fail('Esc did not close the atlas first: ' + JSON.stringify(say.escAtlas));
 if (say.pick.to !== 'jupiter' || say.pick.box || say.pick.box2) fail('a pick from the search did not empty the box: ' + JSON.stringify(say.pick));

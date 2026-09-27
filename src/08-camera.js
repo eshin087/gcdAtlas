@@ -568,7 +568,8 @@ function pick(cx, cy){
   return best >= 0;
 }
 addEventListener('keydown', e => {
-  if (e.target.closest && (e.target.closest('input') || (e.target.closest('button') && (e.key === ' ' || e.key === 'Enter')))) return;
+  // (keys typed into a box or a slider stay there; Esc still closes the panel around a slider: the search boxes handle their own Esc)
+  if (e.target.closest && ((e.target.closest('input') && e.key !== 'Escape') || (e.target.closest('button') && (e.key === ' ' || e.key === 'Enter')))) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   const k = e.key.toLowerCase();
   if (!$('#help').hidden){ if (k === 'escape' || k === '?') toggleHelp(false); return; }
