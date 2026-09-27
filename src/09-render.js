@@ -844,7 +844,7 @@ function focusSearch(){ if (IS_SMALL || getComputedStyle(searchEl.parentElement)
 $('#prevObj').addEventListener('click', () => { hideHint(); stepAngle(-1); });
 $('#nextObj').addEventListener('click', () => { hideHint(); stepAngle(1); });
 $('#btnTour').addEventListener('click', () => { hideHint(); setTour(!tour.on); });
-$('#btnFree').addEventListener('click', () => { hideHint(); unlock(); toast('free camera · W A S D to fly, drag to look around'); });
+$('#btnFree').addEventListener('click', () => { hideHint(); unlock(); toast(isCompact() ? 'free camera · drag to look around · ⌂ for home' : 'free camera · W A S D to fly, drag to look around · H for home'); });
 $('#btnShip').addEventListener('click', () => setOpt('haloMark', !SET.haloMark));
 const toggleRide = () => { if (shipCam.on || (shipCam.pending && flight)){ if (flight) finishFlightHere(); shipCam.pending = false; stopShipCam(); toast('stopped riding · the camera stays with the Halo'); updateModeUI(); } else followShip(); };
 $('#btnRide').addEventListener('click', toggleRide);
