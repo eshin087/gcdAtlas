@@ -60,8 +60,9 @@ function behindHull(p){
   const s = ship.rad*ship.S.scale, R = ship.R0, o = M3.applyT(R, V.mul(ship.rel, -1/s)), q = M3.applyT(R, V.mul(V.sub(p, ship.rel), 1/s)), d = V.sub(q, o);
   const E = [0.055, 0.54, 0.1], oe = [o[0]/E[0], (o[1] - 0.32)/E[1], o[2]/E[2]], de = [d[0]/E[0], d[1]/E[1], d[2]/E[2]];
   const a = V.dot(de, de), b = V.dot(oe, de), c = V.dot(oe, oe) - 1, h = b*b - a*c;
-  if (h > 0){ const t = (-b - Math.sqrt(h))/a; if (t > 0 && t < 0.995) return true; }
-  if (Math.abs(d[0]) > 1e-12){ const t = (-0.02 - o[0])/d[0]; if (t > 0 && t < 0.995 && inArm(o[1] + d[1]*t, Math.abs(o[2] + d[2]*t))) return true; }
+  // (in a fold only the cells still there hide anything)
+  if (h > 0){ const t = (-b - Math.sqrt(h))/a; if (t > 0 && t < 0.995 && liveCell(o[1] + d[1]*t, o[2] + d[2]*t)) return true; }
+  if (Math.abs(d[0]) > 1e-12){ const t = (-0.02 - o[0])/d[0]; if (t > 0 && t < 0.995 && inArm(o[1] + d[1]*t, Math.abs(o[2] + d[2]*t)) && liveCell(o[1] + d[1]*t, o[2] + d[2]*t)) return true; }
   const oc = V.sub(o, HULL.core), dd = V.dot(d, d), bc = V.dot(oc, d), hc = bc*bc - dd*(V.dot(oc, oc) - 0.0016);
   if (hc > 0){ const t = (-bc - Math.sqrt(hc))/dd; if (t > 0 && t < 0.995) return true; }
   return false;
@@ -255,7 +256,7 @@ function legAt(L, t){
 // ---------------------------------------------------------------- state
 const S_ = ship.S;
 Object.assign(S_, { force:{}, lastSkim:-9, lastAct:null, plan:null, next:null, align:null, leg:null, fold:null, act:null, h:[0, 1, 0], belly:null, vel:[0, 0, 0], speed:0,
-  viewA:0, side:1, hFrom:null, jumpAt:0, stretch:0, lsRun:0, emerge:1, seedN:1, vesc:0, gTg:null, climbK:0 });
+  viewA:0, side:1, hFrom:null, jumpAt:0, stretch:0, lsRun:0, emerge:1, seedN:1, vesc:0, gTg:null, climbK:0, fk:-9, asm:9, eat:0, csL:false, wz:1 });
 const riding = () => shipCam.on || (!tour.on && orbit.lock === ship.index && cam.focus === ship.index);
 const camNear = () => cam.focus === ship.index && V.len(cam.rel) < ship.rad*80;
 // the camera is not riding but was left looking at the ship: keep it where it is (on the body the ship is leaving) rather than dragging it along
@@ -344,9 +345,11 @@ function endLight(){
 function endFold(){
   const B = S_.next.tg;
   S_.belly = null; S_.viewA = 0; S_.fold = null;
-  if (riding()){ foldFlash(); music.whoosh(1.2); }
+  if (riding()){ foldFlash('blink'); music.whoosh(1.2); }
+  // (riding along, the camera folds with the ship: it keeps its place behind it, rather than swinging round to where the ship now heads)
+  if (shipCam.on && shipCam.eye){ const R = ship.R0; S_.reseat = [M3.applyT(R, shipCam.eye), M3.applyT(R, shipCam.fwd), M3.applyT(R, shipCam.up)]; }
   foldVisit(B, S_.next);
-  S_.emerge = 0;
+  S_.emerge = 0; S_.asm = 0; S_.csL = false;   // (the hull forms again: foldUpdate)
   fxFoldIn();
 }
 
@@ -423,7 +426,7 @@ function shieldUpdate(dt){
 }
 ship.update = function(dt){
   if (!S_.plan){ S_.visits = 0; foldVisit(BYKEY.saturn); S_.t = 3; }
-  if (S_.hold){ shieldUpdate(dt); return; }   // (the showcase holds it still while the camera circles it; on the site it never stops)
+  if (S_.hold){ shieldUpdate(dt); foldUpdate(dt); return; }   // (the showcase holds it still while the camera circles it, the hull still forming if it just folded in; on the site it never stops)
   // (a camera flying up to the ship: the ship carries on, but it will not jump until the camera has landed)
   const flying = !!(flight && flight.obj === ship);
   S_.t += dt;
@@ -432,7 +435,9 @@ ship.update = function(dt){
   if (S_.phase === 'light' && S_.t >= S_.leg.T) endLight();
   if (S_.phase === 'fold' && S_.t >= HALO.FOLD_T) endFold();
   placeShip(dt);
+  if (S_.reseat){ const R = ship.R0, q = S_.reseat; S_.reseat = null; if (shipCam.on && shipCam.eye){ shipCam.eye = M3.apply(R, q[0]); shipCam.fwd = M3.apply(R, q[1]); shipCam.up = M3.apply(R, q[2]); } }
   shieldUpdate(dt);
+  foldUpdate(dt);
   // the look of the drive: spool (reactor surge before a fold), light-speed sheen, scale (collapse and emergence)
   const al = S_.phase === 'align', sp = al ? smooth(S_.jumpAt - (S_.next.mode === 'fold' ? HALO.FOLD_SPOOL : HALO.LS_SPOOL), S_.jumpAt, S_.t) : 0;
   S_.spool = al && S_.next.mode === 'fold' ? sp : Math.max(0, S_.spool - dt*2);
@@ -440,10 +445,9 @@ ship.update = function(dt){
   if (S_.phase === 'fold'){ const u = smooth(0, HALO.FOLD_T, S_.t); S_.scale = 1 - u*u*0.99; }
   else S_.scale = 0.02 + 0.98*smooth(0, 1, S_.emerge);
   // the light-speed sheen on the hull's edges: it rises as the ship jumps, settles during the leg, peaks again as it drops out and fades over
-  // 0.4 s after (a fold lights it too while the ship collapses and grows back)
+  // 0.4 s after (a fold has its own look: foldUpdate)
   const lsg = S_.phase === 'light' ? Math.max(1 - 0.4*smooth(0, 0.6, S_.t), 0.6 + 0.4*smooth(S_.leg.T - 0.5, S_.leg.T, S_.t)) : (al && S_.next.mode === 'light' ? smooth(S_.jumpAt - 0.6, S_.jumpAt, S_.t) : 0);
-  const fg = S_.phase === 'fold' ? Math.min(1, S_.t/0.15) : (1 - S_.emerge)*1.2;
-  S_.ls = Math.max(lsg, fg, S_.ls - dt/0.4, 0);
+  S_.ls = Math.max(lsg, S_.ls - dt/0.4, 0);
   // the star streaks: stretch before the jump, full during it, shrinking back as the ship drops out
   S_.stretch = S_.phase === 'light' ? (S_.t < 0.3 ? 0.55 + 0.45*smooth(0, 0.3, S_.t) : 1 - smooth(S_.leg.T - 0.45, S_.leg.T, S_.t)) : (al && S_.next.mode === 'light' ? 0.55*smooth(S_.jumpAt - 0.7, S_.jumpAt, S_.t) : Math.max(0, S_.stretch - dt*3));
   S_.lsRun = S_.phase === 'light' ? S_.lsRun + dt*(0.5 + 1.6*S_.stretch) : S_.lsRun;
@@ -740,7 +744,7 @@ precision mediump float;
 in vec3 vC; out vec4 o;
 void main(){ vec2 q = gl_PointCoord*2. - 1.; float r2 = dot(q, q); if(r2 > 1.) discard; float a = clamp(vC.r, 0., 0.9)*exp(-r2*2.5); o = vec4(vec3(0.05, 0.04, 0.035)*a, a); }`;
 P.fxPt = program(VS_FX, FS_POINT); P.fxLn = program(VS_FX, FS_LINE); P.fxSm = program(VS_FX, FS_SMOKE);
-const FXB = { pt:makePS(2600), ln:makePS(3600), sm:makePS(240), np:0, nl:0, ns:0 };
+const FXB = { pt:makePS(3200), ln:makePS(4400), sm:makePS(240), np:0, nl:0, ns:0 };
 function P_(p, c, br, size){ if (FXB.np >= FXB.pt.n || !(br > 0.004)) return; const a = FXB.pt.a, k = FXB.pt.c, i = FXB.np++*4; a[i] = p[0]; a[i + 1] = p[1]; a[i + 2] = p[2]; a[i + 3] = br; k[i] = c[0]; k[i + 1] = c[1]; k[i + 2] = c[2]; k[i + 3] = size; }
 // (a line is one scene pixel wide, so it needs several times the light of a point to read as characters: LK)
 const LK = 4;
@@ -862,30 +866,259 @@ function fxLightIn(){
   fxAdd({ T:0.45, draw(e){ const u = e.t/e.T, f = 1 - u, tip = shipPt(HULL.gun);
     P_(tip, [0.85, 0.95, 1], 1.6*f*f, -6); ringIn(tip, V.norm(localPt([1, 0, 0])), ship.rad*(0.3 + 3.7*(1 - Math.exp(-u*3))), [0.6, 0.85, 1], 0.3*f*f, 48); } });
 }
-// fold: the swirl of space round the ship during the spool, the collapse (a flash and a shock ring where it was), and the burst when it arrives
+// fold: the moment it goes (the hull is gone by then: the look of the fold itself is foldDraw and the ship's shader) and the moment it arrives.
+// A: the heart winks out with a small flash and a thin ring; B: the dark heart pinches shut, a flash and a shock ring; C: nothing at the ship
+// (the thread's head flashes far ahead). Arriving: A a small flash as the heart opens, B a burst, C the thread's head coming back in.
 function fxFoldOut(A, q, h){
-  fxAdd({ T:1.4, anc:A, q, h, draw(e){ const O = V.add(e.anc.rel, e.q), t = e.t;
-    if (t < 0.5) P_(O, [0.85, 0.95, 1], 3*Math.exp(-t/0.12), -30);
-    const u = t/1.2; if (u < 1){ ringIn(O, e.h, ship.rad*(1 + 26*(1 - Math.exp(-t*3))), [0.55, 0.9, 1], 0.9*(1 - u)*(1 - u), 64); ringCam(O, ship.rad*(1 + 14*(1 - Math.exp(-t*4))), [0.8, 0.9, 1], 0.5*(1 - u)*(1 - u), 64); } } });
+  if (foldLook === 3) return;
+  const B = foldLook === 2;
+  fxAdd({ T:0.9, anc:A, q, h, draw(e){ const O = V.add(e.anc.rel, e.q), t = e.t;
+    if (t < 0.4) P_(O, [0.85, 0.95, 1], (B ? 2.2 : 1.4)*Math.exp(-t/0.1), B ? -18 : -12);
+    const u = t/0.9; if (u < 1) ringIn(O, e.h, ship.rad*(0.3 + (B ? 3.5 : 2.2)*(1 - Math.exp(-t*3.5))), [0.55, 0.85, 1], (B ? 0.55 : 0.3)*(1 - u)*(1 - u), 64); } });
 }
 function fxFoldIn(){
-  const g = Array.from({ length:110 }, () => ({ d:randDir(), s:6 + 16*rnd() }));
-  fxAdd({ T:1.3, draw(e){ const t = e.t, O = ship.rel;
-    P_(O, [0.85, 0.95, 1], 3.5*Math.exp(-t/0.14), camNear() ? -60 : -30);
-    const u = t/1.1; if (u < 1){ ringIn(O, S_.h, ship.rad*(0.8 + 16*(1 - Math.exp(-t*3.2))), [0.55, 0.9, 1], 1.0*(1 - u)*(1 - u), 64); ringIn(O, S_.h, ship.rad*(0.5 + 9*(1 - Math.exp(-t*2.2))), [0.9, 0.7, 1], 0.6*(1 - u)*(1 - u), 64); }
-    for (const q of g){ const f = 1 - t/0.9; if (f <= 0) break; const p = V.add(O, V.mul(q.d, ship.rad*q.s*(1 - Math.exp(-t*3)))); if (!behindHull(p)) P_(p, [0.6, 0.9, 1], 0.8*f, -2); } } });
+  if (foldLook === 3) return;
+  const B = foldLook === 2;
+  fxAdd({ T:0.9, draw(e){ const t = e.t, O = shipPt(HULL.core);
+    P_(O, [0.85, 0.95, 1], (B ? 2.6 : 1.2)*Math.exp(-t/(B ? 0.16 : 0.12)), B ? -22 : -10);
+    const u = t/0.7; if (B && u < 1) ringIn(O, V.norm(localPt([1, 0, 0])), ship.rad*(0.1 + 1.3*(1 - Math.exp(-t*4))), [0.55, 0.9, 1], 0.5*(1 - u)*(1 - u), 64); } });
+}
+
+// ================================================================ the fold's look (made up, like the ship; ?fold=a|b|c, see foldLook in 07-extras.js)
+// A ember wind: the hull burns away cell by cell from the needle's tip, its embers and ash blow off to one side in a stream, then the heart pulls
+// them back in and winks out; on arrival the stream flows back and the hull forms from the heart outward, the needle last. B singularity: the heart turns dark and
+// swallows the ship from its outer tips in, a flat whirl of light round it, then pinches shut; on arrival it bursts and the pieces spiral back
+// out to their places. C streak-out: from the engines forward each cell shoots ahead as a dash, so the ship pours itself into a thread of
+// light that snaps away; on arrival the thread pours back into it, the needle first.
+// Its own clocks, so the route's timing is untouched: fk counts to the jump (negative before it, 0 to FOLD_T in the fold; it runs back, and
+// the hull forms again, if the jump is put off), asm from the arrival. The shield folds into the heart first and forms again last.
+const FLK = { SH0:-2.6, SH1:-2.1, D0:[0, -2.1, -2.1, -1.6][foldLook], D1:-0.5, P:[0, 1, 1, 1.25][foldLook], A0:0.15, A1:[0, 1.7, 1.55, 1.3][foldLook], SHR:0.7, RIMW:0.1 };
+const FLK_END = FLK.A1 + FLK.SHR + 0.1;
+// the ship's outline in its plane (y, w = |z|): the same shapes as bowPlan, armPlan and the nacelles in the shader
+const KS_ = [-0.041, 0.108], KN_ = [-0.187, 0], N1_ = [0.1225, 0.9925], N2_ = [-0.5947, 0.8039];
+const bowPlanJS = (y, w) => Math.max((y - KS_[0])*N1_[0] + (w - KS_[1])*N1_[1], (y - KN_[0])*N2_[0] + (w - KN_[1])*N2_[1]);
+function armPlanJS(y, w){
+  const vy = y + 0.567, vw = w + 0.33, r = Math.hypot(vy, vw), u = (Math.atan2(vw, vy) - 0.698)/1.1;
+  const Ro = 0.68 + 0.012*Math.exp(-(u - 0.3)*(u - 0.3)*25), cf = Math.max(1 - (0.508 - u)/0.1, 0), cr = Math.max(1 - (u - 0.508)/0.2, 0), cl = u < 0.508 ? cf*Math.sqrt(cf) : cr*cr;
+  const wd = 0.089*smooth(0, 0.45, u)*(1 - smooth(0.68, 1, u)) + 0.063*cl, d = Math.max(Math.max(r - Ro, Ro - wd - r), Math.max(-u, u - 1)*r*1.1);
+  return d*(0.92 - 0.26*Math.min(cl*1.5, 1));
+}
+function nacPlanJS(y, w){ const ay = -0.832, aw = 0.287, by = -0.63, bw = 0.305, h = clamp(((y - ay)*(by - ay) + (w - aw)*(bw - aw))/((by - ay)**2 + (bw - aw)**2), 0, 1);
+  return Math.min(Math.hypot(y - ay - (by - ay)*h, w - aw - (bw - aw)*h) - 0.017, Math.max(Math.abs(y + 0.775) - 0.006, Math.abs(w - 0.289) - 0.029)); }
+const liftJS = w => { const u = Math.max(w - 0.1, 0)/0.26; return -0.075*u*u; };
+const planD = (y, w) => Math.min(bowPlanJS(y, w), armPlanJS(y, w), nacPlanJS(y, w));
+// the cells of the hull for the cell size cs (about one character on screen, chosen as a break-up starts): where each is (y, z, the middle and
+// half the thickness of its plate), when it goes as the ship leaves (fo, and the fold clock at which it goes, rel) and when it lands as the
+// ship arrives (fi, and the arrival clock at which it lands, land), and five dice. g runs from gLo (every cell there and cool) to gHi (all gone).
+const CEL = { cs:0, n:0, a:null, gLo:[0, 0], gHi:[0, 0] };
+const CW = 14;   // (numbers per cell: y z xc xh fo fi rel land k0..k4 th0, its angle round the heart)
+function buildCells(cs){
+  if (CEL.cs === cs) return;
+  const L = [], r = lcg(90210), iy0 = Math.floor(-0.92/cs), iy1 = Math.floor(0.87/cs), iz0 = Math.floor(-0.46/cs), iz1 = Math.floor(0.46/cs);
+  let lo0 = 9, hi0 = -9, lo1 = 9, hi1 = -9;
+  for (let iy=iy0;iy<=iy1;iy++) for (let iz=iz0;iz<=iz1;iz++){
+    const y = (iy + 0.5)*cs, z = (iz + 0.5)*cs, w = Math.abs(z), db = bowPlanJS(y, w), da = armPlanJS(y, w), dn = nacPlanJS(y, w), m = Math.min(db, da, dn);
+    if (m > 0.35*cs) continue;
+    let xc = 0, xh;
+    if (m === db) xh = Math.min(0.6*Math.max(-db, 0), 0.054 - 0.034*smooth(0, 0.83, y)); else if (m === da){ xc = liftJS(w); xh = Math.min(0.45*Math.max(-da, 0), 0.026); } else { xc = liftJS(0.29); xh = 0.017; }
+    const fo = foldCellThr(iy, iz, 1, cs), fi = foldCellThr(iy, iz, -1, cs);
+    lo0 = Math.min(lo0, fo); hi0 = Math.max(hi0, fo); lo1 = Math.min(lo1, fi); hi1 = Math.max(hi1, fi);
+    L.push([y, z, xc, Math.max(xh, 0.004), fo, fi, 0, 0, r(), r(), r(), r(), r(), 0]);
+  }
+  CEL.gLo = [lo0 - FLK.RIMW - 0.03, lo1 - FLK.RIMW - 0.03]; CEL.gHi = [hi0 + 0.05, hi1 + 0.05];
+  const a = new Float64Array(L.length*CW);
+  L.forEach((c, i) => {
+    // (the fold clock at which g reaches fo, and the arrival clock at which it comes back down to fi)
+    c[6] = FLK.D0 + (FLK.D1 - FLK.D0)*Math.pow(clamp((c[4] - CEL.gLo[0])/(CEL.gHi[0] - CEL.gLo[0]), 0, 1), 1/FLK.P);
+    c[7] = FLK.A0 + (FLK.A1 - FLK.A0)*clamp((CEL.gHi[1] - c[5])/(CEL.gHi[1] - CEL.gLo[1]), 0, 1);
+    for (let k=0;k<13;k++) a[i*CW + k] = c[k];
+    a[i*CW + 13] = Math.atan2(c[1], c[0] + 0.3);
+  });
+  CEL.a = a; CEL.n = L.length; CEL.cs = cs;
+}
+// (a cell about one character across, from the ship's size on screen: its radius in scene pixels, two of them to a character)
+const foldCs = () => Math.round(clamp(2/Math.max(ship.rpx || 60, 1), 0.014, 0.045)*1000)/1000;
+// in a fold only the cells still there hide anything behind them
+const liveCell = (y, z) => S_.dm === 0 || foldCellThr(Math.floor(y/S_.cs), Math.floor(z/S_.cs), S_.dm, S_.cs) > S_.dg;
+// an ember hidden by what is left of the hull (ship coordinates, from the camera o to the ember q): where the line crosses the plates' middle
+// (x = 0 on the bow, the arms' lift on the arms), inside the outline and on a cell still there; or behind the heart
+function emberHidden(ox, oy, oz, qx, qy, qz){
+  if (ship.S.scale < 0.5) return false;
+  let xp = 0, t = 0, y = 0, z = 0;
+  for (let k=0;k<2;k++){ const dx = qx - ox; if (Math.abs(dx) < 1e-9) break; t = (xp - ox)/dx; y = oy + (qy - oy)*t; z = oz + (qz - oz)*t;
+    const w = Math.abs(z); if (bowPlanJS(y, w) < 0) break; xp = liftJS(nacPlanJS(y, w) < 0 ? 0.29 : w); }
+  if (t > 0 && t < 0.985 && planD(y, Math.abs(z)) < 0 && liveCell(y, z)) return true;
+  const cy = -0.3*S_.scale, rh = 0.04*(foldLook === 2 ? 1 + 2*S_.sy : 1), dx = qx - ox, dy = qy - oy, dz = qz - oz, L2 = dx*dx + dy*dy + dz*dz;
+  const u = clamp(((0 - ox)*dx + (cy - oy)*dy + (0 - oz)*dz)/L2, 0, 1), ex = ox + dx*u, ey = oy + dy*u - cy, ez = oz + dz*u;
+  return u > 0 && u < 0.985 && ex*ex + ey*ey + ez*ez < rh*rh;
+}
+// the shield's outline in the ship's plane, as segments (y, z, y, z): a little outside the hull (A, C), or the bubble's rim (B). It folds into
+// the heart as the fold begins and grows back out of it at the end.
+const SHOL = (() => {
+  const seg = [], h = 0.02, f = (y, z) => planD(y, Math.abs(z)) - 0.05;
+  for (let y=-0.98;y<0.94;y+=h) for (let z=-0.5;z<0.5;z+=h){
+    const v = [f(y, z), f(y + h, z), f(y + h, z + h), f(y, z + h)], P4 = [[y, z], [y + h, z], [y + h, z + h], [y, z + h]], pts = [];
+    for (let e=0;e<4;e++){ const a = v[e], b = v[(e + 1) % 4]; if ((a < 0) !== (b < 0)){ const t = a/(a - b), p = P4[e], q = P4[(e + 1) % 4]; pts.push(p[0] + (q[0] - p[0])*t, p[1] + (q[1] - p[1])*t); } }
+    if (pts.length >= 4) seg.push(pts[0], pts[1], pts[2], pts[3]);
+    if (pts.length === 8) seg.push(pts[4], pts[5], pts[6], pts[7]);
+  }
+  const egg = []; for (let k=0;k<72;k++){ const a = k/72*6.2832, b = (k + 1)/72*6.2832; egg.push(-0.02 + 1.1*Math.cos(a), 0.62*Math.sin(a), -0.02 + 1.1*Math.cos(b), 0.62*Math.sin(b)); }
+  return { hull:new Float32Array(seg), egg:new Float32Array(egg) };
+})();
+// each tick: the clocks, and what the shader and the embers need from them
+function foldUpdate(dt){
+  const S = S_, leaving = (S.phase === 'align' && S.next && S.next.mode === 'fold') || S.phase === 'fold';
+  if (leaving){ const want = S.phase === 'fold' ? S.t : S.t - S.jumpAt; S.fk = S.fk < -8 ? want : want >= S.fk ? want : Math.max(want, S.fk - dt*1.5); }
+  else S.fk = -9;
+  let g = 0, dm = 0, hfl = 0, shK = 1, sx = 0, sy = 0, cc = 0;
+  if (S.fk > -8){
+    const fk = S.fk;
+    if (!S.csL && fk > FLK.D0 - 0.6){ S.csL = true; S.cs = foldCs(); buildCells(S.cs); S.wz = lcg(S.visits*977 + 13)() < 0.5 ? -1 : 1; }
+    shK = 1 - smooth(FLK.SH0, FLK.SH1, fk);
+    hfl = 0.55*Math.exp(-(((fk - FLK.SH1 - 0.05)/0.14)**2));   // (a flash as the shield reaches the heart)
+    if (S.csL && fk > FLK.D0 - 0.05){ dm = 1; g = CEL.gLo[0] + (CEL.gHi[0] - CEL.gLo[0])*Math.pow(clamp((fk - FLK.D0)/(FLK.D1 - FLK.D0), 0, 1), FLK.P); }
+    cc = Math.max(fk - FLK.D1, 0);
+    if (foldLook === 1) hfl += 1.1*smooth(0, 0.3, cc)*(1 - smooth(0.55, 0.9, cc));
+    else if (foldLook === 2){
+      sx = smooth(FLK.D0 - 0.3, FLK.D0 + 0.3, fk); sy = smooth(FLK.D0, FLK.D1, fk);
+      // (it flares as each piece falls in)
+      let n = 0; if (dm && CEL.n) for (let i=0;i<CEL.n;i++){ const c = i*CW, e = CEL.a[c + 6] + 0.3 + 0.75*Math.hypot(CEL.a[c] + 0.3, CEL.a[c + 1]); if (e > fk - dt && e <= fk) n++; }
+      S.eat = S.eat*Math.exp(-dt/0.15) + n*0.03;
+      hfl += Math.min(S.eat, 0.9) + 1.4*smooth(-0.15, 0.05, fk)*(1 - smooth(0.2, 0.4, fk));
+      S.ringPh += dt*6*sx;
+    } else { sx = smooth(-0.45, 0.2, fk); hfl += 0.5*smooth(-0.6, 0, fk); }
+  } else if (S.asm < FLK_END){
+    const a = S.asm += dt;
+    if (!S.csL){ S.csL = true; S.cs = foldCs(); buildCells(S.cs); S.wz = lcg(S.visits*977 + 29)() < 0.5 ? -1 : 1; }
+    if (a < FLK.A1 + 0.25){ dm = -1; g = CEL.gHi[1] - (CEL.gHi[1] - CEL.gLo[1])*clamp((a - FLK.A0)/(FLK.A1 - FLK.A0), 0, 1); }
+    shK = smooth(FLK.A1 + 0.3, FLK.A1 + FLK.SHR, a);
+    hfl = foldLook === 2 ? 1.2*Math.exp(-a/0.15) + 0.3*(1 - smooth(0.2, 1.2, a)) : foldLook === 3 ? 0.6*(1 - smooth(0, 0.35, a)) : 0.9*(1 - smooth(0, 0.5, a));
+  } else S.csL = false;
+  S.dg = g; S.dm = dm; S.hfl = hfl; S.shK = shieldLook ? shK : 1; S.sx = sx; S.sy = sy; S.cc = cc;
+  // (from afar the engine glint goes with the hull)
+  ship.farLum = 0.7*(dm > 0 ? 1 - smooth(FLK.D0, FLK.D1, S.fk) : dm < 0 ? smooth(FLK.A0, FLK.A1, S.asm) : 1);
+}
+// the embers, and the shield folding into the heart and out of it. Drawn relative to the ship (they ride with it), one point or short streak each,
+// only as many as about one per character of the ship on screen (fewer on a small screen, never a white blob)
+const EP = [0, 0, 0], EQ = [0, 0, 0], ECOL = [0, 0, 0], ICE_ = [0.55, 0.85, 1], DEEP_ = [0.42, 0.55, 1], ASH_ = [0.62, 0.64, 0.7], SHC_ = [0.55, 0.8, 1];
+const BLUE_ = [0.4, 0.6, 1], TAILB_ = [0.3, 0.45, 1], TAILC_ = [0.3, 0.55, 1], CYAN_ = [0.5, 0.85, 1], HALO_ = [0.6, 0.85, 1];
+function toShip(out, lx, ly, lz){ const R = ship.R0, s = ship.rad, r = ship.rel; out[0] = r[0] + (R[0]*lx + R[3]*ly + R[6]*lz)*s; out[1] = r[1] + (R[1]*lx + R[4]*ly + R[7]*lz)*s; out[2] = r[2] + (R[2]*lx + R[5]*ly + R[8]*lz)*s; return out; }
+function mix3(out, a, b, t){ out[0] = a[0] + (b[0] - a[0])*t; out[1] = a[1] + (b[1] - a[1])*t; out[2] = a[2] + (b[2] - a[2])*t; return out; }
+// where ember c (its offset in CEL.a) is, in ship radii and ship axes, at fold clock fk (leaving) or arrival clock t (arriving); false if not out
+function emberAt(out, c, fk, t, leaving, sd){
+  const A = CEL.a, y0 = A[c], z0 = A[c + 1], xs = A[c + 2] + sd*A[c + 3], k0 = A[c + 8], k1 = A[c + 9], k2 = A[c + 10], k3 = A[c + 11], cy = -0.3*S_.scale;
+  const r0 = Math.hypot(y0 + 0.3, z0), th0 = A[c + 13], still = reduceMotion ? 0 : 1;
+  if (foldLook === 1){
+    // a wind carries it off to one side (S_.wz, new for each fold), lifting it toward the camera's side of the plate and a little aft, with
+    // eddies; arriving, the same stream runs backwards and settles each grain on its own spot
+    const a = leaving ? fk - A[c + 6] : A[c + 7] - t; if (a < 0 && (leaving || t > A[c + 7] + 0.1)) return false;
+    const aa = Math.max(a, 0), e0 = 1 - Math.exp(-aa/0.2), wz = leaving ? S_.wz : -S_.wz, gust = 0.6 + 0.8*k0;
+    let x = xs + sd*(0.05*e0 + 0.3*k1*aa*aa), y = y0 - (0.15*aa + 0.35*aa*aa)*(0.5 + k2), z = z0 + wz*(0.4*aa + 1.0*aa*aa)*gust;
+    x += still*0.1*aa*Math.cos(aa*3.3 + z0*11 + 6.283*k3); z += still*0.1*aa*Math.sin(aa*4.1 + y0*9 + 6.283*k2);
+    let w = 0;
+    if (leaving){
+      // (in the last half second the heart pulls it all back in)
+      const cc = fk - FLK.D1; w = cc > 0 ? smooth(0.05*k3, 0.3 + 0.3*k3, cc)**2 : 0;
+      if (w > 0.995) return false;
+      if (w > 0){ const ang = still*1.5*w*wz, ca = Math.cos(ang), sa = Math.sin(ang), vy = y - cy, vz = z; y = cy + (vy*ca - vz*sa)*(1 - w); z = (vy*sa + vz*ca)*(1 - w); x *= 1 - w; }
+    } else if (aa > 1.4) return false;
+    out[0] = x; out[1] = y; out[2] = z; out[3] = aa; out[4] = w; return true;
+  }
+  if (foldLook === 2){
+    let u;
+    if (leaving){ const a = fk - A[c + 6]; if (a < 0) return false; const cc = Math.max(fk - FLK.D1, 0); u = (a + 2.2*cc*cc)/(0.3 + 0.75*r0); if (u >= 1) return false; }
+    else { const L = A[c + 7], T = 0.25 + 0.5*r0; u = 1 - (t - (L - T))/T; if (u > 1 || t > L + 0.1) return false; u = Math.max(u, 0); }
+    const r = r0*Math.pow(1 - u, 0.75), th = th0 + still*(2.2*u + 4.5*u*u*u);
+    if (r < 0.04*(1 + 2*S_.sy) && leaving) return false;   // (swallowed)
+    out[0] = xs*(1 - u)*(1 - u); out[1] = -0.3 + r*Math.cos(th); out[2] = r*Math.sin(th); out[3] = u; out[4] = 0; return true;
+  }
+  // C: a dash shooting ahead, gathering onto the ship's axis (arriving: the same, backwards in time)
+  const a = leaving ? fk - A[c + 6] : A[c + 7] - t; if (a < 0 && (leaving || t > A[c + 7] + 0.1)) return false;
+  const aa = Math.max(a, 0), snap = leaving && fk > 0 ? 70*fk*fk : 0, y = y0 + 0.5*aa + 2.6*aa*aa*aa + snap, cv = Math.exp(-aa/0.4)*(1 + 0.25*Math.sin(Math.min(aa, 0.5)*6.283));
+  if (y > 22) return false;
+  out[0] = xs*cv; out[1] = y; out[2] = z0*cv; out[3] = aa; out[4] = snap; return true;
+}
+function foldDraw(){
+  const S = S_, leaving = S.fk > -8, arriving = !leaving && S.asm < FLK_END;
+  if ((!leaving && !arriving) || !(ship.dist < ship.labelRange) || !(ship.rpx > 6) || V.dot(ship.rel, cam.fwd) < -ship.rad*3) return;
+  const R = ship.R0, rel = ship.rel, dist = Math.max(V.len(rel), 1e-30);
+  // (the side of the plate the camera sees, and how many cells make one character there: a plate seen edge-on packs more into each)
+  const sd = -(R[0]*rel[0] + R[1]*rel[1] + R[2]*rel[2]) > 0 ? 1 : -1, fsh = Math.max(Math.abs(R[0]*rel[0] + R[1]*rel[1] + R[2]*rel[2])/dist, 0.2);
+  const cw = CEL.cs*ship.rpx/2, keep = clamp(cw*cw*0.55*fsh*5, 0.05, 1)*(reduceMotion ? 0.5 : 1), ir = 1/ship.rad;
+  const ox = -(R[0]*rel[0] + R[1]*rel[1] + R[2]*rel[2])*ir, oy = -(R[3]*rel[0] + R[4]*rel[1] + R[5]*rel[2])*ir, oz = -(R[6]*rel[0] + R[7]*rel[1] + R[8]*rel[2])*ir;
+  // the shield folding into the heart (leaving) or growing out of it (arriving)
+  if (shieldLook){
+    const ol = shieldLook === 2 ? SHOL.egg : SHOL.hull;
+    let s = -1, b = 0;
+    if (leaving && S.fk > FLK.SH0 && S.fk < FLK.SH1 + 0.05){ s = 1 - smooth(FLK.SH0, FLK.SH1, S.fk); b = 0.9*Math.sqrt(1 - s)*smooth(0.02, 0.12, s); }
+    if (arriving && S.asm > FLK.A1 && S.asm < FLK.A1 + FLK.SHR){ s = 0.04 + 0.96*smooth(FLK.A1, FLK.A1 + 0.5, S.asm); b = (0.3 + 0.8*(1 - s))*(1 - smooth(FLK.A1 + 0.35, FLK.A1 + FLK.SHR, S.asm))*smooth(0, 0.08, S.asm - FLK.A1); }
+    if (s > 0 && b > 0.01) for (let i=0;i<ol.length;i+=4){
+      const y1 = -0.3 + (ol[i] + 0.3)*s, z1 = ol[i + 1]*s, y2 = -0.3 + (ol[i + 2] + 0.3)*s, z2 = ol[i + 3]*s;
+      L_(toShip(EP, (liftJS(Math.abs(ol[i + 1])) + sd*0.06)*s, y1, z1), toShip(EQ, (liftJS(Math.abs(ol[i + 3])) + sd*0.06)*s, y2, z2), SHC_, b*1.3);
+    }
+  }
+  if (!CEL.n || !S.csL) return;
+  const fk = S.fk, t = S.asm, A = CEL.a, E = [0, 0, 0, 0, 0], E2 = [0, 0, 0, 0, 0]; let nE = 0;
+  for (let i=0;i<CEL.n;i++){
+    // (B, arriving: fewer, since they all start from one spot)
+    const c = i*CW; if (A[c + 12] > keep*(foldLook === 2 && !leaving ? 0.45 : 1)) continue;
+    if (!emberAt(E, c, fk, t, leaving, sd)) continue;
+    const k0 = A[c + 8], k1 = A[c + 9], k2 = A[c + 10];
+    if (emberHidden(ox, oy, oz, E[0], E[1], E[2])) continue;
+    toShip(EP, E[0], E[1], E[2]); nE++;
+    if (foldLook === 1){
+      if (leaving){
+        // (a glowing ember: white as it leaves, cooling to ice blue and then deep blue, with a short tail showing where the wind takes it;
+        // about one in five is a flake of grey ash, tumbling)
+        const a = E[3], w = E[4], ash = k1 < 0.22;
+        let b = ash ? 0.85*(0.6 + 0.4*Math.sin(a*11 + k2*30)) : 2.2*Math.exp(-a/0.12) + 1.7*Math.exp(-a/(1 + 0.9*k0));
+        b *= (ash ? 1 : 0.85 + 0.15*Math.sin(fk*23 + k2*40))*(1 + 0.8*w)*(1 - smooth(0.85, 1, w));
+        if (ash) ECOL[0] = ASH_[0], ECOL[1] = ASH_[1], ECOL[2] = ASH_[2]; else if (a < 0.2) mix3(ECOL, WHITE, ICE_, a/0.2); else mix3(ECOL, ICE_, DEEP_, Math.min((a - 0.2)/1.4, 1));
+        P_(EP, ECOL, b, ash ? -3 : -2);
+        if (!ash && !reduceMotion && emberAt(E2, c, fk - (w > 0.1 ? 0.035 : 0.07), t, true, sd)){ toShip(EQ, E2[0], E2[1], E2[2]); L_(EQ, EP, DEEP_, b*0.05, ECOL, b*0.3); }
+      } else {
+        // (arriving: a grain drifting back in, warming as it nears its spot, a spark as it lands)
+        const a = E[3];
+        if (a <= 0){ P_(EP, WHITE, 1.8*(1 - (t - A[c + 7])/0.1), -2); continue; }
+        const b = (0.5 + 1.6*Math.exp(-a/0.22))*smooth(1.4, 1.0, a); mix3(ECOL, DEEP_, WHITE, Math.exp(-a/0.3));
+        P_(EP, ECOL, b, k1 < 0.22 ? -3 : -2);
+        if (!reduceMotion && emberAt(E2, c, fk, t - 0.05, false, sd)){ toShip(EQ, E2[0], E2[1], E2[2]); L_(EQ, EP, DEEP_, b*0.05, ECOL, b*0.3); }
+      }
+    } else if (foldLook === 2){
+      const u = E[3];
+      if (!leaving && u <= 0){ P_(EP, WHITE, 1.4*(1 - (t - A[c + 7])/0.1), -2); continue; }
+      // (arriving they leave the heart dim, so the burst never piles up into a white ball, and brighten on the way out)
+      const heat = leaving ? u : 1 - u, b = leaving ? 0.5 + 1.6*heat*heat : (0.25 + 0.7*Math.sin(Math.PI*Math.min(heat*1.3, 1)))*smooth(0.05, 0.25, Math.hypot(E[1] + 0.3, E[2])); mix3(ECOL, BLUE_, WHITE, heat*heat);
+      const back = leaving ? emberAt(E2, c, fk - 0.08, t, true, sd) : emberAt(E2, c, fk, t - 0.08, false, sd);
+      if (!reduceMotion && back){ toShip(EQ, E2[0], E2[1], E2[2]); L_(EQ, EP, TAILB_, b*0.03, ECOL, b*0.22); }
+      else P_(EP, ECOL, b, -2);
+    } else {
+      // (a dash of light, white as it leaves its cell, stretching as it speeds up)
+      const a = E[3], y = E[1], fade = 1 - smooth(12, 22, y), b = (0.8 + 1.4*Math.exp(-a/0.2))*fade*(leaving && fk > 0 ? 1 - fk/0.4 : 1);
+      mix3(ECOL, WHITE, CYAN_, Math.min(a/0.6, 1));
+      if (!leaving && a <= 0){ P_(EP, WHITE, 1.8*(1 - (t - A[c + 7])/0.1), -2); continue; }
+      const back = leaving ? emberAt(E2, c, fk - 0.07, t, true, sd) : emberAt(E2, c, fk, t + 0.07, false, sd);
+      P_(EP, ECOL, b*0.8, -2);
+      if (!reduceMotion && back){ toShip(EQ, E2[0], E2[1], E2[2]); L_(EQ, EP, TAILC_, b*0.08, ECOL, b*0.4); }
+    }
+  }
+  S.embN = nE;
+  // C: the head of the thread, racing off as it snaps (and racing back in on arrival)
+  if (foldLook === 3){
+    if (leaving && fk > -0.3){ const u = Math.max(fk + 0.3, 0), y = 1 + 30*u*u, k = smooth(-0.3, -0.1, fk)*(1 - smooth(0.25, 0.4, fk)); toShip(EP, 0, y, 0); P_(EP, WHITE, 2.2*k, -12); P_(EP, HALO_, 0.6*k, -40); }
+    if (arriving && t < 0.35){ const y = 12*(1 - smooth(0, 0.35, t)) + 0.9, k = 1 - smooth(0.2, 0.35, t); toShip(EP, 0, y, 0); P_(EP, WHITE, 2.2*k, -12); P_(EP, HALO_, 0.6*k, -40); }
+  }
 }
 
 // ---------------------------------------------------------------- drawing, after everything else
 const STREAKS = Array.from({ length:IS_SMALL ? 180 : 280 }, () => ({ a:rnd()*6.2832, r:4 + 80*Math.pow(rnd(), 0.8), z:rnd(), len:0.4 + 0.6*rnd(), c:rnd() }));
-const SWIRL = Array.from({ length:170 }, () => ({ d:randDir(), w:0.6 + 0.8*rnd() }));
 const Z3 = [0, 0, 0];
 function fxUpload(ps, n){ if (!n) return; gl.bindBuffer(gl.ARRAY_BUFFER, ps.b0); gl.bufferSubData(gl.ARRAY_BUFFER, 0, ps.a, 0, n*4); gl.bindBuffer(gl.ARRAY_BUFFER, ps.b1); gl.bufferSubData(gl.ARRAY_BUFFER, 0, ps.c, 0, n*4); }
 function haloDraw(){
   const S = S_; if (!S.target) return;
   const near = ship.dist < ship.labelRange, inFront = V.dot(ship.rel, cam.fwd) > 0;
   // the ship's beacon when it is too small to see
-  if (near && inFront && ship.rpx < 3 && S.scale > 0.3) P_(ship.rel, [0.6, 0.95, 1], 0.7 + 0.3*Math.sin(ship.t*5), -2.4);
+  if (near && inFront && ship.rpx < 3 && S.scale > 0.3) P_(ship.rel, [0.6, 0.95, 1], (0.7 + 0.3*Math.sin(ship.t*5))*ship.farLum/0.7, -2.4);
   if (near && S.act && S.phase === 'pass') S.act.draw();
   for (const e of FX) if (!e.anc || e.anc.dist < Math.max(e.anc.rad*60, ship.labelRange)) e.draw(e);
   const hx = localPt([1, 0, 0]), hz = localPt([0, 0, 1]), bx = V.mul(hx, 1/ship.rad), bz_ = V.mul(hz, 1/ship.rad), h = S.h, R = ship.rad;
@@ -901,19 +1134,8 @@ function haloDraw(){
     }
     if (S.phase === 'light') P_(V.add(ship.rel, V.mul(h, 2000*R)), [0.75, 0.88, 1], 0.9*st, -6);   // (where it is heading: a pinpoint, not a glow over the needle)
   }
-  // the fold drive spooling up: space swirls in round the ship, and arcs leap from its heart
-  if (S.phase === 'align' && S.next.mode === 'fold' && S.spool > 0.01 && near){
-    const u = S.spool, r = (7 - 5.5*u)*R, c = V.lerp([0.45, 0.8, 1], [0.85, 0.6, 1], u*0.6);
-    for (let i=0;i<SWIRL.length;i++){ const q = SWIRL[i], a = GT*(1.2 + 2.5*u)*q.w, d = q.d, ca = Math.cos(a);   // (each grain turns round the ship's heading)
-      const dd = V.add(V.add(V.mul(d, ca), V.mul(V.cross(h, d), Math.sin(a))), V.mul(h, V.dot(h, d)*(1 - ca)));
-      const p = V.add(ship.rel, V.mul(dd, r*(0.8 + 0.3*q.w))); if (!behindHull(p)) P_(p, c, (0.15 + 0.7*u)*0.8, -2); }
-    const k = Math.floor(GT/0.07), core = shipPt(HULL.core);
-    for (let a=0;a<5;a++){ if (lcg(k*7 + a)() > u) continue; const rr = lcg(k*13 + a*5), d = V.norm([rr() - 0.5, rr() - 0.5, rr() - 0.5]); let prev = core;
-      for (let j=1;j<=6;j++){ const p = V.add(core, V.add(V.mul(d, r*j/6), V.mul([rr() - 0.5, rr() - 0.5, rr() - 0.5], r*0.25*Math.sin(Math.PI*j/6)))); L_(prev, p, [0.85, 0.95, 1], 0.9*u); prev = p; } }
-    ringCam(ship.rel, R*(1.5 + 9*(1 - ((GT*0.8) % 1))), [0.55, 0.9, 1], 0.4*u, 64);
-  }
-  if (S.phase === 'fold'){ const u = S.t/HALO.FOLD_T, r = R*1.5*(1 - u);
-    for (const q of SWIRL){ const p = V.add(ship.rel, V.mul(q.d, r*(0.8 + 0.3*q.w))); P_(p, [0.8, 0.9, 1], 1.2*(1 - u*0.5), -2); } }
+  // the fold: embers, the shield folding into the heart (no arcs: the owner found them boring)
+  if (near) foldDraw();
   // the upload and three draws: smoke first (it darkens), then glowing points, then lines
   fxUpload(FXB.sm, FXB.ns); fxUpload(FXB.pt, FXB.np); fxUpload(FXB.ln, FXB.nl);
   if (FXB.ns) drawParticles(null, { ps:FXB.sm, prog:'fxSm', mode:3, sb:1, size:1, rad:1, rel:() => Z3, rot:() => I3, count:() => FXB.ns });
@@ -923,13 +1145,22 @@ function haloDraw(){
 EXTRAS.push(() => { FXB.np = FXB.nl = FXB.ns = 0; haloDraw(); });
 
 // ---------------------------------------------------------------- what the readout says
+// (what a fold looks like, in words: while the hull breaks up and while it forms again; null otherwise. Also the showcase's caption.)
+const FOLD_LINE = ['', 'the hull burns away for the fold', 'the heart swallows the ship', 'the ship pours itself into light'];
+const FOLD_BACK = ['', 'the hull forms again', 'the heart gives the ship back', 'the ship pours back out of the light'];
+function foldLine(){
+  const S = S_;
+  if (S.phase === 'align' && S.next.mode === 'fold' && S.fk >= FLK.D0 - 0.1) return FOLD_LINE[foldLook] + ' · next stop: ' + S.next.tg.name;
+  if (S.phase === 'pass' && S.visits > 1 && S.asm < FLK.A1 + 0.3) return 'out of the fold at ' + S.target.name + ' · ' + FOLD_BACK[foldLook];
+  return null;
+}
 function haloReadout(){
   const S = S_, tg = S.target; if (!tg) return 'between the stars';
-  let l;
-  if (S.phase === 'pass') l = S.act ? S.act.line() : 'flying past ' + tg.name;
+  let l = foldLine();   // (a fold in progress says what it looks like)
+  if (!l){ if (S.phase === 'pass') l = S.act ? S.act.line() : 'flying past ' + tg.name;
   else if (S.phase === 'align') l = S.next.mode === 'fold' ? (S.spool > 0.05 ? 'fold drive spooling up · next stop: ' + S.next.tg.name : 'setting course for ' + S.next.tg.name) : (S.stretch > 0.05 ? 'jumping to light speed' : 'setting course for ' + S.next.tg.name + ' · light speed');
   else if (S.phase === 'light') l = 'light speed · to ' + S.leg.B.name + (S.t > S.leg.T - 0.6 ? ' · dropping out' : '');
-  else l = 'folding space · to ' + S.next.tg.name;
+  else l = 'folding space · to ' + S.next.tg.name; }
   // at most three lines. Under a strong pull the shield's power and the pull take the second line (the shield is made up, the pull is real),
   // and with no job line showing, the real escape speed there takes the third
   const L = l.split('\n'), made = `the Halo is made up · ~4.2 km from needle to engines · visit ${S.visits}`;
@@ -950,7 +1181,7 @@ ship.dbg = {
     hrnd = lcg(seed); actBag.length = 0; FX.length = 0; weapK = 0; rockShape = 0;
     Object.assign(S_, { phase:'pass', t:0, target:null, spool:0, ls:0, scale:1, scoop:0, em:[0, 0, 0, 0], visits:0, force:{}, lastSkim:-9, lastAct:null, plan:null, next:null,
       align:null, leg:null, fold:null, act:null, h:[0, 1, 0], belly:null, vel:[0, 0, 0], speed:0, viewA:0, side:1, hFrom:null, jumpAt:0, stretch:0, lsRun:0, emerge:1, seedN:1, reaim:0,
-      ringPh:0, beat:0, load:0, gDir:[0, 1, 0], vesc:0, gTg:null, climbK:0 });
+      ringPh:0, beat:0, load:0, gDir:[0, 1, 0], vesc:0, gTg:null, climbK:0, fk:-9, asm:9, eat:0, csL:false, wz:1, reseat:null, dg:0, dm:0, hfl:0, shK:1, sx:0, sy:0, cc:0 });
     foldVisit(BYKEY[key]); S_.t = 3;
   },
   force(o){ Object.assign(S_.force, o); },
@@ -960,4 +1191,6 @@ ship.dbg = {
   get beams(){ return S_.act && S_.act.beams ? S_.act.beams : []; },
   get act(){ return S_.act ? S_.act.kind : null; }, get tau(){ return S_.act ? S_.act.tau : null; }, HALO,
   FX, get plan(){ return S_.plan; }, get next(){ return S_.next; },
+  // (the fold's look: its cells, and one draw of its embers and outlines, returning how many points and line ends it made)
+  fold:{ get cells(){ return CEL; }, look:foldLook, draw(){ FXB.np = FXB.nl = FXB.ns = 0; foldDraw(); return [FXB.np, FXB.nl]; } },
 };

@@ -34,6 +34,45 @@ float smin(float a, float b, float k){ float h = clamp(0.5 + 0.5*(b - a)/k, 0., 
 // outline would sit on the inner ring) and, for the honeycomb, to the skin of cells a little outside the hull (gE)
 float gH = 1e9, gE = 1e9;
 const float SKIN = 0.065;
+#if FOLD > 0
+// the fold (FOLD 1 ember wind, 2 singularity, 3 streak-out): the hull breaks up into square cells in the ship's plane (y, z), each about one
+// character on screen (uM0[2].x wide, chosen by the page as the break-up starts). A cell is gone while the dissolve g (uM0[0].x) is past its
+// threshold: a smooth front (foldF, no noise, so the march stays safe) plus a random share per cell from an integer hash. The page works out
+// the same thresholds (foldCellThr in JS) to send an ember off each cell as it goes. The cut is part of map(), so the shield's outline and
+// cells crumble with the hull. uM0: column 0 (g, mode: 1 leaving, -1 arriving, 0 whole; the heart's flare), column 1 (the shield's share,
+// the style's amount: B the heart's darkness, C its stretch; the collapse clock), column 2 (the cell's size; B the dark heart's growth)
+float gC = -1.;   // (set by map: signed distance in the plane to the cells still there, negative inside them)
+const float FL = 1.8, RIMW = 0.1;
+uint hsh(ivec2 c){ uvec2 u = uvec2(c + 1024); uint h = u.x*0x8da6b343u + u.y*0xd8163841u + 0x9e3779b9u; h ^= h >> 15u; h *= 0x2c1b3c6du; h ^= h >> 12u; h *= 0x297a2d39u; h ^= h >> 15u; return h; }
+float cRnd(ivec2 c){ return float(hsh(c) >> 8u)*(1./16777216.); }
+// the front, q = (y, z): low where the hull goes first (or comes back last). Its slope is at most FL.
+float foldF(vec2 q){
+#if FOLD == 1
+  if(uM0[0].y > 0.) return (0.834 - q.x)/1.69 + 0.05*sin(q.y*9. + q.x*4.);            // leaving: from the needle's tip aft
+  return 1. - length(vec2(q.x + 0.3, q.y))/1.14 + 0.05*sin(q.y*9. - q.x*5.);          // arriving: from the heart outward
+#elif FOLD == 2
+  return 1. - length(vec2((q.x + 0.3)*0.55, q.y))/0.62 + 0.04*sin(q.y*11. + q.x*6.);   // from the outer tips in toward the heart
+#else
+  return (q.x + 0.86)/1.72 + 0.02*sin(q.y*14.);                                       // from the engines to the tip
+#endif
+}
+float thrC(ivec2 c){ return foldF((vec2(c) + 0.5)*uM0[2].x) + FJIT*(cRnd(c) - 0.5); }
+float cellD(vec2 q){
+  float cs = uM0[2].x, g = uM0[0].x; vec2 cf = q/cs; ivec2 c = ivec2(floor(cf)); vec2 f = (cf - vec2(c))*cs;
+  bool me = thrC(c) > g; float best = 1e9;
+  for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++){
+    if(i == 0 && j == 0) continue;
+    if((thrC(c + ivec2(i, j)) > g) != me){ vec2 lo = vec2(float(i), float(j))*cs, dd = max(max(lo - f, f - lo - cs), 0.); best = min(best, length(dd)); }
+  }
+  if(me) return -min(best, cs);
+  // (a gone cell: at least as far as the nearest live cell beside it, or out of the 3 x 3 block; far behind the front, as far as the slope allows)
+  float edge = min(min(f.x, cs - f.x), min(f.y, cs - f.y));
+  return max(min(best, cs + edge), (g - foldF(q) - 0.5*FJIT)/FL - 0.71*cs);
+}
+float liveAt(vec3 c){ if(uM0[0].y == 0.) return 1.; return step(uM0[0].x, thrC(ivec2(floor(c.yz/uM0[2].x)))); }
+#else
+float liveAt(vec3 c){ return 1.; }
+#endif
 // one arm, in (y, |z|): a crescent round ARM_C, pointed at the shoulder and at the tail, widest two thirds of the way back, with a claw reaching in
 // toward the heart. A: along the arm (0 shoulder, 1 tail), across it (0 inner edge, 1 outer edge), its width
 float armPlan(vec2 q, out vec3 A){
@@ -55,7 +94,18 @@ float map(vec3 p, out float id){
   // an engine nacelle under each arm's tail, with a ring round it
   vec3 pe = vec3(p.x, p.y, w); float xe = lift(0.29);
   float nac = min(sdCap(pe, vec3(xe, -0.832, 0.287), vec3(xe - 0.006, -0.63, 0.305), 0.017), length(vec2(length(pe.xz - vec2(xe, 0.289)) - 0.024, pe.y + 0.775)) - 0.005);
+#if FOLD > 0
+  // (the fold's holes, cut only near the hull)
+  gC = -1.;
+  if(uM0[0].y != 0.){ float hm = min(min(bow, det), min(arm, nac)); if(hm < 2.5*uM0[2].x){ gC = cellD(p.yz); bow = max(bow, gC); det = max(det, gC); arm = max(arm, gC); nac = max(nac, gC); } }
+#endif
+#if FOLD == 2
+  float core = length(p - CORE) - 0.038*(1. + 2.*uM0[2].y);   // (B: the heart turns dark, then swells as it swallows the ship)
+#elif FOLD == 3
+  float core = sdCap(p, CORE, CORE + vec3(0., 0.5*uM0[1].y, 0.), 0.038*(1. - 0.4*uM0[1].y));   // (C: it stretches forward as it pours away)
+#else
   float core = length(p - CORE) - 0.038;
+#endif
   gH = min(min(bow, det), min(arm, nac));
 #if SHIELD == 3
   gE = smin(smin(min(bow, det), arm, 0.12), nac, 0.05) - SKIN;
@@ -76,7 +126,7 @@ float dots(float x, float sp, float y, float r){ float c = (fract(x/sp) - 0.5)*s
 // uP0: x fold-drive spool, y light-speed sheen, z scale (1; it shrinks to a point as it folds away and grows back on arrival), w how far the rings have turned
 // uP1: xyz light direction, w ram-scoop glow   uP2: glow of the scan array, tractor emitter, bow gun / drill, probe bay
 // uP3: rgb the scoop's colour, w the heart's beat (its phase: one beat per unit)   uP4: xyz toward what pulls on the ship (world axes), w the shield's load
-// uM0: column 0 is kept for the fold (dissolve, mode, flare)
+// uM0: the fold: column 0 (dissolve g, mode, the heart's flare), column 1 (shield share, style amount, collapse clock), column 2 (cell size)
 // hexagon cells, neighbours 1 apart: the offset from the nearest cell's centre (xy) and that centre (zw)
 vec4 hexCell(vec2 p){ const vec2 s = vec2(1., 1.7320508); vec4 c = floor(vec4(p, p - vec2(0.5, 1.))/s.xyxy) + 0.5;
   vec4 h = vec4(p - c.xy*s, p - (c.zw + 0.5)*s); return dot(h.xy, h.xy) < dot(h.zw, h.zw) ? vec4(h.xy, c.xy*s) : vec4(h.zw, (c.zw + 0.5)*s); }
@@ -104,6 +154,11 @@ void main(){
   if(hs.y < 0.) discard;
   vec2 hb = sphIsect(o, d, vec3(0.), 1.);
   float spool = uP0.x, ls = uP0.y, tm = uTime, S = surge(tm);
+#if FOLD == 2
+  float HDARK = 1. - uM0[1].y;   // (B: the heart's own glow goes out as it turns dark)
+#else
+  const float HDARK = 1.;
+#endif
   // the heart beats (a double beat) and pumps harder the more the shield has to hold. Its own glow never grows past hp (so it never becomes a
   // white ball); the rings and the chains take the rest
   float load = uP4.w, bf = fract(uP3.w), beat = exp(-9.*bf) + 0.6*exp(-9.*max(bf - 0.2, 0.))*step(0.2, bf);
@@ -118,6 +173,12 @@ void main(){
   float fl = RM > 0 ? 0.3*(noise(vec3(tm*1.5, 3.1, 7.7)) - 0.5) : noise(vec3(tm*8., 3.1, 7.7)) - 0.5;
   float sh = sv*(0.25 + 1.6*load + 0.9*spool)*(1. + 0.8*load*load*fl), flare = load*(0.35 + 0.65*beat);
   float damp = length(o) < 0.4 ? 0.35 : 1.; sh *= damp; flare *= damp;
+#if FOLD > 0
+  // (in a fold the shield folds into the heart before the hull breaks up, and forms again after it has come back together)
+  float shk = uM0[1].x; sh *= shk; flare *= shk;
+#else
+  float shk = 1.;
+#endif
   float t = max(hb.x, 0.), id = 0.; bool hit = false;
   // while marching: the ray's closest pass by the hull (am, for the glow round the outline); each dip toward the hull that comes out again
   // lights the outline where it passed at DL from the hull (lnV, lnP where it is brightest); where the ray enters and leaves the honeycomb skin
@@ -142,6 +203,9 @@ void main(){
 #endif
       t += h*0.8; if(t > hb.y) break; }
   }
+#if FOLD > 0
+  float gc0 = gC;   // (at the hit: how far to the nearest hole)
+#endif
 #if SHIELD == 1
   if(!hit && cm < 0.2){ float lw = max(0.005, uPix*ct*0.8), v = exp(-sq((cm - DL)/lw))*(0.005/lw)*smoothstep(0.12, 0.5, ct); lnV += v; if(v > lnB){ lnB = v; lnP = o + d*ct; } }
 #endif
@@ -162,6 +226,9 @@ void main(){
       // the heart: white-hot plasma, grainy, brighter as it surges or the drive spools up
       float pl = fbm3((p - CORE)*95. + vec3(0., tm*1.3, tm*0.4));
       col = mix(vec3(0.78, 0.88, 1.), white, smoothstep(0.3, 0.7, pl))*(3.2 + 2.2*pl + 1.2*mu)*hp;
+#if FOLD == 2
+      col *= 1. - uM0[1].y;   // (B: it goes dark, a tiny black hole)
+#endif
     } else if(id > 2.5 && id < 3.5){
       float xe0 = lift(0.29);
       // nacelles: dark, with a silver ring and a glowing nozzle facing aft
@@ -182,9 +249,29 @@ void main(){
       lit += dots(p.y, 0.03, e - 0.016, 0.005)*step(0.02, p.y)*step(p.y, 0.7)*0.7;
       lit += dots(p.y + 0.017, 0.022, w, 0.008)*step(-0.03, p.y)*step(p.y, 0.08)*step(p.x, -0.03)*1.5;
     }
+    // (the fold drive spooling up: pulses of light run along the rows of lights in toward the heart)
+    lit *= 1. + spool*1.5*pow(0.5 + 0.5*sin(length(q - vec2(-0.3, 0.))*40. + tm*14.), 6.);
     col += ice*lit*(2.3 + 0.6*sin(tm*1.3 + p.y*9.))*(0.85 + 0.15*hp);
     // skimming: the needle glows with the gas it rams through
     col += uP3.rgb*uP1.w*pow(max(n.y, 0.), 2.)*(1.2 + 0.8*noise(p*40. + tm*3.));
+#if FOLD > 0
+    // the fold: a cell about to go (or just back) burns from within, from a blue glow to white-hot; the walls of the holes burn too
+    if(uM0[0].y != 0. && (id < 1.5 || id > 2.5)){
+      float cs = uM0[2].x; ivec2 c = ivec2(floor(p.yz/cs)); float fe = thrC(c) - uM0[0].x;
+      float heat = 1. - smoothstep(0., RIMW, fe), fk = 0.7 + 0.6*hash12(vec2(c) + floor(tm*14.)*vec2(1.7, 3.1));
+      float edge = smoothstep(-0.35*cs, 0., gc0);
+      // (close to the camera a cell covers many characters: it burns dimmer there, so it never becomes a white patch)
+      fk *= mix(0.3, 1., smoothstep(14., 4., cs/(uPix*t)));
+#if FOLD == 2
+      vec3 hot = mix(vec3(0.35, 0.5, 1.), vec3(2.7, 2.6, 2.4), heat*heat*heat);
+#elif FOLD == 3
+      vec3 hot = mix(vec3(0.3, 0.75, 1.), vec3(2.2, 2.8, 3.2), heat*heat*heat);
+#else
+      vec3 hot = mix(vec3(0.3, 0.48, 1.), vec3(2.4, 2.7, 3.1), heat*heat*heat);
+#endif
+      col = mix(col, hot*fk, smoothstep(0., 0.55, heat)) + mix(vec3(0.35, 0.55, 1.), vec3(1.6, 1.8, 2.1), heat)*edge*0.9*fk;
+    }
+#endif
     alpha = 1.;
   }
   float front = hit ? t : 1e9;
@@ -196,9 +283,22 @@ void main(){
     if(tp > 0. && tp < front && tp < hb.y){
       vec3 pp = o + d*tp; vec2 rq = vec2(pp.y - CORE.y, pp.z); float rr = length(rq), an = atan(rq.y, rq.x);
       float lw = max(0.0028, uPix*tp*0.7), k = 0.0028/lw;
+#if FOLD > 0
+      // (the rings and chains crumble with the cells they cross, flaring as they go)
+      if(uM0[0].y != 0.){ float fe = thrC(ivec2(floor(pp.yz/uM0[2].x))) - uM0[0].x; k *= step(0., fe)*(1. + 2.5*(1. - smoothstep(0., RIMW, fe))); }
+#endif
+#if FOLD == 2
+      // (B: the rings are drawn in toward the dark heart as it closes, and a whirl of light circles it in the ship's plane)
+      float rs = 1. - 0.55*smoothstep(0., 0.8, uM0[1].z);
+      if(uM0[1].y > 0.001){ float hA = uM0[1].y, rh = 0.038*(1. + 2.*uM0[2].y);
+        float disc = hA*step(rh*1.15, rr)*exp(-(rr - rh)/0.1)*(0.4 + 0.6*pow(0.5 + 0.5*sin(an*2. - tm*11. + 50.*rr), 3.));
+        col += mix(white, ice, smoothstep(rh, rh + 0.08, rr))*disc*k*2.2; }
+#else
+      const float rs = 1.;
+#endif
       float a1 = an + uP0.w, a2 = an - 0.7*uP0.w;
-      float r1 = exp(-sq((rr - 0.089)/lw))*pow(0.5 + 0.5*cos(a1*48.), 5.);
-      float r2 = exp(-sq((rr - 0.109)/lw))*pow(0.5 + 0.5*cos(a2*60.), 5.)*smoothstep(-0.2, 0.4, sin(a2*3. + 0.6));
+      float r1 = exp(-sq((rr - 0.089*rs)/lw))*pow(0.5 + 0.5*cos(a1*48.), 5.);
+      float r2 = exp(-sq((rr - 0.109*rs)/lw))*pow(0.5 + 0.5*cos(a2*60.), 5.)*smoothstep(-0.2, 0.4, sin(a2*3. + 0.6));
       vec2 cq = vec2(pp.y, abs(pp.z)), bz = sdBez(cq, vec2(-0.3, 0.036), vec2(-0.33, 0.11), vec2(-0.403, 0.176));
       float cw = exp(-bz.x*bz.x/(lw*lw)), nw = exp(-cq.y*cq.y/(lw*lw))*step(-0.262, cq.x)*step(cq.x, -0.19);
       float ch = cw*pow(0.5 + 0.5*cos(bz.y*6.2832*15. - tm*4.), 4.);
@@ -217,9 +317,18 @@ void main(){
       float sw = fbm3(qq*30. + vec3(tm*0.5, -tm*0.8, tm*0.3));
       acc += mix(white, ice, smoothstep(0.04, 0.09, r))*exp(-r/(0.016 + 0.01*hp))*(0.4 + 1.3*sw*sw)*smoothstep(0.12, 0.06, r);
     }
-    col += acc*max(dt, 0.)*7.*hp;
+    col += acc*max(dt, 0.)*7.*hp*HDARK;
   }
-  col += vec3(0.92, 0.96, 1.)*(blob(o, d, CORE, 0.05)*1.6 + blob(o, d, CORE, 0.13)*0.08)*hp*(1. - alpha*0.5);
+  col += vec3(0.92, 0.96, 1.)*(blob(o, d, CORE, 0.05)*1.6 + blob(o, d, CORE, 0.13)*0.08)*hp*(1. - alpha*0.5)*HDARK;
+#if FOLD > 0
+  // the heart's flare in a fold (a flash as the shield folds into it, as it winks out and opens again; B's dark heart flares in its ring instead)
+  col += vec3(0.9, 0.96, 1.)*blob(o, d, CORE, 0.022 + 0.03*uM0[0].z)*uM0[0].z*6.*HDARK;
+#endif
+#if FOLD == 2
+  // (B: a thin ring of light hugs the dark heart, like the photon ring round a black hole)
+  if(uM0[1].y > 0.001){ float hA = uM0[1].y, rh = 0.038*(1. + 2.*uM0[2].y); vec3 oc = CORE - o; float tc = dot(oc, d), b = length(oc - d*tc);
+    if(tc > rh*2. && tc - rh*1.5 < front) col += vec3(0.95, 0.97, 1.)*exp(-sq((b - rh*1.3)/max(uPix*tc*0.9, 0.0025)))*hA*(1.4 + 0.4*sin(tm*13.) + 1.5*uM0[0].z); }
+#endif
   // surges: sparks leap from the heart to its rings (more often while the shield works hard)
   if(S > 0.02){
     float k = floor(tm/2.3);
@@ -229,7 +338,7 @@ void main(){
       for(int j=1;j<8;j++){
         float s = float(j)/8.;
         vec3 jit = vec3(noise(vec3(s*7., fa, tm*25.)), noise(vec3(s*7. + 3., fa, tm*25.)), noise(vec3(s*7. + 6., fa, tm*25.))) - 0.5;
-        col += mix(white, ice, s)*lamp(o, d, CORE + dir*0.1*s + jit*0.03*sin(3.1416*s), 0.003, front)*55.*S;
+        col += mix(white, ice, s)*lamp(o, d, CORE + dir*0.1*s + jit*0.03*sin(3.1416*s), 0.003, front)*55.*S*HDARK;
       }
     }
   }
@@ -240,17 +349,19 @@ void main(){
   for(int k=0;k<2;k++){
     float sg = k == 0 ? 1. : -1.;
     vec3 nz = vec3(lift(0.29), -0.857, 0.287*sg);   // (just behind the nacelle's end cap)
-    col += jet(o - nz, d, vec3(0., -1., 0.), 0.1, 0.007, 0.018, 0.6, tm*5. + sg, vec3(0.85, 0.95, 1.), vec3(0.3, 0.55, 1.))*(2. + 3.*spool + 4.*ls + 2.5*load);
-    col += mix(white, ice, 0.4)*lamp(o, d, nz, 0.008, front)*40.*tk;
-    for(int j=1;j<5;j++){ float fj = float(j); col += ice*lamp(o, d, nz + vec3(0., -0.02*fj, 0.), 0.0035, front)*(10. - 1.8*fj)*tk*(0.7 + 0.3*sin(tm*9. - fj*1.7)); }
-    col += white*lamp(o, d, vec3(lift(0.176), -0.403, 0.176*sg), 0.006, front)*22.*(0.5 + 0.5*pow(0.5 + 0.5*sin(tm*1.7 + sg), 4.));
-    col += white*lamp(o, d, vec3(0., -0.043, 0.108*sg), 0.005, front)*16.*(0.55 + 0.45*pow(0.5 + 0.5*sin(tm*1.3 - sg*0.8), 6.));
+    float lv = liveAt(nz), lc = liveAt(vec3(0., -0.403, 0.176*sg)), lsh = liveAt(vec3(0., -0.043, 0.108*sg));   // (in a fold: a light goes with its cell)
+    col += lv*jet(o - nz, d, vec3(0., -1., 0.), 0.1, 0.007, 0.018, 0.6, tm*5. + sg, vec3(0.85, 0.95, 1.), vec3(0.3, 0.55, 1.))*(2. + 3.*spool + 4.*ls + 2.5*load);
+    col += mix(white, ice, 0.4)*lamp(o, d, nz, 0.008, front)*40.*tk*lv;
+    for(int j=1;j<5;j++){ float fj = float(j); col += lv*ice*lamp(o, d, nz + vec3(0., -0.02*fj, 0.), 0.0035, front)*(10. - 1.8*fj)*tk*(0.7 + 0.3*sin(tm*9. - fj*1.7)); }
+    col += lc*white*lamp(o, d, vec3(lift(0.176), -0.403, 0.176*sg), 0.006, front)*22.*(0.5 + 0.5*pow(0.5 + 0.5*sin(tm*1.7 + sg), 4.));
+    col += lsh*white*lamp(o, d, vec3(0., -0.043, 0.108*sg), 0.005, front)*16.*(0.55 + 0.45*pow(0.5 + 0.5*sin(tm*1.3 - sg*0.8), 6.));
   }
-  col += white*lamp(o, d, vec3(0., -0.19, 0.), 0.005, front)*14.;
-  col += white*lamp(o, d, vec3(0., -0.409, 0.), 0.005, front)*12.;
-  col += vec3(0.8, 0.95, 1.)*lamp(o, d, vec3(0., 0.845, 0.), 0.005, front + 0.01)*25.*pow(0.5 + 0.5*sin(tm*1.9), 12.);
+  col += white*lamp(o, d, vec3(0., -0.19, 0.), 0.005, front)*14.*liveAt(vec3(0., -0.19, 0.));
+  col += white*lamp(o, d, vec3(0., -0.409, 0.), 0.005, front)*12.*liveAt(vec3(0., -0.409, 0.));
+  float ltip = liveAt(vec3(0., 0.82, 0.));
+  col += vec3(0.8, 0.95, 1.)*lamp(o, d, vec3(0., 0.845, 0.), 0.005, front + 0.01)*25.*pow(0.5 + 0.5*sin(tm*1.9), 12.)*ltip;
   if(ls > 0.01){
-    col += vec3(0.85, 0.94, 1.)*lamp(o, d, vec3(0., 0.855, 0.), 0.016, front + 0.03)*120.*ls;
+    col += vec3(0.85, 0.94, 1.)*lamp(o, d, vec3(0., 0.855, 0.), 0.016, front + 0.03)*120.*ls*ltip;
     // (and the sheen along the edges where the hull meets the sky: a thin line of light hugging its outline)
     if(!hit){ vec3 pa = o + d*amT; col += vec3(0.6, 0.84, 1.)*ls*(0.15 + 0.85*sq(smoothstep(-0.9, 0.85, pa.y)))*exp(-max(am, 0.)/max(0.9*uPix*amT, 0.002))*0.9; }
   }
@@ -264,7 +375,7 @@ void main(){
 #if SHIELD == 0
   // (no shield: the fold drive's spool lights a round shell as before)
   vec2 hf = sphIsect(o, d, vec3(0.), 0.92);
-  if(hf.y > 0. && spool > 0.){ vec3 qn = normalize(o + d*max(hf.x, 0.)); col += vec3(0.5, 0.85, 1.)*pow(1. - abs(dot(qn, d)), 3.)*spool*1.3*(0.7 + 0.3*noise(qn*9. + tm)); }
+  if(hf.y > 0. && spool > 0.){ vec3 qn = normalize(o + d*max(hf.x, 0.)); col += vec3(0.5, 0.85, 1.)*pow(1. - abs(dot(qn, d)), 3.)*spool*1.3*shk*(0.7 + 0.3*noise(qn*9. + tm)); }
 #else
   // under load the hull's outline glows, at any size (on a phone the fine detail is too small to show; this is what flares there)
   if(!hit && SHIELD != 2){ float gw = max(1.6*px0, 0.012); col += shc*flare*exp(-max(am, 0.)/gw)*(1. - 0.85*sv)*0.9; }
@@ -329,8 +440,25 @@ void main(){
 const SHIELD_LOOKS = { off:0, a:1, b:2, c:3 }, SHIELD_NAMES = ['no shield', 'shield A · outline', 'shield B · bubble', 'shield C · honeycomb'];
 const SHIELD_BOUND = [1, 1.1, 1.2, 1.1];   // the sphere the ship is drawn in, in ship radii (the shield reaches past the hull's own)
 const SHIELD_Q = (new URLSearchParams(location.search).get('shield') || '').toLowerCase();
+// ---------------------------------------------------------------- the fold's look (made up, like the ship): A ember wind, B singularity, C streak-out.
+// For the review it is picked once from the address (?fold=a|b|c, A when not given). The hull breaks up into cells; foldCellThr gives the page
+// the same threshold per cell as thrC in the shader (the same front, the same integer hash), so an ember leaves each cell as the shader cuts it.
+const FOLD_LOOKS = { a:1, b:2, c:3 }, FOLD_NAMES = ['', 'fold A · ember wind', 'fold B · singularity', 'fold C · streak-out'];
+const foldLook = FOLD_LOOKS[(new URLSearchParams(location.search).get('fold') || '').toLowerCase()] || 1;
+const FOLD_JIT = [0, 0.28, 0.16, 0.06][foldLook];
+function foldF(y, z, mode){
+  if (foldLook === 1) return mode > 0 ? (0.834 - y)/1.69 + 0.05*Math.sin(z*9 + y*4) : 1 - Math.hypot(y + 0.3, z)/1.14 + 0.05*Math.sin(z*9 - y*5);
+  if (foldLook === 2) return 1 - Math.hypot((y + 0.3)*0.55, z)/0.62 + 0.04*Math.sin(z*11 + y*6);
+  return (y + 0.86)/1.72 + 0.02*Math.sin(z*14);
+}
+function foldHash(ix, iz){
+  let h = (Math.imul((ix + 1024) >>> 0, 0x8da6b343) + Math.imul((iz + 1024) >>> 0, 0xd8163841) + 0x9e3779b9) >>> 0;
+  h = (h ^ (h >>> 15)) >>> 0; h = Math.imul(h, 0x2c1b3c6d) >>> 0; h = (h ^ (h >>> 12)) >>> 0; h = Math.imul(h, 0x297a2d39) >>> 0; h = (h ^ (h >>> 15)) >>> 0;
+  return (h >>> 8)/16777216;
+}
+const foldCellThr = (ix, iz, mode, cs) => foldF((ix + 0.5)*cs, (iz + 0.5)*cs, mode) + FOLD_JIT*(foldHash(ix, iz) - 0.5);
 const shipProgs = [];
-const shipProg = v => shipProgs[v] || (shipProgs[v] = program(VS_RECT, COMMON + `#define SHIELD ${v}\n#define BOUND ${SHIELD_BOUND[v].toFixed(2)}\n#define RM ${reduceMotion ? 1 : 0}\n` + FS_SHIP_BODY));
+const shipProg = v => shipProgs[v] || (shipProgs[v] = program(VS_RECT, COMMON + `#define SHIELD ${v}\n#define BOUND ${SHIELD_BOUND[v].toFixed(2)}\n#define RM ${reduceMotion ? 1 : 0}\n#define FOLD ${foldLook}\n#define FJIT ${FOLD_JIT.toFixed(3)}\n` + FS_SHIP_BODY));
 let shieldLook = SHIELD_LOOKS[SHIELD_Q] ?? 1;
 P.ship = shipProg(shieldLook);
 const SHIP_TARGETS = ['earth', 'moon', 'jupiter', 'saturn', 'titan', 'sun', 'mars', 'sgra', 'betelgeuse', 'pillars', 'crab', 'etacar', 'catseye', 'hltau', 'omegacen', 'm87bh', 'andromeda',
@@ -341,7 +469,11 @@ const ship = (() => {
   const RAD = 2.5*KM;
   // S: phase ('pass' | 'align' | 'light' | 'fold'), target (the body it is visiting: its parent), shader state (spool, ls light-speed sheen,
   // scale, scoop, ringPh the rings' turn, beat the heart's beat, load the shield's load and gDir the way the pull comes from), em (belly lights)
-  const S = { phase:'pass', t:0, target:null, spool:0, ls:0, scale:1, scoop:0, scoopC:[1, 0.6, 0.3], em:[0, 0, 0, 0], visits:0, ringPh:0, beat:0, load:0, gDir:[0, 1, 0] };
+  // and the fold's look (07h-halo.js): dg the dissolve, dm its mode, hfl the heart's flare, shK the shield's share, sx the style's amount,
+  // cc the collapse clock, cs the cells' size
+  const S = { phase:'pass', t:0, target:null, spool:0, ls:0, scale:1, scoop:0, scoopC:[1, 0.6, 0.3], em:[0, 0, 0, 0], visits:0, ringPh:0, beat:0, load:0, gDir:[0, 1, 0],
+    dg:0, dm:0, hfl:0, shK:1, sx:0, sy:0, cc:0, cs:0.03 };
+  const M0 = new Float32Array(9);
   const o = addObj({ key:'halo', name:'the Halo', label:'Halo', labelClass:'ship', type:'long-range cruiser · a wandering starship that folds space', group:'travel', sortKey:0, layer:3,
     fact:'A long-range cruiser from a civilisation that learned to fold space. Seen from above it is a trident: a needle-shaped bow and two crescent arms sweeping back to the engines at their tips. Between the arms floats its heart, a captured ball of star plasma inside two rings of light. It hops between the wonders of the universe: light speed for short hops, a fold through space for long ones. On each visit it does one job: a sensor scan, a probe launch, a weapons test, a skim through a gas giant or a star, or drilling a passing rock. (It is the only made-up thing in this atlas.)',
     // (seen from afar it is an engine glint; its hull fades in over a wide range of sizes, so flying up to it never pops it into view)
@@ -353,7 +485,8 @@ const ship = (() => {
     // (S.light: a fixed light in the ship's own frame, for the showcase and screenshots; otherwise the Sun lights it)
     setU(pr){ const L = S.light ? M3.apply(this.R0, V.norm(S.light)) : S.target ? V.norm(V.sub(sun.rel, this.rel)) : [0, 1, 0], c = S.scoopC, e = S.em;
       gl.uniform4f(pr.u.uP0, S.spool, S.ls, S.scale, S.ringPh); gl.uniform4f(pr.u.uP1, L[0], L[1], L[2], S.scoop); gl.uniform4f(pr.u.uP2, e[0], e[1], e[2], e[3]); gl.uniform4f(pr.u.uP3, c[0], c[1], c[2], S.beat);
-      gl.uniform4f(pr.u.uP4, S.gDir[0], S.gDir[1], S.gDir[2], S.load); },
+      gl.uniform4f(pr.u.uP4, S.gDir[0], S.gDir[1], S.gDir[2], S.load);
+      M0[0] = S.dg; M0[1] = S.dm; M0[2] = S.hfl; M0[3] = S.shK; M0[4] = S.sx; M0[5] = S.cc; M0[6] = S.cs; M0[7] = S.sy; gl.uniformMatrix3fv(pr.u.uM0, false, M0); },
     readout:() => haloReadout() });
   o.S = S;
   // the camera's frame for the ship: x = its starboard side, y = up from the deck (-x in the ship's own frame), z = behind the stern (-y).

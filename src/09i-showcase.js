@@ -46,7 +46,8 @@ if (SHOWCASE.on){
   }
   function caption(){
     if (SC.turn >= 0) return SC.turn < 4 ? 'the new Halo · seen from above, like the concept art' : 'the new Halo · all angles (it holds still while the camera circles it; on the site it never stops)';
-    const S = S_, tg = S.target, A = S.act, nx = S.next, bridge = shipCam.mode === 'cockpit' ? 'from the bridge · ' : '';
+    const S = S_, tg = S.target, A = S.act, nx = S.next, bridge = shipCam.mode === 'cockpit' ? 'from the bridge · ' : '', fl = foldLine();
+    if (fl) return fl;
     if (S.phase === 'light') return bridge + 'light speed · to ' + S.leg.B.name;
     if (S.phase === 'fold') return 'folding space · to ' + nx.tg.name;
     if (S.phase === 'align') return nx.mode === 'fold' ? (S.spool > 0.05 ? 'the fold drive spools up · next stop: ' : 'setting course for ') + nx.tg.name : bridge + 'turning toward ' + nx.tg.name + ' · light speed next';
