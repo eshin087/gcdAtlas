@@ -8,10 +8,10 @@ All notable changes, newest first. Dates are UTC.
 
 **New: a random tour**
 - "random tour" is second in the list of tours, on a desk and on a phone. It picks 12 places from the whole atlas, a new mix every time you start it. It also reaches the 23 places no other tour visits, such as Vega, the Horsehead and Voyager 2.
-- Places you have not seen yet come first (what you have seen is kept on your device only).
-- One stop per place: Earth, the Moon and the ISS count as one place, and so do a star and its planet, or the Crab and its pulsar. At most 3 stops are of one kind (stars, galaxies, black holes and so on).
-- The trips stay smooth. About a third of them zoom far out on the way, fewer than on the grand tour (almost half); picked blindly, over half would. Trips that would fly through another object on the way are left out.
-- On the last stop the green button reads "new random tour ›". The button, the ] key and the end of the last angle pick 12 new places, starting from where you are and never the 12 you just saw, so the tour goes on without repeating.
+- Places you have not seen yet come first: a place you have seen only comes up when no unseen place is left to pick. What you have seen is kept on your device only.
+- One stop per place: Earth, the Moon and the ISS count as one place, and so do a star and its planet, or the Crab and its pulsar. At most 3 stops are of one kind (stars, galaxies, black holes and so on). The first stop is never where you are; from Earth, the Moon or the ISS can still come later in the tour.
+- The trips stay smooth: trips that zoom far out and back in are picked much less often. In 440 test trips, 2% zoomed out to a view more than 100,000 times wider than at either end, against 7% on the grand tour and 29% for places picked blindly. Trips that would fly through another object on the way are left out.
+- On the last stop the green button reads "new random tour ›". The button, the ] key and the end of the last angle pick 12 new places, starting from where you are and never the 12 you just saw, so the tour goes on without repeating. The next 12 are picked while the last stop plays, so moving on does not stutter.
 - No captions: the card already shows each place's fact.
 - A shared link to a random tour starts a new one at the linked place. The order is not in the link, since it depends on what each visitor has seen.
 - Every visitor gets their own tours: the order comes from the browser's own random numbers, not from the page's fixed seed.
@@ -19,8 +19,10 @@ All notable changes, newest first. Dates are UTC.
 **Fixed**
 - The tour track on the scale bar shows the right names after a new random tour or a new screensaver shuffle. The screensaver used to keep the names of its first shuffle.
 - Epsilon Eridani's far angle looked empty: its debris ring was drawn far too faint to see. It now shows as a faint ring of dust around the star. The readout called the ring ~65 AU across; it lies ~65 AU from the star.
-- 55 Cancri was a speck on a phone from both of its angles. Both cameras now sit closer.
-- Tours skip the closest angles of the Tarantula Nebula and the Ring Nebula, where the glow filled the screen with bright characters. Picked by themselves they still play.
+- 55 Cancri and KELT-9 were specks on a phone from both of their angles. Their cameras now sit closer, with the star and its planet's orbit in view.
+- Tours skip the Tarantula Nebula's close angle, where the glow filled the screen with bright characters, and play only the Ring Nebula's view from Earth: from the side the Ring is a solid block of bright characters. That side angle now sits further back, in dark sky. Picked by themselves both still play all their angles.
+- Voyager 2 had a single, distant angle. It now has a second, close one of its sunlit dish. New Horizons' second angle is closer: the probe fills about a third of a phone screen.
+- A shared link could make "your sky" (the view from your own backyard) the first stop of a random tour. It is a backdrop, not a place, so the tour now starts elsewhere.
 
 ## 0.8.6 · 2026-09-27
 
