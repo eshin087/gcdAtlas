@@ -10,6 +10,7 @@
     "test:tour": "node build.mjs && node tests/tour.mjs",
     "test:mobile": "node build.mjs && node tests/mobile.mjs",
     "test:motion": "node build.mjs && node tests/motion.mjs",
+    "test:music": "node build.mjs && node tests/music.mjs",
     "shots": "node tests/shots.mjs",
     "catalog": "node build.mjs && node tools/catalog.mjs",
     "lights": "node tools/earth-lights.mjs",
