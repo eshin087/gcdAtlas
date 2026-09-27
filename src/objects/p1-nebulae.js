@@ -178,8 +178,10 @@ const ringNeb = addRingPN({ key:'ringneb', name:'Ring Nebula', label:'Ring Nebul
   fact:'A glowing barrel of gas thrown off by a dying star, seen almost end-on so it looks like a smoke ring. The blue-green centre is oxygen; the red rim is hydrogen and nitrogen.',
   aka:'m57 ngc 6720 planetary nebula lyra', hero:V.norm([0.05, 0.1, 1]), roll:-30,
   u:[[0.46, 0.1, 0.55, 0.45], [0, 0, 0, 0.9], [0.35, 0, 0.8, 0]],
-  views:[{ dirFn:() => V.norm(V.mul(ringNeb.pos, -1)), k:1.8, hold:9, drift:0.02 }, { d:[1, 0.2, 0.1], k:1.5, hold:8, drift:0.03 }, { d:[0.3, 0.15, 1], k:0.7, hold:7, drift:0.02 }],
-  tourViews:[0, 1],   // (tours skip the closest angle: the rim fills the screen with bright characters, on a phone too)
+  views:[{ dirFn:() => V.norm(V.mul(ringNeb.pos, -1)), k:1.8, hold:9, drift:0.02 }, { d:[1, 0.2, 0.1], k:2.3, hold:8, drift:0.03 }, { d:[0.3, 0.15, 1], k:0.7, hold:7, drift:0.02 }],
+  // (tours play only the ring seen from Earth: from the side the barrel is a solid block of bright characters, even set back in dark sky,
+  // and the closest angle fills the screen with them)
+  tourViews:[0],
   readout:() => '2,570 light-years · about a light-year across\nseen from the side it is a hollow barrel, not a ring' });
 
 // ---------------------------------------------------------------- the Carina Nebula: one of the biggest star-forming regions in the Milky Way, home of Eta Carinae

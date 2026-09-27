@@ -190,7 +190,10 @@ exoPlanet({ key:'cnc55e', name:'55 Cancri e', host:cnc55, type:'lava world · a 
   readout:() => 'orbit 17.7 hours (sped up here) at 0.015 AU\nday side ~1,500 °C: hot enough to melt rock' });
 // KELT-9b: the hottest planet known, hotter than most stars
 const kelt9 = namedStar('kelt9', 'KELT-9', hms(20,31,26.4), dms(39,56,20), 670, 2.36, 10170, { type:'hot blue-white star', star:{ cells:60, act:0, corona:0.3 }, bound:12, farLum:0.8, labelRange:2000,
-  fact:'A hot, fast-spinning A0 star twice the Sun\'s size, with a giant planet roasting in a polar orbit around it.', aka:'hd 195689 kelt 9', readout:() => '670 light-years · 10,170 K' });
+  fact:'A hot, fast-spinning A0 star twice the Sun\'s size, with a giant planet roasting in a polar orbit around it.', aka:'hd 195689 kelt 9', readout:() => '670 light-years · 10,170 K',
+  // (closer than a plain star's angles, as for 55 Cancri: its bound reaches well past the planet's orbit, and from the usual distance the star
+  // was a speck on a phone. KELT-9b circles at about a quarter of the bound, so both angles take in the star and the planet's orbit.)
+  views:[{d:[0.3, 0.35, 1], k:0.45, hold:8, drift:0.04}, {d:[0.9, 0.3, 0.3], k:0.3, hold:7, drift:0.04}] });
 exoPlanet({ key:'kelt9b', name:'KELT-9b', host:kelt9, type:'the hottest planet known', R:1.891*69911, kind:16, a:0.03462, P:7, locked:true, sortKey:670.001, aka:'hottest exoplanet ultra hot jupiter',
   fact:'A gas giant puffed up to nearly twice Jupiter\'s width, with a day side around 4,300 °C: hotter than most stars. Its molecules are torn apart and its atmosphere is boiling off into space.',
   readout:() => 'orbit 1.5 days (sped up here) · day side ~4,300 °C\ntidally locked: one side always faces the star' });
