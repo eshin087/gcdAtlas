@@ -9,7 +9,7 @@
 // Precision: at the scale of a galaxy a float64 offset from the target is only good to ~100 km, so anything that must sit near the 2.5 km
 // ship (beams leaving it, the probe at launch and docking, the rock, sparks) is kept relative to the ship; things near the target (hits,
 // explosions) relative to the target.
-const HALO = { LS_NEAR:100, LS_FAR:3e4, LS_P:0.35, MAXBEND:1.4, TURN:0.42, T_FAST:10, FOLD_SPOOL:2.8, LS_SPOOL:1.7, FOLD_T:0.4, EMERGE:0.5 };
+const HALO = { LS_NEAR:100, LS_FAR:3e4, LS_P:0.35, MAXBEND:1.4, TURN:0.35, T_FAST:10, FOLD_SPOOL:2.8, LS_SPOOL:1.7, FOLD_T:0.4, EMERGE:0.5 };
 // per job: how long it lasts (s), how much the ship slows for it, where on the pass it happens (share of the path); and the framing while it
 // works: how much of it applies (view), how far the ship banks (bank), how far the trailing camera turns toward the body (turn), and where
 // the lock-on and chase cameras aim (aim, chaseAim: ship axes in ship radii, x below the belly, y ahead, z to the side it banks toward)
