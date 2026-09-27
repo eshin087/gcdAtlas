@@ -69,18 +69,19 @@ function viewParamsV(o, v){
 }
 // van Wijk & Nuij optimal zoom-and-pan path (numerically stable forms)
 function vwPath(u1, w0, w1, rho){
-  if (u1 < 1e-7*Math.min(w0, w1)){ const k = Math.log(w1/w0); return { S:Math.abs(k)/rho + 1e-6, u:() => 0, w:s => w0*Math.exp(Math.sign(k)*rho*s) }; }
+  // (peak: where along the path the view is widest; w rises to it and falls after it)
+  if (u1 < 1e-7*Math.min(w0, w1)){ const k = Math.log(w1/w0); return { S:Math.abs(k)/rho + 1e-6, u:() => 0, w:s => w0*Math.exp(Math.sign(k)*rho*s), peak:k > 0 ? Infinity : -Infinity }; }
   const r4 = rho*rho*rho*rho;
   const b0 = (w1*w1 - w0*w0 + r4*u1*u1)/(2*w0*rho*rho*u1), b1 = (w1*w1 - w0*w0 - r4*u1*u1)/(2*w1*rho*rho*u1);
   const r0 = -Math.asinh(b0), r1 = -Math.asinh(b1);
-  return { S:(r1 - r0)/rho, u:s => w0*Math.sinh(rho*s)/(rho*rho*Math.cosh(rho*s + r0)), w:s => w0*Math.cosh(r0)/Math.cosh(rho*s + r0) };
+  return { S:(r1 - r0)/rho, u:s => w0*Math.sinh(rho*s)/(rho*rho*Math.cosh(rho*s + r0)), w:s => w0*Math.cosh(r0)/Math.cosh(rho*s + r0), peak:-r0/rho };
 }
+// the widest view on a trip's path, among 25 evenly spaced points (as isScenic has always measured it). The view widens up to the peak and
+// narrows after it, so the widest of those points is one of the two around the peak: two evaluations instead of 25.
+function pathWidest(path){ const i = Math.floor(clamp(path.peak/path.S*24, 0, 24)); return Math.max(path.w(path.S*i/24), path.w(path.S*Math.min(i + 1, 24)/24)); }
 // a trip that zooms far out on the way (its widest view more than 30 times either end, and over 2,000 light-years): such a trip swings over
 // the galactic pole and takes longer. (One rule, shared with the random tour, which keeps these trips few.)
-function isScenic(path, w0, w1){
-  let wMax = 0; for (let i=0;i<=24;i++) wMax = Math.max(wMax, path.w(path.S*i/24));
-  return wMax > 30*Math.max(w0, w1) && wMax > 2000;
-}
+function isScenic(path, w0, w1, wMax = pathWidest(path)){ return wMax > 30*Math.max(w0, w1) && wMax > 2000; }
 function slerpDir(a, b, t){
   const c = clamp(V.dot(a, b), -1, 1), th = Math.acos(c);
   if (th < 1e-4) return V.norm(V.lerp(a, b, t));
@@ -191,12 +192,16 @@ function flyTo(o, vp, onDone){
 // setting off from any of a's tour angles (with either sway) to b's first one; it must not enter the bounding sphere of a third object
 // (one that holds neither end). A trip out of the Large Magellanic Cloud can swing through the edge of the Milky Way's sphere, for example.
 // (For the random tour, which picks trips nobody planned; the motion test checks the real flights.)
-function tripClear(a, b){
+// list: the objects to stay out of, from clearList (a deal builds it once for all its trips; positions are relative to the camera's focus,
+// so the list is only good while the focus stays the same)
+function clearList(){ const L = []; for (const o of OBJ) if (!o.parent && o.prog && o.layer >= 2 && !o.marker) L.push({ o, c:frel(o), r:o.rad*1.1 }); return L; }
+function tripClear(a, b, list = clearList()){
   const vb = viewParams(b, tourViews(b)[0]), B = V.add(frel(b), vb.off), w1 = vb.dist;
   const dir1 = M3.apply(camFrameOf(b), sphL(vb.yaw, vb.pitch)), up1 = M3.apply(camFrameOf(b), [0, 1, 0]);
   // (an object that holds either end does not count, nor the star a planet at either end circles: a trip to Kepler-16b may pass its suns)
   const holds = (o, e) => V.len(V.sub(o.pos, e.pos)) < o.rad || e.parent === o;
-  const others = []; for (const o of OBJ) if (o !== a && o !== b && !o.parent && o.prog && o.layer >= 2 && !o.marker && !holds(o, a) && !holds(o, b)){ const c = frel(o); others.push(c[0], c[1], c[2], o.rad*1.1); }
+  const near = list.filter(e => e.o !== a && e.o !== b && !holds(e.o, a) && !holds(e.o, b));
+  let others = [];
   // (the camera moves in a straight line between two samples: the chord is checked, not only its ends)
   const hit = (P, Q) => {
     const dx = Q[0] - P[0], dy = Q[1] - P[1], dz = Q[2] - P[2], dd = dx*dx + dy*dy + dz*dz;
@@ -207,8 +212,13 @@ function tripClear(a, b){
     }
     return false; };
   for (const v of tourViews(a)){
-    const va = viewParams(a, v), A = V.add(frel(a), va.off), w0 = va.dist, L = V.len(V.sub(B, A));
-    const path = vwPath(L, w0, w1, 1.3), scenic = isScenic(path, w0, w1), prog = flightProg(path, scenic, null, false);
+    const va = viewParams(a, v), A = V.add(frel(a), va.off), w0 = va.dist, AB = V.sub(B, A), L = V.len(AB);
+    const path = vwPath(L, w0, w1, 1.3), wMax = pathWidest(path), scenic = isScenic(path, w0, w1, wMax);
+    // (the camera looks at a point on the line from A to B, from at most the widest view away (with a margin for the sampling): only the
+    // spheres that come that close to the line can be hit, which leaves few or none to check on most trips)
+    others = []; for (const e of near){ const t = L > 0 ? clamp(V.dot(V.sub(e.c, A), AB)/(L*L), 0, 1) : 0; if (V.len(V.sub(e.c, V.add(A, V.mul(AB, t)))) < wMax*1.1 + e.r) others.push(e.c[0], e.c[1], e.c[2], e.r); }
+    if (!others.length) continue;
+    const prog = flightProg(path, scenic, null, false);
     // (the camera's up at departure is the frame's up made square to the view, as setBasis leaves it)
     const dir0 = M3.apply(camFrameOf(a), sphL(va.yaw, va.pitch)), fu = M3.apply(camFrameOf(a), [0, 1, 0]), up0 = V.norm(V.sub(fu, V.mul(dir0, V.dot(fu, dir0))));
     const f = { scenic, dir0, dir1, dirMid:DIR_MID, up0, up1, upMid:UP_MID, spin:0 };
