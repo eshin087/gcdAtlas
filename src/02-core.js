@@ -155,8 +155,11 @@ function makePS(n){
 
 // ---------------------------------------------------------------- glyph atlas (pure ASCII)
 const RAMP_CANDIDATES = ".':;+*o%#&8@$W";
+// The seven heavy glyphs carry almost the same ink, so bright areas that cycled through all of them looked like confetti.
+// The bright end of the ramp uses only HEAVY_USE instead, in order of measured ink; one that adds almost no ink over the last is skipped.
+const HEAVY = '%#&8@$W', HEAVY_USE = '&8@';
 const DIR_CHARS = ['-', '/', '|', '\\'];
-const atlas = { tex: gl.createTexture(), count: 0, levels: 0, dir0: 0, chars: '' };
+const atlas = { tex: gl.createTexture(), lut: gl.createTexture(), sub: 4, count: 0, levels: 0, dir0: 0, chars: '', ink: [], lutData: null };
 function buildAtlas(cw, ch){
   const fontPx = cw / 0.6;
   const font = `500 ${fontPx}px "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace`;
@@ -183,7 +186,7 @@ function buildAtlas(cw, ch){
   ramp.sort((a,b)=>a[1]-b[1]);
   const chars = [' '].concat(ramp.map(e=>e[0]), DIR_CHARS);
   const ac = document.createElement('canvas'); ac.width = cw*chars.length; ac.height = ch;
-  const ax = ac.getContext('2d');
+  const ax = ac.getContext('2d', {willReadFrequently:true});
   ax.font = font; ax.textAlign = 'center'; ax.textBaseline = 'middle'; ax.fillStyle = '#fff';
   chars.forEach((c,i)=>ax.fillText(c, i*cw + cw/2, ch/2 + fontPx*0.03));
   gl.bindTexture(gl.TEXTURE_2D, atlas.tex);
@@ -194,4 +197,36 @@ function buildAtlas(cw, ch){
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   atlas.count = chars.length; atlas.levels = ramp.length; atlas.dir0 = ramp.length + 1; atlas.chars = chars.join('');
+  // the ink each glyph really puts on screen: the mean coverage of its cell in the atlas itself
+  const ad = ax.getImageData(0, 0, ac.width, ch).data;
+  atlas.ink = chars.map((c, i) => { let s = 0; for (let y=0;y<ch;y++) for (let x=i*cw;x<(i+1)*cw;x++) s += ad[(y*ac.width + x)*4 + 3]; return s/(255*cw*ch); });
+  buildLut();
+}
+// Brightness to glyph, as a small table built with the atlas (FS_CELL reads one entry per cell). There are `sub` entries per level of the ramp,
+// each [glyph, 1/its ink, ink wanted at the entry's start, ink wanted at its end]. Faint levels keep their own glyph, exactly as before;
+// the run of heavy levels at the top of the ramp shares the HEAVY_USE glyphs in equal parts. The ink wanted runs in straight lines
+// between the glyphs' own inks (each glyph's ink sits at the middle of its part), and FS_CELL scales a cell's colour by wanted / actual,
+// so brightness rises smoothly across the places where one glyph gives way to the next.
+function buildLut(){
+  const L = atlas.levels, S = atlas.sub, n = L*S, ink = atlas.ink, chars = atlas.chars;
+  const g = []; for (let b=0;b<n;b++) g.push(Math.floor(b/S) + 1);   // level l shows chars[l + 1], as before
+  // the heavy levels: the run of HEAVY glyphs at the top of the ramp (all seven in the page's font; a fallback font may put one lower down, and it keeps its place)
+  let h0 = L; while (h0 > 0 && HEAVY.includes(chars[h0])) h0--;
+  const floor = h0 > 0 ? ink[h0] : 0, keep = [];   // the ink of the level just below the run: the bright end must start above it
+  for (const i of [...HEAVY_USE].map(c => chars.indexOf(c)).filter(i => i > 0 && ink[i] > floor).sort((a,b) => ink[a] - ink[b]))
+    if (!keep.length || ink[i] > ink[keep[keep.length - 1]]*1.04) keep.push(i);
+  if (h0 < L && keep.length){ const b0 = h0*S; for (let b=b0;b<n;b++) g[b] = keep[Math.min(Math.floor((b - b0)*keep.length/(n - b0)), keep.length - 1)]; }
+  // runs of one glyph -> (middle of the run, its ink): the knots of the wanted-ink line
+  const kx = [], ky = [];
+  for (let b=0;b<n;){ let e = b; while (e < n && g[e] === g[b]) e++; kx.push((b + e)/2); ky.push(ink[g[b]]); b = e; }
+  const want = x => { if (x <= kx[0]) return ky[0]; for (let j=1;j<kx.length;j++) if (x <= kx[j]) return ky[j-1] + (ky[j] - ky[j-1])*(x - kx[j-1])/(kx[j] - kx[j-1]); return ky[ky.length - 1]; };
+  const d = new Float32Array(n*4);
+  for (let b=0;b<n;b++) d.set([g[b], 1/Math.max(ink[g[b]], 1e-3), want(b), want(b + 1)], b*4);
+  atlas.lutData = d;
+  gl.bindTexture(gl.TEXTURE_2D, atlas.lut);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, n, 1, 0, gl.RGBA, gl.FLOAT, d);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 }

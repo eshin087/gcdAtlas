@@ -136,6 +136,7 @@ void main(){
 const FS_CELL = `#version 300 es
 precision highp float;
 uniform sampler2D uScene; uniform vec2 uGrid; uniform float uExp; uniform float uIn; uniform float uLv; uniform float uDir0; uniform float uEdge; uniform float uT; uniform float uDith;
+uniform highp sampler2D uLut; uniform float uSub;   // brightness -> glyph table (float), uSub entries per level (buildLut in 02-core.js)
 out vec4 o;
 float h21(vec2 p){ vec3 p3 = fract(vec3(p.xyx)*0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y)*p3.z); }
 vec3 tmAt(vec2 c){ vec3 x = texture(uScene, (c + .5)/uGrid).rgb*uIn; return 1. - exp(-x*uExp); }
@@ -143,8 +144,13 @@ float lum(vec3 t){ return max(dot(t, vec3(.2126,.7152,.0722)), max(t.r, max(t.g,
 void main(){
   vec2 c = floor(gl_FragCoord.xy);
   vec3 t = tmAt(c); float v = lum(t);
-  float g = 0.; const float th = 0.03;
-  if(v > th) g = 1. + min(floor(pow((v - th)/(1. - th), 1.2)*uLv), uLv - 1.);
+  float g = 0., k = 1.; const float th = 0.03;
+  // one lookup gives the glyph, 1/its ink and the ink this brightness wants; k = wanted/actual evens out the steps between glyphs
+  if(v > th){
+    float x = pow((v - th)/(1. - th), 1.2)*uLv*uSub, n = uLv*uSub, b = min(floor(x), n - 1.);
+    vec4 e = texelFetch(uLut, ivec2(int(b), 0), 0);
+    g = e.x; k = mix(e.z, e.w, min(x - b, 1.))*e.y;
+  }
   // faint glow and haze: instead of a flat carpet of dots, a sparse field whose density follows the brightness
   // and which slowly reshuffles, cell by cell, so gas and glow shimmer gently like distant stars
   const float th2 = 0.14;
@@ -166,12 +172,14 @@ void main(){
     float dark = step(l00, v*0.45) + step(l10, v*0.45) + step(l20, v*0.45) + step(l01, v*0.45) + step(l21, v*0.45) + step(l02, v*0.45) + step(l12, v*0.45) + step(l22, v*0.45);
     if(G > 1.5 && v < nb*1.7 + 0.04 && bright >= 4. && dark >= 3.){
       float ang = mod(atan(gy, gx) + 1.5707963, 3.14159265);
-      g = uDir0 + mod(floor(ang/0.7853982 + 0.5), 4.);
+      g = uDir0 + mod(floor(ang/0.7853982 + 0.5), 4.); k = 1.;
     }
   }
   float mx = max(t.r, max(t.g, t.b));
   vec3 col = t/max(mx, 1e-4)*(0.34 + 0.66*sqrt(mx));
   col = mix(col, vec3(1.), smoothstep(0.8, 1., v)*0.35);
+  // smooth brightness between glyphs: the colour makes up for the ink the glyph lacks or has in excess (never past full, so the hue holds)
+  col *= clamp(k, 0.6, min(1.6, 1./max(col.r, max(col.g, max(col.b, 1e-4)))));
   o = vec4(col, g/255.);
   // an opaque, unlit cell (a black hole's shadow, a planet's night side) is marked void: no glyph and no glow bleeding into it
   if(v < th && texture(uScene, (c + .5)/uGrid).a > 0.985) o = vec4(0., 0., 0., 1.);
