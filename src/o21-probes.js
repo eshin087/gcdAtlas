@@ -128,7 +128,7 @@ const newHorizons = addProbe({ key:'newhorizons', name:'New Horizons', label:'Ne
   views:[{d:[0.55, 0.45, 0.7], k:2.2, hold:8, drift:0.05}, {d:[-0.8, 0.2, -0.5], k:2.6, hold:7, drift:0.04}], readout:() => '65 AU out · 14 km/s · the size of a grand piano, powered by plutonium' });
 const jwst = addProbe({ key:'jwst', name:'James Webb Space Telescope', label:'JWST', type:'infrared space telescope at Sun-Earth L2', kind:1, sortKey:1.0005, parent:earth,
   fact:'Parked 1.5 million km from Earth, always in Earth\'s shadow side, behind a sunshield the size of a tennis court. Its 6.5 m gold mirror sees the first galaxies.',
-  offset:[0, 0, 0], rad:0.012*KM, labelRange:3e-5, distEarth:'1.5 million km from Earth',
+  offset:[0, 0, 0], rad:0.012*KM, labelRange:3e-5, distEarth:'1.5 million km from Earth', atlasDist:'1.5 million km',
   update(){ const away = V.norm(earth.pos); this.offset = V.mul(away, 1.5e6*KM); this.pos = V.add(earth.pos, this.offset); this.R0 = frameY(V.mul(away, -1), [0, 0, 1]); this.rot = this.R0; },
   views:[{d:[0.7, 0.45, 0.6], k:2.2, hold:8, drift:0.05}, {d:[0.2, -0.9, 0.3], k:2.4, hold:7, drift:0.04}],
   readout:() => 'sunshield 21 x 14 m keeps the telescope at -233 °C\nit has seen galaxies from 290 million years after the Big Bang' });

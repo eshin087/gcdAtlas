@@ -54,7 +54,7 @@ const earthLive = (() => {
   const typical = { iss:[6795, 51.64*DEG, 1, 0, 0.0004, 0], hubble:[6900, 28.47*DEG, 2, 1, 0.0002, 0], tiangong:[6750, 41.47*DEG, 4, 2, 0.0005, 0] };
   typical.iss.ref = typical.hubble.ref = typical.tiangong.ref = JD_NOW;
   function craft(key, name, label, type, kind, radKm, fact, readout, nameRe){
-    const o = addProbe({ key, name, label, type, kind, parent:earth, offset:[0, 0, 0], rad:radKm*KM, sortKey:1.00001, labelRange:3e-4, labelMin:1e-9, distEarth:'in orbit around Earth', minZoom:1.4,
+    const o = addProbe({ key, name, label, type, kind, parent:earth, offset:[0, 0, 0], rad:radKm*KM, sortKey:1.00001, labelRange:3e-4, labelMin:1e-9, distEarth:'in orbit around Earth', atlasDist:'in Earth orbit', minZoom:1.4,
       fact, readout,
       views:[{ d:[0.6, 0.35, 0.7], k:2.4, hold:8, drift:0.05 }, { d:[-0.5, 0.7, 0.4], k:3.2, hold:7, drift:0.04 }],
       update(){

@@ -822,8 +822,9 @@ OBJ.filter(o => o.atlas !== false && !o.marker && GROUPS.some(([g]) => g === o.g
   b.querySelector('.an').textContent = o.name;
   b.title = o.type;
   b.addEventListener('click', () => goTo(o.index));
-  const dtxt = o.key === 'earth' ? 'home' : (o.atlasDist || (o.distEarth && o.distEarth.length < 14 ? o.distEarth : fmtDist(V.len(V.sub(o.pos, earth.pos)))));
-  atlasRows.push({ b, o, cat:catOf(o), cats:catsOf(o), dtxt, stxt:fmtLen(2*atlasSize(o)*LY, 2) + ' across', text:(o.name + ' ' + (o.label || '') + ' ' + o.type + ' ' + (o.aka || '')).toLowerCase() });
+  // (a distance written out stays; any other is measured each time the atlas opens: things that move, like the Halo or JWST, are only placed on the first frame)
+  const dfix = o.key === 'earth' ? 'home' : (o.atlasDist || (o.distEarth && o.distEarth.length < 14 ? o.distEarth : null));
+  atlasRows.push({ b, o, cat:catOf(o), cats:catsOf(o), dfix, stxt:fmtLen(2*atlasSize(o)*LY, 2) + ' across', text:(o.name + ' ' + (o.label || '') + ' ' + o.type + ' ' + (o.aka || '')).toLowerCase() });
 });
 const atlasEmpty = document.createElement('div'); atlasEmpty.className = 'atlas-empty'; atlasEmpty.textContent = 'nothing found yet · try a planet, star, nebula or galaxy';
 // the tools: sort (distance, size, name, either direction), a category filter, and reset
@@ -837,12 +838,22 @@ const catBtns = CATS.map(([id, name]) => {
 sortBtns.forEach(b => b.addEventListener('click', () => { if (ATL.sort === b.dataset.sort) ATL.dir = -ATL.dir; else { ATL.sort = b.dataset.sort; ATL.dir = b.dataset.sort === 'size' ? -1 : 1; } saveAtl(); renderAtlas(); }));
 dirBtn.addEventListener('click', () => { ATL.dir = -ATL.dir; saveAtl(); renderAtlas(); });
 $('#atlasReset').addEventListener('click', () => { Object.assign(ATL, ATL_DEF); saveAtl(); searchEl.value = atlasSearch.value = ''; renderAtlas(); toast('atlas reset'); });
-// on a phone the chips scroll sideways: keep the chosen one in sight (a saved choice can be far along the row)
+// the chips scroll sideways (one line, so the list keeps the room): keep the chosen one in sight (a saved choice can be far along the row),
+// and let a mouse wheel scroll them
+catRow.addEventListener('wheel', e => { if (catRow.scrollWidth <= catRow.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+  catRow.scrollLeft += e.deltaY*(e.deltaMode === 1 ? 16 : 1); e.preventDefault(); }, { passive:false });
+// (the row's right end fades while more chips wait beyond it)
+const catFade = () => catRow.classList.toggle('more', catRow.scrollLeft + catRow.clientWidth < catRow.scrollWidth - 2);
+catRow.addEventListener('scroll', catFade, { passive:true });
 function showCat(){
-  const on = catBtns.find(b => b.dataset.cat === ATL.cat); if (!on || catRow.scrollWidth <= catRow.clientWidth) return;
-  const rr = catRow.getBoundingClientRect(), br = on.getBoundingClientRect();
-  if (br.left < rr.left || br.right > rr.right) catRow.scrollLeft += br.left - rr.left - 40;
+  const on = catBtns.find(b => b.dataset.cat === ATL.cat);
+  if (on && catRow.scrollWidth > catRow.clientWidth){
+    const rr = catRow.getBoundingClientRect(), br = on.getBoundingClientRect();
+    if (br.left < rr.left || br.right > rr.right) catRow.scrollLeft += br.left - rr.left - 40;
+  }
+  catFade();
 }
+const rowDist = r => r.dfix || fmtDist(earthDist(r.o));
 function renderAtlas(){
   const dirWords = { distance:['nearest first', 'farthest first'], size:['smallest first', 'biggest first'], name:['A to Z', 'Z to A'] }[ATL.sort];
   sortBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.sort === ATL.sort)));
@@ -865,7 +876,7 @@ function renderAtlas(){
     h.textContent = (ATL.cat === 'all' ? 'everything' : (CATS.find(c => c[0] === ATL.cat) || [0, 'not seen yet'])[1]) + ' · by ' + ATL.sort + ' · ' + dirWords[ATL.dir > 0 ? 0 : 1];
     atlasList.appendChild(h); rows.forEach(r => { r.h = h; atlasList.appendChild(r.b); });
   }
-  atlasRows.forEach(r => { r.shown = catMatch(r); r.b.classList.toggle('seen', SEEN.has(r.o.key)); r.b.querySelector('.ad').textContent = ATL.sort === 'size' ? r.stxt : r.dtxt; });
+  atlasRows.forEach(r => { r.shown = catMatch(r); r.b.classList.toggle('seen', SEEN.has(r.o.key)); r.b.querySelector('.ad').textContent = ATL.sort === 'size' ? r.stxt : rowDist(r); });
   atlasList.appendChild(atlasEmpty);
   filterAtlas(searchEl.value);
   atlasMark(infoObj);
@@ -885,7 +896,8 @@ function setKb(k){
 function toggleAtlas(on){
   atlasEl.hidden = !on; document.body.classList.toggle('atlas-open', on); $('#btnAtlas').setAttribute('aria-expanded', String(on));   // (the scale bar hides while it is open)
   if (on && document.body.classList.contains('lad-open')) setLadOpen(false);   // (on a phone the ladder folds away)
-  if (on){ filterAtlas(searchEl.value); showCat(); const cur = atlasRows.find(r => r.o.index === infoObj); if (cur && !searchEl.value && !cur.b.hidden) cur.b.scrollIntoView({ block:'center' }); }
+  if (on){ if (ATL.sort !== 'size') atlasRows.forEach(r => { if (!r.dfix) r.b.querySelector('.ad').textContent = rowDist(r); });
+    filterAtlas(searchEl.value); showCat(); const cur = atlasRows.find(r => r.o.index === infoObj); if (cur && !searchEl.value && !cur.b.hidden) cur.b.scrollIntoView({ block:'center' }); }
   else { atlasRows.forEach(r => r.b.classList.remove('kb')); kbRow = -1; }
 }
 function filterAtlas(q){

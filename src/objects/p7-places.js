@@ -8,7 +8,7 @@ const P7_SEED = seed;
 
 // ---------------------------------------------------------------- Vesta: the brightest asteroid, with a crater as wide as itself at its south pole
 // orbit: osculating elements from JPL Horizons for 2026-09-27; pole and spin: IAU (WGCCRE 2015)
-const vesta = addRock({ key:'vesta', tags:['moons'], name:'Vesta', label:'Vesta', type:'asteroid · the brightest in our sky', shape:3, rad:310*KM, sortKey:2.36,
+const vesta = addRock({ key:'vesta', tags:['moons'], name:'Vesta', label:'Vesta', type:'asteroid · the brightest in our sky', shape:3, rad:310*KM, sizeR:262.7*KM, sortKey:2.36,
   el:{ a:2.361241, e:0.090230, i:7.143879, om:103.6998, w:151.4364, tp:2460901.4973 }, orbitCol:[0.55, 0.6, 0.78], R0:poleFrame(309.031, 42.235),
   farLum:0.5, farColor:[0.85, 0.82, 0.76], labelRange:1.5*AU_LY, pxMin:6,
   tick(){ this.rot = bodyFrame(309.031, 42.235, 285.39 + 1617.3329428*(jdNow() - 2451545)); },
@@ -22,7 +22,7 @@ const vesta = addRock({ key:'vesta', tags:['moons'], name:'Vesta', label:'Vesta'
 
 // ---------------------------------------------------------------- Bennu: the rubble pile OSIRIS-REx brought a sample home from
 // orbit: osculating elements from JPL Horizons for 2026-09-27; pole and spin period: JPL small-body database
-const bennu = addRock({ key:'bennu', tags:['moons'], name:'Bennu', label:'Bennu', type:'near-Earth asteroid · a spinning top of rubble', shape:4, rad:0.28*KM, sortKey:1.126,
+const bennu = addRock({ key:'bennu', tags:['moons'], name:'Bennu', label:'Bennu', type:'near-Earth asteroid · a spinning top of rubble', shape:4, rad:0.28*KM, sizeR:0.245*KM, sortKey:1.126,
   el:{ a:1.125915, e:0.203677, i:6.033018, om:1.966547, w:66.40066, tp:2461112.6645 }, orbitCol:[0.62, 0.52, 0.45], R0:poleFrame(85.45, -60.37),
   tick(){ this.rot = bodyFrame(85.45, -60.37, 2011.145*(jdNow() - 2451545)); },
   fact:'A loose pile of rubble about 500 m wide, shaped like a spinning top, with a ridge round its middle and boulders everywhere. NASA\'s OSIRIS-REx scooped up 121.6 g of it and dropped the sample off at Earth on 24 September 2023. It has a 1 in 2,700 chance of hitting Earth in 2182.',
@@ -132,7 +132,7 @@ const lagoon = (() => {
   const cl = clusterPS(Math.round(380*QUALITY), [0.32, -0.02, 0.08], 0.2, 26000);
   return addObj({ key:'lagoon', name:'Lagoon Nebula', label:'Lagoon Nebula', type:'star-forming region · M8 · in Sagittarius', group:'nebulae', sortKey:4300,
     fact:'A cloud of glowing hydrogen about 110 by 50 light-years, where new stars are forming. A lane of dark dust across it gives it its name. On one side of the dark lane the young star Herschel 36 lights up the Hourglass; the young cluster NGC 6530 sits on the other.',
-    pos, rad:RAD, R0:facingEarth(pos, [0, 0, 1], -20), prog:program(VS_RECT, FS_LAGOON), minZoom:0.03, pxMin:6, farColor:[1, 0.5, 0.58], farLum:0.55, labelRange:1.5e5, labelMin:15,
+    pos, rad:RAD, sizeR:55, R0:facingEarth(pos, [0, 0, 1], -20), prog:program(VS_RECT, FS_LAGOON), minZoom:0.03, pxMin:6, farColor:[1, 0.5, 0.58], farLum:0.55, labelRange:1.5e5, labelMin:15,
     aka:'m8 messier 8 lagoon nebula ngc 6523 ngc 6530 hourglass herschel 36 sagittarius',
     visFn(rpx){ return smooth(6, 16, rpx)*(0.2 + 0.8*smooth(2, 30, orbit.dist)); },
     views:nebView(pos, [{ d:[0.55, 0.3, 0.8], k:1.1, hold:8, drift:0.03 }, { dirFn:() => V.norm(V.mul(pos, -1)), k:0.3, off:HG, hold:9, drift:0.02 }]),
@@ -156,7 +156,7 @@ const m13 = (() => {
   const sent = Date.UTC(1974, 10, 16);   // the Arecibo message went out on 16 November 1974
   return addObj({ key:'m13', tags:['clusters'], name:'Great Hercules Cluster', label:'M13', type:'globular cluster · M13, target of the Arecibo message', group:'nebulae', sortKey:25000,
     fact:'Several hundred thousand stars in a ball about 145 light-years across, around 12 billion years old. In 1974 the Arecibo radio telescope beamed a short message toward it. Travelling at the speed of light, it will take about 25,000 years to get there.',
-    pos, rad:RAD, R0:facingEarth(pos, [0, 0, 1], 0), prog:omegacen.prog, minZoom:0.03, pxMin:5, farColor:[1, 0.9, 0.75], farLum:0.6, labelRange:2e5, aka:'m13 messier 13 ngc 6205 great globular cluster hercules globular cluster arecibo message',
+    pos, rad:RAD, sizeR:72.5, R0:facingEarth(pos, [0, 0, 1], 0), prog:omegacen.prog, minZoom:0.03, pxMin:5, farColor:[1, 0.9, 0.75], farLum:0.6, labelRange:2e5, aka:'m13 messier 13 ngc 6205 great globular cluster hercules globular cluster arecibo message',
     setU(pr){ gl.uniform4f(pr.u.uP0, 0.6, 0, 0, 0); },
     views:[{d:[0.2, 0.3, 1], k:1.7, hold:9, drift:0.03}, {d:[0.6, 0.4, 0.7], k:0.4, hold:8, drift:0.04}, {d:[0.3, 0.2, 1], k:0.08, hold:8, drift:0.05}],
     particles:[{ps, prog:'ptBasic', mode:0, sb:0.4, size:1.3, cap:0.9}],

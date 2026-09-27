@@ -87,7 +87,7 @@ const universe = (() => {
   ps.upload('ac');
   const o = addObj({ key:'universe', name:'the observable universe', label:'observable universe', type:'everything light has had time to reach us from, in 13.8 billion years', group:'cosmic', sortKey:9e10, layer:0,
     fact:'A sphere 93 billion light-years across centred on us. Its edge is the cosmic microwave background, the afterglow of the Big Bang released 380,000 years after it began. (The pattern is illustrative.)',
-    pos:[0, 0, 0], rad:R, prog:program(VS_RECT, FS_UNIVERSE), minZoom:0.03, pxMin:2, noImpostor:true, labelRange:1e13, labelMin:6e10, distEarth:'46.5 billion ly to the edge', aka:'cmb big bang edge horizon',
+    pos:[0, 0, 0], rad:R, prog:program(VS_RECT, FS_UNIVERSE), minZoom:0.03, pxMin:2, noImpostor:true, labelRange:1e13, labelMin:6e10, distEarth:'46.5 billion ly to the edge', atlasDist:'all around us', aka:'cmb big bang edge horizon',
     visFn:() => smooth(8e8, 1.2e10, orbit.dist),
     particleVis:() => smooth(4e9, 2.5e10, orbit.dist),
     setU(pr){ gl.uniform4f(pr.u.uP0, smooth(2e10, 8e10, V.len(this.rel)), smooth(3e9, 3e10, orbit.dist), 0, 0); },

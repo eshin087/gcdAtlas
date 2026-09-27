@@ -245,6 +245,10 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .chip:hover{color:var(--ink)}
 .chip[aria-pressed="true"]{color:var(--flare);border-color:rgba(255,179,92,.6);background:var(--flare-bg)}
 .chip.reset{margin-left:auto;color:var(--soft)}
+/* the category chips stay on one line and scroll sideways (the mouse wheel scrolls them too), so the list keeps the room */
+#atlasCats{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent;padding-bottom:3px}
+#atlasCats>*{flex:none}
+#atlasCats.more{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 40px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 40px),transparent)}
 .atlas-list{overflow:auto;padding:4px 0 10px;overscroll-behavior:contain;scrollbar-width:thin}
 .agroup{padding:10px 12px 4px;color:var(--flare);font-size:calc(10.5px*var(--ts));letter-spacing:.14em;text-transform:uppercase}
 .arow{position:relative;display:flex;align-items:baseline;gap:10px;width:100%;text-align:left;background:none;border:0;border-left:2px solid transparent;padding:5px 12px 5px 18px;color:var(--soft);cursor:pointer;font-size:calc(12px*var(--ts))}
@@ -445,6 +449,7 @@ body.sky .info .acts,body.sky .ladder,body.sky .lad-chip,body.sky .progress{opac
   .atlas-tools{gap:5px;padding:6px 10px}
   .atlas-tools .row{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain}
   .atlas-tools .row::-webkit-scrollbar{display:none}
+  #atlasCats{scrollbar-width:none;padding-bottom:0}
   .atlas-tools .chip,.atlas-tools .lbl,.seen-count,.badge{flex:none}
   .badges{flex-wrap:nowrap;margin-left:4px}
   .chip.reset{margin-left:0}
