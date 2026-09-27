@@ -62,6 +62,38 @@ for (const st of want){
   const full = em('full'), small = em('small');
   res[st] = { loud:(full + small)/2, full, small, peak:Math.max(...runs.map(r => r.peak)), runs, sec:(Date.now() - t0)/1000 };
 }
+// the shuffle: 400 songs of each mood
+const sh = await page.evaluate(() => { const m = window.__cosmos.music, plans = {};
+  for (const mood in m.moods) plans[mood] = m._plan(mood, 400);
+  return { plans, moods:m.moods, places:m._places, names:window.__cosmos.OBJ.map(o => o.name), text:m.moodText('mix') }; });
+const shNotes = [];
+for (const [mood, list] of Object.entries(sh.plans)){
+  const allowed = Object.keys(sh.moods[mood]), seen = new Set(), bad = new Set();
+  list.forEach((x, i) => {
+    seen.add(x.style);
+    if (!allowed.includes(x.style)) bad.add(`${mood} plays ${x.style}`);
+    if (!(x.key >= 48 && x.key <= 59)) bad.add(`${mood}: key ${x.key} out of range`);
+    if (i && x.style === list[i - 1].style) bad.add(`${mood} plays ${x.style} twice in a row`);
+    if (i && ![0, 2, 5, 7, 10].includes(((x.sig - list[i - 1].sig) % 12 + 12) % 12)) bad.add(`${mood}: the key jumps from ${list[i - 1].sig} to ${x.sig}`);
+    if (mood === 'mix' && i >= 4 && !list.slice(i - 4, i + 1).some(y => y.style === 'ambient' || y.style === 'piano')) bad.add('mix: five songs without a calm one');
+    if (list.slice(Math.max(0, i - 59), i).some(y => y.title === x.title)) bad.add(`${mood}: "${x.title}" again within 60 songs`);
+  });
+  for (const st of allowed) if (!seen.has(st)) bad.add(`${mood} never plays ${st}`);
+  errors.push(...bad);
+  const count = {}; for (const x of list) count[x.style] = (count[x.style] || 0) + 1;
+  shNotes.push(mood + ' ' + Object.entries(count).map(([k, v]) => `${k} ${Math.round(100*v/list.length)}%`).join(' '));
+}
+for (const p of sh.places){ const q = p.replace(/^the /, ''); if (!sh.names.some(n => n.includes(q))) errors.push(`song names use "${p}", which is not in the atlas`); }
+// moods saved before 0.8.9 map across: lofi -> beats, house -> groove, ambient -> calm, anything else -> mix
+await page.addInitScript(() => { const v = sessionStorage.getItem('__ms'); if (v) localStorage.setItem('gcdatlas.settings', JSON.stringify({ musicStyle:v, sound:false, fadeUI:'off' })); });
+for (const [was, now] of [['lofi', 'beats'], ['house', 'groove'], ['ambient', 'calm'], ['disco', 'mix']]){
+  await page.evaluate(v => sessionStorage.setItem('__ms', v), was);
+  await page.reload(); await page.waitForFunction(() => window.__cosmos && window.__cosmos.SET, null, { timeout:60000 });
+  const r = await page.evaluate(() => ({ set:window.__cosmos.SET.musicStyle, on:[...document.querySelectorAll('.seg[data-key=musicStyle] button')].filter(b => b.getAttribute('aria-checked') === 'true').map(b => b.dataset.v), note:document.querySelector('#moodNote').textContent }));
+  if (r.set !== now || r.on.join() !== now) errors.push(`a saved "${was}" became ${r.set} (button ${r.on.join()}), not ${now}`);
+  if (!r.note.startsWith('plays ')) errors.push('mood note: ' + r.note);
+}
+console.log('shuffle, 400 songs each: ' + shNotes.join(' · ') + '\nmix plays ' + sh.text);
 const ref = res.lofi, lines = [];
 for (const st of want){
   const r = res[st], d = r.loud - ref.loud, sg = x => (x >= 0 ? '+' : '') + x.toFixed(1);

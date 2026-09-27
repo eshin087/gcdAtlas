@@ -738,7 +738,7 @@ function syncSettingsUI(){
   const v = { detail:String(detailIdx), travel:SET.travel, time:String(timeScale), dwell:SET.dwell, musicStyle:SET.musicStyle, saverIdle:String(SET.saverIdle), fadeUI:SET.fadeUI };
   document.querySelectorAll('.seg[data-key]').forEach(seg => { const k = seg.dataset.key; seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.v === v[k]))); });
   settingsEl.querySelectorAll('.tog button').forEach(b => b.setAttribute('aria-pressed', String(!!SET[b.dataset.key])));
-  $('#volume').value = SET.volume;
+  $('#volume').value = SET.volume; $('#moodNote').textContent = 'plays ' + music.moodText(SET.musicStyle);
   syncSoundBtn(true);
   $('#textSize').value = SET.textSize; $('#tsTxt').textContent = Math.round(SET.textSize*100) + '%';
   $('#menuSize').value = SET.menuSize; $('#msTxt').textContent = Math.round(SET.menuSize*100) + '%';
@@ -772,7 +772,7 @@ function setOpt(key, v, quiet){
     case 'haloMark': SET.haloMark = !!v; if (!quiet) toast(v ? 'Halo indicator on · the ship is marked in blue (ride along from its card)' : 'Halo indicator off'); updateModeUI(); break;
     case 'sound': SET.sound = !!v; music.set(SET.sound); if (!quiet) toast(v ? 'music on' : 'music off'); break;
     case 'volume': SET.volume = clamp(+v, 0, 1); music.volume(); break;
-    case 'musicStyle': SET.musicStyle = v; music.styleChanged(); if (!quiet) toast('music: ' + (v === 'mix' ? 'rotating mix of lofi, chill house and ambient' : v === 'house' ? 'chill house' : v)); break;
+    case 'musicStyle': SET.musicStyle = music.moods[v] ? v : 'mix'; music.styleChanged(); if (!quiet) toast('music: ' + SET.musicStyle + ' · ' + music.moodText(SET.musicStyle)); break;
     case 'saverIdle': SET.saverIdle = +v || 0; if (!quiet) toast(SET.saverIdle ? `screensaver starts after ${SET.saverIdle} minutes without input` : 'screensaver only when you ask (Z)'); break;
     case 'dwell': SET.dwell = v; if (!quiet) toast('tour stops: ' + v + (v === 'short' ? ' · quicker tour' : v === 'long' ? ' · lingers on each view' : '')); break;
     case 'textSize': SET.textSize = clamp(+v, 0.85, 1.6); applyTextSize(); break;

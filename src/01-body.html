@@ -183,9 +183,10 @@
       <button data-key="sound" aria-pressed="true">music</button>
       <input id="volume" type="range" min="0" max="1" step="0.05" aria-label="Volume">
     </div>
-    <div class="seg" data-key="musicStyle" role="radiogroup" aria-label="Music style" style="margin-top:6px">
-      <button data-v="mix" role="radio">mix</button><button data-v="lofi" role="radio">lofi</button><button data-v="house" role="radio">chill house</button><button data-v="ambient" role="radio">ambient</button>
+    <div class="seg" data-key="musicStyle" role="radiogroup" aria-label="Music mood" style="margin-top:6px">
+      <button data-v="mix" role="radio">mix</button><button data-v="calm" role="radio">calm</button><button data-v="lounge" role="radio">lounge</button><button data-v="beats" role="radio">beats</button><button data-v="groove" role="radio">groove</button>
     </div>
+    <div class="mood-note" id="moodNote"></div>
     <div class="now-playing"><span class="np-l">now playing</span><span id="nowPlaying">press play: music starts with your first click</span><button class="chip" id="npSkip" title="Next track">next &#9656;&#9656;</button></div>
   </div>
   <div class="opt">

@@ -1,8 +1,9 @@
 
 // ================================================================ soundtrack: gcd radio, a generative mix that never repeats
-// Three styles take turns: lofi beats (dusty drums, Rhodes chords, vinyl crackle), chill house (soft four-on-the-floor,
-// sidechained pads, plucked arpeggios) and ambient interludes (slow pads, drone, distant chimes). Every track gets its own
-// key, tempo, chord progression, melody and arrangement (intro, verses, a breakdown, an outro), so nothing loops audibly.
+// Eight styles (STYLES): lofi beats, chill house, ambient, bossa nova, lounge jazz, ambient piano, downtempo and soft synthwave.
+// A mood in the settings (MOODS) picks which ones play: the default mix plays only the calm ones, chill house and synthwave
+// play under 'groove'. Every track gets its own key (close to the last one's), tempo, chord progression, melody, arrangement
+// and a name from a place in the atlas, so nothing loops audibly. The styles are equally loud (tests/music.mjs checks).
 // Everything is synthesised in the browser: no audio files. It tries to start on load; browsers that block that start it on the first
 // click, tap or key press. The first track skips its intro so the groove is there at once.
 const music = (() => {
@@ -80,7 +81,7 @@ const music = (() => {
       progs:[[[2, 'm9'], [7, 'dom9'], [0, 'maj9'], [9, 'm9']], [[0, 'maj9'], [9, 'm9'], [5, 'maj9'], [7, 'dom9']], [[5, 'maj7'], [4, 'm7'], [2, 'm9'], [0, 'maj9']],
         [[9, 'm9'], [2, 'm11'], [7, 'dom9'], [0, 'maj9']], [[0, 'maj9'], [5, 'maj9']], [[4, 'm7'], [9, 'm9'], [2, 'm9'], [7, 'sus']]],
       plan:() => [['intro', 4], ['A', 8], ['B', 8], ['break', 4], ['A', 8], ['B', 8], ['outro', 4]], step:lofiStep },
-    house:{ label:'chill house', bpm:[110, 118], bpc:prog => prog.length <= 2 ? 2 : 1, crackle:0.005, drone:0.012, level:1,
+    house:{ label:'chill house', minor:true, bpm:[110, 118], bpc:prog => prog.length <= 2 ? 2 : 1, crackle:0.005, drone:0.012, level:1,
       progs:[[[0, 'm9'], [8, 'maj9'], [3, 'maj9'], [10, 'dom9']], [[0, 'm9'], [5, 'm9']], [[0, 'm11'], [10, 'sus'], [8, 'maj9'], [7, 'm7']], [[9, 'm9'], [5, 'maj9'], [0, 'maj9'], [7, 'sus']]],
       plan:() => [['intro', 8], ['A', 16], ['B', 16], ['break', 8], ['drop', 16], ['outro', 8]], step:houseStep },
     ambient:{ label:'ambient', bpm:[60, 60], bpc:() => 4, crackle:0, drone:0.05, level:1.29,
@@ -105,25 +106,80 @@ const music = (() => {
       cells:[[0, 8, 12, 16, 24], [0, 4, 8, 16, 20, 24], [4, 8, 16, 28], [0, 12, 16, 20]],
       setup:T => { T.drift = 0.015; T.driftPh = R()*6; },   // the tempo breathes by about 1.5%
       plan:() => [['intro', 2], ['A', 12], ['B', 12], ['A', 8], ['outro', 2]], step:pianoStep },
-    downtempo:{ label:'downtempo', bpm:[86, 96], mode:'minor', home:'m9', swing:() => 0.08 + R()*0.06, bpc:() => 2, crackle:0.012, drone:0, level:3.6,
+    downtempo:{ label:'downtempo', minor:true, bpm:[86, 96], mode:'minor', home:'m9', swing:() => 0.08 + R()*0.06, bpc:() => 2, crackle:0.012, drone:0, level:3.6,
       progs:[[[0, 'm9'], [5, 'dom9']], [[0, 'm11'], [3, 'maj9'], [8, 'maj9'], [7, 'm7']], [[0, 'm9'], [10, 'sus'], [8, 'maj9'], [10, 'dom9']]],
       cells:[[0, 6, 10, 16], [4, 8, 14, 24], [0, 3, 8, 20], [2, 6, 18, 22]],
       plan:() => [['intro', 4], ['A', 12], ['B', 12], ['break', 4], ['A', 8], ['outro', 4]], step:downStep },
-    synthwave:{ label:'synthwave', bpm:[84, 100], mode:'minor', home:'m9', bpc:() => 2, crackle:0, drone:0, level:2.4,
+    synthwave:{ label:'synthwave', minor:true, bpm:[84, 100], mode:'minor', home:'m9', bpc:() => 2, crackle:0, drone:0, level:2.4,
       progs:[[[0, 'm9'], [8, 'maj9'], [3, 'maj9'], [10, 'sus']], [[0, 'm9'], [10, 'dom9'], [8, 'maj9'], [10, 'dom9']], [[0, 'm9'], [8, 'maj9'], [5, 'm9'], [7, 'm7']]],
       cells:[[0, 4, 8, 12, 16, 20, 24], [0, 6, 8, 14, 16, 22, 24], [0, 8, 12, 16, 24, 28], [2, 4, 8, 14, 18, 20, 24]],
       setup:T => { T.arpUD = R() < 0.5; },
       plan:() => [['intro', 8], ['A', 16], ['B', 16], ['break', 8], ['B', 16], ['outro', 8]], step:waveStep },
   };
-  // ---------------------------------------------------------------- tracks
-  const WORDS1 = ['Midnight', 'Slow', 'Blue', 'Quiet', 'Tidal', 'Amber', 'Lunar', 'Violet', 'Drifting', 'Distant', 'Soft', 'Golden', 'Faint', 'Warm', 'Silver', 'Late'];
-  const WORDS2 = ['orbit', 'over Europa', 'shift', 'lock', 'nebula', 'transit', 'light-years', 'horizon', 'drift', 'aurora', 'redshift', 'perihelion', 'cassette', 'Lagrange point', 'dust lanes', 'eclipse', 'signal', 'parallax'];
-  const MIX = ['lofi', 'house', 'lofi', 'ambient', 'house', 'lofi', 'house', 'ambient'];
-  let mixIdx = Math.floor(R()*MIX.length), T = null, nextT = 0, step = 0, forceStyle = null;
+  // ---------------------------------------------------------------- the shuffle
+  // A mood picks the styles, with weights. The default mix plays only the calm ones; chill house and synthwave play under groove.
+  const MOODS = {
+    mix:{ ambient:2, piano:2, bossa:2, lounge:3, lofi:3, downtempo:2 },
+    calm:{ ambient:1, piano:1 },
+    lounge:{ bossa:1, lounge:1 },
+    beats:{ lofi:3, downtempo:2 },
+    groove:{ house:1, synthwave:1 },
+  };
+  const CALM = ['ambient', 'piano'];
+  const moodOf = () => MOODS[SET.musicStyle] ? SET.musicStyle : 'mix';
+  // Songs are dealt from a weighted bag, refilled when empty: never the same style twice in a row, and in the mix a calm song
+  // (ambient or piano) at least every fifth song. sig: the key signature of the last song, recent: the last 60 names.
+  const fresh = () => ({ mood:null, bag:[], last:null, sinceCalm:0, sig:null, recent:[] });
+  let SH = fresh();
+  function nextStyle(){
+    const mood = moodOf(), W = MOODS[mood];
+    if (SH.mood !== mood){ SH.mood = mood; SH.bag = []; }
+    const fill = () => { for (const st in W) for (let i=0;i<W[st];i++) SH.bag.push(st); };
+    const calmDue = mood === 'mix' && SH.sinceCalm >= 4, ok = st => st !== SH.last && (!calmDue || CALM.includes(st));
+    if (!SH.bag.length) fill();
+    let pool = SH.bag.filter(ok);
+    if (!pool.length){ fill(); pool = SH.bag.filter(ok); }
+    const st = pool.length ? pick(pool) : pick(Object.keys(W));
+    if (SH.bag.includes(st)) SH.bag.splice(SH.bag.indexOf(st), 1);
+    SH.last = st; SH.sinceCalm = CALM.includes(st) ? 0 : SH.sinceCalm + 1;
+    return st;
+  }
+  // Keys move gently from song to song: the key signature stays or moves by one or two sharps or flats (a fourth, a fifth or a
+  // whole tone), and a minor style takes the relative minor, so the next song starts close to where the last one ended.
+  const fold = pc => 48 + ((pc - 48) % 12 + 12) % 12;   // C3 .. B3
+  function nextKey(S){
+    let key;
+    if (SH.sig === null) key = 50 + Math.floor(R()*8);   // the first song: D3 .. A3
+    else key = fold((SH.sig + pick([0, 5, -5, 5, -5, 2, -2]) + (S.minor ? 9 : 0)) % 12);
+    SH.sig = ((key + (S.minor ? 3 : 0)) % 12 + 12) % 12;
+    return key;
+  }
+  // Song names are made from places in the atlas: 'Bossa for Europa', 'Rain on Titan'. None repeats among the last 60.
+  const PLACES = ['Europa', 'Titan', 'Io', 'Enceladus', 'the Moon', 'Ceres', 'Pluto', 'Mars', 'Venus', 'Saturn', 'Jupiter', 'Neptune', 'Uranus', 'Mercury',
+    'Vega', 'Sirius', 'Polaris', 'Rigel', 'Deneb', 'Altair', 'Arcturus', 'Aldebaran', 'Antares', 'Betelgeuse', 'the Pleiades', 'Andromeda', 'Orion',
+    'Proxima b', 'Alpha Centauri', 'TRAPPIST-1', 'Omega Centauri', 'the Sombrero', 'the Whirlpool', 'Carina', 'the Helix', 'the Crab', 'Halley',
+    'Arrokoth', 'the Oort cloud', 'Epsilon Eridani', 'Hale-Bopp', 'the Perseids', 'the Leonids', 'HL Tauri', 'Centaurus A', 'the Veil', 'the Horsehead'];
+  const NAMES = {
+    lofi:['Rainy Day on #', 'Study Notes from #', 'Cassette from #', 'Slow Orbit of #', '# at 3 AM', 'Midnight over #', 'Tea on #', 'Window Seat to #', 'Dusty Records from #'],
+    house:['# Sunrise', 'Deep over #', 'Dancing on #', 'Warm Signal from #', 'Afterglow over #', '# Nights', 'Night Bus to #', 'Golden Hour on #'],
+    ambient:['Drifting past #', 'Above #', 'The Long Night of #', 'Far Light of #', 'Silence over #', 'Horizon of #', 'Slowly past #', 'Dust over #'],
+    bossa:['Bossa for #', 'Samba on #', 'Girl from #', 'Sunday on #', 'Café on #', 'Beach Walk on #', 'Slow Samba past #', 'A Day on #'],
+    lounge:['# Lounge', 'Late Set at #', 'Elevator to #', 'Blue Hour on #', 'Nightcap over #', 'Last Call on #', 'Velvet #', 'Lobby of #'],
+    piano:['Rain on #', 'Letter from #', 'Snow on #', 'Morning over #', 'Quiet Hours on #', 'Notes from #', 'Lullaby for #', 'A Light over #'],
+    downtempo:['Slow Motion over #', 'Haze over #', 'Low Tide on #', 'Half Light on #', 'Afternoon on #', 'Soft Focus on #', 'Balcony on #', 'Long Way to #'],
+    synthwave:['Night Drive to #', 'Neon over #', 'Cruising past #', '# at Midnight', 'Coastline of #', 'Last Train to #', 'Tapes from #', 'City Lights of #'],
+  };
+  function makeTitle(style){
+    let name = '';
+    for (let i=0;i<20;i++){ name = pick(NAMES[style]).replace('#', pick(PLACES)); name = name[0].toUpperCase() + name.slice(1); if (!SH.recent.includes(name)) break; }
+    SH.recent.push(name); if (SH.recent.length > 60) SH.recent.shift();
+    return name;
+  }
+  let T = null, nextT = 0, step = 0, forceStyle = null;
   // (at: the time the track starts; a new track is made a little ahead of the music)
   function newTrack(at){
-    const style = forceStyle || (SET.musicStyle && STYLES[SET.musicStyle] ? SET.musicStyle : MIX[mixIdx++ % MIX.length]), S = STYLES[style];
-    const key = 50 + Math.floor(R()*8);   // D3 .. A3
+    const style = forceStyle || nextStyle(), S = STYLES[style];
+    const key = nextKey(S);
     const bpm = S.bpm[0] + (S.bpm[1] > S.bpm[0] ? Math.floor(R()*(S.bpm[1] - S.bpm[0] + 1)) : 0);
     const prog = pick(S.progs).map(([deg, type, bars]) => [key + deg, type, bars]);
     const plan = S.plan();
@@ -133,7 +189,7 @@ const music = (() => {
     const motif = rhythm.map(s => ({ s, n:key + 12 + pick(PENTA), d:pick([1, 2, 2, 3, 4]) }));
     T = { style, key, bpm, prog, sections, motif, swing:S.swing ? S.swing() : 0, swing8:0, barsPerChord:S.bpc(prog),
       kickPat:pick([[0, 7, 10], [0, 10], [0, 3, 10], [0, 8, 11]]), hatDensity:0.55 + R()*0.4, lead:R() < 0.8,
-      title:pick(WORDS1) + ' ' + pick(WORDS2), label:S.label + ' · ' + bpm + ' bpm' };
+      title:makeTitle(style), label:S.label + ' · ' + bpm + ' bpm' };
     // (the newer styles draw their own extras after this point, so the older styles keep their exact random sequence)
     if (S.mode){
       T.mode = S.mode;
@@ -153,6 +209,8 @@ const music = (() => {
     const t = at === undefined ? ctx.currentTime : at;
     crackleG.gain.setTargetAtTime(S.crackle*vel, t, 2);
     droneG.gain.setTargetAtTime(S.drone*vel, t, 4);
+    if (hissNow && hissNow.end > t + 1.2){ const h = hissNow; h.g.gain.cancelScheduledValues(t); h.g.gain.setTargetAtTime(0, t, 0.3); h.s.stop(t + 1.2); }
+    hissNow = null;
     if (S.hiss) hiss(t, (sections.length*16 - step)*60/bpm/4, S.hiss*vel);
     for (const d of [echoL, echoR]) d.delayTime.setTargetAtTime(3*60/bpm/4, t, 0.05);   // a dotted eighth
   }
@@ -456,12 +514,14 @@ const music = (() => {
       o.connect(lp).connect(g).connect(p).connect(musBus); o.start(t); o.stop(t + dur + 1.6); tidy(o, [o, lp, g, p]);
     }
   }
-  // tape hiss for one song
+  // tape hiss for one song (it fades out early if the next song starts sooner)
+  let hissNow = null;
   function hiss(t, dur, v){
     const s = ctx.createBufferSource(), hp = ctx.createBiquadFilter(), lp = ctx.createBiquadFilter(), g = ctx.createGain();
     s.buffer = noiseBuf; s.loop = true; hp.type = 'highpass'; hp.frequency.value = 1800; lp.type = 'lowpass'; lp.frequency.value = 7000;
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + 2); g.gain.setValueAtTime(v, t + Math.max(dur - 2, 2)); g.gain.linearRampToValueAtTime(0, t + dur + 1);
     s.connect(hp).connect(lp).connect(g).connect(mixG); s.start(t); s.stop(t + dur + 1.1); tidy(s, [s, hp, lp, g]);
+    hissNow = { s, g, end:t + dur + 1.1 };
   }
   // ---------------------------------------------------------------- the sequencer: sixteenth notes, scheduled a little ahead
   function play(t){
@@ -623,13 +683,15 @@ const music = (() => {
   // ---------------------------------------------------------------- downtempo: half-time drums, Rhodes, a sliding sub bass, an "ooh" choir, a vibes hook
   function downStep({ t, tt, sd, s, bar, sec, root, type, chordStart, lastBar }){
     const n = T.sections.length, k = T.chords[bar].k, end = bar >= n - 2, hum = () => (R() - 0.5)*0.008, left = chordLeft(bar, s, sd);
-    if (chordStart) voice(root, type, 52, 70).forEach((m, i, a) => rhodes(t + i*0.015 + hum(), m, left*0.95, 0.036, (i/(a.length - 1) - 0.5)*0.5));
+    // Rhodes: the chord on every bar (a Rhodes note fades within two seconds), softer when it is not new
+    if (s === 0) voice(root, type, 52, 70).forEach((m, i, a) => rhodes(t + i*0.015 + hum(), m, Math.min(left, sd*16)*0.95, chordStart ? 0.036 : 0.03, (i/(a.length - 1) - 0.5)*0.5));
     if (s === 10 && (bar % 2) && sec !== 'break' && !end && R() < 0.35) voiceNR(root, type, 55, 72).forEach((m, i) => rhodes(tt + i*0.01, m, sd*4, 0.022, 0.2));
     // sub bass: long notes that sometimes slide in from the last one
     if (sec !== 'intro' && sec !== 'break' && !(end && bar === n - 1)){
       const r = low(root, 33, 45);
-      if (s === 0){ sub(t, r, end ? sd*30 : sd*9, 0.036, T.subPrev && T.subPrev !== r && R() < 0.5 ? T.subPrev : 0); T.subPrev = r; }
-      else if (s === 10 && !end && R() < 0.7){ const m = r + pick([7, 12, 10]); sub(tt, m, sd*5, 0.025, r); }
+      // (a second note on the and-of-3 in most bars; otherwise the first one holds through the bar)
+      if (s === 0){ T.subTwo = !end && R() < 0.7; sub(t, r, end ? sd*30 : T.subTwo ? sd*9 : sd*15, 0.036, T.subPrev && T.subPrev !== r && R() < 0.5 ? T.subPrev : 0); T.subPrev = r; }
+      else if (s === 10 && T.subTwo){ const m = r + pick([7, 12, 10]); sub(tt, m, sd*5, 0.025, r); }
     }
     // drums: kick on 1 and the and-of-3, snare on 3, lightly swung sixteenth hats
     if (!(sec === 'intro' && bar < 2) && sec !== 'break' && !end){
@@ -700,19 +762,29 @@ const music = (() => {
   function render(style, sec, seed, rate){
     const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
     if (!OAC || !STYLES[style]) return Promise.resolve(null);
-    const keep = [ctx, master, mixG, verbSend, drumBus, drumLP, musBus, duck, crackleG, droneG, wobble, noiseBuf, vibesBus, gtrBus, uprBus, arpBus, echoIn, echoL, echoR, autopan, R, T, nextT, step, first, forceStyle, offline, vel];
+    const keep = [ctx, master, mixG, verbSend, drumBus, drumLP, musBus, duck, crackleG, droneG, wobble, noiseBuf, vibesBus, gtrBus, uprBus, arpBus, echoIn, echoL, echoR, autopan, R, T, nextT, step, first, forceStyle, offline, vel, SH, hissNow];
     let oc = null, z = Math.imul(seed ^ 0x9e3779b9, 2654435761) >>> 0;   // (scrambled: nearby seeds give different songs)
     try {
       R = () => { z = (z*1664525 + 1013904223) >>> 0; return z/4294967296; }; for (let i=0;i<4;i++) R();
       oc = new OAC(2, Math.ceil(sec*rate), rate); offline = true; build(oc);
-      forceStyle = style; first = true; T = null; newTrack(0); lastRender = T.name;
+      forceStyle = style; first = true; T = null; SH = fresh(); hissNow = null; newTrack(0); lastRender = T.name;
       let t = 0.1; while (t < sec) t += play(t);
       master.gain.value = level1;
     } finally {
-      [ctx, master, mixG, verbSend, drumBus, drumLP, musBus, duck, crackleG, droneG, wobble, noiseBuf, vibesBus, gtrBus, uprBus, arpBus, echoIn, echoL, echoR, autopan, R, T, nextT, step, first, forceStyle, offline, vel] = keep;
+      [ctx, master, mixG, verbSend, drumBus, drumLP, musBus, duck, crackleG, droneG, wobble, noiseBuf, vibesBus, gtrBus, uprBus, arpBus, echoIn, echoL, echoR, autopan, R, T, nextT, step, first, forceStyle, offline, vel, SH, hissNow] = keep;
     }
     return oc.startRendering();
   }
+  // the next n songs a mood would deal (style, key and name), without playing anything (for the tests)
+  function plan(mood, n){
+    const keep = [SH, SET.musicStyle, R], out = [];
+    try {
+      SH = fresh(); SET.musicStyle = mood; R = Math.random;
+      for (let i=0;i<n;i++){ const st = nextStyle(), S = STYLES[st], key = nextKey(S); out.push({ style:st, key, sig:SH.sig, title:makeTitle(st) }); }
+    } finally { [SH, SET.musicStyle, R] = keep; }
+    return out;
+  }
+  const moodText = m => { const L = Object.keys(MOODS[m] || MOODS.mix).map(st => STYLES[st].label); return L.length > 1 ? L.slice(0, -1).join(', ') + ' and ' + L[L.length - 1] : L[0]; };
   return {
     get on(){ return wantOn; },
     // really playing: wanted, started and not held back by the browser (before the first click the context stays suspended)
@@ -720,7 +792,10 @@ const music = (() => {
     get audible(){ return AC ? !!(wantOn && running && ctx && ctx.state === 'running') : wantOn; },
     get track(){ return T; },
     get _dbg(){ return { ctx, master, live, styles:Object.keys(STYLES) }; },
+    // the moods of the settings panel, and what each one plays ('ambient, piano and lofi')
+    moods:MOODS, moodText,
     _render:(style, sec = 30, { seed = 1, rate = 48000 } = {}) => render(style, sec, seed, rate),   // for tests/music.mjs
+    _plan:plan, _places:PLACES,
     get _last(){ return lastRender; },
     set onTrack(f){ onTrack = f; },
     // a blocked context stays suspended, so every gesture retries until one is accepted (wheel and touchstart are not)
