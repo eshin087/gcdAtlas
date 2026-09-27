@@ -4,7 +4,7 @@ This file is read automatically by Claude Code at the start of every session. It
 
 ## Start here
 
-State on 2026-09-26: **v0.8.2** (the Halo's new look, after the owner's concept art) is in review as a PR, after v0.8.1 (comets and meteors); check `package.json` and `docs/CHANGELOG.md` for the latest. Read `docs/HANDOFF.md`, which covers the owner's preferences, decisions not to undo, how the work is done and the open ideas. Then run `npm install` (first time only) and `npm test`. Use git and `gh` directly: branch `release/vX.Y.Z`, open a PR, check the Vercel preview, then merge with a merge commit.
+State on 2026-09-27: v0.8.3 (quick wins), v0.8.4 (home, phone gestures, drift) and v0.8.5 (next stop, angle arrows) ship as stacked PRs merged in that order, and v0.8.6 (calmer ASCII) on its own; check `package.json` and `docs/CHANGELOG.md` for the latest. Read `docs/HANDOFF.md`, which covers the owner's preferences, decisions not to undo, how the work is done and the open ideas. Then run `npm install` (first time only) and `npm test`. Use git and `gh` directly: branch `release/vX.Y.Z`, open a PR, check the Vercel preview, then merge with a merge commit.
 
 ## What this is
 
