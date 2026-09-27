@@ -111,7 +111,7 @@ function stopSaver(){
   if (SAVER.prevTravel) SET.travel = SAVER.prevTravel;
   try { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); } catch (e) {}
   const here = tour.obj; stopTour(false); useTour('grand'); tour.last = TOUR.includes(here) ? here : null;
-  $('#stopCount').textContent = String(TOUR.length).padStart(2, '0'); updateModeUI();
+  updateModeUI();
   toast('welcome back');
 }
 function saverInput(e){

@@ -300,8 +300,7 @@ function setInfo(i){
   if (i !== infoObj){ readoutEl.classList.remove('fade'); void readoutEl.offsetWidth; readoutEl.classList.add('fade'); }
   infoObj = i; const o = OBJ[i];
   $('#objName').textContent = o.name; $('#objType').textContent = o.type; $('#objFact').textContent = o.fact || '';
-  const k = TOUR.indexOf(i);
-  $('#stopNum').textContent = k >= 0 ? String(k + 1).padStart(2, '0') : '--';
+  syncStop();
   syncWhere();
   setReadout(o.readout ? o.readout() : '');
   $('#btnFlyby').hidden = !o.flyby;
@@ -315,9 +314,49 @@ function syncWhere(){
     (o.distEarth ? o.distEarth + (/away|here|around|from|edge|centre|inside/.test(o.distEarth) ? '' : ' away') : distFromEarth(o));
   if (el.textContent !== t) el.textContent = t;
 }
+// the row above the name: "stop 3 / 31" on a tour; otherwise the kind of object ("gas giant"), shown while the type line is folded away
+// (it used to read "-- / 31" off the tour)
+function syncStop(){
+  const el = $('#stopInfo'), k = tour.on ? TOUR.indexOf(infoObj) : -1;
+  const t = k >= 0 ? 'stop ' + (k + 1) + ' / ' + TOUR.length : tour.on ? '' : (OBJ[infoObj].type || '').split(' · ')[0];
+  if (el.textContent !== t) el.textContent = t;
+  el.classList.toggle('kind', k < 0);
+}
+// the green button beside the name says where it goes: the next stop on a tour ("start again" on the last one); once you have left
+// a tour, back to the stop you left it at; paused on that stop (a drag, the pause button), on to the next stop. Hidden when no tour is involved.
+function goNextState(){
+  if (cmp || SKYV.on || TOUR.length < 2) return null;
+  const nextOf = i => { const k = TOUR.indexOf(i); return k === TOUR.length - 1 ? { kind:'again', o:OBJ[TOUR[0]] } : { kind:'next', o:OBJ[TOUR[k + 1]] }; };
+  if (tour.on) return TOUR.includes(tour.obj) ? nextOf(tour.obj) : null;
+  if (tour.last == null || !TOUR.includes(tour.last)) return null;
+  return orbit.lock === tour.last && !flight && !shipCam.on ? nextOf(tour.last) : { kind:'back', o:OBJ[tour.last] };
+}
+let goNextShown = '';
+function syncGoNext(){
+  const s = goNextState(), b = $('#goNext');
+  const name = s ? s.o.label || s.o.name : '';
+  const txt = !s ? '' : s.kind === 'again' ? 'start again' : s.kind === 'back' ? 'back to the tour · ' + name : 'next stop · ' + name;
+  if (txt === goNextShown) return; goNextShown = txt;
+  b.hidden = !s; if (!s) return;
+  $('#goNextTxt').textContent = txt; b.classList.toggle('back', s.kind === 'back');
+  b.title = s.kind === 'again' ? 'Start the tour again from ' + name + ' (])' : s.kind === 'back' ? 'Back to the tour, at ' + s.o.name : 'Fly on to the next stop: ' + s.o.name + ' (])';
+}
+function goNextClick(){
+  const s = goNextState(); if (!s) return;
+  hideHint(); if (cmp) endCompare(false);
+  if (s.kind === 'back'){ setTour(true); return; }   // (picks the tour up at the stop you left)
+  tween = null; if (flight) finishFlightHere();
+  if (!tour.on){ tour.on = true; shipCam.on = false; }
+  tourGo(s.o.index); updateModeUI();
+}
 function updateModeUI(){
-  const m = cmp ? 'size compare' : tour.on ? tourName() : (orbit.lock >= 0 || flight ? 'locked on' : 'free camera'), me = $('#mode');
-  if (me.textContent !== m){ me.textContent = m; me.className = 'mode ' + (tour.on ? 'm-tour' : m === 'free camera' ? 'm-free' : 'm-lock'); }
+  const m = cmp ? 'size compare' : tour.on ? tourName() : (orbit.lock >= 0 || flight ? 'locked on' : 'free camera'), me = $('#mode'), mt = $('#modeTour');
+  // on a tour the name is a button that opens the list of tours ("GRAND TOUR ▾")
+  if (mt.hidden === tour.on){ mt.hidden = !tour.on; me.hidden = tour.on; }
+  if (tour.on){ if ($('#modeTourName').textContent !== m) $('#modeTourName').textContent = m; }
+  else if (me.textContent !== m){ me.textContent = m; me.className = 'mode ' + (m === 'free camera' ? 'm-free' : 'm-lock'); }
+  mt.setAttribute('aria-expanded', String(!$('#tours').hidden));
+  syncStop(); syncGoNext();
   $('#btnTours').classList.toggle('touring', tour.on);
   const playing = isPlaying(), back = playing ? null : backTarget();
   for (const b of [$('#btnPlay'), $('#btnPlayM')]){
@@ -326,20 +365,19 @@ function updateModeUI(){
   }
   $('#btnPlay').lastChild.textContent = playing ? 'pause' : back ? 'back to ' + back.name : 'play';
   syncWhere();
-  $('#btnResume').hidden = $('#btnResumeI').hidden = tour.on || tour.last == null || !!cmp;
   $('#btnShip').setAttribute('aria-pressed', String(!!SET.haloMark));
   const riding = shipCam.on || (shipCam.pending && !!flight), rb = $('#btnRide'); rb.classList.toggle('following', riding); rb.textContent = riding ? 'riding' : 'ride';
   rb.title = riding ? 'Stop riding along (the camera stays with the ship)' : 'Ride along with the Halo: chase view behind the ship, C for the cockpit';
   const onShip = typeof ship !== 'undefined' && infoObj === ship.index;
   $('#btnRideI').hidden = !onShip; $('#btnRideI').textContent = riding ? 'stop riding' : 'ride along';
   $('#btnCamI').hidden = !riding; $('#btnCamI').textContent = shipCam.mode === 'chase' ? 'cockpit view' : 'chase view';
-  $('#tourPrev').title = tour.on ? 'Previous tour stop ([)' : 'Down the scale bar: the next smaller marker ([)'; $('#tourNext').title = tour.on ? 'Next tour stop (])' : 'Up the scale bar: the next bigger marker (])';
   $('#btnFree').setAttribute('aria-pressed', String(!tour.on && orbit.lock < 0 && !flight));
   $('#btnTour').setAttribute('aria-pressed', String(tour.on)); $('#btnTour').textContent = tour.on ? 'pause tour' : 'resume ' + tourName();
   if (typeof tourRows !== 'undefined') tourRows.forEach(r => r.b.setAttribute('aria-current', String(tour.on && r.id === TOUR_ID)));
 }
 function goTo(i){
   hideHint(); if (OBJ[i].marker) return;
+  clearSearch();   // (a pick empties the search box, so the next search starts fresh and the keys work again)
   if (cmpPick){ cmpPick = false; atlasTitle(); startCompare(cmpA, i); return; }
   if (cmp) endCompare(true);
   if (tour.on && TOUR.includes(i)){ tween = null; if (flight) finishFlightHere(); tourGo(i); } else lockOn(i);
@@ -428,15 +466,17 @@ function updateHUD(dt){
   if (roTimer <= 0){
     roTimer = 0.15;
     const o = OBJ[infoObj]; setReadout(o.readout ? o.readout() : '');
-    let p = '', f = -1, tip = false;
+    let p = '', f = -1, tip = false, ang = false;
+    // the angle line: during a swing it already shows the angle the camera is swinging to (so every tap on an arrow counts visibly), its bar still empty
+    const bar = f => { const k = Math.round(f*18); return `[${'#'.repeat(k)}${'-'.repeat(18 - k)}]`; };
     if (tour.on){
       const obj = OBJ[tour.obj];
       if (tour.phase === 'fly') p = 'en route ' + '>'.repeat(1 + Math.floor(performance.now()/250) % 3);
-      else { const v = obj.views[tour.view], n = obj.views.length; f = tour.phase === 'swing' ? 1 : clamp(tour.t/holdOf(v), 0, 1); const k = Math.round(f*18);
-        p = `angle ${tour.view + 1}/${n}  [${'#'.repeat(k)}${'-'.repeat(18 - k)}]`; }
+      else { const L = tourViews(obj), sw = tour.phase === 'swing', cur = sw && tour.to != null ? tour.to : tour.view; f = sw ? 0 : clamp(tour.t/holdOf(obj.views[tour.view]), 0, 1);
+        p = `angle ${Math.max(L.indexOf(cur), 0) + 1}/${L.length}  ${bar(f)}`; ang = L.length > 1; }
     } else if (show.on && OBJ[show.obj] && OBJ[show.obj].views.length > 1){
-      const obj = OBJ[show.obj], v = obj.views[show.view], n = obj.views.length; f = show.phase === 'swing' ? 1 : clamp(show.t/holdOf(v), 0, 1); const k = Math.round(f*18);
-      p = `angle ${show.view + 1}/${n}  [${'#'.repeat(k)}${'-'.repeat(18 - k)}]`;
+      const obj = OBJ[show.obj], n = obj.views.length, sw = show.phase === 'swing', cur = sw && show.to != null ? show.to : show.view; f = sw ? 0 : clamp(show.t/holdOf(obj.views[show.view]), 0, 1);
+      p = `angle ${cur + 1}/${n}  ${bar(f)}`; ang = true;
     } else if (orbit.lock >= 0 && !flight && isCompact() && !isPlaying()){ p = 'drag to turn · pinch to zoom · double-tap to centre'; tip = true; }   // (paused on a phone: the gestures)
     else if (orbit.lock >= 0 || flight) p = 'drag to orbit · scroll out to the edge of the universe';
     else { const b = backTarget(); p = 'W A S D to fly · ' + (b ? 'space goes back to ' + b.name : 'tap an object to lock on'); }
@@ -444,7 +484,8 @@ function updateHUD(dt){
     if (pl.textContent !== p) pl.textContent = p;
     $('#progress').classList.toggle('hintish', !tour.on && f < 0 && !tip);
     $('#progress').classList.toggle('tip', tip);
-    syncWhere();
+    $('#progress').classList.toggle('angles', ang && !cmp && !shipCam.on);
+    syncWhere(); syncStop(); syncGoNext();
     updateTourTrack();
     updateScale();
     syncSoundBtn();   // (the browser may let the music start, or stop it, at any moment)
@@ -593,7 +634,8 @@ function updateTourTrack(){
   if (ttId !== TOUR_ID + ':' + TOUR.length) buildTourTrack();
   const n = TOUR.length, k = Math.max(TOUR.indexOf(tour.obj), 0), o = OBJ[tour.obj];
   // progress through this stop's angles, so the fill creeps toward the next stop
-  const sub = tour.phase === 'fly' ? 0 : (tour.view + (tour.phase === 'swing' ? 1 : clamp(tour.t/holdOf(o.views[tour.view]), 0, 1)))/o.views.length;
+  const L = tourViews(o), sub = tour.phase === 'fly' ? 0 : tour.phase === 'swing' ? Math.max(L.indexOf(tour.to != null ? tour.to : tour.view), 0)/L.length
+    : (Math.max(L.indexOf(tour.view), 0) + clamp(tour.t/holdOf(o.views[tour.view]), 0, 1))/L.length;
   const f = (k + sub*0.999)/Math.max(n - 1, 1);
   ttFill.style.height = (clamp(f, 0, 1)*100).toFixed(2) + '%';
   $('#ladCap').textContent = `tour ${k + 1} / ${n}`;
@@ -808,7 +850,8 @@ function setKb(k){
   if (kbRow >= 0){ vis[kbRow].b.classList.add('kb'); vis[kbRow].b.scrollIntoView({ block:'nearest' }); }
 }
 function toggleAtlas(on){
-  atlasEl.hidden = !on; document.body.classList.toggle('atlas-open', on); $('#btnAtlas').setAttribute('aria-expanded', String(on));
+  atlasEl.hidden = !on; document.body.classList.toggle('atlas-open', on); $('#btnAtlas').setAttribute('aria-expanded', String(on));   // (the scale bar hides while it is open)
+  if (on && document.body.classList.contains('lad-open')) setLadOpen(false);   // (on a phone the ladder folds away)
   if (on){ filterAtlas(searchEl.value); const cur = atlasRows.find(r => r.o.index === infoObj); if (cur && !searchEl.value && !cur.b.hidden) cur.b.scrollIntoView({ block:'center' }); }
   else { atlasRows.forEach(r => r.b.classList.remove('kb')); kbRow = -1; }
 }
@@ -833,7 +876,24 @@ function onSearchKey(e){
   if (e.key === 'ArrowDown'){ e.preventDefault(); setKb(kbRow + 1); }
   else if (e.key === 'ArrowUp'){ e.preventDefault(); setKb(kbRow - 1); }
   else if (e.key === 'Enter'){ const r = vis[kbRow >= 0 ? kbRow : 0]; if (r) goTo(r.o.index); }
-  else if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); if (e.target.value){ e.target.value = ''; searchEl.value = atlasSearch.value = ''; filterAtlas(''); } else e.target.blur(); }
+  else if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); closeAtlas(); }   // (Esc in the search box closes the search, never lets go of the object)
+}
+// empty both search boxes (after a pick, or when the search closes), and give the keys back to the page
+function clearSearch(){
+  const a = document.activeElement; if (a === searchEl || a === atlasSearch) canvas.focus({ preventScroll:true });
+  if (!searchEl.value && !atlasSearch.value) return;
+  searchEl.value = atlasSearch.value = ''; filterAtlas('');
+}
+function closeAtlas(){ clearSearch(); toggleAtlas(false); if (cmpPick){ cmpPick = false; atlasTitle(); } }
+// Esc closes what is open first, and lets go of the object only when nothing is (people press it to close a panel)
+function closeOpen(){
+  const b = document.body.classList;
+  if (b.contains('photo')){ stopPhoto(); return true; }
+  if (!$('#story').hidden){ closeStory(); return true; }
+  if (!settingsEl.hidden || !$('#tours').hidden || !$('#timem').hidden){ togglePanel(null, false); return true; }
+  if (!atlasEl.hidden){ closeAtlas(); return true; }
+  if (b.contains('lad-open')){ setLadOpen(false); return true; }
+  return false;
 }
 for (const el of [searchEl, atlasSearch]){ el.addEventListener('input', onSearchInput); el.addEventListener('keydown', onSearchKey); }
 searchEl.addEventListener('focus', () => { hideHint(); if (atlasEl.hidden) toggleAtlas(true); });
@@ -841,9 +901,12 @@ $('#btnAtlas').addEventListener('click', () => toggleAtlas(atlasEl.hidden));
 $('#atlasClose').addEventListener('click', () => { toggleAtlas(false); if (cmpPick){ cmpPick = false; atlasTitle(); } });
 function focusSearch(){ if (IS_SMALL || getComputedStyle(searchEl.parentElement).display === 'none'){ toggleAtlas(true); atlasSearch.focus({ preventScroll:true }); } else searchEl.focus({ preventScroll:true }); }
 
-$('#prevObj').addEventListener('click', () => { hideHint(); stepAngle(-1); });
-$('#nextObj').addEventListener('click', () => { hideHint(); stepAngle(1); });
-$('#btnTour').addEventListener('click', () => { hideHint(); setTour(!tour.on); });
+// the arrows on the angle line (each tap moves one angle, also mid-swing); the green button beside the name; the tour's name opens the tours
+$('#prevObj').addEventListener('click', () => { hideHint(); stepAngle(-1); roTimer = 0; });
+$('#nextObj').addEventListener('click', () => { hideHint(); stepAngle(1); roTimer = 0; });
+$('#goNext').addEventListener('click', goNextClick);
+$('#modeTour').addEventListener('click', () => { hideHint(); togglePanel('tours', $('#tours').hidden); });
+$('#btnTour').addEventListener('click', () => { hideHint(); if (tour.on) stopTour(false); else setTour(true); });   // (pausing here remembers the stop, like the pause button: the green button then goes on from it)
 $('#btnFree').addEventListener('click', () => { hideHint(); unlock(); toast(isCompact() ? 'free camera · drag to look around · ⌂ for home' : 'free camera · W A S D to fly, drag to look around · H for home'); });
 $('#btnShip').addEventListener('click', () => setOpt('haloMark', !SET.haloMark));
 const toggleRide = () => { if (shipCam.on || (shipCam.pending && flight)){ if (flight) finishFlightHere(); shipCam.pending = false; stopShipCam(); toast('stopped riding · the camera stays with the Halo'); updateModeUI(); } else followShip(); };
@@ -860,16 +923,12 @@ function playFlyby(o){
 $('#btnFlyby').addEventListener('click', () => { const o = OBJ[infoObj]; if (o.flyby) playFlyby(o); });
 music.onTrack = tr => { $('#nowPlaying').textContent = tr.name; if (SET.sound && music.audible) toast('\u266a ' + tr.name); };   // (no track name while the browser still holds the music back)
 $('#npSkip').addEventListener('click', () => { music.skip(); if (!SET.sound) toast('music is off · turn it on to hear the next track'); });
-$('#btnResume').addEventListener('click', () => { hideHint(); if (cmp) endCompare(false); setTour(true); });
 for (const b of ['#btnPlay', '#btnPlayM']) $(b).addEventListener('click', () => { hideHint(); if (cmp) endCompare(false); togglePlay(); });
 // home: the button (first in the dock on phones, after the search box on desks) and the logo
 $('#btnHome').addEventListener('click', goHome);
 brandEl.addEventListener('click', goHome);
 brandEl.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); e.stopPropagation(); goHome(); } });
-$('#btnResumeI').addEventListener('click', () => $('#btnResume').click());
 $('#settingsHelp').addEventListener('click', () => { togglePanel('settings', false); toggleHelp(true); });
-$('#tourPrev').addEventListener('click', () => { hideHint(); stepObject(-1); });
-$('#tourNext').addEventListener('click', () => { hideHint(); stepObject(1); });
 $('#btnSound').addEventListener('click', toggleSound);
 $('#btnHelp').addEventListener('click', () => toggleHelp(true));
 $('#helpClose').addEventListener('click', () => toggleHelp(false));
@@ -916,6 +975,7 @@ const PANELS = { tours:['#tours', '#btnTours'], timem:['#timem', '#btnTime'], se
 function togglePanel(id, on){
   for (const [k, [p, b]] of Object.entries(PANELS)){ const show = k === id ? on : false; $(p).hidden = !show; $(b).setAttribute('aria-expanded', String(show)); }
   document.body.classList.toggle('panel-open', !!on);
+  $('#modeTour').setAttribute('aria-expanded', String(!$('#tours').hidden));
   if (on && id === 'settings') syncSettingsUI();
   if (on && id === 'timem') syncTimeUI();
 }
@@ -937,7 +997,6 @@ function startTour(id){
   hideHint(); if (cmp) endCompare(false);
   useTour(id); tween = null; if (flight) finishFlightHere();
   tour.on = true; tourGo(TOUR[0]); updateModeUI();
-  $('#stopCount').textContent = String(TOUR.length).padStart(2, '0');
   toast(tourName() + ' · ' + TOUR.length + ' stops');
 }
 const capEl = $('#caption'), capText = $('#capText'), capBtn = $('#capBtn');
@@ -1150,7 +1209,6 @@ resize();
 ladTitles();
 if (document.fonts) document.fonts.load('500 20px "IBM Plex Mono"').then(() => buildAtlas(cellW, cellH)).catch(() => {});
 useTour('grand');
-$('#stopCount').textContent = String(TOUR.length).padStart(2, '0');
 $('#atlasCount').textContent = `${atlasRows.length} places`;
 music.set(SET.sound);
 syncSettingsUI();

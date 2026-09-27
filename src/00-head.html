@@ -43,9 +43,24 @@ body:has(#view.dragging) *{-webkit-user-select:none;user-select:none}
 .brand{position:fixed;left:calc(16px + env(safe-area-inset-left,0px));top:calc(14px + env(safe-area-inset-top,0px));z-index:2;cursor:pointer;   /* (the logo goes home) */
   font-family:var(--disp);font-size:calc(19px*var(--ts));line-height:1.5;letter-spacing:.08em;color:var(--ink);text-shadow:0 0 12px rgba(143,200,255,.35),0 0 14px #000}
 .tbadge{font-family:var(--mono);font-size:calc(10.5px*var(--ts));letter-spacing:.06em;color:var(--void);background:var(--flare);border-radius:2px;padding:1px 6px;margin-left:8px;vertical-align:1px}
-.stop{margin-top:0;color:var(--flare);display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:calc(11px*var(--ts));letter-spacing:.14em;text-transform:uppercase;font-variant-numeric:tabular-nums}
-.title{display:flex;align-items:center;gap:6px;margin:4px 0 2px}
+.stop{margin-top:0;color:var(--flare);display:flex;align-items:center;gap:4px 8px;flex-wrap:wrap;font-size:calc(11px*var(--ts));letter-spacing:.14em;text-transform:uppercase;font-variant-numeric:tabular-nums}
+/* the first thing on the row: "stop 3 / 31" on a tour, otherwise the kind of object (only while the type line is folded away: it says the same).
+   The left part takes the room more / hide leave; only the kind is cut short. With very big text more / hide go to a second row. */
+.stopl{flex:1 1 0;display:grid;grid-auto-flow:column;grid-auto-columns:max-content;column-gap:8px;align-items:center;justify-content:start}
+body.info-compact .stopl:has(> .stopinfo.kind:not(:empty)){grid-template-columns:minmax(0,max-content)}   /* (the kind's column can shrink to nothing, the chip's cannot) */
+.stopinfo{white-space:nowrap;min-width:0}
+.stopinfo.kind{overflow:hidden;text-overflow:ellipsis}
+.stopinfo:empty,body:not(.info-compact) .stopinfo.kind{display:none}
+.title{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;margin:4px 0 2px}
 .info h1{font-family:var(--mono);font-weight:500;font-size:calc(clamp(22px,3vw,30px)*var(--ts));line-height:1.15;margin:0;letter-spacing:0;text-wrap:balance;font-variant-ligatures:none}
+/* the green button beside the name says where it goes: "next stop · Moon ›", "start again ›", or (filled) "back to the tour · Earth ›" */
+.gonext{pointer-events:auto;flex:0 1 auto;min-width:0;max-width:100%;box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;min-height:26px;padding:2px 9px 2px 11px;
+  font-size:calc(11px*var(--ts));letter-spacing:.03em;line-height:1.4;color:#a8f0b0;background:rgba(168,240,176,.1);border:1px solid rgba(168,240,176,.55);border-radius:13px;cursor:pointer;white-space:nowrap;text-shadow:none}
+.gonext span{overflow:hidden;text-overflow:ellipsis}
+.gonext b{flex:none;font-weight:600;font-size:1.35em;line-height:1;margin-top:-2px}
+.gonext:hover{color:#d6ffdb;background:rgba(168,240,176,.18);border-color:#a8f0b0}
+.gonext.back{color:var(--void);background:#a8f0b0;border-color:#a8f0b0;font-weight:600}
+.gonext.back:hover{color:var(--void);background:#c8ffd0}
 .nav{pointer-events:auto;flex:none;width:26px;height:26px;display:grid;place-items:center;color:var(--dim);background:none;border:1px solid transparent;border-radius:3px;cursor:pointer;font-size:calc(15px*var(--ts));line-height:1;padding:0}
 .nav:hover{color:var(--flare);border-color:var(--line)}
 .type{color:var(--dim);font-size:calc(11.5px*var(--ts));letter-spacing:.03em}
@@ -58,20 +73,28 @@ body:has(#view.dragging) *{-webkit-user-select:none;user-select:none}
 .scale{display:flex;align-items:center;gap:8px;margin-top:8px;color:var(--soft);font-size:calc(11px*var(--ts));font-variant-numeric:tabular-nums;white-space:nowrap;pointer-events:auto;cursor:help;width:max-content}
 .scale .rlab{color:var(--faint);letter-spacing:.1em;text-transform:uppercase;font-size:calc(10px*var(--ts))}
 .scale .bar{display:inline-block;height:5px;border:1px solid var(--soft);border-top:0;flex:none}
-.progress{margin-top:4px;color:var(--faint);font-size:calc(11px*var(--ts));white-space:pre;font-variant-numeric:tabular-nums}
+.progress{margin-top:4px;color:var(--faint);font-size:calc(11px*var(--ts));white-space:pre;font-variant-numeric:tabular-nums;display:flex;align-items:center;min-height:1.5em}
+/* the angle arrows sit on the angle line, around the grey ASCII bar, and only while it shows */
+.progress .anav{display:none;width:26px;height:24px;margin:-4px 0;font-size:calc(15px*var(--ts));color:var(--soft);cursor:pointer}
+.progress .plab{flex:0 1 auto;min-width:0;overflow:hidden}   /* (with very big text the bar is cut short rather than pushing the arrow out of the card) */
+.progress .anav:first-child{margin-left:-8px}
+.progress.angles .anav{display:grid}
 
-.mode{display:inline-block;padding:1px 7px;border-radius:2px;border:1px solid rgba(255,179,92,.45);color:var(--flare)}
+.mode{flex:none;display:inline-block;padding:1px 7px;border-radius:2px;border:1px solid rgba(255,179,92,.45);color:var(--flare)}
 .mode.m-tour{border-color:rgba(160,240,170,.5);color:#a8f0b0}
+/* on a tour its name is a button: "GRAND TOUR ▾" opens the list of tours */
+.mode.tourpick{flex:none;display:inline-flex;align-items:center;gap:.5em;pointer-events:auto;font:inherit;letter-spacing:inherit;text-transform:inherit;line-height:inherit;background:none;cursor:pointer;white-space:nowrap}
+.mode.tourpick span{overflow:hidden;text-overflow:ellipsis}
+.mode.tourpick:hover,.mode.tourpick[aria-expanded="true"]{background:rgba(168,240,176,.12);border-color:#a8f0b0}
 .mode.m-free{background:var(--cyan);border-color:var(--cyan);color:var(--void);font-weight:600;animation:modeFlash 1.2s ease-out 1}
 @keyframes modeFlash{0%{box-shadow:0 0 0 0 rgba(127,220,255,.9)}100%{box-shadow:0 0 0 12px rgba(127,220,255,0)}}
 
 /* info panel controls: more / less, hide, and the pill that brings it back */
 .grip{display:none}
-.itools{margin-left:auto;display:inline-flex;gap:2px;pointer-events:auto}
-.itool{font:inherit;font-size:calc(10px*var(--ts));letter-spacing:.1em;text-transform:uppercase;color:var(--dim);background:none;border:1px solid transparent;border-radius:3px;padding:1px 6px;cursor:pointer;
+.itools{flex:none;margin-left:auto;display:inline-flex;gap:2px;pointer-events:auto}
+.itool{white-space:nowrap;font:inherit;font-size:calc(10px*var(--ts));letter-spacing:.1em;text-transform:uppercase;color:var(--dim);background:none;border:1px solid transparent;border-radius:3px;padding:1px 6px;cursor:pointer;
   min-height:28px;margin:-4.5px 0}   /* (a 28 px target; the negative margin keeps the row's height) */
 .itool:hover{color:var(--ink);border-color:var(--line)}
-.resume-i{display:none}
 body.info-compact .info .acts,body.info-compact .info .type,body.info-compact .info .fact,body.info-compact .info .readout,body.info-compact .info .scale{display:none}
 body.info-hidden .info{display:none}
 .info-pill{position:fixed;left:calc(16px + env(safe-area-inset-left,0px));top:calc(28px + 28.5px*var(--ts) + env(safe-area-inset-top,0px));z-index:2;display:flex;align-items:center;gap:8px;max-width:calc(100vw - 120px);
@@ -83,13 +106,12 @@ body.info-hidden .info{display:none}
 .lad-chip{display:none}
 
 /* idle: after a few quiet seconds the interface fades, leaving the object's name; any touch, key or mouse move brings it back */
-.brand,.lad-chip,.play-m,.info-pill,.itools,.resume-i,.grip,.info .nav,.info .stop,.info .title,.info .acts,.info .type,.info .where,.info .fact,.info .readout,.info .scale,.info .progress{transition:opacity .25s}
+.brand,.lad-chip,.play-m,.info-pill,.itools,.grip,.info .nav,.info .gonext,.info .stop,.info .title,.info .acts,.info .type,.info .where,.info .fact,.info .readout,.info .scale,.info .progress{transition:opacity .25s}
 body.ui-idle .controls,body.ui-idle .ladder,body.ui-idle .lad-chip,body.ui-idle .play-m,body.ui-idle .brand,body.ui-idle .info-pill,body.ui-idle .daily,body.ui-idle .shiparrow,body.ui-idle .backpill,
-body.ui-idle .itools,body.ui-idle .resume-i,body.ui-idle .grip,body.ui-idle .info .nav,body.ui-idle .info .acts,body.ui-idle .info .type,body.ui-idle .info .where,body.ui-idle .info .fact,body.ui-idle .info .readout,body.ui-idle .info .scale{opacity:0!important;transition:opacity 1s ease-in}
-/* on touch screens the first tap only wakes the interface, so faded controls let it through; a mouse wakes them on the way to a button */
-@media (pointer:coarse){
-  body.ui-idle .controls,body.ui-idle .ladder,body.ui-idle .lad-chip,body.ui-idle .play-m,body.ui-idle .info-pill,body.ui-idle .daily,body.ui-idle .shiparrow,body.ui-idle .backpill,body.ui-idle .brand,body.ui-idle .itools,body.ui-idle .resume-i,body.ui-idle .grip,body.ui-idle .info .acts,body.ui-idle .info .nav{pointer-events:none!important}
-}
+body.ui-idle .itools,body.ui-idle .grip,body.ui-idle .info .nav,body.ui-idle .info .gonext,body.ui-idle .info .acts,body.ui-idle .info .type,body.ui-idle .info .where,body.ui-idle .info .fact,body.ui-idle .info .readout,body.ui-idle .info .scale{opacity:0!important;transition:opacity 1s ease-in}
+/* a faded button still works on the first tap (it also brings the interface back); a tap on the sky only brings it back (src/09h-ui.js).
+   The scale bar's faded track is sky too: on a touch screen a tap there would otherwise fly to the nearest marker (tablets keep the desk layout) */
+@media (pointer:coarse){ body.ui-idle .lad-track,body.ui-idle .ladmark{pointer-events:none} }
 body.ui-idle .info .stop,body.ui-idle .info .title,body.ui-idle .info .progress{opacity:.5;transition:opacity 1s ease-in}
 body.ui-idle .info .progress.hintish,body.ui-idle .info .progress.tip{opacity:0}
 body.ui-idle .info::before{opacity:0;transition:opacity 1s}
@@ -129,7 +151,7 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 /* two rows on a desk: the tools on top; travel, resume tour and play / pause below (right-aligned), so the play button's words
    ("pause", "back to the Moon") can change without anything on the top row moving or a button jumping between rows */
 .controls::after{content:"";order:7;flex-basis:100%;height:0}
-.controls .seg.mini,.controls .btn.resume,.controls .btn.play{margin-top:-6px}   /* (the break adds a second gap: the lower row keeps its old place) */
+.controls .seg.mini,.controls .btn.play{margin-top:-6px}   /* (the break adds a second gap: the lower row keeps its old place) */
 .controls .seg.mini{order:8}
 .btn.play{order:10;display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
 .btn.play span{display:inline-block;max-width:24ch;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom}   /* ("back to the Large Magellanic Cloud" in free camera) */
@@ -140,8 +162,6 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .play-m{display:none}
 .topr{position:fixed;right:calc(8px + env(safe-area-inset-right,0px));top:calc(6px + env(safe-area-inset-top,0px));z-index:6;display:flex;align-items:center;gap:6px;pointer-events:none}
 .topr > *{pointer-events:auto}
-.btn.resume{order:9;color:var(--void);background:#a8f0b0;border-color:#a8f0b0;font-weight:600;animation:shipPulse 2.4s ease-in-out infinite}
-.btn.resume:hover{color:var(--void);background:#c8ffd0}
 #btnRide{color:var(--ship)}
 #btnRide.following{color:var(--void);background:var(--ship);border-color:var(--ship)}
 /* the flash when the Halo folds space with you aboard */
@@ -151,7 +171,7 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .fold-flash.ls{background:radial-gradient(ellipse at 50% 50%,rgba(255,255,255,.9) 0%,rgba(200,225,255,.35) 30%,rgba(20,40,70,0) 70%)}
 .fold-flash.go.ls{animation:foldFlash .5s ease-out}
 @media (prefers-reduced-motion:reduce){.fold-flash.go{animation-duration:.4s}}
-.btn:focus-visible,.brand:focus-visible,.backpill:focus-visible,.lab:focus-visible,.arow:focus-visible,.tick:focus-visible,.nav:focus-visible,.seg button:focus-visible,.tog button:focus-visible,.ladmark:focus-visible{outline:1px solid var(--flare);outline-offset:2px}
+.btn:focus-visible,.gonext:focus-visible,.tourpick:focus-visible,.brand:focus-visible,.backpill:focus-visible,.lab:focus-visible,.arow:focus-visible,.tick:focus-visible,.nav:focus-visible,.seg button:focus-visible,.tog button:focus-visible,.ladmark:focus-visible{outline:1px solid var(--flare);outline-offset:2px}
 .search{position:relative;display:flex;align-items:center}
 .search input{width:190px;box-sizing:border-box;font-size:calc(12px*var(--ts));color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:6px 30px 6px 10px;outline:none;
   -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
@@ -268,7 +288,7 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 /* ---- scale ladder, right edge */
 .ladder{position:fixed;right:calc(36px + env(safe-area-inset-right,0px));top:calc(var(--ctl-b,54px) + 60px);bottom:calc(84px + env(safe-area-inset-bottom,0px));width:2px;
   background:linear-gradient(rgba(143,160,210,.55),rgba(143,160,210,.25));border-radius:1px;z-index:2;transition:right .25s}
-.atlas-open .ladder{right:calc(392px + env(safe-area-inset-right,0px))}
+.atlas-open .ladder{display:none}   /* (while search or the atlas is open; it used to move out into the scene) */
 .lad-cap{position:absolute;right:-2px;top:-26px;color:var(--dim);font-size:calc(10px*var(--ts));letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}
 .lad-track{position:absolute;inset:-6px -18px -6px -30px;cursor:ns-resize;touch-action:none}
 .tick{position:absolute;right:-3px;transform:translateY(-50%);display:flex;align-items:center;gap:7px;background:none;border:0;padding:2px 0 2px 8px;min-height:28px;color:var(--soft);   /* (28 px to tap, less where two names sit closer: syncTickSizes) */
@@ -296,11 +316,6 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .ladder.touring .ladmark::before{border-color:#a8f0b0;box-shadow:0 0 10px rgba(168,240,176,.6)}
 .ladder.touring .ladmark span{background:#a8f0b0}
 .ladder.touring .ladmark{pointer-events:none}
-.tourgrp{display:inline-flex}
-.tourgrp .btn{border-radius:0}
-.tourgrp .btn:first-child{border-radius:3px 0 0 3px;border-right:0}
-.tourgrp .btn:last-child{border-radius:0 3px 3px 0;border-left:0}
-.btn.tskip{padding:6px 8px;font-size:calc(13px*var(--ts));line-height:1}
 #btnTours.touring{color:#a8f0b0;border-color:rgba(168,240,176,.6)}
 #btnTours.touring[aria-expanded="true"]{background:rgba(168,240,176,.1)}
 
@@ -378,8 +393,7 @@ body.sky .info .acts,body.sky .ladder,body.sky .lad-chip,body.sky .progress{opac
   .controls{top:auto;left:calc(8px + env(safe-area-inset-left,0px));right:calc(8px + env(safe-area-inset-right,0px));bottom:calc(6px + env(safe-area-inset-bottom,0px));max-width:none;box-sizing:border-box;
     flex-wrap:nowrap;justify-content:space-between;gap:2px;padding:3px;background:rgba(5,7,14,.66);border:1px solid var(--line);border-radius:14px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
   .controls::after{display:none}
-  .controls .search,.controls .seg.mini,.controls #btnResume,.controls .btn.tskip,.controls #btnHelp{display:none}
-  .controls .tourgrp{display:contents}
+  .controls .search,.controls .seg.mini,.controls #btnHelp{display:none}
   .controls .btn{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:46px;padding:4px 2px 3px;
     border:0;border-radius:10px;background:none;font-size:calc(10px*var(--ts));letter-spacing:.03em;overflow:hidden;text-overflow:ellipsis;-webkit-backdrop-filter:none;backdrop-filter:none}
   .controls .btn[data-ico]::before{content:attr(data-ico);font-size:calc(17px*var(--ts));line-height:1.15}
@@ -403,11 +417,13 @@ body.sky .info .acts,body.sky .ladder,body.sky .lad-chip,body.sky .progress{opac
   .stop{letter-spacing:.1em;row-gap:6px}
   .itool{padding:5px 10px;margin:-3px 0;font-size:calc(10.5px*var(--ts));letter-spacing:.06em;color:var(--dim);border-color:var(--line);border-radius:12px;text-transform:none}
   .itools{gap:5px}
-  .resume-i:not([hidden]){display:inline-block;order:5;color:var(--void);background:#a8f0b0;border-color:#a8f0b0;font-weight:600;letter-spacing:.02em;text-transform:none;padding:4px 12px}
-  .itools{order:4}
-  .title{gap:0;margin:3px 0 0}
-  .info h1{flex:1;min-width:0;font-size:calc(20px*var(--ts))}
-  .title .nav{width:42px;height:38px;font-size:calc(24px*var(--ts));color:var(--soft);border-color:var(--line);border-radius:10px;margin-left:4px}
+  .mode.tourpick{min-height:28px;box-sizing:border-box}
+  .title{gap:6px 8px;margin:3px 0 0}
+  .info h1{flex:1 1 auto;min-width:0;font-size:calc(20px*var(--ts))}
+  .gonext{min-height:36px;padding:4px 12px 4px 13px;font-size:calc(12px*var(--ts));border-radius:18px}
+  .progress .anav{width:40px;height:34px;margin:-1px 0;font-size:calc(22px*var(--ts));border-color:var(--line);border-radius:10px}
+  .progress .anav:first-child{margin-left:0;margin-right:8px}
+  .progress .anav:last-child{margin-left:8px}
   .type,.where{font-size:calc(11px*var(--ts))}
   body.info-compact .where{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .acts{flex-wrap:wrap;margin:8px 0 4px}
