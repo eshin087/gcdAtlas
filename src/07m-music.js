@@ -155,23 +155,28 @@ const music = (() => {
     return key;
   }
   // Song names are made from places in the atlas: 'Bossa for Europa', 'Rain on Titan'. None repeats among the last 60.
-  const PLACES = ['Europa', 'Titan', 'Io', 'Enceladus', 'the Moon', 'Ceres', 'Pluto', 'Mars', 'Venus', 'Saturn', 'Jupiter', 'Neptune', 'Uranus', 'Mercury',
+  // A place goes after a word like 'on' or 'over', or at the start before 'at' ('The Moon at 3 AM'); 'The # Lounge' drops its 'the'.
+  const PLACES = ['Europa', 'Titan', 'Io', 'Enceladus', 'the Moon', 'Ceres', 'Pluto', 'Mars', 'Venus', 'Saturn', 'Jupiter', 'Neptune', 'Mercury',
     'Vega', 'Sirius', 'Polaris', 'Rigel', 'Deneb', 'Altair', 'Arcturus', 'Aldebaran', 'Antares', 'Betelgeuse', 'the Pleiades', 'Andromeda', 'Orion',
     'Proxima b', 'Alpha Centauri', 'TRAPPIST-1', 'Omega Centauri', 'the Sombrero', 'the Whirlpool', 'Carina', 'the Helix', 'the Crab', 'Halley',
     'Arrokoth', 'the Oort cloud', 'Epsilon Eridani', 'Hale-Bopp', 'the Perseids', 'the Leonids', 'HL Tauri', 'Centaurus A', 'the Veil', 'the Horsehead'];
   const NAMES = {
     lofi:['Rainy Day on #', 'Study Notes from #', 'Cassette from #', 'Slow Orbit of #', '# at 3 AM', 'Midnight over #', 'Tea on #', 'Window Seat to #', 'Dusty Records from #'],
-    house:['# Sunrise', 'Deep over #', 'Dancing on #', 'Warm Signal from #', 'Afterglow over #', '# Nights', 'Night Bus to #', 'Golden Hour on #'],
+    house:['Sunrise over #', 'Deep over #', 'Dancing on #', 'Warm Signal from #', 'Afterglow over #', 'Nights under #', 'Night Bus to #', 'Golden Hour on #'],
     ambient:['Drifting past #', 'Above #', 'The Long Night of #', 'Far Light of #', 'Silence over #', 'Horizon of #', 'Slowly past #', 'Dust over #'],
     bossa:['Bossa for #', 'Samba on #', 'Girl from #', 'Sunday on #', 'Café on #', 'Beach Walk on #', 'Slow Samba past #', 'A Day on #'],
-    lounge:['# Lounge', 'Late Set at #', 'Elevator to #', 'Blue Hour on #', 'Nightcap over #', 'Last Call on #', 'Velvet #', 'Lobby of #'],
+    lounge:['The # Lounge', 'Late Set at #', 'Elevator to #', 'Blue Hour on #', 'Nightcap over #', 'Last Call on #', 'Velvet Night on #', 'Lobby of #'],
     piano:['Rain on #', 'Letter from #', 'Snow on #', 'Morning over #', 'Quiet Hours on #', 'Notes from #', 'Lullaby for #', 'A Light over #'],
     downtempo:['Slow Motion over #', 'Haze over #', 'Low Tide on #', 'Half Light on #', 'Afternoon on #', 'Soft Focus on #', 'Balcony on #', 'Long Way to #'],
     synthwave:['Night Drive to #', 'Neon over #', 'Cruising past #', '# at Midnight', 'Coastline of #', 'Last Train to #', 'Tapes from #', 'City Lights of #'],
   };
   function makeTitle(style){
     let name = '';
-    for (let i=0;i<20;i++){ name = pick(NAMES[style]).replace('#', pick(PLACES)); name = name[0].toUpperCase() + name.slice(1); if (!SH.recent.includes(name)) break; }
+    for (let i=0;i<20;i++){
+      const tpl = pick(NAMES[style]), place = pick(PLACES);
+      name = tpl.replace('#', tpl.startsWith('The #') ? place.replace(/^the /, '') : place); name = name[0].toUpperCase() + name.slice(1);
+      if (!SH.recent.includes(name)) break;
+    }
     SH.recent.push(name); if (SH.recent.length > 60) SH.recent.shift();
     return name;
   }
@@ -801,7 +806,7 @@ const music = (() => {
     // the moods of the settings panel, and what each one plays ('ambient, piano and lofi')
     moods:MOODS, moodText,
     _render:(style, sec = 30, { seed = 1, rate = 48000 } = {}) => render(style, sec, seed, rate),   // for tests/music.mjs
-    _plan:plan, _places:PLACES,
+    _plan:plan, _places:PLACES, _names:NAMES,
     get _last(){ return lastRender; },
     set onTrack(f){ onTrack = f; },
     // a blocked context stays suspended, so every gesture retries until one is accepted (wheel and touchstart are not)

@@ -65,7 +65,7 @@ for (const st of want){
 // the shuffle: 400 songs of each mood
 const sh = await page.evaluate(() => { const m = window.__cosmos.music, plans = {};
   for (const mood in m.moods) plans[mood] = m._plan(mood, 400);
-  return { plans, moods:m.moods, places:m._places, names:window.__cosmos.OBJ.map(o => o.name), text:m.moodText('mix') }; });
+  return { plans, moods:m.moods, places:m._places, tpls:m._names, names:window.__cosmos.OBJ.map(o => o.name), text:m.moodText('mix') }; });
 const shNotes = [];
 for (const [mood, list] of Object.entries(sh.plans)){
   const allowed = Object.keys(sh.moods[mood]), seen = new Set(), bad = new Set();
@@ -84,6 +84,12 @@ for (const [mood, list] of Object.entries(sh.plans)){
   shNotes.push(mood + ' ' + Object.entries(count).map(([k, v]) => `${k} ${Math.round(100*v/list.length)}%`).join(' '));
 }
 for (const p of sh.places){ const q = p.replace(/^the /, ''); if (!sh.names.some(n => n.includes(q))) errors.push(`song names use "${p}", which is not in the atlas`); }
+// a place ('the Moon') reads well after a word like 'on', at the start before 'at', or in 'The # Lounge' (which drops its 'the'),
+// never bare after a word ('Velvet the Moon') or before one ('The Perseids Nights')
+for (const [st, list] of Object.entries(sh.tpls)) for (const tpl of list)
+  if (!/^The # |^# at |\b(on|over|of|from|to|for|past|under|above|at|by|in) #/i.test(tpl)) errors.push(`${st} song name "${tpl}" reads badly with a place like "the Moon"`);
+for (const [mood, list] of Object.entries(sh.plans)) for (const x of list)
+  if (/\bthe the\b|^The the /i.test(x.title)) errors.push(`${mood}: song name "${x.title}"`);
 // moods saved before 0.8.9 map across: lofi -> beats, house -> groove, ambient -> calm, anything else -> mix
 await page.addInitScript(() => { const v = sessionStorage.getItem('__ms'); if (v) localStorage.setItem('gcdatlas.settings', JSON.stringify({ musicStyle:v, sound:false, fadeUI:'off' })); });
 for (const [was, now] of [['lofi', 'beats'], ['house', 'groove'], ['ambient', 'calm'], ['disco', 'mix']]){
