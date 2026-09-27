@@ -275,7 +275,8 @@ function shipPose(mode){
   const q = SHIP_POSE[mode], R = ship.R0, r = ship.rad;
   if (mode === 'turn'){ const T = shipCam.turn, eye = V.mul(M3.apply(R, T.eye), r), look = V.mul(M3.apply(R, T.look || [0, 0, 0]), r);
     return { eye, look, fwd:V.norm(V.sub(look, eye)), up:M3.apply(R, T.up || [-1, 0, 0]) }; }
-  if (mode === 'chase'){ const Rv = ship.viewR || R, o = ship.chaseOff || [0, 0, 0], eye = V.mul(M3.apply(Rv, V.mul(q.eye, shipCam.zoom)), r), look = V.mul(M3.apply(Rv, V.add(q.look, o)), r);
+  // (ship.S.fz: closer in while the ship folds, and aimed a little more at the ship, so the break-up fills more of the screen; 07h-halo.js)
+  if (mode === 'chase'){ const Rv = ship.viewR || R, o = ship.chaseOff || [0, 0, 0], fz = ship.S.fz || 1, eye = V.mul(M3.apply(Rv, V.mul(q.eye, shipCam.zoom*fz)), r), look = V.mul(M3.apply(Rv, V.add(V.mul(q.look, fz*fz), o)), r);
     return { eye, look, fwd:V.norm(V.sub(look, eye)), up:M3.apply(Rv, [-1, 0, 0]) }; }
   const Rg = ship.gazeR || R, eye = V.mul(M3.apply(R, q.eye), r), look = V.add(eye, V.mul(M3.apply(Rg, V.sub(q.look, q.eye)), r));
   return { eye, look, fwd:V.norm(V.sub(look, eye)), up:M3.apply(Rg, [-1, 0, 0]) };
