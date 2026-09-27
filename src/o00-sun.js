@@ -351,12 +351,14 @@ const float HR = 0.328;
 float herH(float x){ return x < 1. ? -0.045 + 0.057*pow(smoothstep(0.42, 1., x), 1.6) + 0.03*exp(-x*x/0.03) : 0.012*exp(-(x - 1.)/0.22); }
 float herAt(vec3 q){ return herH(acos(clamp(dot(normalize(q), HC), -1., 1.))/HR); }
 // the surface normal tilted by the crater's slopes, and the shadows its rim and peak cast (a short walk toward the Sun above the relief)
+// (the shading uses slopes 2.5 times steeper than the real ones, so the walls and peak still read in characters with the Sun high over
+// the crater; the shadows are cast by the true heights)
 vec3 herschel(vec3 n, vec3 L, out float shade){
   shade = 1.;
   float th = acos(clamp(dot(n, HC), -1., 1.)), x = th/HR;
   if(x > 2.2) return n;
   vec3 t = n*dot(n, HC) - HC; float tl = length(t);
-  float e = 0.004, slope = (herH((th + e)/HR) - herH(max(th - e, 0.)/HR))/(e + min(th, e));
+  float e = 0.004, slope = 2.5*(herH((th + e)/HR) - herH(max(th - e, 0.)/HR))/(e + min(th, e));
   vec3 nn = tl < 1e-5 ? n : normalize(n - t/tl*slope);
   if(dot(n, L) > -0.25){
     vec3 p = n*(1. + herH(x));
@@ -386,6 +388,7 @@ void main(){
     // eclipse by a nearby body (a planet's shadow on its moon)
     if(uP2.w > 0.){ vec3 q = uP2.xyz - p; float tq = dot(q, L); if(tq > 0.){ float dq = length(q - L*tq); sh *= smoothstep(uP2.w*0.96, uP2.w*1.04, dq); } }
     float lam = (kind > 0.5 && kind < 4.5) || (newX && kind < 23.5) ? dif : pow(dif, 0.8)*(0.4 + 0.6*pow(mu, 0.2));   // gas and cloud tops vs rough regolith
+    if(kind > 23.5) lam = pow(dif, 1.5)*(0.5 + 0.5*pow(mu, 0.2))*1.25;   // (Mimas: a harder falloff, like Vesta's, so the crater's relief shows)
     col = base*(lam*sh*1.25 + 0.006) + gEm;
     col += diskAir(mu, dot(n, L), atm, atm*vec3(1., 0.6, 0.45), atmK*1.3);
     if(kind > 0.5 && kind < 1.5) col += vec3(0.25, 0.08, 0.02)*smoothstep(0.1, -0.2, dot(n, L))*0.08;
