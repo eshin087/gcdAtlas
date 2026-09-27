@@ -1,7 +1,7 @@
 // Camera motion regression: the angle loop after picking an object, play / pause (button and space), flights that land
 // exactly on a moving destination (no jump on arrival), ladder picks that keep moving, riding along with the Halo, tour trips without zoom dips,
 // the Halo at work (always travelling, light speed and folds, its jobs, scan beams on the surface), and the controls that say where they go
-// (next stop, angle arrows that count every tap, Esc closing panels first, the tour's angles at Earth). Deterministic: steps the simulation with __cosmos.tick.
+// (next stop, angle arrows that count every tap, Esc closing panels first, the tour's angles at Earth), and the random tour. Deterministic: steps the simulation with __cosmos.tick.
 // Usage: node tests/motion.mjs
 import { openPage, report } from './lib.mjs';
 
@@ -273,5 +273,77 @@ if (say.escSearch.atlas || say.escSearch.box || !say.escSearch.lock) fail('Esc i
 if (say.escNothing !== null) fail('Esc with nothing open did not let go of the object');
 if (say.earth.views.join() !== '0,2,1' || say.earth.t < 26 || say.earth.t > 36) fail('the tour does not play three Earth angles in about 30 s: ' + JSON.stringify(say.earth));
 
-report('motion', errors, `next stop, start again and back to the tour · three fast angle taps, three angles · Esc closes panels first · Earth on the tour: angles ${say.earth.views.join(', ')} in ${say.earth.t} s · home from the Crab pauses the tour · free camera stays with Earth (${stay.drift.off.toFixed(1)}° off centre after 5 s), back by play and by the pill ("${(stay.pill || '').replace(/^\W/, '› ')}") · Jupiter x${stay.jupiterFree} after letting go, x${stay.overviewFree} in the overview · W A S D within ${stay.reach} view distances · Saturn loops through ${loop.views} angles · pause, play and space work · universe to Earth, largest frame-to-frame change x${fl.worstFrameToFrameScale} · ladder picks keep moving · riding the Halo through a fold and a light-speed jump (camera within ${ride.farAfterFold} / ${ride.farInLightSpeed} ship radii) · the Halo always moving (tightest turn ${halo.minTurnRadius} ship lengths, at most ${halo.maxTurn20s} degrees in 20 s), ${Object.keys(halo.acts).length} kinds of job, ${halo.beams} scan beams on the surface (error ${halo.beamWorst.toExponential(1)}) · Moon → ${nav.next} → ${nav.next2} · mid-flight speed change ${nav.slow}s → ${nav.fast}s · ${trips.n} tour trips without dips (${trips.passes} pass-bys)`);
+// 11. the random tour (second in the list of tours): 12 places from the whole atlas, a new mix on every start. No place twice (a place and
+// what belongs to it count as one), never where it sets off from, never the Halo, at most 3 of one kind; the tour track on the scale bar
+// shows each new deal's names; on the last stop the green button (also when paused there), ] and the end of the last angle deal 12 new
+// places from there, none of the 12 just played; a shared link starts a new random tour at the linked place; the same seed deals the same
+// tour (visitors get their seed from Math.random); and its trips never dip or fly through a third object
+const rt = await page.evaluate(() => {
+  const C = __cosmos, g = document.getElementById('goNext'), key = k => dispatchEvent(new KeyboardEvent('keydown', { key:k, bubbles:true })), r = {};
+  const keys = () => C.TOUR.map(i => C.OBJ[i].key), btn = () => g.hidden ? null : g.textContent, catOf = o => (o.isBH || o.prog === C.BYKEY.sgra.prog) ? 'bh' : o.group;
+  const overlap = T => C.TOUR.filter(i => T.includes(i)).length;
+  const check = (T, from) => { const os = T.map(i => C.OBJ[i]), bad = [], per = {};
+    if (T.length !== 12 || new Set(T).size !== 12) bad.push(T.length + ' stops');
+    for (const o of os){ if (!C.tourable(o)) bad.push(o.key + ' may not be toured'); if (from && C.samePlace(from, o)) bad.push(o.key + ' is where it set off'); per[catOf(o)] = (per[catOf(o)] || 0) + 1; }
+    os.forEach((a, i) => os.slice(i + 1).forEach(b => { if (C.samePlace(a, b)) bad.push(a.key + ' and ' + b.key + ' are one place'); }));
+    for (const c in per) if (per[c] > 3) bad.push(per[c] + ' stops of ' + c);
+    return bad; };
+  C.setOpt('dwell', 'normal', true); C.setTour(false); C.randomSeed(1); C.lockOn(C.BYKEY.earth.index); C.land(0.1);
+  const row = document.querySelectorAll('#tourList .trow')[1]; row.click(); C.hud();
+  r.first = { id:C.tourId, n:C.TOUR.length, bad:check(C.TOUR, C.BYKEY.earth), halo:keys().includes('halo'), row:row.querySelector('b').textContent, current:row.getAttribute('aria-current'),
+    head:document.getElementById('modeTourName').textContent, stop:document.getElementById('stopInfo').textContent, to:C.stepTarget, want:keys()[0] };
+  const T1 = C.TOUR.slice(); C.land(0.1);
+  C.startTour('random'); C.hud();
+  r.second = { overlap:overlap(T1), bad:check(C.TOUR, C.OBJ[T1[0]]), track:[...document.querySelectorAll('.tour-track .tt')].map(b => b.textContent).join('|'), names:C.TOUR.map(i => C.OBJ[i].label || C.OBJ[i].name).join('|') };
+  C.land(0.1);
+  const T2 = C.TOUR.slice(), gen = C.tourGen; C.tourGo(T2[11], true); C.tick(1/60); C.hud();
+  r.last = { btn:btn(), title:g.title }; g.click();
+  r.deal = { on:C.tour.on, gen:C.tourGen > gen, overlap:overlap(T2), to:C.stepTarget, first:keys()[0], bad:check(C.TOUR, C.OBJ[T2[11]]) }; C.land(0.1);
+  const T3 = C.TOUR.slice(); C.tourGo(T3[11], true); C.tick(1/60); key(']');
+  r.key = { overlap:overlap(T3), to:C.stepTarget, first:keys()[0] }; C.land(0.1);
+  const T4 = C.TOUR.slice(); C.tourGo(T4[11], true); C.tick(1/60); document.getElementById('btnPlay').click(); C.tick(1/60); C.hud();
+  r.paused = { on:C.tour.on, btn:btn() }; g.click();
+  Object.assign(r.paused, { after:C.tour.on, overlap:overlap(T4), to:C.stepTarget, first:keys()[0] }); C.land(0.1);
+  C.setOpt('dwell', 'short', true);
+  const T5 = C.TOUR.slice(); C.tourGo(T5[11], true); let t = 0; while (C.tour.obj === T5[11] && t < 120){ C.tick(1/30); t += 1/30; }
+  r.auto = { overlap:overlap(T5), obj:C.OBJ[C.tour.obj].key, first:keys()[0], t:+t.toFixed(1) }; C.setOpt('dwell', 'normal', true); C.land(0.1);
+  C.setTour(false); location.hash = '#o=crab&tour=random'; const linked = C.applyHash();
+  r.link = { linked, on:C.tour.on, id:C.tourId, first:keys()[0], n:C.TOUR.length, lock:C.orbit.lock >= 0 ? C.OBJ[C.orbit.lock].key : null, bad:check(C.TOUR, null), hash:C.viewHash() };
+  history.replaceState(null, '', location.pathname);
+  const deal = s => { C.randomSeed(s); return C.dealRandom(C.BYKEY.earth, null, new Set()).join(); };
+  r.seeded = { same:deal(7) === deal(7), differ:deal(7) !== deal(8) };
+  // (trips as in 7; the star a planet at either end circles counts as part of that end: a trip to Kepler-16b may pass its suns)
+  C.setOpt('travel', 'cinematic', true); r.trips = { n:0, bad:[] };
+  for (const seed of [1, 2]){
+    C.setTour(false); C.randomSeed(seed); C.view('earth', 0); C.startTour('random'); const T = [C.BYKEY.earth.index, ...C.TOUR];
+    for (let i=0;i<T.length - 1;i++){
+      const a = C.OBJ[T[i]], b = C.OBJ[T[i + 1]]; r.trips.n++;
+      C.tourGo(T[i], true); C.tick(1/30); C.tourGo(T[i + 1]);
+      const ws = [], inside = new Set(); let n = 0;
+      const around = o => [a, b].some(e => e.parent === o || Math.hypot(o.pos[0] - e.pos[0], o.pos[1] - e.pos[1], o.pos[2] - e.pos[2]) < o.rad);
+      while (C.stepTarget && n++ < 3000){
+        C.tick(1/30); ws.push(C.orbit.dist);
+        for (const o of C.OBJ) if (o !== a && o !== b && !o.parent && o.prog && o.layer >= 2 && !o.marker && o.dist < o.rad && !around(o)) inside.add(o.key);
+      }
+      let dips = 0; for (let j=2;j<ws.length - 2;j++) if (ws[j] < ws[j - 1]*0.999 && ws[j] < ws[j + 1]*0.999 && ws[j] < ws[j - 2] && ws[j] < ws[j + 2]) dips++;
+      if (dips || inside.size) r.trips.bad.push(`seed ${seed}, ${a.key} -> ${b.key}: ${dips} zoom dips, inside ${[...inside].join(',') || '-'}`);
+    }
+  }
+  C.setOpt('travel', 'quick', true); C.setTour(false);
+  return r;
+});
+if (rt.first.id !== 'random' || rt.first.n !== 12 || rt.first.bad.length || rt.first.halo || rt.first.to !== rt.first.want) fail('the random tour did not deal 12 good places: ' + JSON.stringify(rt.first));
+if (rt.first.row !== 'random tour' || rt.first.current !== 'true' || rt.first.head !== 'random tour' || rt.first.stop !== 'stop 1 / 12') fail('the random tour row, name or stop line: ' + JSON.stringify(rt.first));
+if (rt.second.overlap || rt.second.bad.length) fail('starting the random tour again did not deal 12 new places: ' + JSON.stringify(rt.second));
+if (rt.second.track !== rt.second.names) fail('the tour track kept the old names after a new deal: ' + rt.second.track + ' / ' + rt.second.names);
+if (rt.last.btn !== 'new random tour›' || !/^12 new places/.test(rt.last.title)) fail('the last stop of the random tour does not offer a new one: ' + JSON.stringify(rt.last));
+if (!rt.deal.on || !rt.deal.gen || rt.deal.overlap || rt.deal.to !== rt.deal.first || rt.deal.bad.length) fail('"new random tour" did not deal 12 new places and fly to the first: ' + JSON.stringify(rt.deal));
+if (rt.key.overlap || rt.key.to !== rt.key.first) fail('] on the last stop did not deal a new random tour: ' + JSON.stringify(rt.key));
+if (rt.paused.on || rt.paused.btn !== 'new random tour›' || !rt.paused.after || rt.paused.overlap || rt.paused.to !== rt.paused.first) fail('paused on the last stop, the green button did not deal a new random tour: ' + JSON.stringify(rt.paused));
+if (rt.auto.overlap || rt.auto.obj !== rt.auto.first) fail('the end of the last angle did not go on to a new random tour: ' + JSON.stringify(rt.auto));
+if (!rt.link.linked || !rt.link.on || rt.link.id !== 'random' || rt.link.first !== 'crab' || rt.link.lock !== 'crab' || rt.link.n !== 12 || rt.link.bad.length || !/tour=random/.test(rt.link.hash)) fail('a shared random tour link did not start one at the Crab: ' + JSON.stringify(rt.link));
+if (!rt.seeded.same || !rt.seeded.differ) fail('the random tour does not follow its seed: ' + JSON.stringify(rt.seeded));
+if (rt.trips.bad.length) fail('random tour trips that dip or fly through something: ' + rt.trips.bad.join('; '));
+
+report('motion', errors, `random tour: 12 places, new names on the track, deals again at the end, ${rt.trips.n} trips without dips · next stop, start again and back to the tour · three fast angle taps, three angles · Esc closes panels first · Earth on the tour: angles ${say.earth.views.join(', ')} in ${say.earth.t} s · home from the Crab pauses the tour · free camera stays with Earth (${stay.drift.off.toFixed(1)}° off centre after 5 s), back by play and by the pill ("${(stay.pill || '').replace(/^\W/, '› ')}") · Jupiter x${stay.jupiterFree} after letting go, x${stay.overviewFree} in the overview · W A S D within ${stay.reach} view distances · Saturn loops through ${loop.views} angles · pause, play and space work · universe to Earth, largest frame-to-frame change x${fl.worstFrameToFrameScale} · ladder picks keep moving · riding the Halo through a fold and a light-speed jump (camera within ${ride.farAfterFold} / ${ride.farInLightSpeed} ship radii) · the Halo always moving (tightest turn ${halo.minTurnRadius} ship lengths, at most ${halo.maxTurn20s} degrees in 20 s), ${Object.keys(halo.acts).length} kinds of job, ${halo.beams} scan beams on the surface (error ${halo.beamWorst.toExponential(1)}) · Moon → ${nav.next} → ${nav.next2} · mid-flight speed change ${nav.slow}s → ${nav.fast}s · ${trips.n} tour trips without dips (${trips.passes} pass-bys)`);
 await browser.close();

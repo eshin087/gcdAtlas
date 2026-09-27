@@ -76,7 +76,7 @@ function vwPath(u1, w0, w1, rho){
   return { S:(r1 - r0)/rho, u:s => w0*Math.sinh(rho*s)/(rho*rho*Math.cosh(rho*s + r0)), w:s => w0*Math.cosh(r0)/Math.cosh(rho*s + r0) };
 }
 // a trip that zooms far out on the way (its widest view more than 30 times either end, and over 2,000 light-years): such a trip swings over
-// the galactic pole and takes longer
+// the galactic pole and takes longer. (One rule, shared with the random tour, which keeps these trips few.)
 function isScenic(path, w0, w1){
   let wMax = 0; for (let i=0;i<=24;i++) wMax = Math.max(wMax, path.w(path.S*i/24));
   return wMax > 30*Math.max(w0, w1) && wMax > 2000;
@@ -187,6 +187,43 @@ function flyTo(o, vp, onDone){
   startFlight(o, vp, onDone, W ? { o:W } : null);
   if (W){ flight.dest = o; toast('passing ' + W.name); }
 }
+// would a tour trip from a to b stay clear of everything else? The camera path is worked out as startFlight and updateFlight would fly it,
+// setting off from any of a's tour angles (with either sway) to b's first one; it must not enter the bounding sphere of a third object
+// (one that holds neither end). A trip out of the Large Magellanic Cloud can swing through the edge of the Milky Way's sphere, for example.
+// (For the random tour, which picks trips nobody planned; the motion test checks the real flights.)
+function tripClear(a, b){
+  const vb = viewParams(b, tourViews(b)[0]), B = V.add(frel(b), vb.off), w1 = vb.dist;
+  const dir1 = M3.apply(camFrameOf(b), sphL(vb.yaw, vb.pitch)), up1 = M3.apply(camFrameOf(b), [0, 1, 0]);
+  // (an object that holds either end does not count, nor the star a planet at either end circles: a trip to Kepler-16b may pass its suns)
+  const holds = (o, e) => V.len(V.sub(o.pos, e.pos)) < o.rad || e.parent === o;
+  const others = []; for (const o of OBJ) if (o !== a && o !== b && !o.parent && o.prog && o.layer >= 2 && !o.marker && !holds(o, a) && !holds(o, b)){ const c = frel(o); others.push(c[0], c[1], c[2], o.rad*1.1); }
+  // (the camera moves in a straight line between two samples: the chord is checked, not only its ends)
+  const hit = (P, Q) => {
+    const dx = Q[0] - P[0], dy = Q[1] - P[1], dz = Q[2] - P[2], dd = dx*dx + dy*dy + dz*dz;
+    for (let i = 0; i < others.length; i += 4){
+      const cx = others[i] - P[0], cy = others[i + 1] - P[1], cz = others[i + 2] - P[2], r = others[i + 3];
+      const t = dd > 0 ? clamp((cx*dx + cy*dy + cz*dz)/dd, 0, 1) : 0, ex = cx - dx*t, ey = cy - dy*t, ez = cz - dz*t;
+      if (ex*ex + ey*ey + ez*ez < r*r) return true;
+    }
+    return false; };
+  for (const v of tourViews(a)){
+    const va = viewParams(a, v), A = V.add(frel(a), va.off), w0 = va.dist, L = V.len(V.sub(B, A));
+    const path = vwPath(L, w0, w1, 1.3), scenic = isScenic(path, w0, w1), prog = flightProg(path, scenic, null, false);
+    // (the camera's up at departure is the frame's up made square to the view, as setBasis leaves it)
+    const dir0 = M3.apply(camFrameOf(a), sphL(va.yaw, va.pitch)), fu = M3.apply(camFrameOf(a), [0, 1, 0]), up0 = V.norm(V.sub(fu, V.mul(dir0, V.dot(fu, dir0))));
+    const f = { scenic, dir0, dir1, dirMid:DIR_MID, up0, up1, upMid:UP_MID, spin:0 };
+    for (const spin of scenic ? [0] : [-0.5, 0.5]){
+      f.spin = spin; let P = V.add(A, V.mul(f.dir0, w0));
+      for (let i=1;i<=40;i++){
+        const x = i/40, s = path.S*flightE(prog, x), tgt = V.add(A, V.mul(V.sub(B, A), L > 0 ? clamp(path.u(s)/L, 0, 1) : 1));
+        const Q = V.add(tgt, V.mul(flightDir(f, x)[0], i === 40 ? w1 : path.w(s)));
+        if (hit(P, Q)) return false;
+        P = Q;
+      }
+    }
+  }
+  return true;
+}
 function updateFlight(dt){
   const f = flight; f.t += dt;
   const x = clamp(f.t/f.dur, 0, 1);
@@ -252,7 +289,13 @@ function tourGo(i, instant){
   tour.phase = 'fly';
   flyTo(o, vp, () => { tour.phase = 'hold'; tour.t = 0; });
 }
-function tourNext(dir = 1){ const k = TOUR.indexOf(tour.obj); return TOUR[((k < 0 ? 0 : k) + dir + TOUR.length) % TOUR.length]; }
+// the stop after (or before) this one; on the last stop of a dealt tour (the random tour) going on deals new places, starting from here,
+// so it never loops. (Its callers fly on at once; goNextState must not call it, it only says where the button goes.)
+function tourNext(dir = 1){
+  const k = TOUR.indexOf(tour.obj);
+  if (dir > 0 && k === TOUR.length - 1 && tourDeals()){ dealAgain(OBJ[tour.obj]); return TOUR[0]; }
+  return TOUR[((k < 0 ? 0 : k) + dir + TOUR.length) % TOUR.length];
+}
 function updateTour(dt){
   const o = OBJ[tour.obj];
   if (tour.phase === 'hold'){
