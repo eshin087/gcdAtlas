@@ -3,7 +3,7 @@
 // kind: a scan at Saturn, light speed to Jupiter (seen from the bridge) and a skim, light speed to the Moon and a weapons test, light speed
 // to Mars and a probe (Pip, the drone), a fold to the Pillars of Creation and a tractor beam and drill, then a fold back to Saturn and round again.
 // ?showcase=review, the looks review (about 85 s a round, in the looks the address picks: ?shield=a|b|c|off, ?fold=a|b|c, ?drone=a|b|c, with a
-// switch for each at the top): the ship held at Saturn while the camera circles it (the shield at rest), a fold to Sgr A* in the chosen style,
+// switch for each, bottom left on a desk and at the top on a phone): the ship held at Saturn while the camera circles it (the shield at rest), a fold to Sgr A* in the chosen style,
 // a pass there (the shield flares as the pull grows, the heart beats harder, Pip waits by the ship) seen from the chase camera (at the closest
 // point too, as riders see it), from above and from the bridge, a light-speed hop to SGR 1806-20 seen from behind, and a fold back to Saturn. The route is the
 // site's own: the review only picks the stops and the jobs, and starts each Saturn visit a few seconds before its pass ends (S_.onFoldIn,
