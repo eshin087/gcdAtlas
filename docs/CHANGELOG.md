@@ -16,6 +16,14 @@ All notable changes, newest first. Dates are UTC.
 - A subtler shield. At rest it is barely there, with one faint glint running round it every 9 seconds. It still shows clearly in strong gravity, such as near a black hole.
 - The Halo showcase (?showcase=halo) has buttons that act at once: teleport, light speed, black hole, scan, Pip, weapons and skim (keys 1 to 7). A button stays lit until the ship can do it. The showcase's stays last 75 seconds instead of about two minutes, so a round of it is quicker.
 
+**Pip, smaller and busier**
+- Pip, the Halo's little drone, is a third of its old size and stays by the ship. It no longer flies down to the planet or star.
+- Each time it comes out it does two or three of four jobs round the Halo, in a new mix and order, never the same outing twice in a row. It checks the hull with its lamp, polishes the bridge window and blinks happily. It checks an engine, peeks into the nozzle, gets pushed back by a puff, shakes it off and welds a panel. It flies out ahead, snaps a photo of the Halo with the planet behind it and comes back to wave at you. Or it plays: it loops round the needle, races along the side with a barrel roll and rests on the hull.
+- It peeks out, zips out or spirals out, and waves goodbye, zips home or spirals home.
+- Coming out and going home take 2.5 s each instead of under a second.
+- The Halo waits for Pip before it leaves. Near a black hole or a magnetar Pip stays closer and moves more gently.
+- With reduced motion, Pip makes no barrel rolls or tumbles and loops only once.
+
 ## 0.9.2 · 2026-09-28
 
 **More music, and 16 songs you can pick from a list**
