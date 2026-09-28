@@ -204,8 +204,11 @@ const hr8799 = namedStar('hr8799', 'HR 8799', hms(23,7,28.7), dms(21,8,3.3), 133
   views:[{dirFn:() => V.norm(V.mul(hr8799.pos, -1)), k:260, hold:10, drift:0.02}, {d:[0.5, 0.45, 0.8], k:160, hold:9, drift:0.03}, {d:[0.3, 0.3, 1], k:2.2, hold:7, drift:0.04}],
   readout:() => '133 light-years · planets 16 to 68 AU out (Jupiter\'s orbit is 5 AU)\norbits of about 50 to 460 years, sped up here' });
 [['e', 16.4, 1.1, 18, 3.5], ['d', 27, 1.2, 40, 1.2], ['c', 42, 1.2, 78, 0.3], ['b', 68, 1.2, 190, 5.1]].forEach(([l, a, r, P, ph]) => {
-  exoPlanet({ key:'hr8799' + l, name:'HR 8799 ' + l, host:hr8799, type:'young giant planet · photographed directly', R:r*69911, kind:18, a, P, phase:ph, atlas:l === 'b', sortKey:133.001, labelRange:a*AU_LY*25, labelMin:a*AU_LY*0.02,
+  const pl = exoPlanet({ key:'hr8799' + l, name:'HR 8799 ' + l, host:hr8799, type:'young giant planet · photographed directly', R:r*69911, kind:18, a, P, phase:ph, atlas:l === 'b', sortKey:133.001, labelRange:a*AU_LY*25, labelMin:a*AU_LY*0.02,
     fact:'A young giant planet still glowing from its formation, about 1,000 K at its cloud tops.', readout:() => `${a} AU from its star · ~${Math.round(Math.pow(a, 1.5)/Math.sqrt(1.5))} years per orbit` });
+  // (second angle: from below, across the line between day and night. The usual one looked mostly at the night side, which only glows a
+  // dim red: a large dark disc with little to see, 68 AU from a star)
+  pl.views[1] = {dirFn:() => sunSide(pl, 1.1, -0.35), k:2.4, hold:7, drift:0.04};
   orbitRing(hr8799, a, [0.55, 0.45, 0.7], 12);
 });
 

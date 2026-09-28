@@ -46,7 +46,8 @@ const tarantula = (() => {
     fact:'A star factory in the Large Magellanic Cloud so bright that, if it were as close as the Orion Nebula, it would cast shadows on Earth. Its central cluster R136 holds the heaviest stars known.',
     pos, rad:330, R0:facingEarth(pos, [0, 0, 1], 0), prog:program(VS_RECT, FS_HII), minZoom:0.02, pxMin:6, farColor:[1, 0.55, 0.6], farLum:0.5, labelRange:4e5, labelMin:30, aka:'30 doradus ngc 2070 r136 lmc tarantula',
     visFn(rpx){ return smooth(6, 16, rpx)*(0.15 + 0.85*smooth(8, 120, orbit.dist)); },
-    views:[{ dirFn:() => V.norm(V.mul(pos, -1)), k:1.6, hold:9, drift:0.02 }, { d:[0.6, 0.4, 0.7], k:0.55, hold:8, drift:0.03 }],
+    // (the first angle takes in the whole nebula on a desk screen and about two thirds of a phone's width: closer, it filled a desk screen edge to edge)
+    views:[{ dirFn:() => V.norm(V.mul(pos, -1)), k:2.2, hold:9, drift:0.02 }, { d:[0.6, 0.4, 0.7], k:0.55, hold:8, drift:0.03 }],
     tourViews:[0],   // (tours skip the close angle: the glow fills the screen with bright characters)
     particles:[{ ps:cl.ps, prog:'ptBasic', mode:1, sb:0.6, size:1.8 }, { ps:cl.spikes, prog:'spike', lines:true, mode:1, sb:0.6, size:1, len:0.03, q0:() => [1, 0, 0, 0] }],
     readout:() => '163,000 light-years, in the Large Magellanic Cloud · ~650 light-years across\nsupernova 1987A went off at its edge' });
