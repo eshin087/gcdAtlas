@@ -345,7 +345,8 @@ function syncStop(){
 // a tour, back to the stop you left it at; paused on that stop (a drag, the pause button), on to the next stop. Hidden when no tour is involved.
 function goNextState(){
   if (cmp || SKYV.on || TOUR.length < 2) return null;
-  const nextOf = i => { const k = TOUR.indexOf(i); return k === TOUR.length - 1 ? { kind:'again', o:OBJ[TOUR[0]] } : { kind:'next', o:OBJ[TOUR[k + 1]] }; };
+  // (on the last stop of the random tour it deals 12 new places, starting from there: 'deal', o is that last stop)
+  const nextOf = i => { const k = TOUR.indexOf(i); return k < TOUR.length - 1 ? { kind:'next', o:OBJ[TOUR[k + 1]] } : tourDeals() ? { kind:'deal', o:OBJ[i] } : { kind:'again', o:OBJ[TOUR[0]] }; };
   if (tour.on) return TOUR.includes(tour.obj) ? nextOf(tour.obj) : null;
   if (tour.last == null || !TOUR.includes(tour.last)) return null;
   return orbit.lock === tour.last && !flight && !shipCam.on ? nextOf(tour.last) : { kind:'back', o:OBJ[tour.last] };
@@ -354,11 +355,11 @@ let goNextShown = '';
 function syncGoNext(){
   const s = goNextState(), b = $('#goNext');
   const name = s ? s.o.label || s.o.name : '';
-  const txt = !s ? '' : s.kind === 'again' ? 'start again' : s.kind === 'back' ? 'back to the tour · ' + name : 'next stop · ' + name;
+  const txt = !s ? '' : s.kind === 'again' ? 'start again' : s.kind === 'deal' ? 'new ' + tourName() : s.kind === 'back' ? 'back to the tour · ' + name : 'next stop · ' + name;
   if (txt === goNextShown) return; goNextShown = txt;
   b.hidden = !s; if (!s) return;
   $('#goNextTxt').textContent = txt; b.classList.toggle('back', s.kind === 'back');
-  b.title = s.kind === 'again' ? 'Start the tour again from ' + name + ' (])' : s.kind === 'back' ? 'Back to the tour, at ' + s.o.name : 'Fly on to the next stop: ' + s.o.name + ' (])';
+  b.title = s.kind === 'again' ? 'Start the tour again from ' + name + ' (])' : s.kind === 'deal' ? RANDOM_N + ' new places picked at random, starting from here (])' : s.kind === 'back' ? 'Back to the tour, at ' + s.o.name : 'Fly on to the next stop: ' + s.o.name + ' (])';
 }
 function goNextClick(){
   const s = goNextState(); if (!s) return;
@@ -366,7 +367,8 @@ function goNextClick(){
   if (s.kind === 'back'){ setTour(true); return; }   // (picks the tour up at the stop you left)
   tween = null; if (flight) finishFlightHere();
   if (!tour.on){ tour.on = true; shipCam.on = false; }
-  tourGo(s.o.index); updateModeUI();
+  if (s.kind === 'deal'){ tour.obj = s.o.index; tourGo(tourNext(1)); } else tourGo(s.o.index);
+  updateModeUI();
 }
 function updateModeUI(){
   const m = cmp ? 'size compare' : tour.on ? tourName() : (orbit.lock >= 0 || flight ? 'locked on' : 'free camera'), me = $('#mode'), mt = $('#modeTour');
@@ -635,7 +637,7 @@ const tourTrack = document.createElement('div'); tourTrack.className = 'tour-tra
 const ttFill = document.createElement('div'); ttFill.className = 'tt-fill'; tourTrack.appendChild(ttFill);
 let ttId = null, ttTicks = [], ttShown = false;
 function buildTourTrack(){
-  ttTicks.forEach(t => t.remove()); ttTicks = []; ttId = TOUR_ID + ':' + TOUR.length;
+  ttTicks.forEach(t => t.remove()); ttTicks = []; ttId = TOUR_ID + ':' + TOUR_GEN;
   const n = TOUR.length;
   TOUR.forEach((oi, k) => {
     const b = document.createElement('button'); b.className = 'tick tt'; b.textContent = OBJ[oi].label || OBJ[oi].name;
@@ -650,7 +652,7 @@ function updateTourTrack(){
   const on = tour.on && TOUR.length > 1;
   if (on !== ttShown){ ttShown = on; ladderEl.classList.toggle('touring', on); tourTrack.hidden = !on; $('#ladCap').textContent = on ? 'tour' : 'view width'; }
   if (!on) return;
-  if (ttId !== TOUR_ID + ':' + TOUR.length) buildTourTrack();
+  if (ttId !== TOUR_ID + ':' + TOUR_GEN) buildTourTrack();   // (a new deal or a new screensaver shuffle has the same length but new names)
   const n = TOUR.length, k = Math.max(TOUR.indexOf(tour.obj), 0), o = OBJ[tour.obj];
   // progress through this stop's angles, so the fill creeps toward the next stop
   const L = tourViews(o), sub = tour.phase === 'fly' ? 0 : tour.phase === 'swing' ? Math.max(L.indexOf(tour.to != null ? tour.to : tour.view), 0)/L.length
@@ -1242,7 +1244,7 @@ $('#timeClose').addEventListener('click', () => togglePanel('timem', false));
 
 // ---------------------------------------------------------------- tours and story captions
 const tourRows = TOURS.map(t => {
-  const n = tourStops(t.id).length; if (n < 3) return null;
+  const n = t.deal ? RANDOM_N : tourStops(t.id).length; if (n < 3) return null;   // (a dealt tour picks its stops when it starts)
   const b = document.createElement('button'); b.className = 'trow';
   b.innerHTML = '<b></b><small></small>'; b.querySelector('b').textContent = t.name; b.querySelector('small').textContent = t.blurb + ' · ' + n + ' stops';
   b.addEventListener('click', () => startTour(t.id));
@@ -1250,7 +1252,8 @@ const tourRows = TOURS.map(t => {
 }).filter(Boolean);
 function startTour(id){
   hideHint(); if (cmp) endCompare(false);
-  useTour(id); tween = null; if (flight) finishFlightHere();
+  tween = null; if (flight) finishFlightHere();
+  useTour(id);   // (after the flight stops: the random tour deals from where the camera is)
   tour.on = true; tourGo(TOUR[0]); updateModeUI();
   toast(tourName() + ' · ' + TOUR.length + ' stops');
 }
@@ -1380,7 +1383,8 @@ function applyHash(){
   const jd = +p.get('jd'), deep = +p.get('deep');
   if (p.get('jd') && isFinite(jd)) ssDays = clamp(jd, JD_NOW - 4e6, JD_NOW + 4e6) - JD_NOW;
   if (p.get('deep') && isFinite(deep)) setDeep(clamp(deep, -200, 200));
-  if (p.get('tour')){ useTour(p.get('tour')); if (TOUR.includes(o.index)){ tour.on = true; tourGo(o.index, true); return true; } }
+  // (a link into the random tour starts a new one at the linked place: the order is not in the link, and it depends on what each visitor has seen)
+  if (p.get('tour')){ useTour(p.get('tour'), o); if (TOUR.includes(o.index)){ tour.on = true; tourGo(o.index, true); return true; } }
   tour.on = false;
   const c = (p.get('c') || '').split(',').map(Number);
   const vp = viewParams(o, 0);
@@ -1416,6 +1420,7 @@ function tick(dt){
     if (tour.on) updateTour(dt);
     else if (flyMove){ if (!flyMove.frozen) flyMove.t += dt; const h = flyMove.v.hold; playMove(flyMove.o, flyMove.v, clamp(flyMove.t/h, 0, 1)); if (flyMove.t >= h){ flyMove = null; if (motion.last === 'show' && orbit.lock >= 0) resumeShow(); } }
     else if (show.on) updateShow(dt);
+    dealAhead();   // (a random tour dealt ahead, a bit each frame: the next one on its last stop, or a first one while the list of tours is open)
     updateKeys(dt);
     if (!tween) orbit.dist = Math.exp(Math.log(orbit.dist) + (Math.log(orbit.distT) - Math.log(orbit.dist))*(1 - Math.exp(-dt*7)));
     riseAboveDisk(dt);
@@ -1473,7 +1478,7 @@ tick(0);
 updateModeUI(); syncTimeUI();
 window.__cosmos = { startTour, playFlyby, setMove(o, v, f){ flight = null; tween = null; tourGo(o.index, true); tour.on = false; flyMove = { o, v, t:f*v.hold, frozen:true }; },  get flyMove(){ return flyMove; }, startCompare, endCompare, setDeep, viewHash, applyHash, get cmp(){ return cmp; }, get ssRate(){ return ssRate; }, dbg:{ imp, impSpec, atlas, sphereRect, get tan(){ return [tanX, tanY]; }, get cols(){ return cols; }, get sceneH(){ return sceneH; }, get LODK(){ return LODK; }, PROGS }, OBJ, BYKEY, tourGo, lockOn, setTour, cam, orbit, tour, TOUR, SET, setOpt, music, LADDER, goLadder,
   land:(extra = 0.2) => { let n = 0; while (flight && n < 60*180){ tick(1/60); n++; } for (let i=0;i<extra*60;i++) tick(1/60); return n/60; },
-  setDays:d => { ssDays = d; }, stepObject, stepAngle, get stepTarget(){ return flight ? (flight.dest || flight.obj).key : null; }, get via(){ return flight && flight.via ? flight.via.key : null; }, PASS,
+  setDays:d => { ssDays = d; }, stepObject, stepAngle, get tourId(){ return TOUR_ID; }, get tourGen(){ return TOUR_GEN; }, randomSeed:n => { RSEED = n >>> 0; }, samePlace, tourable, tourPool, tripClear, dealRandom, RANDOM_W, tripW:(a, b) => tripWeight(tripEnd(a), tripEnd(b)), get nextDeal(){ return nextDeal; }, get stepTarget(){ return flight ? (flight.dest || flight.obj).key : null; }, get via(){ return flight && flight.via ? flight.via.key : null; }, PASS,
   startShipCam, stopShipCam, setShipCamMode, get shipCam(){ return shipCam; }, SHIP_POSE, get show(){ return show; }, togglePlay, get flight(){ return flight; },
   goHome, goBack, unlock, leash, get freeFrom(){ return freeFrom; }, proj:k => { const o = typeof k === 'string' ? BYKEY[k] : k, p = projectCSS(o.rel); return p && { x:p.x, y:p.y, z:p.z }; }, get SYSMAG(){ return SYSMAG; },
   setDetail:i => setOpt('detail', i, true), render, zoomTo, tick, caption:dt => updateCaption(dt), get showcap(){ return SHOWCAP.txt; }, flightDur:() => flight ? flight.dur : 0, hud:() => { roTimer = 0; updateHUD(0.2); },

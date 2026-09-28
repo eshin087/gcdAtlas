@@ -1,7 +1,7 @@
 // Phone layout regression: the dock fits, the info card sits above it and can be expanded, collapsed and hidden,
 // the scale chip opens the ladder, the interface fades when idle and a first tap on the sky only brings it back
-// (a first tap on a faded button works), the card's green "next stop" button, the tour name and the angle arrows, and the atlas controls
-// (all in the card, nothing sideways, upright at four sizes and on its side at two, at 90 to 160% menu text).
+// (a first tap on a faded button works), the card's green "next stop" button, the tour name and the angle arrows, the random tour in the list of tours,
+// and the atlas controls (all in the card, nothing sideways, upright at four sizes and on its side at two, at 90 to 160% menu text).
 // Screenshots of every state go to tests/out/mobile/. Usage: node tests/mobile.mjs
 import { openPage, report, OUT } from './lib.mjs';
 import path from 'node:path';
@@ -180,6 +180,27 @@ if (!(await rect('#tours')).shown) fail('the tour name did not open the list of 
 await shot('7c-tours-from-name');
 await page.tap('#toursClose'); await page.waitForTimeout(300);
 
+// the random tour: second in the list of tours from the dock, in full view; a tap closes the list and starts it ("stop 1 / 12")
+// (rowInView: the whole row, its name and its line below, lies inside the panel and on screen, and nothing covers it; on a phone on its
+// side too, where the list of tours comes before "time at each stop")
+const rowInView = () => page.evaluate(() => { const b = document.querySelectorAll('#tourList .trow')[1], r = b.getBoundingClientRect(), p = document.querySelector('#tours').getBoundingClientRect();
+  const e = document.elementFromPoint((r.left + r.right)/2, (r.top + r.bottom)/2);
+  return { name:b.querySelector('b').textContent, shown:r.top >= p.top - 1 && r.bottom <= Math.min(p.bottom, innerHeight) + 1 && r.left >= p.left - 1 && r.right <= p.right + 1 && !!e && e.closest('.trow') === b }; });
+const grandAt = await page.evaluate(() => { __cosmos.randomSeed(1); return __cosmos.tour.obj; });
+await page.tap('#btnTours'); await page.waitForTimeout(500); await shot('7d-tours-random');
+const rrow = await rowInView();
+if (rrow.name !== 'random tour' || !rrow.shown) fail('the random tour is not second in view in the list of tours: ' + JSON.stringify(rrow));
+else {
+  await page.tap('#tourList .trow:nth-child(2)'); await page.waitForTimeout(500);
+  const rs = await page.evaluate(() => { const C = __cosmos; C.land(0.1); C.hud(); const i = document.querySelector('#info').getBoundingClientRect(), g = document.querySelector('#goNext').getBoundingClientRect();
+    return { open:!document.querySelector('#tours').hidden, id:C.tourId, name:document.querySelector('#modeTour').textContent, stop:document.querySelector('#stopInfo').textContent, go:document.querySelector('#goNext').textContent, goIn:g.width > 0 && g.left >= i.left - 1 && g.right <= i.right + 1 }; });
+  await page.waitForTimeout(300); await shot('7e-random-tour');
+  if (rs.open || rs.id !== 'random' || rs.name !== 'random tour ▾' || rs.stop !== 'stop 1 / 12' || !/^next stop · .+›$/.test(rs.go) || !rs.goIn) fail('tapping the random tour did not start it: ' + JSON.stringify(rs));
+}
+
+// back on the grand tour at the stop it was on, so the checks below do not depend on what a random deal holds
+await page.evaluate(i => { const C = __cosmos; C.startTour('grand'); C.land(0.1); C.tourGo(i); C.land(0.1); }, grandAt);
+
 // dragging breaks the tour: still on the same stop, the green button goes on to the next stop, and picks the tour up again
 await page.evaluate(() => { __cosmos.land(0.1); });
 await page.mouse.move(120, 300); await page.mouse.down(); await page.mouse.move(210, 310, { steps:8 }); await page.mouse.up();
@@ -282,6 +303,11 @@ const inCard = await page.evaluate(() => { const i = document.querySelector('#in
   for (const id of ['#goNext', '#prevObj', '#nextObj', '#modeTour', '#infoHide']){ const e = document.querySelector(id), r = e.getBoundingClientRect(); if (r.width && (r.left < i.left - 1 || r.right > i.right + 1)) out.push(id); }
   return out; });
 if (inCard.length) fail('on its side these stick out of the card: ' + inCard.join(', '));
+// (by clicks: the first tap after the synthetic two-finger gestures above never becomes a click, see the play button)
+await page.evaluate(() => document.querySelector('#btnTours').click()); await page.waitForTimeout(500); await shot('8b-landscape-tours');
+const lrow = await rowInView();
+if (lrow.name !== 'random tour' || !lrow.shown) fail('on its side the random tour is not in view in the list of tours: ' + JSON.stringify(lrow));
+await page.evaluate(() => document.querySelector('#toursClose').click()); await page.waitForTimeout(300);
 // (opened by a click: after the raw two-finger touches above, the first tap here is sometimes lost in headless Chromium, before this test too)
 await page.evaluate(() => document.querySelector('#btnAtlas').click()); await page.waitForTimeout(800); await shot('9-landscape-atlas');
 // on its side the atlas has two panes, the controls beside the list (which runs from the top), above the dock; the info card, the logo and the

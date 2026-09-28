@@ -94,9 +94,11 @@ namedStar('barnard', "Barnard's Star", hms(17,57,48.5), dms(4,41,36), 5.96, 0.18
 namedStar('tauceti', 'Tau Ceti', hms(1,44,4.1), dms(-15,56,15), 11.9, 0.793, 5344, { type:'nearby Sun-like star', fact:'A quiet, Sun-like star 12 light-years away, a favourite of science fiction and early searches for alien radio signals.',
   star:{ cells:36, act:0.2 }, farLum:0.6, labelRange:500, atlas:false, readout:() => '11.9 light-years · a little smaller and cooler than the Sun' });
 const epsEri = namedStar('epseri', 'Epsilon Eridani', hms(3,32,55.8), dms(-9,27,30), 10.5, 0.735, 5084, { type:'young Sun-like star with debris belts', fact:'A young, active star about 500 million years old, ringed by belts of icy debris like a young Solar System.',
-  star:{ cells:36, act:0.8 }, bound:3, farLum:0.6, labelRange:500, readout:() => '10.5 light-years · outer debris ring ~65 AU across' });
-{ const n = Math.round(2500*QUALITY), ps = makePS(n); for (let i=0;i<n;i++){ const a = rnd()*6.283, r = (rnd() < 0.8 ? 64 + rndn()*5 : 3 + rndn()*0.3)*AU_LY/epsEri.rad; ps.a.set([r*Math.cos(a), rndn()*0.3*AU_LY/epsEri.rad, r*Math.sin(a), 0.6 + rnd()], i*4); ps.c.set([0.8, 0.72, 0.62, 0], i*4); } ps.upload('ac');
-  epsEri.particles.push({ ps, prog:'ptBasic', mode:0, sb:0.08, size:1.3, cap:0.5, vis:() => smooth(3*AU_LY, 20*AU_LY, orbit.dist) });
+  star:{ cells:36, act:0.8 }, bound:3, farLum:0.6, labelRange:500, readout:() => '10.5 light-years · outer debris ring ~65 AU from the star' });
+// (the belts are measured in units of the outer belt's radius, rad:RB: a point's brightness is spread over the size it is given, and over
+// the star's own tiny radius the belts were far too faint to show)
+{ const n = Math.round(2500*QUALITY), RB = 64*AU_LY, ps = makePS(n); for (let i=0;i<n;i++){ const a = rnd()*6.283, r = (rnd() < 0.8 ? 64 + rndn()*5 : 3 + rndn()*0.3)*AU_LY/RB; ps.a.set([r*Math.cos(a), rndn()*0.3*AU_LY/RB, r*Math.sin(a), 0.6 + rnd()], i*4); ps.c.set([0.8, 0.72, 0.62, 0], i*4); } ps.upload('ac');
+  epsEri.particles.push({ ps, prog:'ptBasic', mode:0, sb:0.08, size:1.3, cap:0.5, rad:RB, vis:() => smooth(3*AU_LY, 20*AU_LY, orbit.dist) });
   epsEri.particleVis = () => 1; epsEri.views = [{d:[0.3, 0.55, 1], k:1.3, hold:8, drift:0.04}, {d:[0.3, 0.9, 0.4], k:0.7*64*AU_LY/epsEri.rad*3, hold:9, drift:0.02}]; }
 namedStar('capella', 'Capella', hms(5,16,41.4), dms(45,59,53), 42.9, 11.98, 4970, { type:'pair of yellow giants', fact:'Two giant stars, each about 2.5 times the Sun\'s mass, circling each other every 104 days.',
   star:{ cells:14, act:0.1, corona:0.2 }, farLum:0.9, labelRange:1500, atlas:false, readout:() => '42.9 light-years · two giants 0.74 AU apart' });
