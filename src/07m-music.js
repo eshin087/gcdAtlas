@@ -938,10 +938,10 @@ const music = (() => {
     // bass: on the offbeats, rolling, syncopated or long
     if (sec !== 'intro' && sec !== 'break'){
       const r = low(root, 33, 45);
-      if (T.bassPat === 'rolling'){ if (s === 2 || s === 3 || s === 6 || s === 10 || s === 11 || s === 14) bassNote(tt, r + (s === 3 || s === 11 ? 12 : 0), sd*0.9, 0.22); }
-      else if (T.bassPat === 'synco'){ if (s === 3 || s === 6 || s === 10 || s === 13) bassNote(tt, r + (s === 13 ? 7 : s === 6 && R() < 0.3 ? 12 : 0), sd*1.5, 0.22); }
-      else if (T.bassPat === 'long'){ if (s === 2) bassNote(tt, r, sd*5, 0.2); if (s === 10) bassNote(tt, r, sd*2, 0.2); if (s === 14) bassNote(tt, r + 7, sd, 0.18); }
-      else if (s % 4 === 2) bassNote(t, r + (R() < 0.12 ? 12 : 0), sd*1.6, 0.22);
+      if (T.bassPat === 'rolling'){ if (s === 2 || s === 3 || s === 6 || s === 10 || s === 11 || s === 14) bassNote(tt, r + (s === 3 || s === 11 ? 12 : 0), sd*0.9, 0.242); }
+      else if (T.bassPat === 'synco'){ if (s === 3 || s === 6 || s === 10 || s === 13) bassNote(tt, r + (s === 13 ? 7 : s === 6 && R() < 0.3 ? 12 : 0), sd*1.5, 0.242); }
+      else if (T.bassPat === 'long'){ if (s === 2) bassNote(tt, r, sd*5, 0.22); if (s === 10) bassNote(tt, r, sd*2, 0.22); if (s === 14) bassNote(tt, r + 7, sd, 0.198); }
+      else if (s % 4 === 2) bassNote(t, r + (R() < 0.12 ? 12 : 0), sd*1.6, 0.242);
     }
     // on top in B and the drop: plucks, a riff on a mallet, or a choir
     if (sec === 'B' || sec === 'drop'){
@@ -962,7 +962,7 @@ const music = (() => {
   // ---------------------------------------------------------------- ambient: slow pads over the drone and a low root, and a sparkle
   function ambientStep(c){
     const { t, sd, s, bar, root, type, chordStart, k, left } = c;
-    if (chordStart){ padChord(T.padI, t, voice(root, type, 50, 74), left + 4, 0.04, 800); subPad(t, low(root, 36, 47), left + 2, 0.21); }
+    if (chordStart){ padChord(T.padI, t, voice(root, type, 50, 74), left + 4, 0.04, 800); subPad(t, low(root, 36, 47), left + 2, 0.24); }
     // the sparkle: now and then a note at random, a slow tune (after the first four bars, two bars on and two off), or a slow
     // arpeggio into the echo
     const sp = T.spark;
@@ -1116,10 +1116,13 @@ const music = (() => {
     const G = () => [ctx, master, mixG, verbSend, drumBus, drumLP, musBus, musLP, duck, crackleG, rainG, windG, droneG, drones, wobble, noiseBuf, WAVES, vibesBus, arpBus, echoIn, echoL, echoR,
       R, T, nextT, step, first, forceStyle, forceWith, offline, vel, SH, hissNow];
     const keep = G();
-    let oc = null, z = Math.imul(seed ^ 0x9e3779b9, 2654435761) >>> 0;   // (scrambled: nearby seeds give different songs)
+    // (seeded, scrambled so nearby seeds give different songs; the noise and reverb buffers draw from a generator of their own,
+    // so a seed deals the same song at any sample rate)
+    const gen = x => { let z = Math.imul(x ^ 0x9e3779b9, 2654435761) >>> 0; const f = () => { z = (z*1664525 + 1013904223) >>> 0; return z/4294967296; }; for (let i=0;i<4;i++) f(); return f; };
+    let oc = null;
     try {
-      R = () => { z = (z*1664525 + 1013904223) >>> 0; return z/4294967296; }; for (let i=0;i<4;i++) R();
-      oc = new OAC(2, Math.ceil(sec*rate), rate); offline = true; build(oc);
+      R = gen(seed + 7919); oc = new OAC(2, Math.ceil(sec*rate), rate); offline = true; build(oc);
+      R = gen(seed);
       forceStyle = style; forceWith = force || null; first = true; T = null; SH = fresh(); hissNow = null; newTrack(0); lastRender = T.name;
       // (what the song chose: its key, tempo, progressions as degrees, arrangement and palette)
       const rel = P => P.p.map(([r, ty, b]) => [r - T.key, ty, Math.max(1, Math.round((b || P.bpc)*P.slow))]);
