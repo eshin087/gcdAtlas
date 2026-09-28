@@ -182,13 +182,18 @@ const kep16b = exoPlanet({ key:'kepler16b', name:'Kepler-16b', host:kep16, type:
 orbitRing(kep16, 0.7048, [0.5, 0.6, 0.8]);
 // 55 Cancri e: a lava world so close to its star that its year lasts 18 hours
 const cnc55 = namedStar('cnc55', '55 Cancri', hms(8,52,35.8), dms(28,19,51), 41, 0.943, 5196, { type:'Sun-like star with five planets', star:{ cells:36, act:0.4 }, bound:30, farLum:0.6, labelRange:400,
-  fact:'A yellow dwarf a little smaller than the Sun with five known planets, one of them a lava world skimming its surface.', aka:'55 cancri copernicus', readout:() => '41 light-years · visible to the eye from a dark site' });
+  fact:'A yellow dwarf a little smaller than the Sun with five known planets, one of them a lava world skimming its surface.', aka:'55 cancri copernicus', readout:() => '41 light-years · visible to the eye from a dark site',
+  // (closer than a plain star's angles: its bound reaches out to the lava world's orbit, and from the usual distance the star was a speck on a phone)
+  views:[{d:[0.3, 0.35, 1], k:0.2, hold:8, drift:0.04}, {d:[0.9, 0.3, 0.3], k:0.11, hold:7, drift:0.04}] });
 exoPlanet({ key:'cnc55e', name:'55 Cancri e', host:cnc55, type:'lava world · a year of 18 hours', R:1.875*6371, kind:15, a:0.01544, P:5, locked:true, sortKey:41.001, aka:'janssen lava world super earth',
   fact:'Almost twice Earth\'s width and eight times its mass, so close to its star that its surface is probably molten rock. JWST measured its day side at about 1,500 °C, cooler than bare rock would be, a hint of a thick atmosphere perhaps breathed out by the magma.',
   readout:() => 'orbit 17.7 hours (sped up here) at 0.015 AU\nday side ~1,500 °C: hot enough to melt rock' });
 // KELT-9b: the hottest planet known, hotter than most stars
 const kelt9 = namedStar('kelt9', 'KELT-9', hms(20,31,26.4), dms(39,56,20), 670, 2.36, 10170, { type:'hot blue-white star', star:{ cells:60, act:0, corona:0.3 }, bound:12, farLum:0.8, labelRange:2000,
-  fact:'A hot, fast-spinning A0 star twice the Sun\'s size, with a giant planet roasting in a polar orbit around it.', aka:'hd 195689 kelt 9', readout:() => '670 light-years · 10,170 K' });
+  fact:'A hot, fast-spinning A0 star twice the Sun\'s size, with a giant planet roasting in a polar orbit around it.', aka:'hd 195689 kelt 9', readout:() => '670 light-years · 10,170 K',
+  // (closer than a plain star's angles, as for 55 Cancri: its bound reaches well past the planet's orbit, and from the usual distance the star
+  // was a speck on a phone. KELT-9b circles at about a quarter of the bound, so both angles take in the star and the planet's orbit.)
+  views:[{d:[0.3, 0.35, 1], k:0.45, hold:8, drift:0.04}, {d:[0.9, 0.3, 0.3], k:0.3, hold:7, drift:0.04}] });
 exoPlanet({ key:'kelt9b', name:'KELT-9b', host:kelt9, type:'the hottest planet known', R:1.891*69911, kind:16, a:0.03462, P:7, locked:true, sortKey:670.001, aka:'hottest exoplanet ultra hot jupiter',
   fact:'A gas giant puffed up to nearly twice Jupiter\'s width, with a day side around 4,300 °C: hotter than most stars. Its molecules are torn apart and its atmosphere is boiling off into space.',
   readout:() => 'orbit 1.5 days (sped up here) · day side ~4,300 °C\ntidally locked: one side always faces the star' });
@@ -199,8 +204,11 @@ const hr8799 = namedStar('hr8799', 'HR 8799', hms(23,7,28.7), dms(21,8,3.3), 133
   views:[{dirFn:() => V.norm(V.mul(hr8799.pos, -1)), k:260, hold:10, drift:0.02}, {d:[0.5, 0.45, 0.8], k:160, hold:9, drift:0.03}, {d:[0.3, 0.3, 1], k:2.2, hold:7, drift:0.04}],
   readout:() => '133 light-years · planets 16 to 68 AU out (Jupiter\'s orbit is 5 AU)\norbits of about 50 to 460 years, sped up here' });
 [['e', 16.4, 1.1, 18, 3.5], ['d', 27, 1.2, 40, 1.2], ['c', 42, 1.2, 78, 0.3], ['b', 68, 1.2, 190, 5.1]].forEach(([l, a, r, P, ph]) => {
-  exoPlanet({ key:'hr8799' + l, name:'HR 8799 ' + l, host:hr8799, type:'young giant planet · photographed directly', R:r*69911, kind:18, a, P, phase:ph, atlas:l === 'b', sortKey:133.001, labelRange:a*AU_LY*25, labelMin:a*AU_LY*0.02,
+  const pl = exoPlanet({ key:'hr8799' + l, name:'HR 8799 ' + l, host:hr8799, type:'young giant planet · photographed directly', R:r*69911, kind:18, a, P, phase:ph, atlas:l === 'b', sortKey:133.001, labelRange:a*AU_LY*25, labelMin:a*AU_LY*0.02,
     fact:'A young giant planet still glowing from its formation, about 1,000 K at its cloud tops.', readout:() => `${a} AU from its star · ~${Math.round(Math.pow(a, 1.5)/Math.sqrt(1.5))} years per orbit` });
+  // (second angle: from below, across the line between day and night. The usual one looked mostly at the night side, which only glows a
+  // dim red: a large dark disc with little to see, 68 AU from a star)
+  pl.views[1] = {dirFn:() => sunSide(pl, 1.1, -0.35), k:2.4, hold:7, drift:0.04};
   orbitRing(hr8799, a, [0.55, 0.45, 0.7], 12);
 });
 

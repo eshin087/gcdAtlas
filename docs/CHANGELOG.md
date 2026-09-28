@@ -4,6 +4,29 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.8.8 · 2026-09-27
+
+**New: a random tour**
+- "random tour" is second in the list of tours, on a desk and on a phone. It picks 12 places from the whole atlas, a new mix every time you start it. It also reaches the 23 places no other tour visits, such as Vega, the Horsehead and Voyager 2.
+- Places you have not seen yet come first. A place you have seen comes up when no unseen place is left to pick, or when the trip to every unseen one would be much rougher: with only a few places left to see, the tour gets to them through places you know, instead of zooming out to the whole universe and back for each one. With 6 places left unseen, 3% of trips zoom out more than 100,000 times, as for a new visitor. What you have seen is kept on your device only.
+- One stop per place: Earth, the Moon and the ISS count as one place, and so do a star and its planet, or the Crab and its pulsar. At most 3 stops are of one kind (stars, galaxies, black holes and so on). The first stop is never where you are; from Earth, the Moon or the ISS can still come later in the tour.
+- The trips stay smooth: trips that zoom far out and back in are picked much less often. In 440 test trips, 2% zoomed out to a view more than 100,000 times wider than at either end, against 7% on the grand tour and 29% for places picked blindly. Trips that would fly through another object on the way are left out.
+- On the last stop the green button reads "new random tour ›". The button, the ] key and the end of the last angle pick 12 new places, starting from where you are and never the 12 you just saw, so the tour goes on without repeating. The next 12 are picked a little at a time while the last stop plays or waits paused (and a new tour's first 12 while the list of tours is open), so the next trip usually starts without a hitch.
+- No captions: the card already shows each place's fact.
+- On a phone on its side, the list of tours now comes before "time at each stop", so the random tour is in view without scrolling.
+- A shared link to a random tour starts a new one at the linked place. The order is not in the link, since it depends on what each visitor has seen.
+- Every visitor gets their own tours: the order comes from the browser's own random numbers, not from the page's fixed seed.
+
+**Fixed**
+- The tour track on the scale bar shows the right names after a new random tour or a new screensaver shuffle. The screensaver used to keep the names of its first shuffle.
+- Epsilon Eridani's far angle looked empty: its debris ring was drawn far too faint to see. It now shows as a faint ring of dust around the star. The readout called the ring ~65 AU across; it lies ~65 AU from the star.
+- 55 Cancri and KELT-9 were specks on a phone from both of their angles. Their cameras now sit closer, so the star fills more of a phone screen.
+- The Tarantula Nebula filled a desk screen edge to edge from its first angle. That angle now sits further back, so the whole nebula fits on a desk and fills about two thirds of a phone's width.
+- Tours skip the Tarantula Nebula's close angle, where the glow fills the screen with bright characters, and play only the Ring Nebula's view from Earth: from the side the Ring is a solid block of bright characters. That side angle now sits further back, in dark sky. Picked by themselves both still play all their angles.
+- HR 8799 b's second angle looked mostly at its night side: a large, dark red disc with little to see. It now looks up at the line between day and night, where the lit clouds and their bands show. Its three sister planets have the same new angle.
+- Voyager 2 had a single, distant angle. It now has a second, close one of its sunlit dish. New Horizons' second angle is closer: the probe fills about a third of a phone screen.
+- A shared link could make "your sky" (the view from your own backyard) the first stop of a random tour. Such a link now opens the sky without starting the tour: it is a backdrop, not a place.
+
 ## 0.8.7 · 2026-09-27
 
 **Fixed: how the Halo flies** (the ship is fictional; these were mistakes in its route, found by the motion test once it flew fixed routes)
