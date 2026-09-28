@@ -103,6 +103,7 @@ if (SHOWCASE.on){
     if (fl) return fl + wait;
     if (S.phase === 'light') return bridge + 'light speed · to ' + S.leg.B.name + wait;
     if (S.phase === 'fold') return 'folding space · to ' + nx.tg.name;
+    if (A && A.kind === 'probe' && A.tau > -0.8) return A.line() + wait;   // (Pip says what it is doing)
     if (A && A.tau > -0.8 && A.tau < ACTS[A.kind].T + 0.5) return JOB[A.kind](tg) + wait;
     if (S.phase === 'align') return (nx.mode === 'fold' ? (S.spool > 0.05 ? 'the fold drive spools up and the ship eases off · next stop: ' : 'setting course for ') + nx.tg.name : bridge + 'turning toward ' + nx.tg.name + ' · light speed next') + wait;
     return (bridge || 'riding along · ') + roamLine() + wait;

@@ -18,7 +18,7 @@ const HALO = { LS_NEAR:100, LS_FAR:3e4, LS_P:0.5, MAXBEND:1.4, TURN:0.42, T_FAST
 // works: how much of it applies (view), how far the ship banks (bank), how far the trailing camera turns toward the body (turn), and where
 // the lock-on and chase cameras aim (aim, chaseAim: ship axes in ship radii, x below the belly, y ahead, z to the side it banks toward)
 const ACTS = { scan:{ T:11, rho:0.3, fc:0.47, view:1, bank:1, turn:1, aim:[0.6, 0, 0], chaseAim:[0.9, -1.2, 0] },
-  probe:{ T:12.5, rho:0.28, fc:0.45, view:0.85, bank:1, turn:1, aim:[0.6, 0, 0], chaseAim:[0.9, -1.2, 0] },
+  probe:{ T:36, rho:0.28, fc:0.45, view:0.3, bank:0.5, turn:0, aim:[0, 0, 0], chaseAim:[0, 0, 0] },
   weapons:{ T:11.5, rho:0.3, fc:0.42, view:1, bank:1, turn:1, aim:[0.6, 0, 0], chaseAim:[0.9, -1.2, 0] },
   skim:{ T:9, rho:0.5, fc:0.5, view:0.4, bank:0.5, turn:1, aim:[0.3, 0, 0], chaseAim:[0.3, 0, 0] },
   cruise:{ T:0, rho:1, fc:0.5, view:0.6, bank:0.35, turn:1, aim:[0.4, 0, 0], chaseAim:[0.5, -0.8, 0] } };   // (a pass with no job: the cameras still turn toward the body round its closest point)
@@ -26,9 +26,12 @@ const SKIM = new Set(['jupiter', 'sun', 'betelgeuse', 'antares', 'alphacen', 'pr
 const SURF_K = { halley:0.62 };   // bodies drawn without a solid radius of their own: the solid share of the bounding sphere
 const CYAN = [0.45, 0.9, 1], WHITE = [1, 1, 1];
 // points on the hull (the ship's own frame, in ship radii: +y forward, -x dorsal, +x the belly), matching FS_SHIP in 07-extras.js:
-// the working gear on the belly pod under the bow, the gun at the needle's tip and a turret under the bow, the heart, the left engine's nozzle
-const HULL = { scan:[0.066, 0.2, 0], tractor:[0.07, -0.02, 0], drill:[0.07, 0.08, 0.02], bay:[0.064, -0.1, 0], dock:[0.06, -0.1, 0],
-  gun:[0, 0.85, 0], turret:[0.04, 0.38, 0], core:[0, -0.3, 0], nozzle:[-0.04, -0.84, 0.287] };
+// the working gear on the belly pod under the bow, the gun at the needle's tip and a turret under the bow, the heart, the right engine's nozzle;
+// for Pip (07i-drone.js): the top of the bridge dome with its windows, and both engines' nozzles (lift(0.29), just behind the end caps; left is
+// -z, as seen from the bridge and from the chase camera behind it)
+const HULL = { scan:[0.066, 0.2, 0], bay:[0.064, -0.1, 0], dock:[0.06, -0.1, 0],
+  gun:[0, 0.85, 0], turret:[0.04, 0.38, 0], core:[0, -0.3, 0], nozzle:[-0.04, -0.84, 0.287],
+  bridge:[-0.074, 0.035, 0], engL:[-0.04, -0.857, -0.287], engR:[-0.04, -0.857, 0.287] };
 
 // ---------------------------------------------------------------- small geometry
 const angleOf = (a, b) => Math.acos(clamp(V.dot(a, b), -1, 1));
@@ -700,16 +703,19 @@ ACT.scan = pl => {
   };
   return A;
 };
-// -- a probe: Pip, the ship's little drone (07i-drone.js), pops out of the belly bay, says hello, flies to the body, hovers there taking
-// pictures while it looks at it, flies home and docks (it launches 0.3 s into the job and is back aboard 11.9 s later). The drone moves and
-// draws itself (drone.ctl after the camera moves, pipDraw from haloDraw); the job only keeps the time and says what is happening.
+// -- a probe: Pip, the ship's little drone (07i-drone.js), streams out of the belly bay 0.3 s into the job and potters about the ship for half
+// a minute or so (two or three of its outings: a hull check and polish, engines and repairs, photos and a wave, play), then streams back in.
+// The drone moves and draws itself (drone.ctl after the camera moves, pipDraw from haloDraw) on the job's clock; the job keeps the time, says
+// what is happening, frames the ship for as long as the outing lasts (len, set by Pip's plan) and is done once Pip is back aboard (fin), so
+// the ship never leaves while it is out (a minute past the outing's usual length at most, should anything hold Pip up).
 ACT.probe = pl => {
-  const T = ACTS.probe.T, A = { kind:'probe', tau:-9, tg:pl.tg, pl, t0:pl.tA + 0.3 };
+  const T = ACTS.probe.T, A = { kind:'probe', tau:-9, tg:pl.tg, pl, fin:false, len:T };
   A.update = (dt, tau) => { A.tau = tau; };
-  A.env = () => env(A.tau, T);
+  A.env = () => env(A.tau, Math.max(T, A.len));
   A.line = () => pipLine(A);
+  A.done = () => A.fin || A.tau > T + 60;
   A.draw = () => {};
-  A.end = () => {};
+  A.end = () => pipEnd(A);
   return A;
 };
 // -- a weapons test (fictional): three shots at the body, one of each kind in turn; blasts that swell, cool from white to orange to dark and fade

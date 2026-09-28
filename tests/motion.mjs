@@ -234,19 +234,37 @@ const halo = await page.evaluate(HALO_SEED => {
   const made = new Set(); let blasts = 0; n = 0; while (D.act === 'weapons' && n++ < 30*40){ C.tick(dt); const b = D.FX.filter(e => e.anc === C.BYKEY.moon); b.forEach(e => made.add(e)); blasts = Math.max(blasts, b.length); }
   for (let i=0;i<30*6;i++) C.tick(dt);
   r.blasts = blasts; r.leftAfter = D.FX.filter(e => made.has(e)).length;
-  // a probe at Mars: Pip, the drone, is out during the job and in the picture of the camera locked on the ship for part of it, its whole body
-  // stays above the drawn surface (measured here from where the engine puts it and the body, less its own radius), it has gone back into the
-  // bay before it is stowed (broken up into embers, every one of them arrived: pres 0, embIn 1), and stowed after
+  // probes at Mars and then Jupiter: Pip, the drone, goes out and potters about the ship for its whole outing, in the picture of the camera
+  // locked on the ship for most of it; it never goes more than a few ship radii from the ship's centre (far), its body never touches the hull
+  // (clr: the hull's distance from its centre, as the ship's shader draws it, less its radius) nor dips below the drawn surface (measured here
+  // from where the engine puts it and the body, less its own radius); the ship never jumps while it is out (the job waits for it: done()); it
+  // goes back into the bay as embers (every one of them arrived: pres 0, embIn 1) and is stowed after; the readout says what it does, in
+  // several lines; and the two outings differ (another mix, or another order)
   D.force({ target:'mars', act:'probe', travel:'fold' }); D.replan(); D.skip();
   n = 0; while (!(S.phase === 'pass' && S.target.key === 'mars') && n++ < 30*60) C.tick(dt);
-  const pip = D.drone, dr = C.BYKEY['halo-drone']; let outN = 0, lastOut = null, said = false, low = 9, shown = 0; n = 0;
-  while (D.act === 'probe' && n++ < 30*40){
-    C.tick(dt); const s = pip.state;
-    if (s.st === 'out'){ outN++; lastOut = s; if (s.shows) shown++;
-      const tg = S.target, R = D.surfDrawn(tg); low = Math.min(low, (Math.hypot(...dr.rel.map((x, k) => x - tg.rel[k])) - R - dr.rad*s.scale)/R); }
-    if (/Pip/.test(h.readout())) said = true;
-  }
-  r.pip = { at:S.target.key, out:outN, shown, pres:lastOut ? +lastOut.pres.toFixed(3) : -1, embIn:lastOut ? +lastOut.embIn.toFixed(3) : -1, low:+low.toFixed(4), after:pip.state.st, said };
+  D.force({ target:'jupiter', act:'probe', travel:'light' }); D.replan();   // (the next stop, a probe too)
+  const pip = D.drone, dr = C.BYKEY['halo-drone'];
+  const outing = (hurryAt = -1) => {
+    let outN = 0, lastOut = null, low = 9, shown = 0, clr = 9, far = 0, left = false, plan = null, hurried = null, back = null; const lines = new Set(); n = 0;
+    while (D.act === 'probe' && n++ < 30*90){
+      C.tick(dt); const s = pip.state;
+      if (s.st === 'out'){ outN++; lastOut = s; plan = plan || pip.plan; if (s.shows) shown++; clr = Math.min(clr, s.clr); far = Math.max(far, s.far); if (S.phase === 'light' || S.phase === 'fold') left = true;
+        const tg = S.target, R = D.surfDrawn(tg); low = Math.min(low, (Math.hypot(...dr.rel.map((x, k) => x - tg.rel[k])) - R - dr.rad*s.scale)/R);
+        if (hurryAt >= 0 && hurried == null && D.tau >= hurryAt){ pip.hurry(); hurried = D.tau; } }
+      else if (hurried != null && back == null) back = +(D.tau - hurried).toFixed(2);
+      const L = h.readout().split('\n')[0]; if (/Pip/.test(L)) lines.add(L);
+    }
+    return { at:S.target.key, acts:plan ? plan.acts.join(' ') : '', out:outN, shown, clr:+clr.toFixed(4), far:+far.toFixed(2), left, pres:lastOut ? +lastOut.pres.toFixed(3) : -1,
+      embIn:lastOut ? +lastOut.embIn.toFixed(3) : -1, low:+low.toFixed(4), after:pip.state.st, lines:lines.size, back };
+  };
+  r.pip = outing();
+  n = 0; while (!(S.phase === 'pass' && S.target.key === 'jupiter') && n++ < 30*60) C.tick(dt);
+  // (at Jupiter, 14 s into the outing, it is called home early: drone.hurry, for a ship that has to leave now)
+  r.pip2 = outing(14);
+  // its dice: 40 outings in a row, as a visitor would see them, never the same twice running and all four kinds, launches and ways home used
+  const mixes = []; let last = '', lastActs = ''; for (let s = 1; s <= 40; s++){ const m = pip.mix(s*7919 + 17, false, last, lastActs); mixes.push(m); last = m.sig; lastActs = m.acts.join(); }
+  r.mix = { distinct:new Set(mixes.map(m => m.acts.join())).size, repeats:mixes.filter((m, i) => i && m.acts.join() === mixes[i - 1].acts.join()).length,
+    acts:new Set(mixes.flatMap(m => m.acts)).size, launch:new Set(mixes.map(m => m.launch)).size, ret:new Set(mixes.map(m => m.ret)).size };
   return r;
 }, HALO_SEED);
 if (halo.stopped) fail('the Halo stood still for ' + halo.stopped + ' steps');
@@ -257,7 +275,12 @@ if (!halo.modes.light || !halo.modes.fold) fail('the Halo did not use both light
 if (Object.keys(halo.acts).length < 3) fail('the Halo did fewer than 3 kinds of job: ' + JSON.stringify(halo.acts));
 if (halo.stays.length < 2 || halo.stays.some(s => s.t < 90 || s.t > 200 || s.passes < 3)) fail('the Halo did not roam round each place for about two minutes (90 to 200 s, three passes or more): ' + JSON.stringify(halo.stays));
 if (halo.beams < 20 || halo.beamWorst > 1e-3) fail('scan beams do not end on the surface: ' + JSON.stringify({ beams:halo.beams, worst:halo.beamWorst }));
-if (halo.pip.at !== 'mars' || halo.pip.out < 30*10 || halo.pip.shown < 30*2 || !(halo.pip.pres === 0 && halo.pip.embIn >= 0.999) || !(halo.pip.low > 0) || halo.pip.after !== 'stowed' || !halo.pip.said) fail('Pip, the drone, did not go out, show, stay above the ground and go back into the bay: ' + JSON.stringify(halo.pip));
+{ const p = halo.pip, q = halo.pip2, m = halo.mix;
+  if (p.at !== 'mars' || p.out < 30*25 || p.shown < 0.5*p.out || !(p.pres === 0 && p.embIn >= 0.999) || p.after !== 'stowed' || p.lines < 5) fail('Pip, the drone, did not go out, show for most of its outing, say what it does and go back into the bay as embers: ' + JSON.stringify(p));
+  for (const o of [p, q]) if (!(o.far <= 2.2) || !(o.clr >= -0.002) || !(o.low > 0) || o.left) fail('Pip went far from the ship, into its hull or below the surface, or the ship left without it: ' + JSON.stringify(o));
+  if (q.at !== 'jupiter' || !q.acts || q.acts === p.acts) fail('two outings in a row were the same: ' + JSON.stringify({ first:p.acts, second:q.acts }));
+  if (!(q.back > 0 && q.back <= 1.7) || !(q.pres === 0 && q.embIn >= 0.999) || q.after !== 'stowed') fail('Pip called home early (drone.hurry) was not back in the bay within 1.7 s: ' + JSON.stringify(q));
+  if (m.repeats || m.distinct < 12 || m.acts !== 4 || m.launch !== 3 || m.ret !== 3) fail('Pip\'s outings do not vary enough: ' + JSON.stringify(m)); }
 if (!halo.blasts || halo.leftAfter) fail('the weapons test did not blast, or left something behind: ' + JSON.stringify({ blasts:halo.blasts, left:halo.leftAfter }));
 
 // 8b. hops that went wrong before 0.8.7, each flown on purpose from a pass that showed it: into a galaxy the ship is inside (it flew out to the
@@ -508,5 +531,5 @@ if (rt.few.b5 > 0.06*rt.few.n || rt.few.b3 > 0.18*rt.few.n || rt.few.unseen < 4*
 if (rt.trips.deals !== 3) fail('playing the random tour did not reach the next deal: ' + JSON.stringify(rt.trips));
 if (rt.trips.bad.length) fail('random tour trips that dip or fly through something: ' + rt.trips.bad.join('; '));
 
-report('motion', errors, `random tour: 12 places, unseen first (${rt.tiers.seen} seen places in 3 deals with 10 unseen, none too early, ${rt.tiers.waited} while the unseen ones were rough trips), with 6 unseen left ${rt.few.unseen}/${8*6} of them dealt in 8 deals and ${rt.few.b3} of ${rt.few.n} trips pull back over 1,000x (${rt.few.b5} over 100,000x), new names on the track, dealt ahead (last stop, paused, list open) and again at the end, ${rt.trips.n} trips played without dips · next stop, start again and back to the tour · three fast angle taps, three angles · Esc closes panels first · Earth on the tour: angles ${say.earth.views.join(', ')} in ${say.earth.t} s · home from the Crab pauses the tour · free camera stays with Earth (${stay.drift.off.toFixed(1)}° off centre after 5 s), back by play and by the pill ("${(stay.pill || '').replace(/^\W/, '› ')}") · Jupiter x${stay.jupiterFree} after letting go, x${stay.overviewFree} in the overview · W A S D within ${stay.reach} view distances · Saturn loops through ${loop.views} angles · pause, play and space work · universe to Earth, largest frame-to-frame change x${fl.worstFrameToFrameScale} · ladder picks keep moving · riding the Halo through a fold (a ${ride.fold.wind} s wind-up, easing to ${ride.fold.eased} of its speed, a starburst each end) and a light-speed jump (camera within ${ride.farAfterFold.toFixed(2)} / ${ride.farInLightSpeed.toFixed(2)} of ${ride.rig.toFixed(2)} ship radii) · the Halo roams round each place (${halo.stays.map(s => s.at + ' ' + s.t + ' s, ' + s.passes + ' passes').join('; ')}), always moving (tightest turn ${halo.minTurnRadius} ship lengths, at most ${halo.maxTurn20s} degrees in 20 s and ${halo.maxRate} of ${halo.rateLimit} degrees a second) · ${hops.out.length} hops that used to go wrong, now at most ${Math.max(...hops.out.map(o => o.rate))} degrees a second (${hops.out.filter(o => o.by === 'fold').map(o => o.hop).join(', ')} fold), ${Object.keys(halo.acts).length} kinds of job, ${halo.beams} scan beams on the surface (error ${halo.beamWorst.toExponential(1)}), Pip out ${(halo.pip.out/30).toFixed(1)} s at Mars, in the picture ${(halo.pip.shown/30).toFixed(1)} s, and back in the bay as embers (${Math.round(halo.pip.embIn*100)}% arrived, its underside at least ${halo.pip.low} surface radii up) · Moon → ${nav.next} → ${nav.next2} · mid-flight speed change ${nav.slow}s → ${nav.fast}s · ${trips.n} tour trips without dips (${trips.passes} pass-bys)`);
+report('motion', errors, `random tour: 12 places, unseen first (${rt.tiers.seen} seen places in 3 deals with 10 unseen, none too early, ${rt.tiers.waited} while the unseen ones were rough trips), with 6 unseen left ${rt.few.unseen}/${8*6} of them dealt in 8 deals and ${rt.few.b3} of ${rt.few.n} trips pull back over 1,000x (${rt.few.b5} over 100,000x), new names on the track, dealt ahead (last stop, paused, list open) and again at the end, ${rt.trips.n} trips played without dips · next stop, start again and back to the tour · three fast angle taps, three angles · Esc closes panels first · Earth on the tour: angles ${say.earth.views.join(', ')} in ${say.earth.t} s · home from the Crab pauses the tour · free camera stays with Earth (${stay.drift.off.toFixed(1)}° off centre after 5 s), back by play and by the pill ("${(stay.pill || '').replace(/^\W/, '› ')}") · Jupiter x${stay.jupiterFree} after letting go, x${stay.overviewFree} in the overview · W A S D within ${stay.reach} view distances · Saturn loops through ${loop.views} angles · pause, play and space work · universe to Earth, largest frame-to-frame change x${fl.worstFrameToFrameScale} · ladder picks keep moving · riding the Halo through a fold (a ${ride.fold.wind} s wind-up, easing to ${ride.fold.eased} of its speed, a starburst each end) and a light-speed jump (camera within ${ride.farAfterFold.toFixed(2)} / ${ride.farInLightSpeed.toFixed(2)} of ${ride.rig.toFixed(2)} ship radii) · the Halo roams round each place (${halo.stays.map(s => s.at + ' ' + s.t + ' s, ' + s.passes + ' passes').join('; ')}), always moving (tightest turn ${halo.minTurnRadius} ship lengths, at most ${halo.maxTurn20s} degrees in 20 s and ${halo.maxRate} of ${halo.rateLimit} degrees a second) · ${hops.out.length} hops that used to go wrong, now at most ${Math.max(...hops.out.map(o => o.rate))} degrees a second (${hops.out.filter(o => o.by === 'fold').map(o => o.hop).join(', ')} fold), ${Object.keys(halo.acts).length} kinds of job, ${halo.beams} scan beams on the surface (error ${halo.beamWorst.toExponential(1)}), Pip out ${(halo.pip.out/30).toFixed(1)} s at Mars (${halo.pip.acts}), in the picture ${(halo.pip.shown/30).toFixed(1)} s, at most ${Math.max(halo.pip.far, halo.pip2.far)} ship radii out and ${Math.min(halo.pip.clr, halo.pip2.clr)} clear of the hull, the ship waiting for it, back in the bay as embers (${Math.round(halo.pip.embIn*100)}% arrived), then ${halo.pip2.acts} at Jupiter, called home in ${halo.pip2.back} s; ${halo.mix.distinct} mixes in 40 outings · Moon → ${nav.next} → ${nav.next2} · mid-flight speed change ${nav.slow}s → ${nav.fast}s · ${trips.n} tour trips without dips (${trips.passes} pass-bys)`);
 await browser.close();
