@@ -353,7 +353,7 @@ ACT.scan = pl => {
     // (Saturn's dense rings, which cover the planet where they are in front of it: 1.24 to 2.27 of its radius, as FS_PLANET draws them)
     const sat = tg === BYKEY.saturn, RPb = sh.a/B;
     const U = A.holoU = { p0:[sh.a/B, sh.b/B, g.s, g.dir], p1:[tau, SCAN.SW0, SCAN.SWT, SCAN.HOLD], p2:[SCAN.FADE, sh.kind, (sh.hr || 0)/B, rim],
-      p3:[dLa, dLo, (sh.solid ? 1.35 : 1.0)*(tg.starR || sh.hole ? 1.6 : 1), ring*(tg.starR || sh.hole ? 1.3 : 1)], p4:[sat ? 1.24*RPb : 0, sat ? 2.27*RPb : 0, sat ? 1 : 0, reduceMotion ? 1 : 0], mh:g.mh, cov:sh.solid ? [0.65, 0.3] : sh.hole ? [0.85, 0.5] : [0.55, 0], B, C:sh.C.slice(), R:sh.R.slice() };
+      p3:[dLa, dLo, (sh.solid ? 1.5 : 1.0)*(tg.starR || sh.hole ? 1.45 : 1), ring*(tg.starR || sh.hole ? 1.3 : 1)], p4:[sat ? 1.24*RPb : 0, sat ? 2.27*RPb : 0, sat ? 1 : 0, reduceMotion ? 1 : 0], mh:g.mh, cov:sh.solid ? [0.85, 0.36] : sh.hole ? [0.85, 0.5] : [0.55, 0], B, C:sh.C.slice(), R:sh.R.slice() };
     const M = [U.mh[0], U.mh[1], U.mh[2], U.cov[0], U.cov[1], 0, 0, 0, 0];
     if (drawVolume(tg, P.scanHolo, sh.C, B, pr => { gl.uniform4fv(pr.u.uP0, U.p0); gl.uniform4fv(pr.u.uP1, U.p1); gl.uniform4fv(pr.u.uP2, U.p2); gl.uniform4fv(pr.u.uP3, U.p3); gl.uniform4fv(pr.u.uP4, U.p4); gl.uniformMatrix3fv(pr.u.uM0, false, M); }, sh.R, 1)) SCAN_DBG.holo++;
   }
