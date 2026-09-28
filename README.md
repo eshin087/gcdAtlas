@@ -62,7 +62,7 @@ One thing here is invented: **the Halo**, a long-range cruiser with a captured s
 - **Photo mode** (`P`). Frame a shot, then save it as a picture or copy it as ASCII text.
 - **Today's discovery.** One object a day, the same for everyone, with a streak to keep.
 - **Collection log.** Ticks off what you have seen and hands out badges.
-- **Music.** gcd radio: lofi, chill house and ambient, made up live so it never loops.
+- **Music.** gcd radio: 16 songs in six styles, from ambient and ambient piano to lofi and synthwave, made live in your browser. Pick a mood (mix, calm, beats, groove), skip a song or pick one from the list.
 - **Share.** A link takes a friend to your exact view, tour and date.
 - **Private.** Your settings, location and progress stay on your device.
 

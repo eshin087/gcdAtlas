@@ -740,7 +740,7 @@ function syncSettingsUI(){
   const v = { detail:String(detailIdx), travel:SET.travel, time:String(timeScale), dwell:SET.dwell, musicStyle:SET.musicStyle, saverIdle:String(SET.saverIdle), fadeUI:SET.fadeUI };
   document.querySelectorAll('.seg[data-key]').forEach(seg => { const k = seg.dataset.key; seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.v === v[k]))); });
   settingsEl.querySelectorAll('.tog button').forEach(b => b.setAttribute('aria-pressed', String(!!SET[b.dataset.key])));
-  $('#volume').value = SET.volume;
+  $('#volume').value = SET.volume; $('#moodNote').textContent = 'plays ' + music.moodText(SET.musicStyle);
   syncSoundBtn(true);
   $('#textSize').value = SET.textSize; $('#tsTxt').textContent = Math.round(SET.textSize*100) + '%';
   $('#menuSize').value = SET.menuSize; $('#msTxt').textContent = Math.round(SET.menuSize*100) + '%';
@@ -774,7 +774,7 @@ function setOpt(key, v, quiet){
     case 'haloMark': SET.haloMark = !!v; if (!quiet) toast(v ? 'Halo indicator on · the ship is marked in blue (ride along from its card)' : 'Halo indicator off'); updateModeUI(); break;
     case 'sound': SET.sound = !!v; music.set(SET.sound); if (!quiet) toast(v ? 'music on' : 'music off'); break;
     case 'volume': SET.volume = clamp(+v, 0, 1); music.volume(); break;
-    case 'musicStyle': SET.musicStyle = v; music.styleChanged(); if (!quiet) toast('music: ' + (v === 'mix' ? 'rotating mix of lofi, chill house and ambient' : v === 'house' ? 'chill house' : v)); break;
+    case 'musicStyle': SET.musicStyle = music.moods[v] ? v : 'mix'; music.styleChanged(); if (!quiet) toast('music: ' + SET.musicStyle + ' · ' + music.moodText(SET.musicStyle)); break;
     case 'saverIdle': SET.saverIdle = +v || 0; if (!quiet) toast(SET.saverIdle ? `screensaver starts after ${SET.saverIdle} minutes without input` : 'screensaver only when you ask (Z)'); break;
     case 'dwell': SET.dwell = v; if (!quiet) toast('tour stops: ' + v + (v === 'short' ? ' · quicker tour' : v === 'long' ? ' · lingers on each view' : '')); break;
     case 'textSize': SET.textSize = clamp(+v, 0.85, 1.6); applyTextSize(); break;
@@ -1178,8 +1178,39 @@ function playFlyby(o){
   updateModeUI(); toast('flyby · ' + o.flyby.flyby);
 }
 $('#btnFlyby').addEventListener('click', () => { const o = OBJ[infoObj]; if (o.flyby) playFlyby(o); });
-music.onTrack = tr => { $('#nowPlaying').textContent = tr.name; if (SET.sound && music.audible) toast('\u266a ' + tr.name); };   // (no track name while the browser still holds the music back)
+music.onTrack = tr => { $('#nowPlaying').textContent = tr.name; syncSongs(); if (SET.sound && music.audible) toast('\u266a ' + tr.name); };   // (no track name while the browser still holds the music back)
 $('#npSkip').addEventListener('click', () => { music.skip(); if (!SET.sound) toast('music is off · turn it on to hear the next track'); });
+// the song list in the settings: every song by style, with its length; a click plays it now (and turns the music on)
+const songListEl = $('#songList'), songLen = s => { s = Math.round(s); return Math.floor(s/60) + ':' + String(s % 60).padStart(2, '0'); };
+const songsLabel = () => { $('#songsN').textContent = music.songs().length + ' songs ' + (songListEl.hidden ? '\u25BE' : '\u25B4'); };
+songsLabel();
+function buildSongs(){
+  if (songListEl.childElementCount) return;
+  const L = music.songs(), styles = [...new Set(L.map(x => x.style))];
+  for (const st of styles){
+    const moods = Object.keys(music.moods).filter(m => music.moods[m].includes(st)), h = document.createElement('div');
+    h.className = 'sg-h'; h.innerHTML = '<span></span><span class="sg-m"></span>';
+    h.firstChild.textContent = L.find(x => x.style === st).label; h.lastChild.textContent = moods.join(' · ');
+    songListEl.appendChild(h);
+    for (const x of L.filter(y => y.style === st)){
+      const b = document.createElement('button'); b.className = 'song'; b.dataset.id = x.id;
+      b.innerHTML = '<span class="sn"></span><span class="sl"></span>';
+      b.firstChild.textContent = x.title; b.lastChild.textContent = songLen(x.sec);
+      b.setAttribute('aria-label', `${x.title}, ${x.label}, ${songLen(x.sec)}`);
+      b.addEventListener('click', () => { music.play(x.id); if (!SET.sound) setOpt('sound', true, true); syncSongs(x.id); });
+      songListEl.appendChild(b);
+    }
+  }
+  syncSongs();
+}
+function syncSongs(id){
+  const cur = id || (music.track && music.track.song);
+  songListEl.querySelectorAll('.song').forEach(b => { if (b.dataset.id === cur) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current'); });
+}
+$('#songsBtn').addEventListener('click', () => {
+  const on = songListEl.hidden; if (on) buildSongs(); songListEl.hidden = !on;
+  $('#songsBtn').setAttribute('aria-expanded', String(on)); songsLabel();
+});
 for (const b of ['#btnPlay', '#btnPlayM']) $(b).addEventListener('click', () => { hideHint(); if (cmp) endCompare(false); togglePlay(); });
 // home: the button (first in the dock on phones, after the search box on desks) and the logo
 $('#btnHome').addEventListener('click', goHome);

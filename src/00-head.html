@@ -175,7 +175,7 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .fold-flash.go.blink{animation:foldBlink .35s ease-out}
 @keyframes foldBlink{0%{opacity:0}25%{opacity:.45}100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){.fold-flash.go{animation-duration:.4s}}
-.btn:focus-visible,.gonext:focus-visible,.tourpick:focus-visible,.brand:focus-visible,.backpill:focus-visible,.lab:focus-visible,.arow:focus-visible,.tick:focus-visible,.nav:focus-visible,.seg button:focus-visible,.tog button:focus-visible,.ladmark:focus-visible{outline:1px solid var(--flare);outline-offset:2px}
+.btn:focus-visible,.gonext:focus-visible,.tourpick:focus-visible,.brand:focus-visible,.backpill:focus-visible,.lab:focus-visible,.arow:focus-visible,.tick:focus-visible,.nav:focus-visible,.seg button:focus-visible,.tog button:focus-visible,.song:focus-visible,.songs-btn:focus-visible,.ladmark:focus-visible{outline:1px solid var(--flare);outline-offset:2px}
 .search{position:relative;display:flex;align-items:center}
 .search input{width:190px;box-sizing:border-box;font-size:calc(12px*var(--ts));color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:6px 30px 6px 10px;outline:none;
   -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
@@ -354,9 +354,25 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .sound-row{align-items:center}
 .sound-row button{flex:0 0 auto}
 .sound-row input{flex:1;accent-color:var(--flare);min-width:80px}
+.mood-note{margin-top:5px;font-size:calc(10.5px*var(--ts));color:var(--faint)}
 .now-playing{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:calc(11px*var(--ts));color:var(--soft)}
 .now-playing .np-l{color:var(--faint);font-size:calc(10px*var(--ts));letter-spacing:.1em;text-transform:uppercase;flex:none}
 .now-playing #nowPlaying{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;-webkit-user-select:text;user-select:text}
+/* the song list: every song, grouped by style; the playing one is marked */
+.songs-btn{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:30px;margin-top:8px;font-size:calc(11.5px*var(--ts));color:var(--dim);background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:3px;padding:5px 10px;cursor:pointer;text-align:left}
+.songs-btn:hover{color:var(--ink)}
+.songs-btn .sb-n{color:var(--faint)}
+.songs-btn[aria-expanded="true"]{color:var(--ink);border-bottom-left-radius:0;border-bottom-right-radius:0}
+.song-list{border:1px solid var(--line);border-top:0;border-radius:0 0 3px 3px;background:rgba(0,0,0,.25);padding:0 0 4px}
+.sg-h{display:flex;justify-content:space-between;gap:8px;padding:8px 10px 3px 18px;color:var(--faint);font-size:calc(10px*var(--ts));letter-spacing:.1em;text-transform:uppercase}
+.sg-h .sg-m{letter-spacing:.04em;text-transform:none}
+.song{position:relative;display:flex;align-items:center;gap:10px;width:100%;min-height:30px;text-align:left;background:none;border:0;border-left:2px solid transparent;padding:4px 10px 4px 18px;color:var(--soft);cursor:pointer;font-size:calc(12px*var(--ts))}
+.song:hover{background:rgba(140,160,210,.1);color:var(--ink)}
+.song[aria-current="true"]{background:var(--flare-bg);border-left-color:var(--flare);color:var(--flare)}
+.song[aria-current="true"]::before{content:"\266A";position:absolute;left:5px;font-size:calc(10px*var(--ts))}
+.song .sn{flex:1;min-width:0;overflow-wrap:anywhere}
+.song .sl{flex:none;color:var(--faint);font-size:calc(10.5px*var(--ts));font-variant-numeric:tabular-nums}
+.song[aria-current="true"] .sl{color:var(--flare);opacity:.8}
 
 /* tours and time machine panels */
 .tour-list{padding:2px 0 8px}
