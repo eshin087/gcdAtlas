@@ -147,15 +147,16 @@ void globeAt(vec3 q, float h, float wla, float wmg, float wh, float w, inout vec
   // the grid: latitude lines and meridians, in the shape's own frame
   float dLa = uP3.x, dLo = uP3.y;
   float gl = lineAA(abs(la - dLa*floor(la/dLa + 0.5)), 2.2*wla)*step(abs(la), 1.45);
-  float lk = dLo*floor(lo/dLo + 0.5), gm = lineAA(abs(q.x*sin(lk) + q.z*cos(lk)), 2.2*wmg)*smoothstep(0.985, 0.93, abs(q.y));
+  float lk = dLo*floor(lo/dLo + 0.5), dm = abs(q.x*sin(lk) + q.z*cos(lk)), gm = lineAA(dm, 2.2*wmg)*smoothstep(0.985, 0.93, abs(q.y));
   float g = max(gl, gm)*wk*uP3.z*shim*w;
   // (the lines cover part of what is under them, uM0[1].x; the swept surface is dimmed a little while the grid glows on it, uM0[1].y, so the
   // lines stand out on a bright planet, or on the near side of a hole's shell in front of its bright disk)
   col += GRIDC*g; al = max(al, max(uM0[1].x*min(g, 1.), uM0[1].y*min(wk, 1.)*step(0.5, w)));
-  // the ring: a bright line about a character wide where the plane cuts the surface, and a short cyan wake behind it (the swept side)
+  // the ring: a bright line about a character wide where the plane cuts the surface, and a short cyan wake behind it (the swept side); it
+  // burns brighter where it crosses a meridian (the knots in the sketch: =#===#===#=)
   if(uP3.w > 0.){
     float dr = asin(clamp(h, -1., 1.)) - asin(clamp(uP0.z, -1., 1.)), back = dir*dr;
-    float core = lineAA(abs(dr), 1.9*wh), tail = back > 0. ? exp(-back/(5.*wh)) : 0.;
+    float core = lineAA(abs(dr), 1.9*wh)*(1. + 1.1*lineAA(dm, 4.*wmg)), tail = back > 0. ? exp(-back/(5.*wh)) : 0.;
     float r = (core*2. + tail*0.45)*uP3.w*w;
     col += (RINGC*core*2. + CYANC*tail*0.45)*uP3.w*w; al = max(al, min(r, 1.)*0.65);
   }
@@ -414,6 +415,9 @@ ACT.scan = pl => {
     // (at most three, those facing the camera most squarely)
     show.sort((x, y) => y.f - x.f); show.length = Math.min(show.length, 3);
     const pxW = 2*tanY/viewHcss, used = new Set(), placed = [], avoid = show.length && cam.focus === ship.index ? uiRects() : [];   // (world units per CSS pixel, per unit of depth)
+    // (nor on the ship: it is what the camera looks at, and no label may sit on it)
+    const sp = show.length ? projectCSS(ship.rel) : null, sr = sp ? ship.rad*1.05/(sp.z*pxW) : 0;
+    const onShip = (x, y, w, lh) => sp && Math.hypot(clamp(sp.x, x, x + w) - sp.x, clamp(sp.y, y, y + lh) - sp.y) < sr;
     for (const s of show){
       const z = V.dot(s.p, cam.fwd), h = clamp(s.r, 7*pxW*z, 34*pxW*z), k = 1 + 0.7*(1 - smooth(0, 0.3, s.age)), hk = h*k;
       const br = (0.5 + 0.5*Math.exp(-s.age/0.25) + 0.06*Math.sin(tau*5 + s.i))*s.out, L = hk*0.38;
@@ -426,8 +430,8 @@ ACT.scan = pl => {
       if (cam.focus !== ship.index || s.age < 0.25 || s.out < 0.3) continue;
       const pr = projectCSS(s.p); if (!pr) continue;
       const el = scanLabel(used.size); if (el.textContent !== s.sp.name) el.textContent = s.sp.name;
-      // (beside the bracket, on whichever side is clear of the interface, the screen's edges and the other labels; none if neither is)
-      const w = el.offsetWidth || 90, lh = 18, off = hk/(pxW*z) + 4, y = pr.y - 10, clear = x => x > 4 && x + w < innerWidth - 4 && y > 4 && y + lh < innerHeight - 4 &&
+      // (beside the bracket, on whichever side is clear of the interface, the screen's edges, the ship and the other labels; none if neither is)
+      const w = el.offsetWidth || 90, lh = 18, off = hk/(pxW*z) + 4, y = pr.y - 10, clear = x => x > 4 && x + w < innerWidth - 4 && y > 4 && y + lh < innerHeight - 4 && !onShip(x, y, w, lh) &&
         !avoid.some(r => x < r.right + 4 && x + w > r.left - 4 && y < r.bottom + 2 && y + lh > r.top - 2) && !placed.some(q => x < q[0] + q[2] + 6 && x + w + 6 > q[0] && y < q[1] + lh && y + lh > q[1]);
       const x = [pr.x + off, pr.x - off - w].find(clear); if (x === undefined) continue;
       placed.push([x, y, w]);
