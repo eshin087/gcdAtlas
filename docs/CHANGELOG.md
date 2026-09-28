@@ -7,13 +7,13 @@ All notable changes, newest first. Dates are UTC.
 ## 0.8.9 · 2026-09-27
 
 **More music, for hours of calm listening**
-- Five new styles, made live in your browser like the others: bossa nova (nylon guitar, upright bass, a soft shaker and vibraphone), lounge jazz (electric piano, a walking bass, brushes and a vibraphone or piano solo), ambient piano (a soft felt piano over a faint pad), downtempo (slow drums, electric piano, a gliding bass and a soft choir) and soft synthwave (warm pads and a gentle arpeggio with an echo).
-- The style buttons are now moods: mix, calm (ambient and ambient piano), lounge (bossa nova and lounge jazz), beats (lofi and downtempo) and groove (chill house and synthwave). A line under them says what the chosen mood plays.
+- Three new styles, made live in your browser like the others: ambient piano (a soft felt piano over a faint pad), downtempo (slow drums, electric piano, a gliding bass and a soft choir) and soft synthwave (warm pads and a gentle arpeggio with an echo).
+- The style buttons are now moods: mix, calm (ambient and ambient piano), beats (lofi and downtempo) and groove (chill house and synthwave). A line under them says what the chosen mood plays.
 - The mix plays every style except chill house and synthwave. Those two play only when you pick groove.
 - A style you picked before carries over: lofi becomes beats, chill house becomes groove and ambient becomes calm.
 - The shuffle deals songs from a weighted deck. The same style never plays twice in a row, and the mix plays an ambient or ambient piano song at least every fifth song.
 - Each song starts in a key close to the last one's, so one song flows into the next.
-- Songs are named after places in the atlas, such as "Bossa for Europa" or "Rain on Titan". No name comes back within 60 songs, about two hours.
+- Songs are named after places in the atlas, such as "Rain on Titan" or "Night Drive to Vega". No name comes back within 60 songs, about two hours.
 - The new styles have a full, low bass like lofi's, so the volume stays about even when the style changes: every style is within about 2 dB of lofi's loudness, both on headphones and on laptop or phone speakers.
 - Ambient has a soft low note under its chords now, and its songs last 1 min 20 s to 2 min 8 s instead of about a minute, so the calm mood changes songs less often. Lofi and chill house keep the same sounds and levels.
 - In the new styles the melody always fits the chord under it, and every song ends on its home chord.

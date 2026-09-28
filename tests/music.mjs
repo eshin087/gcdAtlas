@@ -5,7 +5,7 @@
 // out quieter on headphones and louder on small speakers, so its bass has to be close to lofi's for both to hold.
 // Also writes a one-minute WAV of each style to tests/out/music/ for listening.
 //   node tests/music.mjs                      all styles
-//   node tests/music.mjs --styles bossa,lofi  some styles (lofi, the reference, is always measured)
+//   node tests/music.mjs --styles piano,lofi  some styles (lofi, the reference, is always measured)
 //   node tests/music.mjs --no-wav             no WAV files
 import { openPage, report, OUT } from './lib.mjs';
 import fs from 'node:fs';
@@ -85,15 +85,15 @@ for (const [mood, list] of Object.entries(sh.plans)){
   shNotes.push(mood + ' ' + Object.entries(count).map(([k, v]) => `${k} ${Math.round(100*v/list.length)}%`).join(' '));
 }
 for (const p of sh.places){ const q = p.replace(/^the /, ''); if (!sh.names.some(n => n.includes(q))) errors.push(`song names use "${p}", which is not in the atlas`); }
-// a place ('the Moon') reads well after a word like 'on', at the start before 'at', or in 'The # Lounge' (which drops its 'the'),
+// a place ('the Moon') reads well after a word like 'on' or at the start before 'at',
 // never bare after a word ('Velvet the Moon') or before one ('The Perseids Nights')
 for (const [st, list] of Object.entries(sh.tpls)) for (const tpl of list)
-  if (!/^The # |^# at |\b(on|over|of|from|to|for|past|under|above|at|by|in) #/i.test(tpl)) errors.push(`${st} song name "${tpl}" reads badly with a place like "the Moon"`);
+  if (!/^# at |\b(on|over|of|from|to|for|past|under|above|at|by|in) #/i.test(tpl)) errors.push(`${st} song name "${tpl}" reads badly with a place like "the Moon"`);
 for (const [mood, list] of Object.entries(sh.plans)) for (const x of list)
   if (/\bthe the\b|^The the /i.test(x.title)) errors.push(`${mood}: song name "${x.title}"`);
-// moods saved before 0.8.9 map across: lofi -> beats, house -> groove, ambient -> calm, anything else -> mix
+// moods saved before 0.8.9 map across: lofi -> beats, house -> groove, ambient -> calm, anything else (such as the dropped lounge mood) -> mix
 await page.addInitScript(() => { const v = sessionStorage.getItem('__ms'); if (v) localStorage.setItem('gcdatlas.settings', JSON.stringify({ musicStyle:v, sound:false, fadeUI:'off' })); });
-for (const [was, now] of [['lofi', 'beats'], ['house', 'groove'], ['ambient', 'calm'], ['disco', 'mix']]){
+for (const [was, now] of [['lofi', 'beats'], ['house', 'groove'], ['ambient', 'calm'], ['lounge', 'mix'], ['bossa', 'mix']]){
   await page.evaluate(v => sessionStorage.setItem('__ms', v), was);
   await page.reload(); await page.waitForFunction(() => window.__cosmos && window.__cosmos.SET, null, { timeout:60000 });
   const r = await page.evaluate(() => ({ set:window.__cosmos.SET.musicStyle, on:[...document.querySelectorAll('.seg[data-key=musicStyle] button')].filter(b => b.getAttribute('aria-checked') === 'true').map(b => b.dataset.v), note:document.querySelector('#moodNote').textContent }));
