@@ -97,7 +97,9 @@ git switch -c release/v0.7.6
 git add -A && git commit -m "v0.7.6: ..."
 git push -u origin release/v0.7.6
 gh pr create --title "v0.7.6: ..." --body "What changed, what was checked"
-# open the Vercel preview from the PR, check desktop and phone, then:
+# give the owner the Vercel preview; wait until they say to merge (CLAUDE.md, rule zero)
+# the author must be eshin087, from this repo (not a fork):
+gh pr view --json author,headRepositoryOwner,isCrossRepository
 gh pr merge --merge --delete-branch
 git switch main && git pull
 ```
