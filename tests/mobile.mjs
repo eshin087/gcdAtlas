@@ -1,6 +1,7 @@
 // Phone layout regression: the dock fits, the info card sits above it and can be expanded, collapsed and hidden,
 // the scale chip opens the ladder, the interface fades when idle and a first tap on the sky only brings it back
-// (a first tap on a faded button works), the card's green "next stop" button, the tour name and the angle arrows.
+// (a first tap on a faded button works), the card's green "next stop" button, the tour name and the angle arrows, and the atlas controls
+// (all in the card, nothing sideways, at 390 x 844, 360 x 780 and on its side).
 // Screenshots of every state go to tests/out/mobile/. Usage: node tests/mobile.mjs
 import { openPage, report, OUT } from './lib.mjs';
 import path from 'node:path';
@@ -54,10 +55,48 @@ const lockBefore = await page.evaluate(() => __cosmos.orbit.lock);
 await page.touchscreen.tap(60, 420); await page.waitForTimeout(400);
 if (await has('lad-open')) fail('a tap outside did not close the ladder');
 
-// the atlas opens above the dock and the object is re-framed into the space left
+// the atlas opens above the dock and the object is re-framed into the space left. Every control is in the card and nothing is wider than
+// its box (nothing scrolls sideways), targets are at least 32 px tall (28 on its side), the kinds keep three columns and the list has room
+// for six rows (five on a 360 px phone)
+const atlasFit = minH => page.evaluate(minH => {
+  const a = document.querySelector('#atlas'), ar = a.getBoundingClientRect(), bad = [];
+  for (const e of a.querySelectorAll('*')) if (e.clientWidth > 0 && !e.closest('.atlas-list') && !e.classList.contains('sr') && e.scrollWidth > e.clientWidth + 1) bad.push('overflows: ' + (e.id || e.className));
+  for (const b of a.querySelectorAll('#atlasTools button, #seenBtn, #atlasClose')){ const q = b.getBoundingClientRect(), id = b.id || b.dataset.cat || b.dataset.sort;
+    if (q.left < ar.left - 1 || q.right > ar.right + 1 || q.top < ar.top - 1 || q.bottom > ar.bottom + 1) bad.push('outside the card: ' + id); if (q.height < minH) bad.push(`under ${minH} px: ${id}`); }
+  const rows = document.querySelector('#atlasList').clientHeight/document.querySelector('.arow').getBoundingClientRect().height;
+  return { bad, rows:+rows.toFixed(1), cols:getComputedStyle(document.querySelector('#atlasCats')).gridTemplateColumns.split(' ').length };
+}, minH);
 await page.tap('#btnAtlas'); await page.waitForTimeout(1200); await shot('5-atlas');
 const atl = await rect('#atlas');
 if (!atl || atl.bottom > dock.top + 1) fail('atlas overlaps the dock');
+let af = await atlasFit(32);
+if (af.bad.length) fail('atlas controls at 390 x 844: ' + af.bad.join(', '));
+if (af.rows < 6 || af.cols !== 3) fail(`the atlas list has room for ${af.rows} rows (6 wanted), the kinds are in ${af.cols} columns`);
+const atlasRows390 = af.rows;
+// a kind, then "not seen yet" on top of it: the results line says what the list shows; the badge tray opens inside the card and Esc closes it first
+await page.tap('#atlasCats [data-cat="galaxies"]'); await page.waitForTimeout(200);
+await page.tap('#atlasUnseen'); await page.waitForTimeout(300); await shot('5b-atlas-galaxies-unseen');
+const said = await page.evaluate(() => [document.querySelector('#atlasResult').hidden, document.querySelector('#atlasResultTxt').textContent, document.querySelector('#atlasCats [data-cat="galaxies"]').getAttribute('aria-checked'), document.querySelector('#atlasUnseen').textContent]);
+if (said[0] || !/^\d+ galaxies not seen yet$/.test(said[1]) || said[2] !== 'true' || said[3] !== '[x]not seen yet') fail('galaxies with "not seen yet": ' + JSON.stringify(said));
+af = await atlasFit(32); if (af.bad.length) fail('atlas controls with the results line: ' + af.bad.join(', '));
+await page.tap('#seenBtn'); await page.waitForTimeout(400); await shot('5c-atlas-badges');
+const tray = await rect('#badgeTray');
+if (!tray || !tray.shown || tray.bottom > atl.bottom + 1 || tray.top < atl.top) fail('the badge tray is not inside the card: ' + JSON.stringify(tray));
+await page.keyboard.press('Escape'); await page.waitForTimeout(200);
+if ((await rect('#badgeTray')).shown || !(await rect('#atlas')).shown) fail('Esc did not close the badge tray first');
+await page.tap('#atlasReset'); await page.waitForTimeout(200);
+// a narrow phone, and smaller or bigger menu text: still nothing sideways
+await page.setViewportSize({ width:360, height:780 }); await page.waitForTimeout(700); await shot('5d-atlas-360');
+af = await atlasFit(32);
+if (af.bad.length) fail('atlas controls at 360 x 780: ' + af.bad.join(', '));
+if (af.rows < 5 || af.cols !== 3) fail(`at 360 x 780 the atlas list has room for ${af.rows} rows (5 wanted), the kinds are in ${af.cols} columns`);
+const atlasRows360 = af.rows;
+for (const ms of [0.9, 1.3, 1.6]){
+  await page.evaluate(v => __cosmos.setOpt('menuSize', v, true), ms); await page.waitForTimeout(150);
+  af = await atlasFit(32); if (af.bad.length) fail(`atlas controls at 360 x 780 with menu text ${Math.round(ms*100)}%: ` + af.bad.join(', '));
+}
+await page.evaluate(() => __cosmos.setOpt('menuSize', 1.15, true));
+await page.setViewportSize({ width:390, height:844 }); await page.waitForTimeout(700);
 await page.tap('#atlasClose'); await page.waitForTimeout(300);
 
 // idle: on a tour the interface fades after a few seconds; the first tap only brings it back and the tour keeps going
@@ -211,7 +250,17 @@ const inCard = await page.evaluate(() => { const i = document.querySelector('#in
   for (const id of ['#goNext', '#prevObj', '#nextObj', '#modeTour', '#infoHide']){ const e = document.querySelector(id), r = e.getBoundingClientRect(); if (r.width && (r.left < i.left - 1 || r.right > i.right + 1)) out.push(id); }
   return out; });
 if (inCard.length) fail('on its side these stick out of the card: ' + inCard.join(', '));
-await page.tap('#btnAtlas'); await page.waitForTimeout(800); await shot('9-landscape-atlas');
+// (opened by a click: after the raw two-finger touches above, the first tap here is sometimes lost in headless Chromium, before this test too)
+await page.evaluate(() => document.querySelector('#btnAtlas').click()); await page.waitForTimeout(800); await shot('9-landscape-atlas');
+// on its side the atlas has two panes, the controls beside the list, above the dock; the info card and the chips step aside while it is open
+const la = await page.evaluate(() => { const r = s => document.querySelector(s).getBoundingClientRect(), op = s => getComputedStyle(document.querySelector(s)).opacity;
+  return { tools:r('#atlasTools'), list:r('#atlasList'), atlas:r('#atlas'), dock:r('.controls'), hidden:[op('#info'), op('.topr')] }; });
+if (!(la.tools.right <= la.list.left + 1 && Math.abs(la.tools.top - la.list.top) < 2)) fail('on its side the atlas panes are not side by side: ' + JSON.stringify([la.tools, la.list]));
+if (la.atlas.bottom > la.dock.top + 1) fail('on its side the atlas overlaps the dock');
+if (la.hidden.join() !== '0,0') fail('the info card or the chips stay over the atlas on its side: ' + la.hidden);
+af = await atlasFit(28);
+if (af.bad.length) fail('atlas controls on its side: ' + af.bad.join(', '));
+if (af.rows < 6 || af.cols !== 3) fail(`on its side the atlas list has room for ${af.rows} rows (6 wanted), the kinds are in ${af.cols} columns`);
 // on its side the card sits beside the object: a two-finger slide toward it stops with the object's centre on screen and off the card
 await page.evaluate(() => { document.querySelector('#atlasClose').click(); const C = __cosmos; C.setTour(false); C.view('earth', 0); C.tick(1/60); });
 await page.waitForTimeout(800);
@@ -224,5 +273,5 @@ await shot('12-landscape-slide');
 if (ls.lock !== 'earth' || !(ls.x > 0 && ls.x < 844 && ls.y > 0 && ls.y < 390) || (ls.x > ls.card[0] + 1 && ls.x < ls.card[2] - 1 && ls.y > ls.card[1] + 1 && ls.y < ls.card[3] - 1))
   fail('on its side a two-finger slide put Earth off screen or under the card: ' + JSON.stringify(ls));
 
-report('mobile', errors, 'screenshots in tests/out/mobile' + (lab ? ` · wake-up tap on "${lab.t}" checked` : '') + ` · pinch x${ratio.toFixed(2)} for fingers 3x apart · two-finger slide stays locked, Earth at ${Math.round(g2.x)}, ${Math.round(g2.y)} · home first in the dock · first tap on the faded "${gn.txt}" flew on to ${gn.next}`);
+report('mobile', errors, 'screenshots in tests/out/mobile' + ` · atlas controls fit, list room ${atlasRows390} rows at 390 x 844, ${atlasRows360} at 360 x 780` + (lab ? ` · wake-up tap on "${lab.t}" checked` : '') + ` · pinch x${ratio.toFixed(2)} for fingers 3x apart · two-finger slide stays locked, Earth at ${Math.round(g2.x)}, ${Math.round(g2.y)} · home first in the dock · first tap on the faded "${gn.txt}" flew on to ${gn.next}`);
 await browser.close();

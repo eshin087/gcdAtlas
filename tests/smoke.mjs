@@ -66,21 +66,100 @@ bad.push(...await page.evaluate(() => { const c = window.__cosmos, out = [], n =
   }
   return out; }));
 errors.push(...bad);
-// a saved chip keeps working: 'travel' (the old spacecraft chip) opens human-made, and the chosen chip is in sight in its sideways row
-await page.evaluate(() => localStorage.setItem('gcdatlas.atlas', JSON.stringify({ cat:'travel' })));
-await page.goto('about:blank'); await page.goto(PAGE);
-await page.waitForFunction(() => window.__cosmos && window.__cosmos.OBJ, null, { timeout:60000 });
-await page.click('#btnAtlas'); await page.waitForTimeout(150);
-const chip = await page.evaluate(() => { const b = document.querySelector('#atlasCats [aria-pressed="true"]'), r = document.querySelector('#atlasCats').getBoundingClientRect(), q = b && b.getBoundingClientRect();
-  return b && { cat:b.dataset.cat, inSight:q.left >= r.left - 1 && q.right <= r.right + 1 }; });
-if (!chip || chip.cat !== 'human') errors.push('a saved travel chip opens ' + (chip && chip.cat));
-else if (!chip.inSight) errors.push('the chosen atlas chip is scrolled out of sight');
-await page.evaluate(() => localStorage.removeItem('gcdatlas.atlas'));
+// the atlas controls on a desk (1280 x 800): every choice on screen and inside the panel, nothing wider than its box at any menu text size
+// (nothing scrolls sideways), targets of 28 px or more, room for about ten rows. Grouped, the Solar System and the comets measure from the Sun
+// and climb, with the Moon under Earth; one list by distance puts the places you are inside first; a search looks through every kind;
+// the arrow keys move through the kinds; a badge shows what is left for it; Esc closes the badge tray before the atlas
+const atl = await page.evaluate(() => {
+  const C = window.__cosmos, $ = s => document.querySelector(s), out = [], r = {}, esc = () => dispatchEvent(new KeyboardEvent('keydown', { key:'Escape', bubbles:true }));
+  const fit = () => { const a = $('#atlas'), ar = a.getBoundingClientRect(), bad = [];
+    for (const e of a.querySelectorAll('*')) if (e.clientWidth > 0 && !e.closest('.atlas-list') && !e.classList.contains('sr') && e.scrollWidth > e.clientWidth + 1) bad.push('overflows: ' + (e.id || e.className));
+    for (const b of a.querySelectorAll('#atlasTools button, #seenBtn, #atlasClose')){ const q = b.getBoundingClientRect(), id = b.id || b.dataset.cat || b.dataset.sort;
+      if (q.left < ar.left - 1 || q.right > ar.right + 1 || q.top < ar.top - 1 || q.bottom > ar.bottom + 1) bad.push('outside the panel: ' + id); if (q.height < 28) bad.push('under 28 px: ' + id); }
+    return bad; };
+  if ($('#atlas').hidden) $('#btnAtlas').click();
+  for (const ms of [0.9, 1.15, 1.3, 1.6]){ C.setOpt('menuSize', ms, true); out.push(...fit().map(m => `menu text ${Math.round(ms*100)}%: ${m}`)); }
+  C.setOpt('menuSize', 1.15, true);
+  r.cells = document.querySelectorAll('#atlasCats .cell').length;
+  r.rows = +($('#atlasList').clientHeight/$('.arow').getBoundingClientRect().height).toFixed(1);
+  r.dflt = { sort:$('#atlasSort [aria-checked="true"]').dataset.sort, all:$('#atlasAll').getAttribute('aria-pressed'), result:!$('#atlasResult').hidden, dir:$('#atlasDir').textContent };
+  // grouped: what each heading measures, and the numbers climb
+  const group = g => { const h = [...document.querySelectorAll('#atlasList .agroup')].find(x => x.firstChild.textContent === g), rows = [];
+    for (let x = h && h.nextElementSibling; x && !x.classList.contains('agroup'); x = x.nextElementSibling) if (x.classList.contains('arow') && !x.hidden) rows.push({ name:x.querySelector('.an').textContent, d:x.querySelector('.ad').textContent, child:x.classList.contains('child') });
+    return { note:h && h.lastChild.textContent, rows }; };
+  const au = t => { const m = /([\d,.]+) AU$/.exec(t); return m ? +m[1].replace(/,/g, '') : null; };
+  for (const g of ['Solar System', 'Comets & meteors']){ const G = group(g); if (G.note !== 'from the Sun') out.push(`the ${g} heading measures "${G.note}"`);
+    const v = G.rows.filter(x => !x.child).map(x => au(x.d)).filter(x => x != null); if (v.some((x, i) => i && x < v[i - 1])) out.push(`${g}: the distances from the Sun do not climb (${v.join(', ')})`); }
+  if (group('Stars & stellar remnants').note !== 'from Earth') out.push('the stars heading does not say "from Earth"');
+  const ss = group('Solar System').rows, iE = ss.findIndex(x => x.name === 'Earth'), moon = ss[iE + 1];
+  r.solar = ss.slice(0, 6).map(x => x.name + ' ' + x.d).join(' · ');
+  if (ss[0].name !== 'the Solar System' || ss[1].name !== 'the Sun' || ss[ss.length - 1].name !== 'the Oort cloud') out.push('Solar System heading order: ' + ss.map(x => x.name).join(', '));
+  if (!moon || moon.name !== 'the Moon' || !moon.child || !/ km from Earth$/.test(moon.d) || !/^home · 1\.0\d AU$/.test(ss[iE].d)) out.push('Earth and the Moon under it: ' + JSON.stringify(ss.slice(iE, iE + 2)));
+  // one list by distance: the places you are inside first, under their own heading, then near to far, said in the results line
+  $('#atlasSort [data-sort="distance"]').click();
+  r.flat = [...$('#atlasList').children].filter(e => !e.hidden).slice(0, 7).map(e => e.classList.contains('agroup') ? '#' + e.firstChild.textContent : e.querySelector('.an').textContent).join(', ');
+  r.flatSays = [($('#atlasResultTxt').textContent + ' / ' + $('#atlasResultNote').textContent).replace(/[\s]+/g, ' '), $('#atlasDir').textContent, !$('#atlasResult').hidden];
+  $('#atlasSort [data-sort="size"]').click(); r.size = [$('#atlasDir').textContent, $('.arow:not([hidden]) .an').textContent];
+  $('#atlasSort [data-sort="kind"]').click();
+  // a search looks through every kind (black holes chosen, Jupiter still found); "clear" empties it and keeps the kind
+  $('#atlasCats [data-cat="bh"]').click();
+  const s = $('#atlasSearch'); s.value = 'jupiter'; s.dispatchEvent(new Event('input', { bubbles:true }));
+  r.search = { jupiter:[...document.querySelectorAll('.arow')].some(b => !b.hidden && b.querySelector('.an').textContent === 'Jupiter'),
+    found:$('#atlasResultTxt').textContent, btn:$('#atlasReset').textContent, dim:$('#atlasTools').classList.contains('searching') };
+  $('#atlasReset').click(); r.cleared = { box:s.value, cat:C.dbg.ATL.cat, n:document.querySelectorAll('.arow:not([hidden])').length };
+  // arrow keys: black holes → galaxies (right) → human-made (down); the camera does not get the keys
+  const cell = $('#atlasCats [data-cat="bh"]'); cell.focus();
+  cell.dispatchEvent(new KeyboardEvent('keydown', { key:'ArrowRight', bubbles:true, cancelable:true })); r.kRight = C.dbg.ATL.cat;
+  document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key:'ArrowDown', bubbles:true, cancelable:true })); r.kDown = [C.dbg.ATL.cat, document.activeElement.dataset.cat];
+  // the badge tray: a badge on the way shows what is left for it; Esc closes the tray first, then the atlas
+  $('#seenBtn').click(); r.tray = [!$('#badgeTray').hidden, $('#seenBtn').getAttribute('aria-expanded'), document.querySelectorAll('#badges .brow').length];
+  [...document.querySelectorAll('#badges button.brow')].find(b => /black hole hunter/.test(b.textContent)).click();
+  r.badgeGo = [C.dbg.ATL.cat, C.dbg.ATL.unseen, !$('#badgeTray').hidden, $('#atlasResultTxt').textContent];
+  $('#seenBtn').click(); esc(); r.escTray = [!$('#badgeTray').hidden, !$('#atlas').hidden]; esc(); r.escAtlas = !$('#atlas').hidden;
+  $('#btnAtlas').click(); $('#atlasReset').click(); r.reset = [!$('#atlasResult').hidden, JSON.stringify(C.dbg.ATL)]; $('#atlasClose').click();
+  r.out = out; return r;
+});
+errors.push(...atl.out);
+if (atl.cells !== 12) errors.push('the atlas has ' + atl.cells + ' kinds (12 expected)');
+if (!(atl.rows >= 10)) errors.push('the atlas list has room for only ' + atl.rows + ' rows at 1280 x 800');
+if (atl.dflt.sort !== 'kind' || atl.dflt.all !== 'true' || atl.dflt.result || atl.dflt.dir !== '⇅near → far') errors.push('the atlas default view: ' + JSON.stringify(atl.dflt));
+if (atl.flat !== '#all around you, the Solar System, the Oort cloud, the cosmic web, the observable universe, #near → far, Earth') errors.push('one list by distance starts: ' + atl.flat);
+if (atl.flatSays.join('|') !== '137 places · near → far / from Earth|⇅near → far|true') errors.push('the results line for one list by distance: ' + JSON.stringify(atl.flatSays));
+if (atl.size[0] !== '⇅big → small' || atl.size[1] !== 'the observable universe') errors.push('size does not start with the biggest: ' + JSON.stringify(atl.size));
+if (!atl.search.jupiter || !/^\d+ found · searching all 137$/.test(atl.search.found) || atl.search.btn !== 'clear' || !atl.search.dim) errors.push('a search with black holes chosen: ' + JSON.stringify(atl.search));
+if (atl.cleared.box || atl.cleared.cat !== 'bh' || atl.cleared.n !== 8) errors.push('clearing the search: ' + JSON.stringify(atl.cleared));
+if (atl.kRight !== 'galaxies' || atl.kDown.join() !== 'human,human') errors.push('arrow keys in the kinds: ' + JSON.stringify([atl.kRight, atl.kDown]));
+if (!atl.tray[0] || atl.tray[1] !== 'true' || atl.tray[2] !== 9) errors.push('the badge tray: ' + JSON.stringify(atl.tray));
+if (atl.badgeGo[0] !== 'bh' || !atl.badgeGo[1] || atl.badgeGo[2] || !/^8 black holes not seen yet/.test(atl.badgeGo[3])) errors.push('black hole hunter does not show the black holes left: ' + JSON.stringify(atl.badgeGo));
+if (atl.escTray.join() !== 'false,true' || atl.escAtlas) errors.push('Esc does not close the badge tray, then the atlas: ' + JSON.stringify([atl.escTray, atl.escAtlas]));
+if (atl.reset[0] || atl.reset[1] !== '{"sort":"kind","dir":1,"cat":"all","unseen":false}') errors.push('reset: ' + JSON.stringify(atl.reset));
+// saved choices keep working: 'travel' (the old spacecraft chip) opens human-made; the old "not seen yet" chip becomes all with the box ticked
+// (sorted as it was); the old default ("distance, nearest first" over the headings) stays grouped; a saved flat list stays flat.
+// With every black hole seen, "not seen yet" says so and its button shows them all again.
+const bhKeys = await page.evaluate(() => { const c = window.__cosmos, d = c.dbg; return c.OBJ.filter(o => o.atlas !== false && !o.marker && d.GROUPS.some(([g]) => g === o.group) && d.catsOf(o).includes('bh')).map(o => o.key); });
+const reload = async (saved, seen) => {
+  await page.evaluate(([a, s]) => { localStorage.setItem('gcdatlas.atlas', JSON.stringify(a)); if (s) localStorage.setItem('gcdatlas.seen', JSON.stringify(s)); }, [saved, seen]);
+  await page.goto('about:blank'); await page.goto(PAGE);
+  await page.waitForFunction(() => window.__cosmos && window.__cosmos.OBJ, null, { timeout:60000 });
+  return page.evaluate(() => { const A = window.__cosmos.dbg.ATL, b = document.querySelector('#atlasCats [aria-checked="true"]');
+    return [A.sort, A.dir, b ? b.dataset.cat : 'all', document.querySelector('#atlasUnseen').getAttribute('aria-checked')].join(' '); });
+};
+for (const [saved, want] of [[{ cat:'travel' }, 'kind 1 human false'], [{ sort:'distance', dir:1, cat:'unseen' }, 'distance 1 all true'],
+  [{ sort:'distance', dir:1, cat:'all' }, 'kind 1 all false'], [{ sort:'size', dir:-1, cat:'nebulae' }, 'size -1 nebulae false'], [{ v:2, sort:'distance', dir:1, cat:'all', unseen:false }, 'distance 1 all false']]){
+  const got = await reload(saved);
+  if (got !== want) errors.push(`a saved atlas ${JSON.stringify(saved)} opens as "${got}", not "${want}"`);
+}
+await reload({ v:2, sort:'kind', dir:1, cat:'bh', unseen:true }, bhKeys);
+const allSeen = await page.evaluate(() => { const $ = s => document.querySelector(s); $('#btnAtlas').click();
+  const e = $('.atlas-empty'), r = { empty:!e.hidden && e.textContent, done:$('#atlasCats [data-cat="bh"]').classList.contains('done'), n:$('#atlasCats [data-cat="bh"] .n').textContent };
+  e.querySelector('button').click(); r.after = [window.__cosmos.dbg.ATL.unseen, document.querySelectorAll('.arow:not([hidden])').length]; return r; });
+if (allSeen.empty !== 'you have seen all 8 black holes ✓show them all' || !allSeen.done || allSeen.n !== '✓' || allSeen.after.join() !== 'false,8') errors.push('every black hole seen, with "not seen yet": ' + JSON.stringify(allSeen));
+await page.evaluate(() => { localStorage.removeItem('gcdatlas.atlas'); localStorage.removeItem('gcdatlas.seen'); });
 // crafted share links must not stop the page from starting (they used to: #o=constructor, a non-numeric date)
 for (const h of ['#o=constructor', '#o=__proto__', '#o=earth&jd=abc&deep=x&c=1,NaN,-5']){
   await page.goto('about:blank'); await page.goto(PAGE + h);   // (a real load: changing only the hash would not restart the page)
   const ok = await page.waitForFunction(() => window.__cosmos && window.__cosmos.OBJ && isFinite(window.__cosmos.cam.rel[0]) && window.__cosmos.BYKEY.earth.pos.every(isFinite), null, { timeout:60000 }).then(() => true, () => false);
   if (!ok) errors.push('share link ' + h + ' broke the page');
 }
-report('smoke', errors, `${keys.length} objects rendered, ${ui.rows} atlas rows`);
+report('smoke', errors, `${keys.length} objects rendered, ${ui.rows} atlas rows · atlas controls fit at 90 to 160% menu text, room for ${atl.rows} rows at 1280 x 800 · ${atl.solar}`);
 await browser.close();
