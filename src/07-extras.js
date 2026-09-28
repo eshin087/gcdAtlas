@@ -1,7 +1,7 @@
 
 // ================================================================ travellers and transients: the Halo (a starship that folds space), comets, meteors, gamma-ray bursts
 // ---------------------------------------------------------------- the Halo: a long-range cruiser shaped like a trident, its star-heart held between two crescent arms (local: bounding sphere 1, +y = forward)
-// The ship's shader is built once per shield look (SHIELD 0 none, 1 outline, 2 bubble, 3 honeycomb): BOUND is the sphere it is drawn in, in
+// The ship's shader is built once per shield look (SHIELD 0 none, 1 outline, 2 bubble, 3 crystal): BOUND is the sphere it is drawn in, in
 // ship radii (B's bubble reaches a little past the hull's own bound), RM 1 when the visitor asked for reduced motion.
 const FS_SHIP_BODY = `
 // the Halo (0.8.2, drawn after the owner's concept art): an original long-range cruiser. Local frame: bounding sphere 1, forward +y (the needle's
@@ -10,7 +10,7 @@ const FS_SHIP_BODY = `
 // two dotted rings of light (the halo of its name), wired to the claws of the arms and to the bow by chains of lights. Black hull, silver edges,
 // rows of small blue-white lights. The heart surges now and then, throwing sparks at its rings.
 // ZI: 0, but only known when the shader runs (the page sets uM0[2].z to 0). Loops start from it so the compiler cannot unroll them: on Windows
-// (ANGLE on Direct3D) every unrolled copy of map() and of the noise loops was compiled separately, and the honeycomb look took 5.4 to 6.1 s to
+// (ANGLE on Direct3D) every unrolled copy of map() and of the noise loops was compiled separately, and the crystal look (then a honeycomb) took 5.4 to 6.1 s to
 // compile on a fast desk CPU, long enough on a slower one for Chrome to reset the GPU (the looks review). Each loop body is compiled once.
 #define ZI int(uM0[2].z)
 float sdCap(vec3 p, vec3 a, vec3 b, float r){ vec3 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba)/dot(ba, ba), 0., 1.); return length(pa - ba*h) - r; }
@@ -35,7 +35,7 @@ float bowPlan(vec2 q){ return max(dot(q - KS, N1), dot(q - KN, N2)); }
 float sq(float x){ return x*x; }
 float smin(float a, float b, float k){ float h = clamp(0.5 + 0.5*(b - a)/k, 0., 1.); return mix(b, a, h) - k*h*(1. - h); }
 // set by map() as it goes: the distance to the hull without the heart (gH; the shield's outline goes round the hull, not the heart, whose
-// outline would sit on the inner ring) and, for the honeycomb, to the skin of cells a little outside the hull (gE)
+// outline would sit on the inner ring) and, for the crystal, to the skin of facets a little outside the hull (gE)
 float gH = 1e9, gE = 1e9;
 const float SKIN = 0.065;
 #if FOLD > 0
@@ -122,7 +122,7 @@ float map(vec3 p, out float id){
   if(core < d){ d = core; id = 2.; }
   return d;
 }
-// (the hull's normal, the outline's search and the honeycomb skin's normals all sample map() from one loop in main(), so it is compiled twice
+// (the hull's normal, the outline's search and the crystal skin's normals all sample map() from one loop in main(), so it is compiled twice
 // in all: there and in the march)
 vec3 axisV(int a){ return vec3(a == 0 ? 1. : 0., a == 1 ? 1. : 0., a == 2 ? 1. : 0.); }
 vec3 tetV(int j){ return vec3(j == 0 || j == 3 ? 1. : -1., j >= 2 ? 1. : -1., j == 1 || j == 3 ? 1. : -1.); }
@@ -135,27 +135,29 @@ float dots(float x, float sp, float y, float r){ float c = (fract(x/sp) - 0.5)*s
 // uP1: xyz light direction, w ram-scoop glow   uP2: glow of the scan array, tractor emitter, bow gun / drill, probe bay
 // uP3: rgb the scoop's colour, w the heart's beat (its phase: one beat per unit)   uP4: xyz toward what pulls on the ship (world axes), w the shield's load
 // uM0: the fold: column 0 (dissolve g, mode, the heart's flare), column 1 (shield share, style amount, collapse clock), column 2 (cell size)
-// hexagon cells, neighbours 1 apart: the offset from the nearest cell's centre (xy) and that centre (zw)
-vec4 hexCell(vec2 p){ const vec2 s = vec2(1., 1.7320508); vec4 c = floor(vec4(p, p - vec2(0.5, 1.))/s.xyxy) + 0.5;
-  vec4 h = vec4(p - c.xy*s, p - (c.zw + 0.5)*s); return dot(h.xy, h.xy) < dot(h.zw, h.zw) ? vec4(h.xy, c.xy*s) : vec4(h.zw, (c.zw + 0.5)*s); }
-float hexD(vec2 p){ p = abs(p); return max(dot(p, vec2(0.5, 0.8660254)), p.x); }   // 0 at a cell's centre, 0.5 on its edge
 #if SHIELD == 3
-const float CELL = 0.13;
-// the honeycomb seen in one plane of the ship (uv the point on the skin in that plane, w its third coordinate, ax which plane: 0 plan, 1 side,
-// 2 front; cpx a cell's width in scene pixels): a dot at each cell's centre (and the cell's edges when the cells are big on screen), lit only
-// by the wave that runs out from the heart on each beat, by the load (brightest on the side facing the pull), and now and then a single cell
-// twinkling: the rest of the skin is dark, so the lattice shows as a pattern of lit cells
-float honey(vec2 uv, float w, int ax, float cpx, float bf, float load, vec3 n, vec3 G, float tm){
-  vec4 hc = hexCell(uv/CELL); vec2 cc = hc.zw*CELL;
+const float CELL = 0.15;
+vec2 h22(vec2 p){ vec3 q = fract(vec3(p.xyx)*vec3(0.1031, 0.103, 0.0973)); q += dot(q, q.yzx + 33.33); return fract((q.xx + q.yz)*q.zy); }
+// the crystal seen in one plane of the ship (uv the point on the skin in that plane, w its third coordinate, ax which plane: 0 plan, 1 side,
+// 2 front; cpx a facet's width in scene pixels): the skin is cut into irregular, angular facets like ice or quartz (the nearest of nine points
+// scattered on a grid stretched along the ship, so the facets are long shards), each a flat face tilted its own way. At rest their thin edges
+// show faintly, a facet turned toward the light shines, and now and then one sparkles, slowly; under load the edges light up in a wave from the
+// heart on each beat and stay lit on the side facing the pull. (Nine points, one loop: as cheap as the hexagons it replaced.)
+float crystal(vec2 uv, float w, int ax, float cpx, float bf, float load, vec3 n, vec3 G, vec3 L, vec3 d, float tm){
+  vec2 st = ax == 2 ? vec2(1.2, 1.) : vec2(1.9, 1.), p = uv/(CELL*st), ip = floor(p), fp = p - ip, c1 = vec2(0.);
+  float f1 = 9., f2 = 9.;
+  for(int k=ZI;k<9;k++){ vec2 g = vec2(float(k - 3*(k/3)) - 1., float(k/3) - 1.), r = g + 0.1 + 0.8*h22(ip + g) - fp; float dd = dot(r, r);
+    if(dd < f1){ f2 = f1; f1 = dd; c1 = ip + g; } else if(dd < f2) f2 = dd; }
+  // (the edge between two facets, about two pixels wide at any size, so it reads as / \ - | rather than dust)
+  float e = sqrt(f2) - sqrt(f1), edge = smoothstep(2.6/cpx, 1.2/cpx, e);
+  vec2 h = h22(c1 + 17.3), cc = (c1 + 0.5)*CELL*st;
   vec3 c3 = ax == 0 ? vec3(w, cc) : ax == 1 ? vec3(cc.y, cc.x, w) : vec3(cc.x, w, cc.y);
-  float wave = exp(-sq((length(c3 - CORE) - 1.3*bf)/0.09));
-  float tw = step(0.975, hash12(hc.zw*7.31 + float(ax)*13.7 + floor(tm*(RM > 0 ? 0.6 : 1.7))));
-  float lit = wave*(1. + load) + tw*0.8 + load*(0.85 + 0.5*smoothstep(0.1, 0.7, dot(n, G)));
-  // (each cell a crisp round dot about two and a half characters across, so it reads as a solid o, not dust; its edges only when a cell is
-  // many characters across, two pixels wide so they read as / \ - rather than dust)
-  float r = max(0.15, 1.8/cpx), dc = length(hc.xy), v = smoothstep(r, r*0.6, dc);
-  v += 0.55*smoothstep(1.4, 0.6, abs(0.5 - hexD(hc.xy))*cpx)*smoothstep(10., 14., cpx);
-  return v*lit*smoothstep(4., 6., cpx);
+  vec3 fn = normalize(n + 0.55*vec3(h.x - 0.5, h.y - 0.5, fract(h.x*7.13 + h.y*3.7) - 0.5));
+  float face = pow(max(dot(reflect(d, fn), L), 0.), 24.);
+  float gl = h.x > 0.9 ? pow(0.5 + 0.5*sin(tm*(RM > 0 ? 0.35 : 0.8) + h.y*40.), 10.) : 0.;
+  float wave = exp(-sq((length(c3 - CORE) - 1.3*bf)/0.1)), pull = load*(0.55 + 0.6*smoothstep(0.1, 0.7, dot(n, G)));
+  float v = edge*(0.45 + 0.35*wave + 1.1*wave*load + 0.9*pull) + (0.22 + 0.3*load)*face*(0.4 + 0.6*edge) + 1.2*gl*(0.3 + face) + (0.5*wave*load + 0.3*pull)*(1. - edge)*0.3;
+  return v*smoothstep(3., 5., cpx);
 }
 #endif
 void main(){
@@ -195,7 +197,7 @@ void main(){
 #endif
   float t = max(hb.x, 0.), id = 0.; bool hit = false;
   // while marching: the ray's closest pass by the hull (am, and where along the ray, amT), for the outline; where the ray enters and leaves
-  // the honeycomb skin
+  // the crystal skin
   float am = 1e9, amT = 0., eP = 1., tP = 0., tE0 = -1., tE1 = -1.;
   if(hb.y > 0.){
     for(int i=ZI;i<150;i++){ vec3 p = o + d*t; float h = map(p, id); if(h < 0.0005) { hit = true; break; }
@@ -238,7 +240,7 @@ void main(){
     else if(i < 23) gS0[i - 19] = gE;
     else gS1[i - 23] = gE;
   }
-  float hitEdge = 1.;   // (at the hit: how far in from the plate's silver edge, for the honeycomb)
+  float hitEdge = 1.;   // (at the hit: how far in from the plate's silver edge, for the crystal)
   vec3 col = vec3(0.); float alpha = 0.;
   if(hit){
     vec3 p = o + d*t, n = normalize(nH), A;
@@ -418,7 +420,7 @@ void main(){
   // It is where the ray's closest pass by the hull, over its whole length, is DL: so it runs round the ship's silhouette, and where two parts
   // are closer on screen than 2 DL it goes round the gap between them instead of filling it (the ray passes nearer than DL to one of them).
   // Rays that hit the hull draw none of it, so it never lies over the hull.
-  // C has the same line, but only under load (none at rest): its cells alone read as a scatter of dots on a small or edge-on ship, just when
+  // C has the same line, but only under load (none at rest): its facets alone did not flare on a small or edge-on ship (nor the cells before them), just when
   // the shield should flare. (Folded away, shk 0, none of this is worked out.)
   // (lw: about one pixel at any size, so it is a line both on a phone and up close from the bridge; am, amT and the gradient gL come from the
   // sampling loop above, DL and doL too)
@@ -461,9 +463,10 @@ void main(){
   }
 #endif
 #if SHIELD == 3
-  // C, the honeycomb: a skin of cells a little outside the hull, dark until a wave of lit cells runs out from the heart on each beat; at rest a
-  // few cells twinkle. Under load the cells facing the pull stay lit and the outline flares (A's line, above). The cells are only drawn on the
-  // near side of the skin, in the one plane of the ship it faces most (a single clean lattice, not two or three laid over each other), and not
+  // C, the crystal: a skin of angular facets a little outside the hull, faint at rest (thin edges, a facet catching the light, a slow sparkle);
+  // on each beat a wave of lit edges runs out from the heart. Under load the facets facing the pull stay lit and the outline flares (A's line,
+  // above). The facets are only drawn on the near side of the skin, in the one plane of the ship it faces most (one clean pattern, not two or
+  // three laid over each other), and not
   // where the ray goes on to hit the hull near a plate's silver edge (within two to three characters), so the skin never hides the hull's edges.
   float edgeK = hit ? smoothstep(2., 3.5, hitEdge/max(uPix*t, 1e-5)) : 1.;
   for(int k=ZI;k<2;k++){
@@ -473,10 +476,10 @@ void main(){
     vec3 n = normalize(kk.xyy*b.x + kk.yyx*b.y + kk.yxy*b.z + kk.xxx*b.w + 1e-7);
     // (fr: only a thin rim where the skin is seen edge-on; a broad one filled the whole skin with a faint dithered glow)
     float cpx = CELL/(uPix*te), fr = pow(1. - abs(dot(n, d)), 10.)*smoothstep(0.12, 0.5, te), cells = 0.;
-    // (the cells, near side only, from far enough away that they are at least 4 pixels across)
-    if(k == 0 && cpx > 4.){
+    // (the facets, near side only, from far enough away that they are at least 3 pixels across)
+    if(k == 0 && cpx > 3.){
       vec3 an = abs(n); int ax = an.x >= an.y && an.x >= an.z ? 0 : an.z >= an.y ? 1 : 2;
-      cells = honey(ax == 0 ? pc.yz : ax == 1 ? pc.yx : pc.xz, ax == 0 ? pc.x : ax == 1 ? pc.z : pc.y, ax, cpx, bf, load, n, G, tm);
+      cells = crystal(ax == 0 ? pc.yz : ax == 1 ? pc.yx : pc.xz, ax == 0 ? pc.x : ax == 1 ? pc.z : pc.y, ax, cpx, bf, load, n, G, L, d, tm);
       cells *= smoothstep(0.12, 0.5, te)*edgeK;
     }
     float v = cells*0.9*shk*(1. + 0.8*load*load*fl) + sh*0.2*load*fr + flare*fr*0.3;
@@ -486,9 +489,9 @@ void main(){
   outCol(col, alpha);
 }`;
 
-// ---------------------------------------------------------------- the shield's look (made up, like the ship): A outline, B bubble, C honeycomb, or none.
+// ---------------------------------------------------------------- the shield's look (made up, like the ship): A outline, B bubble, C crystal, or none.
 // For the review it is picked once from the address (?shield=a|b|c|off, A when not given); keys 1 2 3 0 switch it while that is in the address.
-const SHIELD_LOOKS = { off:0, a:1, b:2, c:3 }, SHIELD_NAMES = ['no shield', 'shield A · outline', 'shield B · bubble', 'shield C · honeycomb'];
+const SHIELD_LOOKS = { off:0, a:1, b:2, c:3 }, SHIELD_NAMES = ['no shield', 'shield A · outline', 'shield B · bubble', 'shield C · crystal'];
 // the sphere the ship is drawn in, in ship radii: only B's bubble reaches past the hull's own (A's line and C's skin sit well inside it, and a
 // larger sphere only adds pixels that run the whole ship shader for nothing)
 const SHIELD_BOUND = [1, 1, 1.2, 1];
