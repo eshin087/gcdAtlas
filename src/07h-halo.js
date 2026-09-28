@@ -256,7 +256,7 @@ function legAt(L, t){
 // ---------------------------------------------------------------- state
 const S_ = ship.S;
 Object.assign(S_, { force:{}, lastSkim:-9, lastAct:null, plan:null, next:null, align:null, leg:null, fold:null, act:null, h:[0, 1, 0], belly:null, vel:[0, 0, 0], speed:0,
-  viewA:0, side:1, hFrom:null, jumpAt:0, stretch:0, lsRun:0, emerge:1, seedN:1, vesc:0, gTg:null, gWant:0, climbK:0, fk:-9, asm:9, eat:0, csL:false, wz:1, fz:1 });
+  viewA:0, side:1, hFrom:null, jumpAt:0, stretch:0, lsRun:0, emerge:1, seedN:1, vesc:0, gTg:null, gWant:0, climbK:0, fk:-9, asm:9, eat:0, csL:false, wz:1, fz:1, fs:0, fsd:1 });
 const riding = () => shipCam.on || (!tour.on && orbit.lock === ship.index && cam.focus === ship.index);
 const camNear = () => cam.focus === ship.index && V.len(cam.rel) < ship.rad*80;
 // the camera is not riding but was left looking at the ship: keep it where it is (on the body the ship is leaving) rather than dragging it along
@@ -350,7 +350,9 @@ function endFold(){
   // (riding along, the camera folds with the ship: it keeps its place behind it, rather than swinging round to where the ship now heads)
   if (shipCam.on && shipCam.eye){ const R = ship.R0; S_.reseat = [M3.applyT(R, shipCam.eye), M3.applyT(R, shipCam.fwd), M3.applyT(R, shipCam.up)]; }
   foldVisit(B, S_.next);
-  S_.emerge = 0; S_.asm = 0; S_.csL = false;   // (the hull forms again: foldUpdate)
+  // (the hull forms again, cell by cell, at its full size: foldUpdate. It no longer grows from a point as well: the embers, the flash and the
+  // thread are placed on the full-size ship, and a hull still growing left them up to a third of a ship radius off the heart it drew)
+  S_.emerge = 1; S_.asm = 0; S_.csL = false;
   if (S_.onFoldIn) S_.onFoldIn();   // (the looks review, ?showcase=review, may start the new pass later on, before it is first drawn: 09i-showcase.js)
   fxFoldIn();
 }
@@ -978,6 +980,11 @@ function foldUpdate(dt){
   // (framing only: riding along in the chase view, the camera eases in to 0.6 of its distance while the drive spools up, so the break-up fills
   // about a third of the screen, and back out once the hull has formed again: SHIP_POSE.chase in 08-camera.js)
   S.fz = S.fk > -8 ? 1 - 0.4*smooth(-HALO.FOLD_SPOOL, FLK.D0 + 0.3, S.fk) : 0.6 + 0.4*smooth(FLK.A1 + 0.3, FLK.A1 + 2, S.asm);
+  // (C, streak-out: its thread runs straight ahead, end-on to a camera behind the ship, so the chase rig also swings round to one side, where the
+  // thread is seen side-on, and back once the thread has poured back in: S.fs, shipPose in 08-camera.js. Its side, S.fsd, is kept from the
+  // start of the swing to its end: the new pass picks a new S.side, and a change of side mid-fold swung the camera right across)
+  if (!(S.fs > 0)) S.fsd = S.side || 1;
+  S.fs = foldLook !== 3 ? 0 : S.fk > -8 ? smooth(-HALO.FOLD_SPOOL, FLK.D0 + 0.3, S.fk) : 1 - smooth(FLK.A1*0.8, FLK.A1 + 1.2, S.asm);
   // (from afar the engine glint goes with the hull)
   ship.farLum = 0.7*(dm > 0 ? 1 - smooth(FLK.D0, FLK.D1, S.fk) : dm < 0 ? smooth(FLK.A0, FLK.A1, S.asm) : 1);
 }
@@ -1195,7 +1202,7 @@ ship.dbg = {
     hrnd = lcg(seed); actBag.length = 0; FX.length = 0; weapK = 0; rockShape = 0; drone.reset();
     Object.assign(S_, { phase:'pass', t:0, target:null, spool:0, ls:0, scale:1, scoop:0, em:[0, 0, 0, 0], visits:0, force:{}, lastSkim:-9, lastAct:null, plan:null, next:null,
       align:null, leg:null, fold:null, act:null, h:[0, 1, 0], belly:null, vel:[0, 0, 0], speed:0, viewA:0, side:1, hFrom:null, jumpAt:0, stretch:0, lsRun:0, emerge:1, seedN:1, reaim:0,
-      ringPh:0, beat:0, load:0, gWant:0, gDir:[0, 1, 0], vesc:0, gTg:null, climbK:0, fk:-9, asm:9, eat:0, csL:false, wz:1, reseat:null, dg:0, dm:0, hfl:0, shK:1, sx:0, sy:0, cc:0, fz:1 });
+      ringPh:0, beat:0, load:0, gWant:0, gDir:[0, 1, 0], vesc:0, gTg:null, climbK:0, fk:-9, asm:9, eat:0, csL:false, wz:1, reseat:null, dg:0, dm:0, hfl:0, shK:1, sx:0, sy:0, cc:0, fz:1, fs:0, fsd:1, embN:0, onFoldIn:null });
     foldVisit(BYKEY[key]); S_.t = 3;
   },
   force(o){ Object.assign(S_.force, o); },
