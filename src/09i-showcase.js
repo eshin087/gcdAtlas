@@ -53,8 +53,8 @@ if (SHOWCASE.on){
   const ROUTE = { saturn:{ act:'scan', target:'sgra', travel:'fold' }, sgra:{ act:'probe', target:'magnetar', travel:'light' }, magnetar:{ act:'scan', target:'saturn', travel:'fold' } };
   const routeOf = k => ROUTE[k] || { act:'scan', target:'sgra', travel:'fold' };
   // (seconds: riding along at Saturn after the turn; before the closest point at Sgr A*; riding along at SGR 1806-20 or another stop; Pip's
-  // launch after arriving at Sgr A*)
-  const LEAD = 1, PRE = 6.5, RIDE = 4.5, PIP_AT = 0.4;
+  // launch after arriving at Sgr A*, once the hull has formed)
+  const LEAD = 1, PRE = 6.5, RIDE = 4.5, PIP_AT = 1.8;
   // (the moment of the pass closest to the body)
   function closestT(pl){ let best = 1e300, bt = 0; for (let i=0;i<=240;i++){ const t = pl.T*i/240, r = V.len(passAt(pl, t).p); if (r < best){ best = r; bt = t; } } return bt; }
   // as the ship comes out of a fold (before the new pass is first drawn): at Saturn well before the end of the pass (time for Pip, if asked for,
