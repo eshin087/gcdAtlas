@@ -115,7 +115,7 @@ const jupiter = (() => {
   return o;
 })();
 jupiter.bodyFrac = 0.9;
-const galilean = (key, name, kind, R, a, L0, n, fact, readout, extra = {}) => addBody(Object.assign({ key, name, type:'moon of Jupiter', parent:jupiter, moonOf:jupiter, R, a, L0, n, kind,
+const galilean = (key, name, kind, R, a, L0, n, fact, readout, extra = {}) => addBody(Object.assign({ key, name, type:'moon of Jupiter', tags:['moons'], parent:jupiter, moonOf:jupiter, R, a, L0, n, kind,
   pole:[268.05, 64.50], W:[L0 + 180, n], shadowOf:jupiter, farLum:0.5, labelRange:0.0005, sortKey:5.2 + a*1e-9, fact, readout:() => readout, minZoom:1.2,
   views:[{dirFn:() => sunSide(BYKEY[key], 0.4, 0.15), k:3.2, hold:8, drift:0.03}, {dirFn:() => sunSide(BYKEY[key], 1.6, 0.1), k:1.9, hold:7, drift:0.03}] }, extra));
 const io = galilean('io', 'Io', 7, 1821.6, 421700, 106.07719, 203.488955790,

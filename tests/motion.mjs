@@ -114,12 +114,38 @@ const nav = await page.evaluate(() => {
   angle.fast.arrowsOnLine = document.getElementById('progress').contains(b) && document.getElementById('progress').classList.contains('angles');
   C.setOpt('travel', 'cinematic', true); C.lockOn(C.BYKEY.sun.index); for (let i=0;i<30;i++) C.tick(1/60);
   const slow = C.flightDur(); C.setOpt('travel', 'warp', true); const fast = C.flightDur(); C.setOpt('travel', 'quick', true); land();
-  return { next, next2, angle, slow:+slow.toFixed(2), fast:+fast.toFixed(2) };
+  // a swing to an angle that follows a planet round its star, from the far side of it, turns one way all the way (it used to snap round mid-swing)
+  let wrap = 0;
+  for (const key of ['hd189733b', 'peg51b']) for (const s of [1, -1]){
+    C.view(key, 0); for (let i=0;i<5;i++) C.tick(1/60); C.orbit.yaw -= s*(Math.PI - 0.25); C.tick(1/60); C.stepAngle(0);
+    let prev = C.cam.fwd.slice();
+    for (let f=0; f<60*3; f++){ C.tick(1/60); const q = C.cam.fwd; wrap = Math.max(wrap, Math.acos(Math.min(1, prev[0]*q[0] + prev[1]*q[1] + prev[2]*q[2]))*180/Math.PI); prev = q.slice(); }
+  }
+  return { next, next2, angle, slow:+slow.toFixed(2), fast:+fast.toFixed(2), wrap:+wrap.toFixed(1) };
 });
 if (nav.next !== 'earth' || nav.next2 !== 'jupiter') fail('next did not follow the scale bar from the Moon: ' + JSON.stringify(nav));
 if (nav.angle.to === nav.angle.from || !nav.angle.looping) fail('the angle arrows did not step the loop: ' + JSON.stringify(nav.angle));
 if (nav.angle.fast.got !== nav.angle.fast.want || !nav.angle.fast.label.startsWith(`angle ${nav.angle.fast.want + 1}/`) || !nav.angle.fast.arrowsOnLine) fail('three fast taps on the angle arrow did not move three angles: ' + JSON.stringify(nav.angle.fast));
 if (!(nav.fast < nav.slow)) fail('changing the speed mid-flight did not re-time it: ' + JSON.stringify(nav));
+if (!(nav.wrap < 10)) fail(`a swing to a tracked angle from the far side jumped ${nav.wrap} degrees in one frame (limit 10; it was up to 120)`);
+
+// 6b. angles that wait for their moment: on 27 September 2026 (Mimas passes through Saturn's shadow every orbit until about 2028) its crater
+// angle plays only while Herschel is in sunlight, and when the shadow covers the moon the camera pulls back from the dark disc (it used to
+// stay close on a black moon, and show a plain ball on the crater angle half the time)
+const mim = await page.evaluate(() => {
+  const C = __cosmos, m = C.BYKEY.mimas, dt = 1/30, r = { dark:0, darkClose:0, crater:0, craterNight:0 };
+  C.setDays(2461311 - (Date.now()/864e5 + 2440587.5)); C.setTour(false); C.lockOn(m.index); C.land(0.5);
+  for (let i=0;i<150/dt;i++){
+    C.tick(dt); if (C.show.phase !== 'hold') continue;
+    const dark = m.views[0].state(), close = C.orbit.dist/m.rad < 8;
+    if (dark){ r.dark += dt; if (close) r.darkClose += dt; }
+    if (C.show.view === 1){ r.crater += dt; if (m.views[1].state() === 0) r.craterNight += dt; }
+  }
+  C.setDays(0); for (const k in r) r[k] = +r[k].toFixed(1);
+  return r;
+});
+if (!(mim.dark > 3 && mim.crater > 3) || mim.darkClose > 0.5 || mim.craterNight > 0.5) fail('Mimas: close on the dark moon, or its crater angle in the night: ' + JSON.stringify(mim));
+console.log(`  angles: tracked swings at most ${nav.wrap}° a frame · Mimas in 150 s: ${mim.dark} s in Saturn's shadow (close: ${mim.darkClose} s), crater angle ${mim.crater} s (in the night: ${mim.craterNight} s)`);
 
 // 7. every grand tour trip is one smooth flight: the zoom never dips and comes back out on the way (that read as locking on to
 // something in the way), and the camera never flies through an object that is not one end of the trip (or around it)

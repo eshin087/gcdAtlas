@@ -238,24 +238,108 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .panel-head .ptitle{flex:1}
 .atlas-head input{display:none;flex:1;min-width:0;font-size:calc(12px*var(--ts));color:var(--ink);background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:3px;padding:6px 8px;outline:none}
 .atlas-head input:focus{border-color:rgba(255,179,92,.6)}
-.atlas-tools{display:flex;flex-direction:column;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line)}
-.atlas-tools .row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.atlas-tools .lbl{color:var(--faint);font-size:calc(10px*var(--ts));letter-spacing:.1em;text-transform:uppercase;min-width:34px}
 .chip{font-size:calc(10.5px*var(--ts));color:var(--dim);background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:10px;padding:2px 8px;cursor:pointer}
 .chip:hover{color:var(--ink)}
-.chip[aria-pressed="true"]{color:var(--flare);border-color:rgba(255,179,92,.6);background:var(--flare-bg)}
-.chip.reset{margin-left:auto;color:var(--soft)}
-.atlas-list{overflow:auto;padding:4px 0 10px;overscroll-behavior:contain;scrollbar-width:thin}
-.agroup{padding:10px 12px 4px;color:var(--flare);font-size:calc(10.5px*var(--ts));letter-spacing:.14em;text-transform:uppercase}
-.arow{position:relative;display:flex;align-items:baseline;gap:10px;width:100%;text-align:left;background:none;border:0;border-left:2px solid transparent;padding:5px 12px 5px 18px;color:var(--soft);cursor:pointer;font-size:calc(12px*var(--ts))}
+/* the atlas is a grid: head, the controls, a results line (only when the view is not the default), the list and the collection footer.
+   Every control is in plain sight: nothing scrolls sideways (rows wrap and the kinds drop to two columns before anything could overflow). */
+.atlas{width:min(calc(340px*max(var(--ts),1.15)),calc(100vw - 32px));   /* (never narrower than at the default menu text: the controls must fit on their rows) */
+  display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto minmax(0,1fr) auto;grid-template-areas:"head" "tools" "result" "list" "foot";
+  overflow:clip}   /* (clip, not a scroll box: scrolling the list to the object in view must never scroll the whole panel) */
+.atlas-head{grid-area:head}
+.atlas-body{display:contents}   /* (its parts sit in the atlas grid; with .flow it becomes the one scrolling column) */
+.atlas-tools{grid-area:tools;display:flex;flex-direction:column;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line)}
+.atl-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.atlas-tools .lbl{flex:none;color:var(--dim);font-size:calc(10px*var(--ts));letter-spacing:.1em;text-transform:uppercase;min-width:34px}
+/* sort: one pill cut in four, the chosen part filled; the order button says the order the list is in ("near → far") and reverses it.
+   Its words take the room of the longest ones ("small → big"), so changing the sort never moves or wraps anything. */
+.sortseg{display:inline-flex;flex:none;border:1px solid var(--line);border-radius:4px;background:rgba(0,0,0,.3);overflow:hidden}
+.sortseg button{min-height:28px;padding:0 7px;font-size:calc(10.5px*var(--ts));color:var(--soft);background:none;border:0;border-left:1px solid var(--line);border-radius:0;cursor:pointer;white-space:nowrap}
+.sortseg button:first-child{border-left:0}
+.sortseg button:hover{color:var(--ink);background:rgba(140,160,210,.08)}
+.sortseg button[aria-checked="true"]{color:var(--void);background:var(--flare);font-weight:600}
+.dirbtn{flex:none;margin-left:auto;display:inline-flex;align-items:center;gap:5px;min-height:28px;padding:0 7px 0 6px;font-size:calc(10.5px*var(--ts));color:var(--soft);background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:4px;cursor:pointer;white-space:nowrap}
+.dirbtn span{min-width:11ch;text-align:left}
+.dirbtn b{color:var(--flare);font-weight:400}
+.dirbtn:hover{color:var(--ink);border-color:rgba(255,179,92,.45)}
+/* show: "not seen yet", a box that works with any kind, then one radio group: all (across the top) or one kind (a grid of equal cells with their counts) */
+.cell{display:flex;align-items:center;justify-content:space-between;gap:4px;box-sizing:border-box;min-width:0;min-height:28px;padding:0 6px;font-size:calc(10px*var(--ts));line-height:1.2;
+  color:var(--soft);background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:3px;cursor:pointer;white-space:nowrap;text-align:left}
+.cell .n{flex:none;color:var(--dim);font-size:calc(9.5px*var(--ts));font-variant-numeric:tabular-nums}
+.cell:hover{color:var(--ink);border-color:rgba(140,160,210,.45)}
+.cell[aria-checked="true"]{color:var(--void);background:var(--flare);border-color:var(--flare);font-weight:600}
+.cell[aria-checked="true"] .n{color:rgba(4,5,10,.75)}
+.cell.done:not([aria-checked="true"]){color:var(--dim)}
+.cell.done:not([aria-checked="true"]) .n{color:#a8f0b0}
+.allcell{grid-column:1/-1}
+.unseen{flex:none;margin-left:auto;display:inline-flex;align-items:center;gap:6px;min-height:28px;padding:0 8px 0 6px;font-size:calc(10.5px*var(--ts));color:var(--soft);background:none;border:1px solid var(--line);border-radius:4px;cursor:pointer;white-space:nowrap}
+.unseen b{font-weight:400;color:var(--soft);white-space:pre}
+.unseen:hover{color:var(--ink)}
+.unseen[aria-checked="true"]{color:var(--flare);border-color:rgba(255,179,92,.55);background:var(--flare-bg)}
+.unseen[aria-checked="true"] b{color:var(--flare)}
+.cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(calc(99.5px*var(--ts)),1fr));gap:4px}
+/* (while a search is typed it looks through everything: the kinds fade a little, still there to tap, and a tap clears the search) */
+.atlas-tools.searching .show-row,.atlas-tools.searching .cats{opacity:.6}
+.sortseg button:focus-visible,.dirbtn:focus-visible,.cell:focus-visible,.unseen:focus-visible,.chip:focus-visible,.afoot:focus-visible,.brow:focus-visible,.atlas-empty button:focus-visible{outline:1px solid var(--flare);outline-offset:1px}
+/* the results line: what the list shows (in words, with what its numbers measure) and the only reset. Solid, so it can stay over the rows in .flow */
+.aresult{grid-area:result;display:flex;align-items:center;gap:8px;padding:3px 8px 3px 12px;border-bottom:1px solid var(--line);
+  background:linear-gradient(rgba(255,179,92,.07),rgba(255,179,92,.07)),rgb(7,9,16);font-size:calc(10.5px*var(--ts));line-height:1.35}
+.aresult .rtxt{flex:1 1 0;min-width:0;color:var(--flare)}
+.aresult .rnote{margin-left:10px;color:var(--dim);white-space:nowrap}
+.aresult .rnote:empty{display:none}
+.aresult .rreset{flex:none;min-height:28px;color:var(--soft)}
+.atlas-list{grid-area:list;min-height:0;overflow:auto;padding:4px 0 6px;overscroll-behavior:contain;scrollbar-width:thin}
+/* (a heading stays at the top of the list while its rows scroll, so what its numbers measure is always in sight; a long title takes two lines.
+   Its top is -4px: a sticky box sticks inside the list's padding, and no row may show above it) */
+.agroup{position:sticky;top:-4px;z-index:1;display:flex;flex-wrap:wrap;align-items:baseline;column-gap:10px;padding:10px 12px 4px;color:var(--flare);background:rgb(7,9,16);font-size:calc(10.5px*var(--ts));letter-spacing:.14em;text-transform:uppercase}
+.arow{scroll-margin-top:calc(34px*var(--ts))}
+.agroup .gt{flex:0 1 auto;min-width:0}
+.agroup .gnote{flex:none;margin-left:auto;color:var(--dim);font-size:calc(10px*var(--ts));letter-spacing:.02em;text-transform:none}
+.arow.child .an::before{content:"\2514\00a0";color:var(--faint);font-weight:400}
+.aend{padding:10px 12px 2px;color:var(--dim);font-size:calc(10px*var(--ts))}
+/* .flow: one scrolling column under the head (phones held upright, and wherever the list would be squeezed): the controls scroll away with the list,
+   the results line stays at the top and the headings stick under it (--rh, its height, kept by src/09-render.js) */
+.atlas.flow{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"head" "body" "foot"}
+.atlas.flow .atlas-body{display:block;grid-area:body;min-height:0;overflow:hidden auto;overscroll-behavior:contain;scrollbar-width:thin}
+.atlas.flow .atlas-tools{border-right:0;border-bottom:1px solid var(--line);overflow:visible}
+.atlas.flow .aresult{position:sticky;top:0;z-index:2}
+.atlas.flow .atlas-list{overflow:visible;min-height:0}
+.atlas.flow .agroup{top:var(--rh,0px)}
+.atlas.flow .arow{scroll-margin-top:calc(var(--rh,0px) + 34px*var(--ts))}
+.atlas.flow .afoot{border-right:0}
+.atlas.flow .btray{grid-area:body;align-self:stretch}   /* (the whole column: no half-hidden control above it) */
+/* the collection footer ("seen 18 of 137 [##--------] badges 1 of 9 ›"), one button that opens the badge tray over the bottom of the list */
+.afoot{grid-area:foot;display:flex;align-items:center;flex-wrap:wrap;gap:2px 10px;width:100%;box-sizing:border-box;min-height:34px;padding:5px 12px;margin:0;
+  border:0;border-top:1px solid var(--line);border-radius:0;background:none;color:var(--dim);font-size:calc(10.5px*var(--ts));text-align:left;cursor:pointer}
+.afoot b{color:var(--soft);font-weight:400}
+.afoot .sf-bar{flex:1 1 0;min-width:0;overflow:hidden;white-space:pre;color:var(--faint);font-variant-ligatures:none}
+.afoot .sf-badges{margin-left:auto}
+.afoot i{font-style:normal;color:var(--flare);font-size:1.35em;line-height:1;transition:transform .2s}
+.afoot[aria-expanded="true"] i{transform:rotate(90deg)}
+.afoot:hover{color:var(--ink)}
+.btray{grid-area:list;align-self:end;z-index:3;max-height:100%;box-sizing:border-box;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;padding-bottom:4px;
+  background:rgb(7,9,17);border-top:1px solid rgba(255,179,92,.35);box-shadow:0 -12px 24px rgba(0,0,0,.55);animation:trayUp .2s ease-out}   /* (solid: no row may show through the badges) */
+@keyframes trayUp{from{transform:translateY(20px);opacity:0}to{transform:none;opacity:1}}
+.bt-head{display:flex;align-items:center;gap:8px;padding:6px 8px 2px 12px}
+.bt-n{flex:1;color:var(--dim);font-size:calc(10.5px*var(--ts))}
+.bt-head .chip{min-height:28px}
+.bt-note{margin:0;padding:0 12px 6px;color:var(--dim);font-size:calc(10px*var(--ts));line-height:1.4}
+.brow{display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;min-height:30px;padding:3px 12px;margin:0;background:none;border:0;color:var(--soft);font-size:calc(11px*var(--ts));text-align:left;cursor:pointer}
+.brow:hover{background:rgba(140,160,210,.1);color:var(--ink)}
+.brow .bn{flex:1;min-width:0}
+.brow .bp{flex:none;color:var(--dim);font-variant-numeric:tabular-nums}
+.brow i{flex:none;width:.7em;font-style:normal;color:var(--flare)}
+.brow.got .bn,.brow.got .bp{color:var(--flare)}
+/* a row: the name, and its number beside it, or under it (right-aligned) when both do not fit; a name is never cut */
+.arow{position:relative;display:flex;flex-wrap:wrap;align-items:baseline;column-gap:10px;width:100%;text-align:left;background:none;border:0;border-left:2px solid transparent;padding:5px 12px 5px 18px;color:var(--soft);cursor:pointer;font-size:calc(12px*var(--ts))}
 .arow:hover,.arow.kb{background:rgba(140,160,210,.1);color:var(--ink)}
 .arow[aria-selected="true"]{background:var(--flare-bg);border-left-color:var(--flare);color:var(--flare);font-weight:600}
 .arow[aria-selected="true"]::before{content:">";position:absolute;left:6px;color:var(--flare)}
-.arow[aria-selected="true"] .ad{color:var(--flare);opacity:.8}
-.arow .an{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.arow .ad{flex:none;color:var(--faint);font-size:calc(10.5px*var(--ts));font-weight:400;font-variant-numeric:tabular-nums}
-.atlas-foot,.panel-foot{padding:8px 12px;border-top:1px solid var(--line);color:var(--faint);font-size:calc(10.5px*var(--ts))}
+.arow[aria-selected="true"] .ad{color:var(--flare);opacity:.85}
+.arow .an{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
+.arow .ad{flex:none;margin-left:auto;color:var(--dim);font-size:calc(10.5px*var(--ts));font-weight:400;font-variant-numeric:tabular-nums;text-align:right}
+.panel-foot{padding:8px 12px;border-top:1px solid var(--line);color:var(--faint);font-size:calc(10.5px*var(--ts))}
 .atlas-empty{padding:14px 12px;color:var(--dim)}
+.atlas-empty button{display:inline-block;min-height:28px;margin:8px 0 0;font-size:calc(10.5px*var(--ts));color:var(--flare);background:var(--flare-bg);border:1px solid rgba(255,179,92,.55);border-radius:4px;padding:0 10px;cursor:pointer}
 .opt{padding:10px 12px 4px}
 .opt-l{color:var(--soft);font-size:calc(11px*var(--ts));letter-spacing:.06em;margin-bottom:6px}
 .opt-note{color:var(--faint);letter-spacing:0;margin-left:6px}
@@ -330,11 +414,6 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .nogl{position:fixed;inset:0;display:grid;place-items:center;padding:16px;text-align:center;color:var(--soft)}
 
 /* collection log */
-.seen-row{align-items:center}
-.seen-count{color:var(--soft);font-size:calc(10.5px*var(--ts))}
-.badges{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
-.badge{font-size:calc(10px*var(--ts));padding:1px 6px;border-radius:9px;border:1px solid var(--line);color:var(--faint)}
-.badge.got{color:var(--void);background:var(--flare);border-color:var(--flare)}
 .arow.seen .an::after{content:" \2713";color:#a8f0b0;font-weight:400}
 /* today's discovery */
 .daily{position:fixed;left:calc(16px + env(safe-area-inset-left,0px));bottom:calc(56px + env(safe-area-inset-bottom,0px));width:min(300px,calc(100vw - 32px));box-sizing:border-box;padding:10px 12px;
@@ -441,13 +520,22 @@ body.sky .info .acts,body.sky .ladder,body.sky .lad-chip,body.sky .progress{opac
   .atlas-head input{display:block}
   .atlas-head .pcount{display:none}
   .atlas,.panel{border-radius:14px}
-  /* atlas filters stay on one line each and scroll sideways, so the list keeps the room */
-  .atlas-tools{gap:5px;padding:6px 10px}
-  .atlas-tools .row{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain}
-  .atlas-tools .row::-webkit-scrollbar{display:none}
-  .atlas-tools .chip,.atlas-tools .lbl,.seen-count,.badge{flex:none}
-  .badges{flex-wrap:nowrap;margin-left:4px}
-  .chip.reset{margin-left:0}
+  /* the atlas controls: bigger targets for thumbs, a little smaller type so the kinds keep three columns */
+  .atlas-head{padding:5px 8px 5px 12px}
+  .atlas-head input{padding:5px 8px}
+  .atlas-head .btn{min-height:32px}
+  .atlas-tools{gap:5px;padding:7px 8px}
+  .atlas-tools .lbl{min-width:0;letter-spacing:.06em}
+  .sortseg button,.dirbtn,.cell,.unseen{min-height:34px}
+  .sortseg button,.dirbtn,.unseen{font-size:calc(10px*var(--ts))}
+  .sortseg button{padding:0 6px}
+  .dirbtn{gap:4px;padding:0 7px 0 6px}
+  .cell{font-size:calc(9.5px*var(--ts))}
+  .cell .n{font-size:calc(9px*var(--ts))}
+  .cats{grid-template-columns:repeat(auto-fill,minmax(calc(94px*var(--ts)),1fr))}
+  .aresult .rreset{min-height:30px}
+  .afoot{min-height:32px;padding:3px 12px}
+  .arow{padding-top:6px;padding-bottom:6px}   /* (a little taller for thumbs) */
   /* the scale ladder: folded behind a chip at the top right, opens over a dark scrim */
   .ladder{display:none}
   .controls #btnPlay{display:none}
@@ -471,7 +559,8 @@ body.sky .info .acts,body.sky .ladder,body.sky .lad-chip,body.sky .progress{opac
 @media (max-width:680px){
   .info{left:calc(8px + env(safe-area-inset-left,0px));right:calc(8px + env(safe-area-inset-right,0px));max-width:none}
   .atlas,.panel{top:auto;left:calc(8px + env(safe-area-inset-left,0px));right:calc(8px + env(safe-area-inset-right,0px));width:auto;bottom:calc(var(--dock-h,64px) + 6px)}
-  .atlas{max-height:48vh}
+  /* (a fixed height, so the object above does not jump when a filter makes the list shorter) */
+  .atlas{height:min(calc(57vh*max(var(--ts),1.15)),calc(100% - var(--dock-h,64px) - 110px))}   /* (66vh at the default menu text, taller with bigger text) */
   .panel{max-height:64vh}
   body.atlas-open .info,body.panel-open .info,body.atlas-open .info-pill,body.panel-open .info-pill{opacity:0;pointer-events:none}
   .caption{bottom:calc(var(--dock-h,64px) + var(--sheet-h,0px) + 8px);font-size:calc(12px*var(--ts));padding:8px 10px}
@@ -480,7 +569,7 @@ body.sky .info .acts,body.sky .ladder,body.sky .lad-chip,body.sky .progress{opac
   .daily{left:calc(8px + env(safe-area-inset-left,0px));bottom:calc(var(--dock-h,64px) + var(--sheet-h,0px) + 10px)}
 }
 /* narrow phones: the seven dock buttons share the width by the length of their words, so "settings" is not cut off */
-@media (max-width:379px){ .controls .btn{flex:1 1 auto} }
+@media (max-width:379px){ .controls .btn{flex:1 1 auto} .atlas{left:calc(4px + env(safe-area-inset-left,0px));right:calc(4px + env(safe-area-inset-right,0px))} .atlas-tools{padding:6px} }
 /* phones on their side: the card sits bottom left, panels and captions on the right, the dock in the middle */
 @media (max-height:520px) and (max-width:1000px){
   .controls{left:50%;right:auto;transform:translateX(-50%);width:min(500px,calc(100vw - 16px))}
@@ -489,7 +578,24 @@ body.sky .info .acts,body.sky .ladder,body.sky .lad-chip,body.sky .progress{opac
   .info h1{font-size:calc(18px*var(--ts))}
   .atlas,.panel{top:calc(46px + env(safe-area-inset-top,0px));left:auto;right:calc(8px + env(safe-area-inset-right,0px));width:min(360px,48vw);bottom:calc(var(--dock-h,56px) + 6px);max-height:none}
   .panel{bottom:auto;max-height:calc(100% - var(--dock-h,56px) - 58px)}
-  body.atlas-open .info,body.panel-open .info,body.atlas-open .info-pill,body.panel-open .info-pill{opacity:1;pointer-events:auto}
+  body.panel-open .info,body.panel-open .info-pill{opacity:1;pointer-events:auto}
+  /* the atlas: two panes from the top of the screen to the dock. On the left the head and the controls (the kinds in three columns); on the right
+     the list, full height, with the results line over its top and the collection line under it. It leaves the left of the screen to the object when
+     there is room, and takes the whole width when there is not (the list keeps at least 340 px, so most names and numbers share a line). Where the panes cannot both fit (a small phone, very
+     big menu text), src/09-render.js turns it into one scrolling column (.flow). The info card, the logo, pause and scale chips step aside while it is open. */
+  .atlas{--tw:calc(318px*max(var(--ts),1.15));top:calc(8px + env(safe-area-inset-top,0px));height:auto;
+    width:min(calc(100vw - 16px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px)),max(calc(var(--tw) + 340px),calc(100vw - 200px)));
+    grid-template-columns:minmax(0,var(--tw)) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"head list" "tools list" "tools foot"}
+  .atlas-head,.atlas-tools{border-right:1px solid var(--line)}
+  .atlas-tools{border-bottom:0;overflow:hidden auto;overscroll-behavior:contain}
+  .aresult{grid-area:list;align-self:start;z-index:2}
+  .atlas-list{padding-top:calc(var(--rh,0px) + 4px)}
+  .arow{scroll-margin-top:calc(var(--rh,0px) + 34px*var(--ts))}
+  .atlas.flow{width:calc(100vw - 16px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))}
+  .atlas.flow .atlas-head{border-right:0}
+  .atlas.flow .atlas-list{padding-top:4px}
+  .sortseg button,.dirbtn,.cell,.unseen{min-height:28px}
+  body.atlas-open .info,body.atlas-open .info-pill,body.atlas-open .topr,body.atlas-open .brand{opacity:0;pointer-events:none}
   .caption{left:auto;right:calc(8px + env(safe-area-inset-right,0px));transform:none;width:min(420px,calc(52vw - 24px));bottom:calc(var(--dock-h,56px) + 8px)}
   .strip{padding-bottom:calc(var(--dock-h,56px) + 10px);padding-right:calc(8px + env(safe-area-inset-right,0px))}
   .toast{align-self:flex-end;max-width:min(420px,calc(52vw - 24px))}
@@ -499,5 +605,5 @@ body.sky .info .acts,body.sky .ladder,body.sky .lad-chip,body.sky .progress{opac
   #tours .dwell-opt{order:1}
   #tours #tourList ~ *{order:2}
 }
-@media (prefers-reduced-motion:reduce){ .shipmark{animation:none} }
+@media (prefers-reduced-motion:reduce){ .shipmark,.btray{animation:none} }
 </style>
