@@ -299,8 +299,9 @@ ACT.scan = pl => {
     // the scan array lights up as the sweep starts and glows while it runs (the belly light, uP2.x)
     const on = smooth(0, 0.5, tau)*(1 - smooth(SCAN.SW0 + SCAN.SWT, SCAN.SW0 + SCAN.SWT + 0.8, tau));
     if (on > 0) S_.em[0] = on*(0.7 + 0.15*Math.sin(tau*7));
-    // (brackets lock here, every tick, so when they lock never depends on which frames are drawn: the camera and the places are the last tick's)
-    if (spots.length && live()){ const g = A.geo(); if (g.u > -0.1) lockSpots(g); }
+    // (the sweep's frame and direction are chosen here and brackets lock here, every tick, so neither depends on which frames are drawn: the
+    // camera and the places are the last tick's)
+    if (live()){ const g = A.geo(); if (spots.length && g.u > -0.1) lockSpots(g); }
     // as the ring reaches the far end, the numbers also show for a moment at the bottom of the screen (on a phone the readout is folded away
     // in the card); not while a showcase's caption is being written there
     if (!A.told && sweepU(tau) >= 1 && live()){ A.told = true; if (riding() && facts.length && !SHOWCAP.txt) toast(tg.name + ' scanned · ' + facts.join(' · ')); }
@@ -387,7 +388,7 @@ ACT.scan = pl => {
     const sh = g.sh;
     if (sp.at){
       if (!sh.solid) return -1;
-      const [la, lo] = sp.at(tg); globePt(sh, la, lo, P1); SPT.p = P1.p.slice(); SPT.h = Math.sin(la); SPT.r = sp.r*sh.a;
+      const [la, lo] = sp.at(tg); globePt(sh, la, lo, P1); SPT.p = P1.p.slice(); SPT.h = V.dot(V.sub(SPT.p, sh.C), g.ax)/g.ext; SPT.r = sp.r*sh.a;
       const f = facing(P1.p, P1.n); return f > 0.28 && onScreen(P1.p, 1.02) && !behindHull(P1.p) ? f : -1;
     }
     const s = tg.rad*magOf(tg);
@@ -416,8 +417,8 @@ ACT.scan = pl => {
     show.sort((x, y) => y.f - x.f); show.length = Math.min(show.length, 3);
     const pxW = 2*tanY/viewHcss, used = new Set(), placed = [], avoid = show.length && cam.focus === ship.index ? uiRects() : [];   // (world units per CSS pixel, per unit of depth)
     // (nor on the ship: it is what the camera looks at, and no label may sit on it)
-    const sp = show.length ? projectCSS(ship.rel) : null, sr = sp ? ship.rad*1.05/(sp.z*pxW) : 0;
-    const onShip = (x, y, w, lh) => sp && Math.hypot(clamp(sp.x, x, x + w) - sp.x, clamp(sp.y, y, y + lh) - sp.y) < sr;
+    const shp = show.length ? projectCSS(ship.rel) : null, shr = shp ? ship.rad*1.05/(shp.z*pxW) : 0;
+    const onShip = (x, y, w, lh) => shp && Math.hypot(clamp(shp.x, x, x + w) - shp.x, clamp(shp.y, y, y + lh) - shp.y) < shr;
     for (const s of show){
       const z = V.dot(s.p, cam.fwd), h = clamp(s.r, 7*pxW*z, 34*pxW*z), k = 1 + 0.7*(1 - smooth(0, 0.3, s.age)), hk = h*k;
       const br = (0.5 + 0.5*Math.exp(-s.age/0.25) + 0.06*Math.sin(tau*5 + s.i))*s.out, L = hk*0.38;
