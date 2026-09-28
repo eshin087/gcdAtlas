@@ -30,9 +30,9 @@ const SC_RING = [0.8, 0.96, 1], SC_GRID = [0.36, 0.82, 1], SC_BRK = [0.72, 0.96,
 // Kervella et al. 2017 for Alpha Centauri A and Proxima, Kervella et al. 2003 and Bond et al. 2017 for Sirius, Agol et al. 2021 and Mann et al. 2019
 // for TRAPPIST-1, Ohnaka et al. 2013 for Antares, Joyce et al. 2020 for Betelgeuse). SGR 1806-20: its spin (Kouveliotou et al. 1998, 7.5 s)
 // and field; its size is a typical neutron star's. Black holes, nebulae, clusters and galaxies: the numbers their own readouts and facts in this
-// atlas give (the Event Horizon Telescope for M87* and Sgr A*, GRAVITY for Sgr A*'s mass, NASA and ESA for the rest); the Antennae's distance
-// is uncertain (about 45 million light-years from its supernovae, Schweizer et al. 2008; 65 million from its redshift), so a range. Uncertain
-// ones say "about".
+// atlas give (the Event Horizon Telescope for M87* and Sgr A*, GRAVITY for Sgr A*'s mass, NASA and ESA for the rest; the LMC's width is NASA's).
+// The Antennae's distance is disputed (13.3 Mpc, 43 million light-years, from its red giants: Saviane et al. 2008; 22.3 Mpc, 73 million, from
+// its supernova 2007sr: Schweizer et al. 2008), so a range. Uncertain ones say "about".
 const SCAN_FACTS = {
   earth:['12,756 km wide', 'gravity 9.8 m/s²', 'turns once in 23 h 56 min 4 s'],
   moon:['3,475 km wide', 'gravity 1.62 m/s²', 'turns once in 27.3 days'],
@@ -71,7 +71,7 @@ const SCAN_FACTS = {
   '3c273':['2.4 billion light-years away', 'jet about 200,000 light-years long'],
   andromeda:['about 220,000 light-years across', 'about a trillion stars'],
   m51:['76,000 light-years across', '31 million light-years away'],
-  antennae:['NGC 4038 and NGC 4039, two spirals colliding', 'about 45 to 65 million light-years away'],
+  antennae:['NGC 4038 and NGC 4039, two spirals colliding', 'about 45 to 75 million light-years away'],
   milkyway:['about 100,000 light-years across', 'about 200 billion stars'],
   lmc:['about 14,000 light-years across', '163,000 light-years away'],
   m104:['50,000 light-years across', '31 million light-years away'],
@@ -259,16 +259,18 @@ const SCAN_SPOTS = {
     { name:'Antarctica', r:0.3, at:() => [-Math.PI/2, 0] }, { name:'Australia', r:0.24, at:() => [-25*DEG, 134*DEG] }, { name:'Himalayas', r:0.09, at:() => [29*DEG, 84*DEG] }],
   // galaxies: their neighbours and parts where the atlas has them
   andromeda:[{ name:'M32', obj:'m32', r:0.04 }, { name:'M110', obj:'m110', r:0.06 }, { name:'nucleus', local:[0, 0, 0], r:0.04 }],
-  milkyway:[{ name:'Sgr A*', obj:'sgra', r:0.02 }, { name:'the Sun', obj:'sun', r:0.02 }],
+  // (the bright core the galaxy shader draws round Sgr A*; the Sun and Sgr A* themselves are too small to be drawn at this scale)
+  milkyway:[{ name:'Galactic Centre', local:[0, 0, 0], r:0.03 }],
   lmc:[{ name:'Tarantula Nebula', obj:'tarantula', r:0.04 }, { name:'SN 1987A', obj:'sn1987a', r:0.02 }],
   // (NGC 5195 at the end of an arm, where o05-spiral.js puts it: compPos)
   m51:[{ name:'NGC 5195', local:tg => { const pa = 4.2 + tg.t*0.03 - 0.64; return [Math.cos(pa), -0.05, Math.sin(pa)]; }, r:0.12 }, { name:'nucleus', local:[0, 0, 0], r:0.04 }],
   m104:[{ name:'nucleus', local:[0, 0, 0], r:0.05 }],
   // (the Galactic Centre's frame is the Milky Way's; Sgr B2, the Arches and the Quintuplet where FS_GALCENTRE draws them)
-  galcentre:[{ name:'Sgr A*', obj:'sgra', r:0.02 }, { name:'Sgr B2', local:[0.05, -0.01, 0.74], r:0.05 }, { name:'Arches cluster', local:[-0.05, 0.02, 0.14], r:0.03 },
+  galcentre:[{ name:'Sgr A*', local:[0, 0, 0], r:0.02 }, { name:'Sgr B2', local:[0.05, -0.01, 0.74], r:0.05 }, { name:'Arches cluster', local:[-0.05, 0.02, 0.14], r:0.03 },
     { name:'Quintuplet cluster', local:[0.1, -0.01, 0.19], r:0.03 }],
   // nebulae and clusters: the stars that made or light them
-  crab:[{ name:'Crab Pulsar', obj:'crabpulsar', r:0.04 }],
+  // (the pulsar's glow at the heart of FS_CRAB)
+  crab:[{ name:'Crab Pulsar', local:[0, 0, 0], r:0.04 }],
   // (the head of the tallest column in FS_NEBULA: x = -0.32 + 0.035 (top + 1)^2, top 0.42)
   pillars:[{ name:'the tallest pillar', local:[-0.249, 0.42, -0.011], r:0.1 }],
   pleiades:[{ name:'Alcyone', local:pleiad(3, 47, 29.1, 24, 6, 18, -0.12), r:0.04 }, { name:'Merope', local:pleiad(3, 46, 19.6, 23, 56, 54, 0), r:0.04 },
@@ -395,13 +397,16 @@ ACT.scan = pl => {
       const f = facing(P1.p, P1.n); return f > 0.28 && onScreen(P1.p, 1.02) && !behindHull(P1.p) ? f : -1;
     }
     const s = tg.rad*magOf(tg);
-    if (sp.obj){ const o = BYKEY[sp.obj]; if (!o || o.hidden || (o.noImpostor && !(o.vis > 0.02))) return -1; SPT.p = o.rel.slice(); }
+    if (sp.obj){ const o = BYKEY[sp.obj]; if (!o || !drawnNow(o)) return -1; SPT.p = o.rel.slice(); }
     else { const l = typeof sp.local === 'function' ? sp.local(tg) : sp.local, R = tg.rot, C = tg.rel;
       SPT.p = [C[0] + (R[0]*l[0] + R[3]*l[1] + R[6]*l[2])*s, C[1] + (R[1]*l[0] + R[4]*l[1] + R[7]*l[2])*s, C[2] + (R[2]*l[0] + R[5]*l[1] + R[8]*l[2])*s]; }
     SPT.r = sp.r*s;
     SPT.h = V.dot(V.sub(SPT.p, sh.C), g.ax)/g.ext;
     return onScreen(SPT.p, 1.02) && !behindHull(SPT.p) && !(sh.hole && inShadow(SPT.p, sh.C, sh.hr)) ? 1 : -1;
   }
+  // another object is drawn (last frame): as itself, or as the glowing dot that stands in for it far away (render() in 09-render.js)
+  const drawnNow = o => !o.hidden && !(o.magHide > 0.5) && (o.vis > 0.02 || (!o.noImpostor && (o.rpx > 0) &&
+    o.farLum*(1 - o.vis)*clamp(Math.pow(o.rpx/1.2, 0.33), 0, 1.2)*(1 - smooth(40, 120, o.rpx))*(o.occ ?? 1) > 0.015));
   // a bracket locks on once the ring has passed its feature, while the camera can see it
   function lockSpots(g){
     for (let i=0;i<spots.length;i++){
