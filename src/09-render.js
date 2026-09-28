@@ -731,7 +731,7 @@ backPillEl.addEventListener('click', () => { backPillEl.hidden = true; goBack();
 const followShip = () => { if (typeof ship === 'undefined') return; hideHint(); if (shipCam.on) return; startShipCam('chase'); toast('riding along with the Halo · chase view (C switches to the cockpit)'); };
 const foldEl = $('#foldFlash');
 // (kind 'ls': the quicker, whiter flash of a jump to light speed)
-function foldFlash(kind){ foldEl.classList.remove('go', 'ls'); void foldEl.offsetWidth; foldEl.classList.add('go'); if (kind === 'ls') foldEl.classList.add('ls'); }
+function foldFlash(kind){ foldEl.classList.remove('go', 'ls', 'blink'); void foldEl.offsetWidth; foldEl.classList.add('go'); if (kind === 'ls' || kind === 'blink') foldEl.classList.add(kind); }
 shipMarkEl.addEventListener('click', followShip);
 shipArrowEl.addEventListener('click', followShip);
 
@@ -1262,7 +1262,11 @@ let capFull = '', capShown = 0, capT = 0;
 const SHOWCAP = { txt:'' };   // a caption set by the Halo showcase
 function setCaption(txt, btn){
   if (txt === capFull){ return; }
-  capFull = txt; capShown = 0; capT = 0; capText.textContent = ''; capEl.classList.remove('done');
+  // (a caption that only changes toward its end, like a live number, keeps what is already typed and types on from where the two differ;
+  // a new caption is typed from the start)
+  let k = 0; const m = Math.min(capShown, txt.length); while (k < m && txt.charCodeAt(k) === capFull.charCodeAt(k)) k++;
+  if (!(k >= 8 || (k > 0 && k === capShown))) k = 0;
+  capFull = txt; capShown = k; capT = k; capText.textContent = txt.slice(0, k); capEl.classList.toggle('done', !!txt && k >= txt.length);
   capEl.hidden = !txt; capBtn.hidden = !btn; if (btn) capBtn.textContent = btn;
 }
 function updateCaption(dt){
@@ -1430,14 +1434,21 @@ function tick(dt){
     applyOrbit();
     refocus(dt);
   }
+  for (const f of AFTER_CAM) f(dt);
   for (const o of OBJ){ o.rel = V.sub(frel(o), cam.rel); o.dist = V.len(o.rel); }
   updateSysMag(dt); updateSunOcc();
   if (cmp) placeCompare(dt);
   updateDrift(dt);
 }
+// The browser can take the GPU away from the page (a driver reset, a GPU hang in another tab, its own watchdog): drawing stops, a line says so,
+// and when the browser gives the context back the page reloads (every texture, buffer and program would have to be made again). Without
+// preventDefault the context would never come back.
+let glLost = false;
+canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); glLost = true; const m = $('#nogl'); m.textContent = 'The browser reset the graphics. The page reloads when they are back, or you can reload it now.'; m.hidden = false; });
+canvas.addEventListener('webglcontextrestored', () => { location.reload(); });
 function frame(now){
   requestAnimationFrame(frame);
-  if (window.__freeze){ last = now; return; }
+  if (window.__freeze || glLost){ last = now; return; }
   const dtR = Math.min((now - last)/1000, 0.25); last = now;
   const hitch = progBusy > 0; progBusy = 0;   // the last frame compiled a shader: its time says nothing about how fast the scene draws
   const dt = Math.min(dtR, 0.05);
