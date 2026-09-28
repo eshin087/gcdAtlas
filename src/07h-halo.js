@@ -154,11 +154,12 @@ function bend(di, dout, Rc, L1, L2, mPref){
   return { P, dout, phi, clamped, cDir:V.norm(bz(P, m.s)) };   // (cDir: where its closest point is, seen from the body)
 }
 // (opt, for the passes of a stay: style, which side the closest point is on and how close: 'day' over the day side, 'dusk' over the line
-// between day and night, 'pole' over a pole, 'low' closer, 'wide' further out, 'any' anywhere; Tf, the cruising time)
+// between day and night, 'pole' over a pole, 'low' closer, 'wide' further out, 'any' anywhere; Tf, the cruising time; L1, how far out it starts;
+// slowIn and slowOut, see timePass)
 function planVisit(tg, arrival, dIn, next, act, seed, opt = {}){
   const A = ACTS[act], r = lcg(seed), st = opt.style;
-  // (the passes of a stay start and end a little closer in, so the loops between them stay near the body)
-  const Rc = passR(tg, act, st), L1 = act === 'skim' ? Math.max(Rc*3.5, tg.rad*1.2) : Rc*(arrival === 'roam' ? 3.2 : 4), L2 = L1*0.55;
+  // (L1: how far out it starts and ends; a pass of a stay starts where the loop before it ends)
+  const Rc = passR(tg, act, st), L1 = opt.L1 || (act === 'skim' ? Math.max(Rc*3.5, tg.rad*1.2) : Rc*4), L2 = L1*0.55;
   // bodies in the Solar System are lit by the Sun: do the job over their day side. Leaving by light speed, the pass should end
   // heading roughly toward the next stop (the rest of the turn is done on a wide arc after it).
   const sunD = tg !== sun && V.len(tg.pos) < 0.01 ? V.norm(V.mul(tg.pos, -1)) : null;
@@ -316,7 +317,7 @@ function foldVisit(tg, nx){
   const act = nx && nx.actK ? nx.actK : arrivalAct();
   beginVisit(tg, planVisit(tg, 'fold', null, null, act, nx && nx.seed ? nx.seed : S_.seedN++, { Tf:nx && nx.Tf ? nx.Tf : roamTf(), slowOut:true }), 'fold');
 }
-// a new place: how long the ship stays (STAY), the jobs it will do there (one or two, from the second pass on, a pass apart), and where it
+// a new place: how long the ship stays (STAY), the jobs it will do there (one or two, from the second pass on, a loop apart), and where it
 // goes after (its last pass bends toward that)
 function beginVisit(tg, plan, how){
   S_.visits++;
@@ -341,11 +342,10 @@ function beginPass(plan){
   if (riding() && !SHOWCAP.txt && (st.n > 1 || S_.visits === 1)) toast('at ' + tg.name + ': ' + ACT_TOAST[plan.act]);
 }
 const ACT_TOAST = { scan:'a sensor sweep', probe:'Pip, its little drone, comes out to help', weapons:'a weapons test (fictional, nothing is harmed)', skim:'skimming it to refuel' };
-// the styles of the passes of a stay, by what the place is (never the same twice running)
+// the styles of the passes of a stay, by what the place is (never the same twice running: the one chosen is kept in S_.lastStyle)
 function roamStyle(tg){
   const lit = tg !== sun && V.len(tg.pos) < 0.01, L = lit && tg.R0 ? ['day', 'low', 'wide', 'pole', 'dusk', 'low', 'day'] : isHoleTarget(tg) ? ['wide', 'any', 'wide'] : surfOf(tg) ? ['low', 'wide', 'pole', 'any'] : ['low', 'wide', 'any'];
-  let s = L[Math.floor(hrnd()*L.length)]; if (s === S_.lastStyle) s = L[(L.indexOf(s) + 1) % L.length];
-  S_.lastStyle = s; return s;
+  const s = L[Math.floor(hrnd()*L.length)]; return s === S_.lastStyle ? L[(L.indexOf(s) + 1) % L.length] : s;
 }
 // the loop from the end of one pass to the start of the next: one cubic curve that leaves the way the ship heads and arrives the way the next
 // pass starts (so the heading never jumps), its speed going evenly from this pass's to the next's (the glide of legAt, by arc length as in
@@ -370,40 +370,25 @@ function loopAt(L, t){
   const s = clamp((lo + (d - A[lo])/Math.max(A[hi] - A[lo], 1e-300))/L.N, 0, 1);
   return { p:bz(L.B, s), h:V.norm(bzd(L.B, s)), v };
 }
-// a pass of a stay that starts at P0 heading di (both relative to the body) and bends round the body to come closest at Rc: symmetric about
-// the line from the body's centre through its closest point (its end is its start's mirror image in that line), the bend found by bisection.
-// Null when the line in passes nearer than Rc, the body is not well ahead, or it would take a bend sharper than 1.6 radians
-function passFrom(P0, di, Rc){
-  const x0 = V.dot(P0, di), c = V.sub(P0, V.mul(di, x0)), b = V.len(c);
-  if (!(b > Rc*0.97) || !(x0 < -1.5*Rc)) return null;
-  const y = V.mul(c, 1/b), L2 = -x0*0.55;
-  const make = phi => {
-    const dout = V.add(V.mul(di, Math.cos(phi)), V.mul(y, -Math.sin(phi))), pa = V.add(V.mul(di, Math.sin(phi/2)), V.mul(y, Math.cos(phi/2)));
-    const P3 = V.sub(V.mul(pa, 2*V.dot(P0, pa)), P0), P = [P0, V.add(P0, V.mul(di, L2)), V.sub(P3, V.mul(dout, L2)), P3];
-    return { P, di, dout, phi, m:minR(P) };
-  };
-  let lo = 0, hi = 1.6, g = make(hi);
-  if (g.m.r > Rc) return g.m.r < Rc*1.25 ? Object.assign(g, { cDir:V.norm(bz(g.P, g.m.s)) }) : null;
-  for (let k=0;k<20;k++){ const mid = (lo + hi)/2; if (make(mid).m.r > Rc) lo = mid; else hi = mid; }
-  g = make(hi); return Object.assign(g, { cDir:V.norm(bz(g.P, g.m.s)) });
-}
 // the next pass of a stay and the loop to it, from the end of this one (e: where the ship is, relative to the body, its heading and speed).
 // The loop is a U-turn: a turn to one side (any side round its heading) wide enough for its speed at a gentle rate (LOOP_OM), coming back in
-// nearly the way it went out; the next pass starts where the turn ends. Of a dozen candidates the one whose loop turns most gently, is short,
-// and whose pass is what its style says wins
+// toward the body; the next pass (planVisit, aimed at the body from where the turn ends and starting that far out, bending round the side its
+// style asks for) starts near there, and loopCurve joins the two. Of 16 candidates the one whose loop turns most gently, is short, and whose
+// pass is what its style says wins
 function roamPlan(e, Rc0, tg, act, last){
   let best = null, bc = 1e300;
-  const lim = HALO.TURN*HALO.LOOP_OM, r = e.v/lim, back = V.mul(e.h, -1);
-  for (let k=0;k<16;k++){
-    const style = roamStyle(tg), south = hrnd() < 0.5, Rc = passR(tg, act, style);
-    const sd = V.norm(perpTo(rdir(hrnd), e.h)), w = 2*r*(1 + 0.35*hrnd()), P0 = V.add(V.add(e.p, V.mul(sd, w)), V.mul(e.h, (hrnd() - 0.5)*0.6*w));
-    const di = rotToward(back, V.add(back, V.norm(perpTo(rdir(hrnd), back))), 0.3*hrnd()), g = passFrom(P0, di, Rc);
-    if (!g) continue;
-    const seed = S_.seedN++, plan = timePass(tg, act, 'roam', g, Rc, seed, { style, south, Tf:roamTf(), last, slowIn:true, slowOut:!last }), L = loopCurve(e, plan);
-    if (L.low < Math.min(Rc0, Rc)*0.85) continue;
-    const cost = Math.max(L.rate/lim, 0.7) + 0.02*L.L/Rc + (plan.styleOk ? 0 : 0.8) + (L.rate > HALO.TURN ? 5 : 0) + 0.3*hrnd();
+  const lim = HALO.TURN*HALO.LOOP_OM, r = e.v/lim;
+  // (a second round of wider turns when none of the first turns gently enough)
+  for (let k=0;k<32;k++){
+    if (k === 16 && best && best.rate <= HALO.TURN) break;
+    const style = act === 'skim' ? null : roamStyle(tg), south = hrnd() < 0.5, wk = k < 16 ? 1 : 1.6;
+    const sd = V.norm(perpTo(rdir(hrnd), e.h)), w = 2*r*wk*(1 + 0.35*hrnd()), T = V.add(V.add(e.p, V.mul(sd, w)), V.mul(e.h, (hrnd() - 0.5)*0.6*w)), LT = V.len(T);
+    const plan = planVisit(tg, 'roam', V.mul(T, -1/LT), null, act, S_.seedN++, { style, south, Tf:roamTf(), last, slowIn:true, slowOut:!last, L1:LT }), L = loopCurve(e, plan);
+    if (L.low < Math.min(Rc0, plan.Rc)*0.85) continue;
+    const cost = Math.max(L.rate/lim, 0.7) + 0.02*L.L/Rc0 + (plan.styleOk ? 0 : 0.8) + (L.rate > HALO.TURN ? 5 : 0) + 0.3*hrnd();
     if (cost < bc){ bc = cost; best = L; }
   }
+  if (best) S_.lastStyle = best.plan.style;
   return best;
 }
 // at the end of a pass that is not the last: the next job when its turn has come (not while Pip is still out), and the loop to the next pass.
@@ -412,9 +397,13 @@ function startLoop(){
   const pl = S_.plan, e = passAt(pl, pl.T), tg = S_.target, st = S_.stay;
   if (S_.act && !jobBusy()){ if (S_.act.end) S_.act.end(); S_.act = null; }
   let act = 'cruise';
-  if (!jobBusy() && st.jobs.length && st.n >= st.jobAt){ act = st.jobs.shift(); st.jobAt = st.n + 2; }
-  // (a round, a loop and a pass, takes about 35 s: the stay ends within half a round of its length)
-  const last = !st.jobs.length && st.t + 1.5*35 > st.dur, L = roamPlan(e, pl.Rc, tg, act, last);
+  if (!jobBusy() && st.jobs.length && st.n >= st.jobAt){ act = st.jobs.shift(); st.jobAt = st.n + 1; }
+  // (a round, a loop and a pass, as long as the rounds so far, about 45 s before there are any: the stay ends within half a round of its length)
+  if (st.n === 1) st.t1 = st.t;
+  const R = st.n >= 2 ? (st.t - st.t1)/(st.n - 1) : 45, last = !st.jobs.length && st.t + 1.5*R > st.dur;
+  let L = roamPlan(e, pl.Rc, tg, act, last);
+  // (a job whose pass cannot be reached by a gentle loop, a skim that must graze the surface most often, waits for the next one, or is left)
+  if (act !== 'cruise' && (!L || L.rate > 1.25*HALO.TURN)){ st.jobs.unshift(act); act = 'cruise'; L = roamPlan(e, pl.Rc, tg, act, last); }
   // (no loop fits: it moves on from here)
   if (!L){ if (act !== 'cruise') st.jobs.unshift(act); startAlign(); return; }
   S_.loop = L; S_.phase = 'loop'; S_.t = 0;
