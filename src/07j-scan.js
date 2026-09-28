@@ -6,7 +6,8 @@
 // hexagon, Olympus Mons...), each named by a small label; a thin fan of light joins the ship's scan array to the ring. As the ring reaches
 // the far pole a line traces the rim, and the readout gives real numbers (size, gravity, a day). Stars: the sweep runs over the photosphere.
 // Black holes: the rings run round a shell just outside the shadow and are never drawn inside it; the rim trace is the shadow's edge.
-// Nebulae and clusters: a grid shell round the heart. Galaxies: a scan line across the disc, a polar grid behind it in the disc's plane.
+// Nebulae and clusters: a grid shell round the heart. Galaxies: a flattened shell round the disc, swept along the ship's track (seen face-on
+// its grid is rings and spokes, seen edge-on a lens). At the end the numbers also show for a moment at the bottom of the screen (a toast).
 // The ring and the grid are a hologram drawn pixel by pixel (FS_HOLO) right after the body itself (its drawBefore, while the job runs), so it
 // lies exactly on the drawn surface, stops exactly at its rim, and anything nearer (the Halo, a moon, Saturn's rings) still covers it. Its lines
 // are about one character wide and cover part of what is under them, so they keep their colour over a bright planet. Brackets and the fan
@@ -24,11 +25,14 @@ const SC_RING = [0.8, 0.96, 1], SC_GRID = [0.36, 0.82, 1], SC_BRK = [0.72, 0.96,
 // Titan, their gravity from GM/R^2). Jupiter's turn is System III (9 h 55 min 29.7 s); Saturn's inner turn is from Cassini's ring seismology
 // (Mankovich et al. 2019: 10 h 33 min 38 s, give or take a minute or two, so "about"). Ceres: Dawn (Park et al. 2016; NASA: 939.4 km, 9.074 h),
 // gravity from GM 62.63 km^3/s^2. Halley: the Giotto images (Keller et al. 1986). The Sun: NASA's Sun fact sheet (695,700 km, 274 m/s^2,
-// 25.38 days at the equator) and the IAU's 5,772 K. Stars: the radii and temperatures the atlas draws them with (o12-stars.js, o13-betelgeuse.js:
+// a turn in 25.38 days, the Carrington period: its equator turns a little faster, its poles slower) and the IAU's 5,772 K. Stars: the radii
+// and temperatures the atlas draws them with (o12-stars.js, o13-betelgeuse.js:
 // Kervella et al. 2017 for Alpha Centauri A and Proxima, Kervella et al. 2003 and Bond et al. 2017 for Sirius, Agol et al. 2021 and Mann et al. 2019
 // for TRAPPIST-1, Ohnaka et al. 2013 for Antares, Joyce et al. 2020 for Betelgeuse). SGR 1806-20: its spin (Kouveliotou et al. 1998, 7.5 s)
 // and field; its size is a typical neutron star's. Black holes, nebulae, clusters and galaxies: the numbers their own readouts and facts in this
-// atlas give (the Event Horizon Telescope for M87* and Sgr A*, GRAVITY for Sgr A*'s mass, NASA and ESA for the rest). Uncertain ones say "about".
+// atlas give (the Event Horizon Telescope for M87* and Sgr A*, GRAVITY for Sgr A*'s mass, NASA and ESA for the rest); the Antennae's distance
+// is uncertain (about 45 million light-years from its supernovae, Schweizer et al. 2008; 65 million from its redshift), so a range. Uncertain
+// ones say "about".
 const SCAN_FACTS = {
   earth:['12,756 km wide', 'gravity 9.8 m/s²', 'turns once in 23 h 56 min 4 s'],
   moon:['3,475 km wide', 'gravity 1.62 m/s²', 'turns once in 27.3 days'],
@@ -40,7 +44,7 @@ const SCAN_FACTS = {
   europa:['3,122 km wide', 'gravity 1.31 m/s²', 'turns once in 3.55 days'],
   ceres:['939 km wide', 'gravity 0.28 m/s²', 'turns once in 9 h 4 min'],
   halley:['nucleus about 15 km long', 'one lap of the Sun in 76 years'],
-  sun:['1.39 million km wide', 'surface 5,772 K (5,500 °C)', 'gravity 274 m/s²', 'turns once in 25.4 days at its equator'],
+  sun:['1.39 million km wide', 'surface 5,772 K (5,500 °C)', 'gravity 274 m/s²', 'turns once in about 25 days'],
   alphacen:['1.7 million km wide', 'surface 5,790 K', '1.1 times the Sun\'s mass'],
   proxima:['215,000 km wide', 'surface 3,042 K', '0.12 times the Sun\'s mass'],
   sirius:['2.4 million km wide', 'surface 9,940 K', '2.1 times the Sun\'s mass'],
@@ -57,7 +61,7 @@ const SCAN_FACTS = {
   catseye:['central star about 80,000 K', 'a shell every 1,500 years or so'],
   hltau:['disc about 240 AU across', 'gaps at 13 to 81 AU from the star'],
   omegacen:['about 150 light-years across', 'about 10 million stars'],
-  sn1987a:['168,000 light-years away', 'a star of about 20 Suns exploded in 1987'],
+  sn1987a:['168,000 light-years away', 'its star, about 20 Suns, was seen to explode in 1987'],
   casa:['about 10 light-years across', 'debris flying out at up to 14,000 km/s'],
   bubble:['7 light-years wide', 'its star is about 45 times the Sun\'s mass'],
   southernring:['about half a light-year across', '2,500 light-years away'],
@@ -67,7 +71,7 @@ const SCAN_FACTS = {
   '3c273':['2.4 billion light-years away', 'jet about 200,000 light-years long'],
   andromeda:['about 220,000 light-years across', 'about a trillion stars'],
   m51:['76,000 light-years across', '31 million light-years away'],
-  antennae:['two spiral galaxies colliding', '600 million years replayed in a minute'],
+  antennae:['NGC 4038 and NGC 4039, two spirals colliding', 'about 45 to 65 million light-years away'],
   milkyway:['about 100,000 light-years across', 'about 200 billion stars'],
   lmc:['about 14,000 light-years across', '163,000 light-years away'],
   m104:['50,000 light-years across', '31 million light-years away'],
@@ -82,13 +86,14 @@ const SCAN_OBL = { jupiter:0.0649 };
 // the shell round a cloud's heart (or round Halley's nucleus, which has no round surface), as a share of its bounding radius
 const SCAN_SHELL = { halley:0.95, pillars:0.72, crab:0.62, catseye:0.45, omegacen:0.5, pleiades:0.55, casa:0.6, bubble:0.5, southernring:0.7, sn1987a:0.45,
   etacar:0.55, hltau:0.7, rsoph:0.7, galcentre:0.35, '3c273':0.25, magnetar:0.7, antennae:0.45 };
-// galaxies drawn as a disc in their local xz plane: the share of the bounding radius the scan covers
-const SCAN_DISC = { andromeda:0.62, m51:0.7, milkyway:0.62, lmc:0.7, m104:0.75 };
-// kind: 0 a solid surface (planet, moon, star), 1 a shell round a cloud, 2 a shell round a black hole, 3 a galaxy's disc
+// galaxies drawn as a disc in their local xz plane: the share of the bounding radius the scan covers, and the shell's thickness (a flattened
+// shell wraps the disc: seen face-on its grid is rings and spokes, seen edge-on a lens)
+const SCAN_DISC = { andromeda:0.62, m51:0.7, milkyway:0.62, lmc:0.7, m104:0.75 }, SCAN_LENS = 0.16;
+// kind: 0 a solid surface (planet, moon, star), 1 a shell round a cloud, 2 a shell round a black hole, 3 a flattened shell round a galaxy's disc
 function scanShape(tg, axisT){
   const C = tg.rel, sh = { C, tg };
   if (isHoleTarget(tg)){ const r = tg.holeR*2; return Object.assign(sh, { kind:2, hole:true, hr:tg.holeR, R:tg.rot, a:r, b:r, real:true }); }
-  if (SCAN_DISC[tg.key]) return Object.assign(sh, { kind:3, disc:true, R:tg.rot, a:tg.rad*SCAN_DISC[tg.key]*magOf(tg), b:0, real:true });
+  if (SCAN_DISC[tg.key]){ const a = tg.rad*SCAN_DISC[tg.key]*magOf(tg); return Object.assign(sh, { kind:3, disc:true, R:tg.rot, a, b:a*SCAN_LENS, real:true }); }
   const s = SCAN_SHELL[tg.key] ? 0 : surfDrawn(tg);
   if (s > 0){
     const real = SCAN_AXIS.has(tg.key), ob = SCAN_OBL[tg.key] || 0;
@@ -97,15 +102,17 @@ function scanShape(tg, axisT){
   const r = tg.rad*(SCAN_SHELL[tg.key] || 0.6)*magOf(tg);
   return Object.assign(sh, { kind:1, cloud:true, R:axisT, a:r, b:r, real:false });
 }
-// a point on a globe (latitude la, longitude lo in its frame, longitude growing toward local -z as in bodyFrame), camera-relative, and its
-// outward normal (world axes). For a spheroid la is the parametric latitude, as Jupiter's shader has it.
-function globePt(sh, la, lo, out){
-  const c = Math.cos(la), q0 = sh.a*c*Math.cos(lo), q1 = sh.b*Math.sin(la), q2 = -sh.a*c*Math.sin(lo), R = sh.R, C = sh.C;
-  out.p[0] = C[0] + R[0]*q0 + R[3]*q1 + R[6]*q2; out.p[1] = C[1] + R[1]*q0 + R[4]*q1 + R[7]*q2; out.p[2] = C[2] + R[2]*q0 + R[5]*q1 + R[8]*q2;
-  const n0 = q0/(sh.a*sh.a), n1 = q1/(sh.b*sh.b), n2 = q2/(sh.a*sh.a), nx = R[0]*n0 + R[3]*n1 + R[6]*n2, ny = R[1]*n0 + R[4]*n1 + R[7]*n2, nz = R[2]*n0 + R[5]*n1 + R[8]*n2;
+// a point of the shape from a point (q0, q1, q2) of the unit sphere it is scaled from (its own frame), camera-relative, and its outward normal
+// (world axes); and the same from a latitude and longitude (longitude growing toward local -z as in bodyFrame; for a spheroid the parametric
+// latitude, as Jupiter's shader has it)
+function shapePt(sh, q0, q1, q2, out){
+  const x = sh.a*q0, y = sh.b*q1, z = sh.a*q2, R = sh.R, C = sh.C;
+  out.p[0] = C[0] + R[0]*x + R[3]*y + R[6]*z; out.p[1] = C[1] + R[1]*x + R[4]*y + R[7]*z; out.p[2] = C[2] + R[2]*x + R[5]*y + R[8]*z;
+  const n0 = q0/sh.a, n1 = q1/sh.b, n2 = q2/sh.a, nx = R[0]*n0 + R[3]*n1 + R[6]*n2, ny = R[1]*n0 + R[4]*n1 + R[7]*n2, nz = R[2]*n0 + R[5]*n1 + R[8]*n2;
   const nl = Math.hypot(nx, ny, nz) || 1; out.n[0] = nx/nl; out.n[1] = ny/nl; out.n[2] = nz/nl;
   return out;
 }
+const globePt = (sh, la, lo, out) => { const c = Math.cos(la); return shapePt(sh, c*Math.cos(lo), Math.sin(la), -c*Math.sin(lo), out); };
 // how squarely a point on the shape faces the camera (1 straight on, 0 at the limb, < 0 on the far side)
 const facing = (p, n) => -(p[0]*n[0] + p[1]*n[1] + p[2]*n[2])/(Math.hypot(p[0], p[1], p[2]) || 1);
 // in a black hole's shadow as seen from the camera (the line of sight passes within the shadow's radius of the hole, beyond the camera):
@@ -116,35 +123,39 @@ function inShadow(p, C, hr){
 }
 
 // ---------------------------------------------------------------- the hologram, pixel by pixel
-// Local frame: +y the sweep's axis, the bounding sphere 1 (the volume is drawn a little larger than the globe, so the rim trace fits).
-// uP0: xy the globe's equatorial and polar radii (a disc: x its radius), z the ring's height along the axis (-1 the far end, 1 the first;
-//      a disc: along the sweep's axis in its plane), w the sweep's direction (1 or -1: which end is first)
-// uP1: x the job's clock, y when the ring leaves the first pole (SW0), z how long it takes (SWT), w HOLD
-// uP2: x FADE, y the kind (0 solid, 1 a cloud's shell, 2 a hole's shell, 3 a disc), z a hole's shadow radius, w the rim trace (0 to 1)
+// Local frame: the shape's own (+y its axis), the bounding sphere 1 (the volume is drawn a little larger than the shape, so the rim trace fits).
+// The sweep runs along an axis of its own (a planet's: its axis; a galaxy's: the ship's track, flattened onto the disc): the ring is where the
+// plane square to it cuts the shape, and "height" is along it, -1 to 1 across the shape.
+// uP0: xy the shape's equatorial and polar radii, z the ring's height, w the sweep's direction (1 or -1: which end is first)
+// uP1: x the job's clock, y when the ring leaves the first end (SW0), z how long it takes (SWT), w HOLD
+// uP2: x FADE, y the kind (0 solid, 1 a cloud's shell, 2 a hole's shell, 3 a galaxy's), z a hole's shadow radius, w the rim trace (0 to 1)
 // uP3: x, y the grid's spacing in latitude and longitude (radians), z the grid's brightness, w the ring's (0 when it is not sweeping)
 // uP4: Saturn's rings, in front of the planet: x, y their inner and outer radius, z 1 when there are any; w the reduced-motion flag
-// uM0 column 0: a disc's sweep axis in its plane (x, z); column 1: how much of what is under them the lines cover, how much the swept surface is dimmed
+// uM0 column 0: the sweep's axis in the unit sphere the shape is scaled from (height = dot(q, it)); column 1: how much of what is under them
+// the lines cover, how much the swept surface is dimmed
 const FS_HOLO = COMMON + `
 float lineAA(float d, float w){ return 1. - smoothstep(0.5*w, 1.5*w, d); }
 float wakeAt(float dt){ return dt < 0. ? 0. : (0.6 + 0.9*exp(-dt/0.3))*(1. - smoothstep(uP1.w, uP1.w + uP2.x, dt)); }
 float passAt(float s){ return uP1.y + uP1.z*acos(clamp(uP0.w*s, -1., 1.))/PI; }
 const vec3 RINGC = vec3(0.62, 0.93, 1.), GRIDC = vec3(0.36, 0.82, 1.), CYANC = vec3(0.4, 0.85, 1.);
-// the hologram at a point q of the globe scaled to a unit sphere (w: this side's share, 1 in front, less for the far side of a shell)
-void globeAt(vec3 q, float wla, float wmg, float w, inout vec3 col, inout float al){
-  float s = q.y, la = asin(clamp(s, -1., 1.)), tau = uP1.x, dir = uP0.w, wk = wakeAt(tau - passAt(s));
+// the hologram at a point q of the unit sphere the shape is scaled from: its height along the sweep h, how fast its latitude, the distance to
+// the nearest meridian and the height's angle change from one pixel to the next (wla, wmg, wh), and this side's share w (1 in front, less
+// for the far side of a shell)
+void globeAt(vec3 q, float h, float wla, float wmg, float wh, float w, inout vec3 col, inout float al){
+  float la = asin(clamp(q.y, -1., 1.)), tau = uP1.x, dir = uP0.w, wk = wakeAt(tau - passAt(h));
   float lo = atan(-q.z, q.x), shim = uP4.w > 0.5 ? 1. : 0.8 + 0.2*sin(tau*2.4 + la*9. + lo*3.);
-  // the grid: latitude lines and meridians (their distance from this point, and how far that changes from one pixel to the next: w*)
+  // the grid: latitude lines and meridians, in the shape's own frame
   float dLa = uP3.x, dLo = uP3.y;
   float gl = lineAA(abs(la - dLa*floor(la/dLa + 0.5)), 2.2*wla)*step(abs(la), 1.45);
-  float lk = dLo*floor(lo/dLo + 0.5), gm = lineAA(abs(q.x*sin(lk) + q.z*cos(lk)), 2.2*wmg)*smoothstep(0.985, 0.93, abs(s));
+  float lk = dLo*floor(lo/dLo + 0.5), gm = lineAA(abs(q.x*sin(lk) + q.z*cos(lk)), 2.2*wmg)*smoothstep(0.985, 0.93, abs(q.y));
   float g = max(gl, gm)*wk*uP3.z*shim*w;
   // (the lines cover part of what is under them, uM0[1].x; the swept surface is dimmed a little while the grid glows on it, uM0[1].y, so the
   // lines stand out on a bright planet, or on the near side of a hole's shell in front of its bright disk)
   col += GRIDC*g; al = max(al, max(uM0[1].x*min(g, 1.), uM0[1].y*min(wk, 1.)*step(0.5, w)));
   // the ring: a bright line about a character wide where the plane cuts the surface, and a short cyan wake behind it (the swept side)
   if(uP3.w > 0.){
-    float laR = asin(clamp(uP0.z, -1., 1.)), dr = la - laR, back = dir*dr;
-    float core = lineAA(abs(dr), 1.9*wla), tail = back > 0. ? exp(-back/(5.*wla)) : 0.;
+    float dr = asin(clamp(h, -1., 1.)) - asin(clamp(uP0.z, -1., 1.)), back = dir*dr;
+    float core = lineAA(abs(dr), 1.9*wh), tail = back > 0. ? exp(-back/(5.*wh)) : 0.;
     float r = (core*2. + tail*0.45)*uP3.w*w;
     col += (RINGC*core*2. + CYANC*tail*0.45)*uP3.w*w; al = max(al, min(r, 1.)*0.65);
   }
@@ -153,45 +164,31 @@ void main(){
   vec3 o, d; localRay(o, d);
   float kind = uP2.y;
   vec3 col = vec3(0.); float al = 0.;
-  if(kind > 2.5){
-    // a galaxy's disc (local xz): the scan line where the plane cuts it, a polar grid behind it
-    float t = abs(d.y) > 1e-5 ? -o.y/d.y : -1.;
-    vec3 p = o + d*max(t, 0.);
-    float R = uP0.x, r = length(p.xz)/R, ph = atan(p.z, p.x), x = dot(p.xz/R, uM0[0].xy);
-    float wr = min(fwidth(r), 0.05), wx = min(fwidth(x), 0.05), tau = uP1.x, wk = wakeAt(tau - passAt(x));
-    float gr = lineAA(abs(r - 0.2*floor(r/0.2 + 0.5)), 2.2*wr)*step(0.1, r);
-    float pk = 0.5236*floor(ph/0.5236 + 0.5), dsp = abs(-p.x*sin(pk) + p.z*cos(pk))/R, gs = lineAA(dsp, 2.2*min(fwidth(dsp), 0.05))*step(0.12, r);
-    float in_ = t > 0. ? smoothstep(1.02, 0.96, r) : 0., shim = uP4.w > 0.5 ? 1. : 0.8 + 0.2*sin(tau*2.4 + r*9. + ph*3.);
-    float g = max(gr, gs)*wk*uP3.z*shim*in_;
-    col += GRIDC*g; al = max(al, uM0[1].x*min(g, 1.));
-    if(uP3.w > 0.){ float dr = x - uP0.z, back = uP0.w*dr, core = lineAA(abs(dr), 2.6*wx), tail = back > 0. ? exp(-back/(7.*wx)) : 0.;
-      col += (RINGC*core*1.6 + CYANC*tail*0.45)*uP3.w*in_; al = max(al, min(core*1.6 + tail*0.45, 1.)*0.5*uP3.w*in_); }
-    outCol(col, al); return;
-  }
-  // a globe: scaled to a unit sphere (a spheroid becomes one)
-  vec3 sc = vec3(uP0.x, uP0.y, uP0.x), os = o/sc, ds = normalize(d/sc);
+  // scaled to a unit sphere (a spheroid becomes one)
+  vec3 sc = vec3(uP0.x, uP0.y, uP0.x), os = o/sc, ds = normalize(d/sc), M = uM0[0];
   float b = dot(os, ds), c = dot(os, os) - 1., h = b*b - c, sq = sqrt(max(h, 0.));
   float t0 = -b - sq, t1 = -b + sq;
   // (every pixel works out the same things before any is left out: the pixel-to-pixel changes need all four of each little square)
   vec3 qf = normalize(os + ds*max(t0, 0.)), qb = normalize(os + ds*max(t1, 0.));
-  float laF = asin(clamp(qf.y, -1., 1.)), laB = asin(clamp(qb.y, -1., 1.));
-  float wF = min(fwidth(laF), 0.06), wB = min(fwidth(laB), 0.06);
+  float hF = dot(qf, M), hB = dot(qb, M);
+  float wF = min(fwidth(asin(clamp(qf.y, -1., 1.))), 0.06), wB = min(fwidth(asin(clamp(qb.y, -1., 1.))), 0.06);
+  float whF = min(fwidth(asin(clamp(hF, -1., 1.))), 0.06), whB = min(fwidth(asin(clamp(hB, -1., 1.))), 0.06);
   float lkF = uP3.y*floor(atan(-qf.z, qf.x)/uP3.y + 0.5), lkB = uP3.y*floor(atan(-qb.z, qb.x)/uP3.y + 0.5);
   float wmF = min(fwidth(qf.x*sin(lkF) + qf.z*cos(lkF)), 0.06), wmB = min(fwidth(qb.x*sin(lkB) + qb.z*cos(lkB)), 0.06);
   // the ray's closest pass by the surface (below 0 it hits), for the rim trace
   float m = length(cross(os, ds)) - 1., wm = min(fwidth(m), 0.05);
   // a black hole: nothing inside its shadow (the ray's impact parameter under the shadow's radius)
-  float bi = length(cross(o, d)), hole = kind > 1.5 ? step(uP2.z*1.03, bi) : 1.;
+  float bi = length(cross(o, d)), hole = kind > 1.5 && kind < 2.5 ? step(uP2.z*1.03, bi) : 1.;
   bool hit = h > 0. && t1 > 0.;
   if(hit && t0 > 0.){
     float wf = 1.;
     // (Saturn: its rings in front of the planet cover it)
     if(uP4.z > 0.5 && abs(d.y) > 1e-5){ float tr = -o.y/d.y; vec3 pr = o + d*tr; float rr = length(pr.xz);
       if(tr > 0. && tr < length((os + ds*t0)*sc - o)) wf *= 1. - 0.85*smoothstep(uP4.x, uP4.x*1.02, rr)*smoothstep(uP4.y, uP4.y*0.99, rr); }
-    globeAt(qf, wF, wmF, wf*hole, col, al);
+    globeAt(qf, hF, wF, wmF, whF, wf*hole, col, al);
   }
-  // a shell (not a solid surface): its far side too, dimmer
-  if(hit && kind > 0.5) globeAt(qb, wB, wmB, 0.3*hole, col, al);
+  // a shell (not a solid surface): its far side too, dimmer (a galaxy's flattened shell most of all, or its two faces' grids would crowd together)
+  if(hit && kind > 0.5) globeAt(qb, hB, wB, wmB, whB, (kind > 2.5 ? 0.15 : 0.3)*hole, col, al);
   // the rim trace (a hole's: the edge of its shadow)
   if(uP2.w > 0.){ float e = kind > 1.5 ? lineAA(abs(bi - uP2.z*1.03), 1.9*min(fwidth(bi), 0.05)) : lineAA(abs(m), 1.9*wm);
     col += RINGC*e*1.3*uP2.w; al = max(al, e*0.5*uP2.w); }
@@ -303,6 +300,9 @@ ACT.scan = pl => {
     if (on > 0) S_.em[0] = on*(0.7 + 0.15*Math.sin(tau*7));
     // (brackets lock here, every tick, so when they lock never depends on which frames are drawn: the camera and the places are the last tick's)
     if (spots.length && live()){ const g = A.geo(); if (g.u > -0.1) lockSpots(g); }
+    // as the ring reaches the far end, the numbers also show for a moment at the bottom of the screen (on a phone the readout is folded away
+    // in the card); not while a showcase's caption is being written there
+    if (!A.told && sweepU(tau) >= 1 && live()){ A.told = true; if (riding() && facts.length && !SHOWCAP.txt) toast(tg.name + ' scanned · ' + facts.join(' · ')); }
   };
   A.env = () => env(A.tau, T);
   A.line = () => {
@@ -318,33 +318,39 @@ ACT.scan = pl => {
   const prevDB = Object.prototype.hasOwnProperty.call(tg, 'drawBefore') ? tg.drawBefore : undefined, holoDB = function(vis){ if (prevDB) prevDB.call(this, vis); drawHolo(); };
   tg.drawBefore = holoDB;
   A.end = () => { scanLabelsOff(); if (tg.drawBefore === holoDB){ if (prevDB) tg.drawBefore = prevDB; else delete tg.drawBefore; } };
-  // this frame's geometry: the shape, the sweep's direction (chosen once, as the ring starts: from whichever end of its axis is higher on the
-  // screen, so it sweeps down) and how far it has gone
+  // this frame's geometry: the shape; the sweep's axis (sw, in the shape's own frame: its own axis, or for a galaxy the ship's track flattened
+  // onto its disc), the same in the unit sphere the shape is scaled from (mh: a point's height along the sweep is dot(q, mh)) and in world
+  // axes (ax); the sweep's direction (chosen once, as the ring starts: from whichever end of the axis is higher on the screen, so it sweeps
+  // down), how far it has gone (u) and the ring's height (s)
   A.geo = () => {
     const tau = A.tau;
     // (the sweep's frame, fixed as it starts: the body's own where it is real, else the ship's track)
     if (!A.axisT){ const h = S_.h, u = V.norm(V.sub(tg.rel, ship.rel)); let x = perpTo(u, h); x = V.len(x) > 1e-6 ? V.norm(x) : anyPerp(h); A.axisT = frameY(h, x); }
     const sh = scanShape(tg, A.axisT);
     if (sh.disc && !A.dAx){ const R = sh.R, n = [R[3], R[4], R[5]]; let w = perpTo(S_.h, n); w = V.len(w) > 1e-6 ? V.norm(w) : anyPerp(n); const l = M3.applyT(R, w), k = Math.hypot(l[0], l[2]) || 1; A.dAx = [l[0]/k, l[2]/k]; }
-    const ax = sh.disc ? M3.apply(sh.R, [A.dAx[0], 0, A.dAx[1]]) : [sh.R[3], sh.R[4], sh.R[5]];
+    const sw = sh.disc ? [A.dAx[0], 0, A.dAx[1]] : [0, 1, 0], m = [sw[0]*sh.a, sw[1]*sh.b, sw[2]*sh.a], ext = Math.hypot(m[0], m[1], m[2]);
+    const ax = M3.apply(sh.R, sw);
     if (!A.dir && tau >= SCAN.SW0 - 0.5) A.dir = V.dot(ax, cam.up) >= 0 ? 1 : -1;
     const dir = A.dir || 1, u = sweepU(tau);
-    return { sh, dir, u, s:dir*ringS(u), ax };
+    return { sh, dir, u, s:dir*ringS(u), ax, sw, mh:[m[0]/ext, m[1]/ext, m[2]/ext], ext };
   };
+  // a point of the ring at height s (t: 0 to 1 round it), camera-relative, and its normal (into out)
+  const ringPt = (g, s, t, out) => { const r = Math.sqrt(Math.max(1 - s*s, 0)), e1 = anyPerp(g.mh), e2 = V.cross(g.mh, e1), c = Math.cos(t*6.2832)*r, n = Math.sin(t*6.2832)*r;
+    return shapePt(g.sh, s*g.mh[0] + c*e1[0] + n*e2[0], s*g.mh[1] + c*e1[1] + n*e2[1], s*g.mh[2] + c*e1[2] + n*e2[2], out); };
   const live = () => S_.act === A && (S_.phase === 'pass' || S_.phase === 'align') && ship.dist < ship.labelRange && A.tau > -0.2 && A.tau < T + 0.5;
   // ---------------------------------------------------------------- the hologram (FS_HOLO)
   function drawHolo(){
     if (!live() || SCAN_DBG.noHolo) return;
     const g = A.geo(), sh = g.sh, tau = A.tau; if (g.u < -0.1) return;
-    const B = (sh.disc ? sh.a : Math.max(sh.a, sh.b))*1.08, rpx = sh.a/Math.max(V.len(sh.C), sh.a*1.001)/tanY*sceneH*0.5;
+    const B = Math.max(sh.a, sh.b)*1.08, rpx = sh.a/Math.max(V.len(sh.C), sh.a*1.001)/tanY*sceneH*0.5;
     const ue = tau - SCAN.SW0 - SCAN.SWT, rim = sh.cloud || sh.disc ? 0 : smooth(-0.1, 0.25, ue)*(1 - smooth(0.9, 1.8, ue));
     const ring = g.u > 0 && g.u < 1 ? 1 - 0.5*Math.pow(Math.abs(g.s), 16) : 0;
     const dLa = (rpx < 40 ? 45 : 30)*DEG, dLo = (rpx < 40 ? 60 : 30)*DEG;
     // (Saturn's dense rings, which cover the planet where they are in front of it: 1.24 to 2.27 of its radius, as FS_PLANET draws them)
     const sat = tg === BYKEY.saturn, RPb = sh.a/B;
     const U = A.holoU = { p0:[sh.a/B, sh.b/B, g.s, g.dir], p1:[tau, SCAN.SW0, SCAN.SWT, SCAN.HOLD], p2:[SCAN.FADE, sh.kind, (sh.hr || 0)/B, rim],
-      p3:[dLa, dLo, (sh.solid ? 1.35 : 1.0)*(tg.starR || sh.hole ? 1.6 : 1), ring*(tg.starR || sh.hole ? 1.3 : 1)], p4:[sat ? 1.24*RPb : 0, sat ? 2.27*RPb : 0, sat ? 1 : 0, reduceMotion ? 1 : 0], ax:A.dAx || [1, 0], cov:sh.solid ? [0.65, 0.3] : sh.hole ? [0.85, 0.5] : [0.55, 0], B, C:sh.C.slice(), R:sh.R.slice() };
-    const M = [U.ax[0], U.ax[1], 0, U.cov[0], U.cov[1], 0, 0, 0, 0];
+      p3:[dLa, dLo, (sh.solid ? 1.35 : 1.0)*(tg.starR || sh.hole ? 1.6 : 1), ring*(tg.starR || sh.hole ? 1.3 : 1)], p4:[sat ? 1.24*RPb : 0, sat ? 2.27*RPb : 0, sat ? 1 : 0, reduceMotion ? 1 : 0], mh:g.mh, cov:sh.solid ? [0.65, 0.3] : sh.hole ? [0.85, 0.5] : [0.55, 0], B, C:sh.C.slice(), R:sh.R.slice() };
+    const M = [U.mh[0], U.mh[1], U.mh[2], U.cov[0], U.cov[1], 0, 0, 0, 0];
     if (drawVolume(tg, P.scanHolo, sh.C, B, pr => { gl.uniform4fv(pr.u.uP0, U.p0); gl.uniform4fv(pr.u.uP1, U.p1); gl.uniform4fv(pr.u.uP2, U.p2); gl.uniform4fv(pr.u.uP3, U.p3); gl.uniform4fv(pr.u.uP4, U.p4); gl.uniformMatrix3fv(pr.u.uM0, false, M); }, sh.R, 1)) SCAN_DBG.holo++;
   }
   // ---------------------------------------------------------------- lines: the ping, the fan, a spark at the far pole, brackets
@@ -360,25 +366,19 @@ ACT.scan = pl => {
     // the fan from the scan array to the ring: a few thin lines to points of the ring the array and the camera can both see
     if (ringOn && (camNear() || (onScreen(E) && !behindHull(E)))){
       const pts = [], fk = smooth(0, 0.08, u)*(1 - smooth(0.92, 1, u));
-      if (sh.disc){ const h = Math.sqrt(Math.max(1 - g.s*g.s, 0)); for (let k=0;k<5;k++) pts.push(discPt(sh, g.s, (-0.8 + 0.4*k)*h)); }
-      else { const laR = Math.asin(clamp(g.s, -1, 1)); for (let k=0;k<64;k++){ globePt(sh, laR, k/64*6.2832, P1); if (V.dot(V.sub(E, P1.p), P1.n) > 0 && facing(P1.p, P1.n) > 0.08 && !(sh.hole && inShadow(P1.p, sh.C, sh.hr))) pts.push(P1.p.slice()); } }
+      for (let k=0;k<64;k++){ ringPt(g, g.s, k/64, P1); if (V.dot(V.sub(E, P1.p), P1.n) > 0 && facing(P1.p, P1.n) > 0.08 && !(sh.hole && inShadow(P1.p, sh.C, sh.hr))) pts.push(P1.p.slice()); }
       const K = Math.min(5, pts.length), occ = p => (sh.solid && behindSphere(p, sh.C, sh.a*0.998)) || behindHull(p) || (sh.hole && inShadow(p, sh.C, sh.hr));
       for (let k=0;k<K;k++) beamLine(E, pts[Math.floor((k + 0.5)*pts.length/K)], CYAN, 0.16*fk, occ, SC_RING, 0.45*fk, 10, ship.rad*0.25);
     }
-    // the ring closes at the far pole with a small spark
+    // the ring closes at the far end with a small spark
     const ue = tau - SCAN.SW0 - SCAN.SWT;
-    if (!sh.disc && ue > 0 && ue < 0.5){ globePt(sh, -g.dir*Math.PI/2, 0, P1); if ((facing(P1.p, P1.n) > 0 || !sh.solid) && !behindHull(P1.p) && !(sh.hole && inShadow(P1.p, sh.C, sh.hr))) P_(P1.p, SC_RING, 1.3*(1 - ue/0.5), -4); }
+    if (ue > 0 && ue < 0.5){ ringPt(g, -g.dir, 0, P1); if ((facing(P1.p, P1.n) > 0 || !sh.solid) && !behindHull(P1.p) && !(sh.hole && inShadow(P1.p, sh.C, sh.hr))) P_(P1.p, SC_RING, 1.3*(1 - ue/0.5), -4); }
     drawSpots(g);
     A.nl = FXB.nl - d0 + SCB.nl - s0; A.np = FXB.np - p0;
   };
-  // a point of a disc: x along the sweep's axis in its plane, y square to it (units of its radius), camera-relative
-  function discPt(sh, x, y){
-    const ex = A.dAx, R = sh.R, C = sh.C, lx = (ex[0]*x - ex[1]*y)*sh.a, lz = (ex[1]*x + ex[0]*y)*sh.a;
-    return [C[0] + R[0]*lx + R[6]*lz, C[1] + R[1]*lx + R[7]*lz, C[2] + R[2]*lx + R[8]*lz];
-  }
 
   // ---------------------------------------------------------------- brackets on real features, once the ring has passed them
-  // a feature: where it is now (SPT.p, camera-relative), its height along the sweep (SPT.h: -1 to 1 along a globe's axis, or across a disc)
+  // a feature: where it is now (SPT.p, camera-relative), its height along the sweep (SPT.h, -1 to 1 across the shape)
   // and its half size (SPT.r); and whether it can be seen well: on a surface, facing the camera and not near the rim (the score is how squarely
   // it faces it); anywhere, in the picture, not behind the ship, not in a black hole's shadow, and another object only while it is drawn
   const SPT = { p:[0, 0, 0], h:0, r:0 };
@@ -394,8 +394,7 @@ ACT.scan = pl => {
     else { const l = typeof sp.local === 'function' ? sp.local(tg) : sp.local, R = tg.rot, C = tg.rel;
       SPT.p = [C[0] + (R[0]*l[0] + R[3]*l[1] + R[6]*l[2])*s, C[1] + (R[1]*l[0] + R[4]*l[1] + R[7]*l[2])*s, C[2] + (R[2]*l[0] + R[5]*l[1] + R[8]*l[2])*s]; }
     SPT.r = sp.r*s;
-    const d = V.sub(SPT.p, sh.C);
-    if (sh.disc){ const l = M3.applyT(sh.R, d); SPT.h = (l[0]*A.dAx[0] + l[2]*A.dAx[1])/sh.a; } else SPT.h = V.dot(d, [sh.R[3], sh.R[4], sh.R[5]])/sh.b;
+    SPT.h = V.dot(V.sub(SPT.p, sh.C), g.ax)/g.ext;
     return onScreen(SPT.p, 1.02) && !behindHull(SPT.p) && !(sh.hole && inShadow(SPT.p, sh.C, sh.hr)) ? 1 : -1;
   }
   // a bracket locks on once the ring has passed its feature, while the camera can see it

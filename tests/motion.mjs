@@ -241,9 +241,10 @@ const halo = await page.evaluate(HALO_SEED => {
     if (tau === 8.1) scan.said = SC.facts.jupiter.every(f => h.readout().includes(f));
   }
   // the table: numbers for every place the ship visits, and each size the body is drawn at (Saturn is drawn at its mean radius, 3% under its
-  // equatorial one, which the table gives)
+  // equatorial one, which the table gives; "2.4 million km" is rounded to 1%)
   for (const k of SC.targets) if (!(SC.facts[k] || []).length) scan.noFacts.push(k);
-  for (const [k, f] of Object.entries(SC.facts)){ const m = /^([\d,]+) km wide/.exec(f[0]), o = C.BYKEY[k]; if (!m || !o || !o.solid) continue; scan.sizes.push([k, +Math.abs(2*o.rad*o.solid*LYKM/+m[1].replace(/,/g, '') - 1).toFixed(4)]); }
+  for (const [k, f] of Object.entries(SC.facts)){ const m = /^([\d,.]+)( million)? km wide/.exec(f[0]), o = C.BYKEY[k]; if (!m || !o || !o.solid) continue;
+    scan.sizes.push([k, +Math.abs(2*o.rad*o.solid*LYKM/(+m[1].replace(/,/g, '')*(m[2] ? 1e6 : 1)) - 1).toFixed(4)]); }
   r.scan = scan;
   // a weapons test: blasts happen, and some seconds after the job every trace of them is gone
   // (only what the job made counts: the streak the ship leaves when it jumps away from the Moon later is also tied to the Moon)

@@ -82,7 +82,7 @@ function passR(tg, act){
   if (act === 'skim') return s*1.07;   // just above the cloud tops or the photosphere
   const k = act === 'weapons' ? 1.15 : act === 'scan' ? 1 : 1.08;
   if (tg.layer < 3) return tg.rad*1.05*k;   // a galaxy: along its edge
-  if (act === 'scan' && tg.starR) return s*2.6;   // (a star's scan: close enough for its disc to fill much of the view, however far its glow reaches)
+  if (act === 'scan' && s > 0 && (tg.starR || tg.group === 'stars')) return s*2.6;   // (a star's scan: close enough for its disc to fill much of the view, however far its glow reaches)
   return Math.max(s*2.3, tg.rad*1.35)*k;
 }
 
