@@ -436,7 +436,7 @@ function shieldUpdate(dt){
 ship.update = function(dt){
   if (!S_.plan){ S_.visits = 0; foldVisit(BYKEY.saturn); S_.t = 3; }
   if (S_.shPend != null) ship.shieldSwap();   // (a new shield look, once its shader has compiled in the background: setShield in 07-extras.js)
-  if (S_.hold){ shieldUpdate(dt); foldUpdate(dt); drone.ctl(dt); return; }   // (the showcase holds it still while the camera circles it, the hull still forming if it just folded in; on the site it never stops)
+  if (S_.hold){ shieldUpdate(dt); foldUpdate(dt); return; }   // (the showcase holds it still while the camera circles it, the hull still forming if it just folded in; on the site it never stops)
   // (a camera flying up to the ship: the ship carries on, but it will not jump until the camera has landed)
   const flying = !!(flight && flight.obj === ship);
   S_.t += dt;
@@ -463,7 +463,7 @@ ship.update = function(dt){
   S_.lsRun = S_.phase === 'light' ? S_.lsRun + dt*(0.5 + 1.6*S_.stretch) : S_.lsRun;
   S_.em = [0, 0, 0, 0]; S_.scoop = 0;
   if (S_.act) S_.act.update(dt, S_.t - S_.plan.tA);
-  drone.ctl(dt);   // (Pip, the drone: here and nowhere else, or it would move twice a tick)
+  // (Pip, the drone, moves after the camera has: drone.ctl in 07i-drone.js)
   fxUpdate(dt);
 };
 
@@ -522,7 +522,7 @@ ACT.scan = pl => {
 };
 // -- a probe: Pip, the ship's little drone (07i-drone.js), pops out of the belly bay, says hello, flies to the body, hovers there taking
 // pictures while it looks at it, flies home and docks (it launches 0.3 s into the job and is back aboard 11.9 s later). The drone moves and
-// draws itself (drone.ctl from ship.update, pipDraw from haloDraw); the job only keeps the time and says what is happening.
+// draws itself (drone.ctl after the camera moves, pipDraw from haloDraw); the job only keeps the time and says what is happening.
 ACT.probe = pl => {
   const T = ACTS.probe.T, A = { kind:'probe', tau:-9, tg:pl.tg, pl, t0:pl.tA + 0.3 };
   A.update = (dt, tau) => { A.tau = tau; };

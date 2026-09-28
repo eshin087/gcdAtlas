@@ -1193,6 +1193,7 @@ function tick(dt){
     applyOrbit();
     refocus(dt);
   }
+  for (const f of AFTER_CAM) f(dt);
   for (const o of OBJ){ o.rel = V.sub(frel(o), cam.rel); o.dist = V.len(o.rel); }
   updateSysMag(dt); updateSunOcc();
   if (cmp) placeCompare(dt);
