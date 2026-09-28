@@ -8,7 +8,7 @@ const P7_SEED = seed;
 
 // ---------------------------------------------------------------- Vesta: the brightest asteroid, with a crater as wide as itself at its south pole
 // orbit: osculating elements from JPL Horizons for 2026-09-27; pole and spin: IAU (WGCCRE 2015)
-const vesta = addRock({ key:'vesta', tags:['moons'], name:'Vesta', label:'Vesta', type:'asteroid · the brightest in our sky', shape:3, rad:310*KM, sizeR:262.7*KM, sortKey:2.36,
+const vesta = addRock({ key:'vesta', tags:['moons'], name:'Vesta', label:'Vesta', type:'asteroid · the brightest asteroid in our sky', shape:3, rad:310*KM, sizeR:262.7*KM, sortKey:2.36,
   el:{ a:2.361241, e:0.090230, i:7.143879, om:103.6998, w:151.4364, tp:2460901.4973 }, orbitCol:[0.55, 0.6, 0.78], R0:poleFrame(309.031, 42.235),
   farLum:0.5, farColor:[0.85, 0.82, 0.76], labelRange:1.5*AU_LY, pxMin:6,
   tick(){ this.rot = bodyFrame(309.031, 42.235, 285.39 + 1617.3329428*(jdNow() - 2451545)); },
@@ -21,8 +21,9 @@ const vesta = addRock({ key:'vesta', tags:['moons'], name:'Vesta', label:'Vesta'
   readout:() => `${heliocentric(vesta).toFixed(2)} AU from the Sun · 573 x 557 x 446 km\nRheasilvia is 505 km wide; its central peak rises about 22 km` });
 
 // ---------------------------------------------------------------- Bennu: the rubble pile OSIRIS-REx brought a sample home from
-// orbit: osculating elements from JPL Horizons for 2026-09-27; pole and spin period: JPL small-body database
-const bennu = addRock({ key:'bennu', tags:['moons'], name:'Bennu', label:'Bennu', type:'near-Earth asteroid · a spinning top of rubble', shape:4, rad:0.28*KM, sizeR:0.245*KM, sortKey:1.126,
+// orbit: osculating elements from JPL Horizons for 2026-09-27; pole and spin period: JPL small-body database; size: OSIRIS-REx
+// (505 x 492 x 457 m, Barnouin et al. 2019; 484 m across on average, Daly et al. 2020)
+const bennu = addRock({ key:'bennu', tags:['moons'], name:'Bennu', label:'Bennu', type:'near-Earth asteroid · a spinning top of rubble', shape:4, rad:0.28*KM, sizeR:0.242*KM, sortKey:1.126,
   el:{ a:1.125915, e:0.203677, i:6.033018, om:1.966547, w:66.40066, tp:2461112.6645 }, orbitCol:[0.62, 0.52, 0.45], R0:poleFrame(85.45, -60.37),
   tick(){ this.rot = bodyFrame(85.45, -60.37, 2011.145*(jdNow() - 2451545)); },
   fact:'A loose pile of rubble about 500 m wide, shaped like a spinning top, with a ridge round its middle and boulders everywhere. NASA\'s OSIRIS-REx scooped up 121.6 g of it and dropped the sample off at Earth on 24 September 2023. It has a 1 in 2,700 chance of hitting Earth in 2182.',
@@ -31,7 +32,7 @@ const bennu = addRock({ key:'bennu', tags:['moons'], name:'Bennu', label:'Bennu'
   views:[{dirFn:() => sunSide(bennu, 0.8, 0.35), k:3.4, hold:8, drift:0.04},
     {dirFn:() => sunSide(bennu, 1.15, 0.02), k:2.6, hold:8, drift:0.02},
     {dirFn:() => sunSide(bennu, 1.35, 0.3), k:1.75, hold:9, drift:0.02}],
-  readout:() => `${heliocentric(bennu).toFixed(2)} AU from the Sun · 565 x 535 x 508 m\none turn every 4.3 hours · one lap of the Sun every 437 days` });
+  readout:() => `${heliocentric(bennu).toFixed(2)} AU from the Sun · 505 x 492 x 457 m\none turn every 4.3 hours · one lap of the Sun every 437 days` });
 
 // ---------------------------------------------------------------- planets of other stars
 // (their periods are sped up so you can see them move; the readout gives the real one. Their host stars stay out of the atlas list)
@@ -49,34 +50,34 @@ const peg51 = namedStar('peg51', '51 Pegasi', hms(22,57,27.98), dms(20,46,7.8), 
   fact:'A Sun-like star a little older than the Sun. In 1995 it became the first star like the Sun known to have a planet.', readout:() => '50.6 light-years · about 5,770 K, as hot as the Sun' });
 const peg51b = exoPlanet({ key:'peg51b', name:'51 Pegasi b', host:peg51, type:'the first planet found around a Sun-like star · Dimidium', R:69911, kind:21, a:0.0527, P:40, locked:true, sortKey:50.6001,
   aka:'dimidium 51 peg b hot jupiter mayor queloz nobel first exoplanet',
-  fact:'Found in 1995 by Michel Mayor and Didier Queloz, who won half of the 2019 Nobel Prize in Physics for it. A gas giant a little over half Jupiter\'s mass, it circles its star every 4.2 days, far closer than Mercury is to the Sun.',
-  readout:() => 'orbit 4.2 days (sped up here) at 0.05 AU · 50.6 light-years\nit never passes in front of its star, so its width is unknown: drawn Jupiter-sized, colours a guess' });
+  fact:'Found in 1995 by Michel Mayor and Didier Queloz, who shared half of the 2019 Nobel Prize in Physics for it. A gas giant about half Jupiter\'s mass, it circles its star every 4.2 days, far closer than Mercury is to the Sun.',
+  readout:() => 'orbit 4.2 days (sped up here) at 0.05 AU · 50.6 light-years\nseen from Earth it never crosses its star, so its width is unknown: drawn Jupiter-sized, colours a guess' });
 peg51b.views = exoViews(peg51b);
 orbitRing(peg51, 0.0527, [0.62, 0.55, 0.45]);
 // K2-18 b: a world between Earth and Neptune in size, in its star's habitable zone, whose air JWST has analysed
 const k218 = namedStar('k218', 'K2-18', hms(11,30,14.52), dms(7,35,18.3), 124.3, 0.469, 3645, { atlas:false, type:'red dwarf in Leo', R0:edgeOn(radec(hms(11,30,14.52), dms(7,35,18.3), 124.3), 89.6),
   star:{ cells:30, act:0.8, prom:0.4 }, bound:20, farLum:0.25, labelRange:600, aka:'k2 18',
   fact:'A cool red dwarf about half the Sun\'s width, with two known planets.', readout:() => '124 light-years · about 3,600 K' });
-const k218b = exoPlanet({ key:'k218b', name:'K2-18 b', host:k218, type:'sub-Neptune in the habitable zone · studied by JWST', R:2.61*6371, kind:22, a:0.1429, P:60, sortKey:124.3001,
+const k218b = exoPlanet({ key:'k218b', name:'K2-18 b', host:k218, type:'sub-Neptune in the habitable zone · studied by JWST', R:2.61*6371, kind:22, a:0.1591, P:60, sortKey:124.3001,
   aka:'k2 18b hycean ocean world jwst methane dms habitable zone leo',
   fact:'A world 2.6 times Earth\'s width and 8.6 times its mass, orbiting where its star\'s warmth could allow liquid water. In 2023 JWST found methane and carbon dioxide in its hydrogen-rich air, and it may hide a deep ocean. A claimed hint of dimethyl sulfide, a gas that on Earth comes only from living things, has not been confirmed, and it can also form without life.',
-  readout:() => 'orbit 33 days (sped up here) at 0.14 AU · 124 light-years\nJWST measured its gases, not its looks: the colours are a guess' });
+  readout:() => 'orbit 33 days (sped up here) at 0.16 AU · 124 light-years\nJWST measured its gases, not its looks: the colours are a guess' });
 k218b.views = exoViews(k218b);
-orbitRing(k218, 0.1429, [0.5, 0.62, 0.75]);
+orbitRing(k218, 0.1591, [0.5, 0.62, 0.75]);
 // HD 189733 b: the deep blue planet Hubble measured the colour of (2013)
 const hd189733 = namedStar('hd189733', 'HD 189733', hms(20,0,43.71), dms(22,42,39.1), 64.5, 0.805, 4875, { atlas:false, type:'orange dwarf in Vulpecula', R0:edgeOn(radec(hms(20,0,43.71), dms(22,42,39.1), 64.5), 85.7),
   star:{ cells:36, act:0.6 }, bound:6.5, farLum:0.5, labelRange:500, aka:'hd 189733 a',
   fact:'An orange dwarf a little smaller than the Sun, with a red dwarf partner far out and a giant planet close in.', readout:() => '64.5 light-years · about 4,900 K' });
 const hd189733b = exoPlanet({ key:'hd189733b', name:'HD 189733 b', host:hd189733, type:'the deep blue planet · it may rain glass', R:1.13*69911, kind:23, a:0.031, P:36, locked:true, sortKey:64.5001,
   aka:'blue planet glass rain hot jupiter vulpecula hubble azure',
-  fact:'A gas giant a little bigger than Jupiter. In 2013 Hubble found it is a deep azure blue, from a hazy sky thought to be laced with silicate particles. It is about 1,000 °C there, and it may rain glass, sideways, in 7,000 km/h winds.',
+  fact:'A gas giant a little bigger than Jupiter. In 2013 Hubble measured its colour: deep blue, probably from a haze of tiny silicate grains, the stuff of sand and glass. Its day side is over 1,000 °C, and winds of several thousand km/h may blow that glass sideways as rain.',
   readout:() => 'orbit 2.2 days (sped up here) at 0.031 AU · 64.5 light-years\nHubble measured its blue; the cloud bands are drawn' });
 hd189733b.views = exoViews(hd189733b);
 orbitRing(hd189733, 0.031, [0.45, 0.55, 0.85]);
 
 // ---------------------------------------------------------------- Gaia BH3: the heaviest black hole of stellar origin found in the Milky Way (2024)
 const gaiabh3 = quietHole({ M:33, dist:1926, pos:radec(hms(19,39,18.71), dms(14,55,54), 1926), A:16.55*AU_LY, E:0.728, PER:40, face:[0.35, 0.8, 0.3], k0:2.2, lineSb:0.8,
-  obj:{ key:'gaiabh3', name:'Gaia BH3', label:'Gaia BH3', type:'dormant black hole · 33 Suns · the heaviest from a star in our galaxy', aka:'gaia bh3 dormant black hole aquila heaviest stellar',
+  obj:{ key:'gaiabh3', name:'Gaia BH3', label:'Gaia BH3', type:'dormant black hole · 33 Suns · the heaviest known that formed from a star in our galaxy', aka:'gaia bh3 dormant black hole aquila heaviest stellar',
     fact:'A black hole 33 times the Sun\'s mass, 1,926 light-years away in Aquila: the heaviest found in our galaxy that was made by a star. It gives off no light; Gaia found it in 2024 from the wobble of an ancient giant star that circles it every 11.6 years.' },
   star:{ key:'gaiabh3-star', name:'Gaia BH3 companion', label:'old giant star', R:4.94, T:5212, star:{ cells:24, act:0.2 }, farLum:1.4,
     fact:'A giant star that formed in the first two billion years after the Big Bang, with very little iron in it.' },
@@ -86,7 +87,7 @@ const gaiabh3 = quietHole({ M:33, dist:1926, pos:radec(hms(19,39,18.71), dms(14,
 // a red giant (published masses 0.7 to 1.1 Suns) and a white dwarf of about 1.37 Suns, 228 days a lap: about 0.93 AU apart for the lighter giant
 const tcrb = novaBinary({ mu1:0.335, RD:0.25, dist:3000, pos:radec(hms(15,59,30.16), dms(25,55,12.6), 3000), rad:1.86*AU_LY, face:[0.2, 0.5, 1],
   obj:{ key:'tcrb', name:'T Coronae Borealis', label:'T CrB', type:'recurrent nova · the Blaze Star', aka:'t crb blaze star nova corona borealis recurrent',
-    fact:'A red giant and a white dwarf, 3,000 light-years away. About every 80 years, gas that the white dwarf has pulled off the giant explodes on the dwarf\'s surface, and for a few days the pair can be seen without a telescope. It last erupted in 1946, and before that in 1866.' },
+    fact:'A red giant and a white dwarf, 3,000 light-years away. About every 80 years, gas that the white dwarf has pulled off the giant explodes on the dwarf\'s surface, and for a few days the pair can be seen without a telescope. It erupted in 1866 and 1946, and astronomers expect the next eruption soon.' },
   readout:(tn, NOVA) => tn < 12 ? 'the nova, replayed: hydrogen piled on the white dwarf explodes\nfor a few days you could see it without a telescope' :
     `the two stars circle each other every 228 days (shown ~18 s)\nlast erupted in 1946 · the replay here comes every ${NOVA} s` });
 
@@ -153,14 +154,15 @@ const m13 = (() => {
     ps.a.set([dd[0]*r, dd[1]*r, dd[2]*r, w], i*4); ps.c.set([c[0], c[1], c[2], 0], i*4);
   }
   ps.upload('ac');
-  const sent = Date.UTC(1974, 10, 16);   // the Arecibo message went out on 16 November 1974
+  // the Arecibo message went out on 16 November 1974 (Julian date 2442367.5); the count follows the scene's clock, so the time machine moves it too
+  const arecibo = () => { const ly = (jdNow() - 2442367.5)/365.25; return ly < 0 ? 'the Arecibo message will be sent toward it on 16 November 1974' : `the Arecibo message has covered ${Math.floor(ly)} light-years of the way so far`; };
   return addObj({ key:'m13', tags:['clusters'], name:'Great Hercules Cluster', label:'M13', type:'globular cluster · M13, target of the Arecibo message', group:'nebulae', sortKey:25000,
     fact:'Several hundred thousand stars in a ball about 145 light-years across, around 12 billion years old. In 1974 the Arecibo radio telescope beamed a short message toward it. Travelling at the speed of light, it will take about 25,000 years to get there.',
     pos, rad:RAD, sizeR:72.5, R0:facingEarth(pos, [0, 0, 1], 0), prog:omegacen.prog, minZoom:0.03, pxMin:5, farColor:[1, 0.9, 0.75], farLum:0.6, labelRange:2e5, aka:'m13 messier 13 ngc 6205 great globular cluster hercules globular cluster arecibo message',
     setU(pr){ gl.uniform4f(pr.u.uP0, 0.6, 0, 0, 0); },
     views:[{d:[0.2, 0.3, 1], k:1.7, hold:9, drift:0.03}, {d:[0.6, 0.4, 0.7], k:0.4, hold:8, drift:0.04}, {d:[0.3, 0.2, 1], k:0.08, hold:8, drift:0.05}],
     particles:[{ps, prog:'ptBasic', mode:0, sb:0.4, size:1.3, cap:0.9}],
-    readout:() => `about 25,000 light-years · 145 light-years across\nthe Arecibo message has covered ${Math.floor((Date.now() - sent)/(365.25*864e5))} light-years of the way so far` });
+    readout:() => 'about 25,000 light-years · 145 light-years across\n' + arecibo() });
 })();
 
 seed = P7_SEED;
