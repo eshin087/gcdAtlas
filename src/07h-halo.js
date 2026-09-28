@@ -275,15 +275,16 @@ function beginVisit(tg, plan, next, how){
   S_.target = tg; S_.phase = 'pass'; S_.t = 0; S_.visits++; S_.lastAct = plan.act; S_.side = hrnd() < 0.5 ? -1 : 1;
   S_.climbK = 0;   // (every pass starts on the way in)
   ship.labelRange = Math.max(tg.rad*40, ship.rad*1e4);
-  S_.act = ACT[plan.act](plan);
+  if (S_.act && S_.act.end) S_.act.end();
+  S_.act = ACT[plan.act](plan); S_.act.pl = plan; S_.jt = S_.t - plan.tA;
   // (not while a showcase's caption says what happens: on a phone the two would sit on top of each other)
   if (riding() && S_.visits > 1 && !SHOWCAP.txt) toast((how === 'fold' ? 'the Halo folds space · ' : '') + 'at ' + tg.name + ': ' + (plan.act === 'probe' && pipKind(tg) === 'near' ? 'Pip, its little drone, takes pictures from beside the ship' : ACT_TOAST[plan.act]));
 }
 const ACT_TOAST = { scan:'a sensor sweep', probe:'Pip, its little drone, goes out to take pictures', weapons:'a weapons test (fictional, nothing is harmed)', skim:'skimming it to refuel', tractor:'catching a passing rock to drill a sample' };
 function startAlign(){
   const pl = S_.plan, e = passAt(pl, pl.T), nx = S_.next;
-  if (S_.act && S_.act.end) S_.act.end();
-  S_.act = null;
+  // (a job that says when it is done, Pip's outing, may carry on past the pass: the ship waits for it before it jumps; any other ends here)
+  if (S_.act && !jobBusy()){ if (S_.act.end) S_.act.end(); S_.act = null; }
   let al = null;
   if (nx.mode === 'light'){
     // plan the next visit now, so the ship can already turn toward where it will drop out of light speed: aimAlign works out the turn after
@@ -306,6 +307,7 @@ function startAlign(){
   S_.phase = 'align'; S_.t = 0;
 }
 function startJump(){
+  if (S_.act){ if (S_.act.end) S_.act.end(); S_.act = null; }
   const nx = S_.next, A = S_.target, e = alignAt(S_.align, S_.t);
   // the stop has moved on while the ship turned (Europa round Jupiter): a little more turning puts it back on the nose (twice at most, less
   // than a radian each, or the ship would chase it round and round); if it is still off by more than a few degrees, it folds there instead
@@ -439,7 +441,8 @@ ship.update = function(dt){
   const flying = !!(flight && flight.obj === ship);
   S_.t += dt;
   if (S_.phase === 'pass' && S_.t >= S_.plan.T){ const over = S_.t - S_.plan.T; startAlign(); S_.t = over; }
-  if (S_.phase === 'align'){ if (flying) S_.jumpAt = Math.max(S_.jumpAt, S_.t + (S_.next.mode === 'fold' ? HALO.FOLD_SPOOL : HALO.LS_SPOOL)); if (S_.t >= S_.jumpAt) startJump(); }
+  // (nor while a job it is doing is still under way: Pip out of the bay)
+  if (S_.phase === 'align'){ if (flying || jobBusy()) S_.jumpAt = Math.max(S_.jumpAt, S_.t + (S_.next.mode === 'fold' ? HALO.FOLD_SPOOL : HALO.LS_SPOOL)); if (S_.t >= S_.jumpAt) startJump(); }
   if (S_.phase === 'light' && S_.t >= S_.leg.T) endLight();
   if (S_.phase === 'fold' && S_.t >= HALO.FOLD_T) endFold();
   placeShip(dt);
@@ -460,15 +463,22 @@ ship.update = function(dt){
   S_.stretch = S_.phase === 'light' ? (S_.t < 0.3 ? 0.55 + 0.45*smooth(0, 0.3, S_.t) : 1 - smooth(S_.leg.T - 0.45, S_.leg.T, S_.t)) : (al && S_.next.mode === 'light' ? 0.55*smooth(S_.jumpAt - 0.7, S_.jumpAt, S_.t) : Math.max(0, S_.stretch - dt*3));
   S_.lsRun = S_.phase === 'light' ? S_.lsRun + dt*(0.5 + 1.6*S_.stretch) : S_.lsRun;
   S_.em = [0, 0, 0, 0]; S_.scoop = 0;
-  if (S_.act) S_.act.update(dt, S_.t - S_.plan.tA);
+  // the job's clock (jt, seconds since it began): the pass's own clock while the pass it belongs to is flown, then on by dt, so a job can carry on
+  // past its pass; one that is done by then is let go
+  if (S_.act && S_.phase !== 'pass' && !jobBusy()){ if (S_.act.end) S_.act.end(); S_.act = null; }
+  if (S_.act){ S_.jt = S_.phase === 'pass' && S_.plan === S_.act.pl ? S_.t - S_.plan.tA : S_.jt + dt; S_.act.update(dt, S_.jt); }
   // (Pip, the drone, moves after the camera has: drone.ctl in 07i-drone.js)
   fxUpdate(dt);
 };
 
 // ================================================================ the jobs. Each one: update(dt, tau) with tau the time since the job started (negative before),
 // draw(), line() for the readout, env() (how busy it is now, 0 to 1: the ship banks and the cameras turn toward the work), end().
+// A job may also say when it is done (done(): Pip's outing, which can outlast its pass); update's tau is its own clock (S_.jt), which runs on
+// through the turn after the pass, so a job never depends on the pass's clock or shape.
 const env = (tau, T) => smooth(-1.5, 0.3, tau)*(1 - smooth(T - 0.8, T + 1.2, tau));
 const ACT = {};
+// (a job still under way that the ship must wait for before it leaves)
+const jobBusy = () => !!(S_.act && S_.act.done && !S_.act.done());
 // -- a sensor scan: fans of beams sweep across the body, each beam ending exactly where it first meets the surface; the rim glows faintly
 ACT.scan = pl => {
   const tg = pl.tg, T = ACTS.scan.T, SW = 3.2, NB = 7, dirs = [1, -1, 1];
@@ -1044,7 +1054,7 @@ function haloDraw(){
   const near = ship.dist < ship.labelRange, inFront = V.dot(ship.rel, cam.fwd) > 0;
   // the ship's beacon when it is too small to see
   if (near && inFront && ship.rpx < 3 && S.scale > 0.3) P_(ship.rel, [0.6, 0.95, 1], (0.7 + 0.3*Math.sin(ship.t*5))*ship.farLum/0.7, -2.4);
-  if (near && S.act && S.phase === 'pass') S.act.draw();
+  if (near && S.act && (S.phase === 'pass' || S.phase === 'align')) S.act.draw();
   for (const e of FX) if (!e.anc || e.anc.dist < Math.max(e.anc.rad*60, ship.labelRange)) e.draw(e);
   if (near) pipDraw();   // (Pip, the drone: its glint far away, its trail, the spot its lamp lights)
   const hx = localPt([1, 0, 0]), hz = localPt([0, 0, 1]), bx = V.mul(hx, 1/ship.rad), bz_ = V.mul(hz, 1/ship.rad), h = S.h, R = ship.rad;
@@ -1085,6 +1095,7 @@ function haloReadout(){
   const S = S_, tg = S.target; if (!tg) return 'between the stars';
   let l = foldLine();   // (a fold in progress says what it looks like)
   if (!l){ if (S.phase === 'pass') l = S.act ? S.act.line() : 'flying past ' + tg.name;
+  else if (S.phase === 'align' && S.act) l = S.act.line();
   else if (S.phase === 'align') l = S.next.mode === 'fold' ? (S.spool > 0.05 ? 'fold drive spooling up · next stop: ' + S.next.tg.name : 'setting course for ' + S.next.tg.name) : (S.stretch > 0.05 ? 'jumping to light speed' : 'setting course for ' + S.next.tg.name + ' · light speed');
   else if (S.phase === 'light') l = 'light speed · to ' + S.leg.B.name + (S.t > S.leg.T - 0.6 ? ' · dropping out' : '');
   else l = 'folding space · to ' + S.next.tg.name; }
@@ -1117,7 +1128,7 @@ ship.dbg = {
     hrnd = lcg(seed); actBag.length = 0; FX.length = 0; weapK = 0; rockShape = 0; drone.reset();
     Object.assign(S_, { phase:'pass', t:0, target:null, spool:0, ls:0, scale:1, scoop:0, em:[0, 0, 0, 0], visits:0, force:{}, lastSkim:-9, lastAct:null, plan:null, next:null,
       align:null, leg:null, fold:null, act:null, h:[0, 1, 0], belly:null, vel:[0, 0, 0], speed:0, viewA:0, side:1, hFrom:null, jumpAt:0, stretch:0, lsRun:0, emerge:1, seedN:1, reaim:0,
-      ringPh:0, beat:0, load:0, gWant:0, gDir:[0, 1, 0], vesc:0, gTg:null, climbK:0, fk:-9, asm:9, csL:false, wz:1, reseat:null, dg:0, dm:0, hfl:0, shK:1, cc:0, fz:1, embN:0 });
+      ringPh:0, beat:0, load:0, gWant:0, gDir:[0, 1, 0], vesc:0, gTg:null, climbK:0, fk:-9, asm:9, csL:false, wz:1, reseat:null, dg:0, dm:0, hfl:0, shK:1, cc:0, fz:1, embN:0, jt:0 });
     foldVisit(BYKEY[key]); S_.t = 3;
   },
   force(o){ Object.assign(S_.force, o); },
