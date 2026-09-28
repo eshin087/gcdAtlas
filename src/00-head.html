@@ -175,6 +175,17 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .fold-flash.go.blink{animation:foldBlink .35s ease-out}
 @keyframes foldBlink{0%{opacity:0}25%{opacity:.45}100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){.fold-flash.go{animation-duration:.4s}}
+/* the Halo showcase's buttons (?showcase=halo), do it now: on a desk at the bottom, under the caption (its toasts go above the caption); on a
+   phone at the top, below the bar (the same breakpoint as COMPACT_MQ). The key for each in a small grey figure (none on a phone) */
+.demo-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:7;display:flex;flex-wrap:wrap;justify-content:center;gap:4px;align-items:center;width:max-content;max-width:calc(100vw - 32px);box-sizing:border-box;font:12px/1 'IBM Plex Mono',ui-monospace,monospace;color:#9bb3c4;background:rgba(4,5,10,.72);border:1px solid rgba(143,230,255,.25);border-radius:6px;padding:4px 4px 4px 8px}
+.demo-bar b{font-weight:400;color:#6f8796;margin-right:4px}
+.demo-bar button{font:inherit;color:inherit;background:none;border:1px solid rgba(143,230,255,.3);border-radius:4px;padding:7px 10px;min-height:30px;cursor:pointer}
+.demo-bar button:hover{background:rgba(143,230,255,.12)}
+.demo-bar button.on{color:#04050a;background:#8fe6ff}
+.demo-bar button:focus-visible{outline:1px solid var(--flare);outline-offset:2px}
+.demo-bar .k{color:#6f8796;margin-right:4px}
+.demo-bar button.on .k{color:#04050a}
+@media (max-width:680px), (max-height:520px) and (max-width:1000px){ .demo-bar{left:calc(8px + env(safe-area-inset-left,0px));transform:none;justify-content:flex-start;bottom:auto;top:calc(52px + env(safe-area-inset-top,0px));max-width:calc(100vw - 16px)} .demo-bar button{min-height:40px;padding:8px 9px} .demo-bar .k{display:none} }
 .btn:focus-visible,.gonext:focus-visible,.tourpick:focus-visible,.brand:focus-visible,.backpill:focus-visible,.lab:focus-visible,.arow:focus-visible,.tick:focus-visible,.nav:focus-visible,.seg button:focus-visible,.tog button:focus-visible,.song:focus-visible,.songs-btn:focus-visible,.ladmark:focus-visible{outline:1px solid var(--flare);outline-offset:2px}
 .search{position:relative;display:flex;align-items:center}
 .search input{width:190px;box-sizing:border-box;font-size:calc(12px*var(--ts));color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:6px 30px 6px 10px;outline:none;
@@ -187,6 +198,7 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 
 .strip{position:fixed;left:0;right:0;bottom:0;padding:0 16px calc(12px + env(safe-area-inset-bottom,0px));
   display:flex;flex-direction:column;gap:8px;pointer-events:none;z-index:3}
+body.showcase .strip{padding-bottom:calc(124px + env(safe-area-inset-bottom,0px))}   /* (the Halo showcase: toasts above its caption and buttons) */
 .toast{align-self:center;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:5px 12px;font-size:calc(11.5px*var(--ts));
   opacity:0;transition:opacity .4s;text-align:center;max-width:100%}
 .toast.on{opacity:1}
