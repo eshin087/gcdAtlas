@@ -1,10 +1,22 @@
 <div align="center">
 
-# gcdatlas
+```text
+   .          +                 .                    *            .
+ .*@@@%=    +%@@#:  *%%%%#-    +%%+  *%%%%%%%-.%%-       *%%-    =%@@%=
+.%@@%@@@=  #@@@@@@: %@@@@@@=   %@@@. #@@@@@@@=:@@=      :@@@#   -@@*#@@=
+*@@- .#*- =@@+ :%@= %@%.-%@%  -@@%@= :--@@#:-.:@@=      +@%@@:  *@%. +*=
+@@#  .... *@@.  .   #@%  +@@: *@*+@#    @@*   :@@=      %@=#@+  =@@@%+:
+@@# :@@@% #@@       #@%  =@@:.@@::@@:   @@#   :@@=     -@@.=@%   =%@@@@=
+%@% .*#@% *@@.  ==. #@%  +@@.=@@++@@+   @@*   :@@=     *@@=*@@- ...:+@@%
+*@@-  +@% -@@+ -@@* %@%.:%@% #@@@@@@%   @@*   :@@*:--..@@@@@@@* %@#  #@%
+.%@@%@@@#  #@@@@@@. %@@@@@@-:@@*--*@@-  @@#   :@@@@@@*=@@+--#@@.=@@%#@@+
+ .*%@@#=    +%@@#:  *%#%#*- =%#.  .#%+  #%+   :%####%++%#   -%%- =%@@%=
+      .                  *          .              +                .
 
-**The real universe, drawn entirely in ASCII.**
+             the real universe, drawn entirely in ASCII
+```
 
-### [▶ Explore it live at gcdatlas.com](https://gcdatlas.com)
+### [ ▶ explore it live at gcdatlas.com ](https://gcdatlas.com)
 
 <a href="https://gcdatlas.com"><img src="docs/media/clip-blackhole.webp" alt="Sagittarius A*, the black hole at the heart of the Milky Way, drawn in ASCII characters as the camera circles it" width="100%"></a>
 
@@ -12,11 +24,17 @@
 
 Every frame is made of plain text characters. Fly from a city street's worth of sky to the edge of the observable universe in one smooth zoom. Planets are where they are today, about 2,000 naked-eye stars sit at their measured distances, and every active satellite circles the Earth in real time.
 
-Brighter light means denser characters. Colour comes from the physics: the temperature of a star, the glow of hot gas, the shift of light from things moving fast. Positions, distances and sizes are real; the look of each object is a physically based artist's rendering ([how accurate is it?](docs/ACCURACY.md)).
+```text
+  dark   .   :   -   =   +   *   #   %   @   bright
+```
+
+More light means a denser character. Colour comes from the physics: the temperature of a star, the glow of hot gas, the shift of light from things moving fast. Positions, distances and sizes are real; the look of each object is a physically based artist's rendering ([how accurate is it?](docs/ACCURACY.md)).
 
 No sign-up, nothing to install. It runs in any modern browser, on a desk or a phone.
 
-## 127 places to visit
+<p align="center"><code>.    *    .    +    .    *    .    +    .    *    .</code></p>
+
+## 127 places to visit (more to come...)
 
 <table>
 <tr>
@@ -32,14 +50,6 @@ No sign-up, nothing to install. It runs in any modern browser, on a desk or a ph
 <td><img src="docs/media/cas-a.webp" alt="Cassiopeia A in ASCII"><br><b>Cassiopeia A</b>, the youngest known remnant of a massive star that exploded.</td>
 </tr>
 <tr>
-<td><img src="docs/media/sgr-a.webp" alt="Sagittarius A* in ASCII"><br><b>Sagittarius A*</b>, 4.3 million Suns at the heart of our galaxy, its disc bent over the top by gravity.</td>
-<td><img src="docs/media/eta-car.webp" alt="Eta Carinae in ASCII"><br><b>Eta Carinae</b>, a pair of giant stars inside the twin-lobed Homunculus Nebula.</td>
-</tr>
-<tr>
-<td><img src="docs/media/cartwheel.webp" alt="The Cartwheel Galaxy in ASCII"><br><b>The Cartwheel Galaxy</b>, a ring of stars left behind when another galaxy punched through it.</td>
-<td><img src="docs/media/cosmic-web.webp" alt="The cosmic web in ASCII"><br><b>The cosmic web</b>: galaxies strung along filaments around vast empty voids.</td>
-</tr>
-<tr>
 <td><img src="docs/media/earth.webp" alt="The Earth in ASCII"><br><b>Earth</b>, with real coastlines, weather, city lights and every active satellite.</td>
 <td><img src="docs/media/andromeda.webp" alt="The Andromeda Galaxy in ASCII"><br><b>Andromeda</b>, our nearest big neighbour, 2.5 million light-years away.</td>
 </tr>
@@ -47,34 +57,29 @@ No sign-up, nothing to install. It runs in any modern browser, on a desk or a ph
 
 Black holes bend light above the true shape of their curved space. Galaxies collide, binary stars trade gas, a star is torn apart, and two black holes merge and ripple spacetime.
 
+<p align="center"><code>.    +    .    *    .    +    .    *    .    +    .</code></p>
+
 ## The Halo
 
 One thing here is invented: **the Halo**, a long-range cruiser with a captured star for a heart. It roams the atlas on its own, scanning planets, launching probes and crossing space at light speed. Follow behind it, or ride along from its bridge.
 
-<table>
-<tr>
-<td width="50%"><img src="docs/media/halo-hero.webp" alt="The Halo starship drawn in ASCII"><br>The Halo, seen from above.</td>
-<td width="50%"><img src="docs/media/halo-saturn.webp" alt="The Halo scanning Saturn"><br>Scanning Saturn: every beam ends where it meets the planet.</td>
-</tr>
-</table>
+<img src="docs/media/clip-halo-chase.webp" alt="Riding behind the Halo as it jumps to light speed and drops out beside the Moon" width="100%">
 
-<img src="docs/media/clip-halo-jump.webp" alt="The view from the Halo's bridge as it jumps to light speed" width="100%">
+<sub>Riding behind the Halo as it jumps to light speed and drops out beside the Moon.</sub>
 
-<sub>From the bridge: a jump to light speed.</sub>
+<p align="center"><code>.    *    .    +    .    *    .    +    .    *    .</code></p>
 
 ## Things to do
 
 <table>
 <tr>
 <td width="50%"><img src="docs/media/ui-tour.webp" alt="A guided tour stopping at Earth"><br><b>Guided tours.</b> Sit back and let the camera take you from Earth to the edge of everything, with a short fact at every stop. Pause any time to look around.</td>
-<td width="50%"><img src="docs/media/ui-atlas.webp" alt="The atlas panel listing nebulae"><br><b>The atlas.</b> Search or browse every place by distance, size or kind, and see which ones you have not visited yet.</td>
-</tr>
-<tr>
-<td><img src="docs/media/ui-sky.webp" alt="The night sky from a location on Earth"><br><b>Your sky.</b> Stand where you are and look up at tonight's real sky: the Moon, the bright planets, ISS passes, meteor showers and eclipses.</td>
-<td><img src="docs/media/ui-story.webp" alt="Earth's story slider at the Cambrian explosion"><br><b>Earth's story.</b> 4.54 billion years on one slider: magma ocean, snowball Earth, the first forests, the asteroid, today.</td>
+<td width="50%"><img src="docs/media/ui-sky.webp" alt="The night sky from a location on Earth"><br><b>Your sky.</b> Stand where you are and look up at tonight's real sky: the Moon, the bright planets, ISS passes, meteor showers and eclipses.</td>
 </tr>
 </table>
 
+- **The atlas.** Search or browse every place by distance, size or kind, and see which ones you have not visited yet.
+- **Earth's story.** 4.54 billion years on one slider: magma ocean, snowball Earth, the first forests, the asteroid, today.
 - **Scale ladder.** Drag one marker from the Moon to the observable universe; let go near a name to fly there.
 - **Flybys** past the giants (the Sun, UY Scuti, TON 618, the Milky Way) that show just how big they are.
 - **Time machine.** Run the Solar System forwards or back, or watch the constellations drift over 200,000 years.
@@ -97,6 +102,25 @@ One thing here is invented: **the Halo**, a long-range cruiser with a captured s
 </table>
 
 A thumb-sized dock, an info card you can swipe away, and pinch to zoom. Works upright and on its side.
+
+<p align="center"><code>.    +    .    *    .    +    .    *    .    +    .</code></p>
+
+## In the future
+
+```text
+  now                                                                 later
+   *----------------*----------------*----------------*----------------->
+   |                |                |                |
+   Earth, closer    the Halo         new places       easier to use
+```
+
+These are plans and ideas, not promises. They will land one at a time.
+
+- **Earth, closer.** More detail as you fly down: iconic cities and landmarks, mountains, rivers and deserts, all still drawn in ASCII.
+- **More from the Halo.** New looks, new jobs and new effects for the ship, and more ways to ride along.
+- **Explore for yourself.** If it can be done well: land on worlds and look around, a little like *No Man's Sky*, in text.
+- **More destinations.** New stars, nebulae, galaxies, exoplanets and spacecraft.
+- **Quality of life.** Smoother controls, clearer menus and a calmer phone layout.
 
 ## Controls
 
@@ -123,3 +147,5 @@ A thumb-sized dock, an info card you can swipe away, and pinch to zoom. Works up
 - Planet orbits: JPL approximate Keplerian elements; body orientations: IAU WGCCRE
 - Satellites: [CelesTrak](https://celestrak.org/) general perturbations data; launches: [The Space Devs](https://thespacedevs.com/) Launch Library 2
 - Object facts and measurements: NASA, ESA, ESO and the published literature (see [docs/ACCURACY.md](docs/ACCURACY.md))
+
+<p align="center"><code>. : - = + * # % @   thanks for looking   @ % # * + = - : .</code></p>
