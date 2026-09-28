@@ -970,7 +970,10 @@ function foldUpdate(dt){
     if (a < FLK.A1 + 0.25){ dm = -1; g = CEL.gHi[1] - (CEL.gHi[1] - CEL.gLo[1])*clamp((a - FLK.A0)/(FLK.A1 - FLK.A0), 0, 1); }
     shK = smooth(FLK.A1 + 0.3, FLK.A1 + FLK.SHR, a);
     hfl = foldLook === 2 ? 1.2*Math.exp(-a/0.15) + 0.3*(1 - smooth(0.2, 1.2, a)) : foldLook === 3 ? 0.6*(1 - smooth(0, 0.35, a)) : 0.9*(1 - smooth(0, 0.5, a));
-  } else S.csL = false;
+  } else {
+    // (the clock runs on after the hull has formed, until the chase camera has eased back out: S.fz below. 9, as between folds)
+    S.csL = false; if (S.asm < 9) S.asm = Math.min(9, S.asm + dt);
+  }
   S.dg = g; S.dm = dm; S.hfl = hfl; S.shK = shieldLook ? shK : 1; S.sx = sx; S.sy = sy; S.cc = cc;
   // (framing only: riding along in the chase view, the camera eases in to 0.6 of its distance while the drive spools up, so the break-up fills
   // about a third of the screen, and back out once the hull has formed again: SHIP_POSE.chase in 08-camera.js)
