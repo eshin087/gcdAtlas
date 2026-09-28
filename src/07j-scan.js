@@ -47,7 +47,7 @@ const SCAN_FACTS = {
   trappist1:['166,000 km wide, a little wider than Jupiter', 'surface 2,566 K', '0.09 times the Sun\'s mass'],
   antares:['about 680 times the Sun\'s width', 'surface about 3,660 K'],
   betelgeuse:['about 764 times the Sun\'s width', 'surface about 3,600 K'],
-  magnetar:['about 20 km wide', 'field about 10^15 gauss', 'turns once in about 7.5 s'],
+  magnetar:['about 24 km wide', 'field about 10^15 gauss', 'turns once in about 7.5 s'],
   sgra:['4.3 million Suns', 'event horizon 25 million km across'],
   m87bh:['6.5 billion Suns', 'event horizon 38 billion km across'],
   ton618:['about 40 billion Suns', 'event horizon about 1,600 AU across'],
@@ -237,10 +237,14 @@ function SL2_(p, q, c, br, al){
 }
 
 // ---------------------------------------------------------------- real features the bodies draw at fixed places, for the brackets
-// lat, lon in radians in the body's own frame (+y north, longitude toward local -z, as FS_PLANETG and Jupiter's shader measure it; FS_PLANETG's
-// `lat` is the sine of the latitude, so asin is taken here), r the bracket's half size in radians of arc. Each checked against the shader that
-// draws it: Jupiter (o00j-jupiter.js), Saturn (o10-planet.js), the Moon, Mars, Io and Ceres (surface() in o00-sun.js), Earth (its map).
+// On a planet or a moon (at): lat, lon in radians in the body's own frame (+y north, longitude toward local -z, as FS_PLANETG and Jupiter's shader
+// measure it; FS_PLANETG's `lat` is the sine of the latitude, so asin is taken here), r the bracket's half size in radians of arc. Each checked
+// against the shader that draws it: Jupiter (o00j-jupiter.js), Saturn (o10-planet.js), the Moon, Mars, Io and Ceres (surface() in o00-sun.js),
+// Earth (its map). Elsewhere: another object of the atlas at its real place (obj), or a point of the object's own drawing (local: its frame, in
+// units of its bounding radius, where its shader or particles put it), r in units of the bounding radius.
 const asinS = Math.asin;
+// (the Pleiades' bright stars sit at their sky positions, 444 light-years out, their depths scattered by 0.12 of the cluster's radius, as in p5-wonders.js)
+const pleiad = (h, m, s, dd, dm, ds, dz) => tg => { const l = V.mul(M3.applyT(tg.R0, V.sub(radec(hms(h, m, s), dms(dd, dm, ds), 444), tg.pos)), 1/tg.rad); return [l[0], l[1], l[2] + dz]; };
 const SCAN_SPOTS = {
   // (the Great Red Spot drifts slowly against System III, as the shader has it: glon = lon + t 0.0015 - 1.1)
   jupiter:[{ name:'Great Red Spot', r:0.11, at:tg => [-22.4*DEG, 1.1 - tg.t*0.0015] }],
@@ -255,6 +259,23 @@ const SCAN_SPOTS = {
   // (Earth: real coastlines from its map; places in degrees)
   earth:[{ name:'Sahara', r:0.2, at:() => [23*DEG, 12*DEG] }, { name:'Amazon rainforest', r:0.16, at:() => [-4*DEG, -62*DEG] }, { name:'Greenland', r:0.14, at:() => [72*DEG, -41*DEG] },
     { name:'Antarctica', r:0.3, at:() => [-Math.PI/2, 0] }, { name:'Australia', r:0.24, at:() => [-25*DEG, 134*DEG] }, { name:'Himalayas', r:0.09, at:() => [29*DEG, 84*DEG] }],
+  // galaxies: their neighbours and parts where the atlas has them
+  andromeda:[{ name:'M32', obj:'m32', r:0.04 }, { name:'M110', obj:'m110', r:0.06 }, { name:'nucleus', local:[0, 0, 0], r:0.04 }],
+  milkyway:[{ name:'Sgr A*', obj:'sgra', r:0.02 }, { name:'the Sun', obj:'sun', r:0.02 }],
+  lmc:[{ name:'Tarantula Nebula', obj:'tarantula', r:0.04 }, { name:'SN 1987A', obj:'sn1987a', r:0.02 }],
+  // (NGC 5195 at the end of an arm, where o05-spiral.js puts it: compPos)
+  m51:[{ name:'NGC 5195', local:tg => { const pa = 4.2 + tg.t*0.03 - 0.64; return [Math.cos(pa), -0.05, Math.sin(pa)]; }, r:0.12 }, { name:'nucleus', local:[0, 0, 0], r:0.04 }],
+  m104:[{ name:'nucleus', local:[0, 0, 0], r:0.05 }],
+  // (the Galactic Centre's frame is the Milky Way's; Sgr B2, the Arches and the Quintuplet where FS_GALCENTRE draws them)
+  galcentre:[{ name:'Sgr A*', obj:'sgra', r:0.02 }, { name:'Sgr B2', local:[0.05, -0.01, 0.74], r:0.05 }, { name:'Arches cluster', local:[-0.05, 0.02, 0.14], r:0.03 },
+    { name:'Quintuplet cluster', local:[0.1, -0.01, 0.19], r:0.03 }],
+  // nebulae and clusters: the stars that made or light them
+  crab:[{ name:'Crab Pulsar', obj:'crabpulsar', r:0.04 }],
+  // (the head of the tallest column in FS_NEBULA: x = -0.32 + 0.035 (top + 1)^2, top 0.42)
+  pillars:[{ name:'the tallest pillar', local:[-0.249, 0.42, -0.011], r:0.1 }],
+  pleiades:[{ name:'Alcyone', local:pleiad(3, 47, 29.1, 24, 6, 18, -0.12), r:0.04 }, { name:'Merope', local:pleiad(3, 46, 19.6, 23, 56, 54, 0), r:0.04 },
+    { name:'Atlas', local:pleiad(3, 49, 9.7, 24, 3, 12, 0), r:0.04 }],
+  magnetar:[{ name:'the neutron star', local:[0, 0, 0], r:0.1 }],
 };
 
 // ---------------------------------------------------------------- labels on the brackets (DOM, like the site's labels: cyan, in [ ])
@@ -281,7 +302,7 @@ ACT.scan = pl => {
     const on = smooth(0, 0.5, tau)*(1 - smooth(SCAN.SW0 + SCAN.SWT, SCAN.SW0 + SCAN.SWT + 0.8, tau));
     if (on > 0) S_.em[0] = on*(0.7 + 0.15*Math.sin(tau*7));
     // (brackets lock here, every tick, so when they lock never depends on which frames are drawn: the camera and the places are the last tick's)
-    if (spots.length && live()){ const g = A.geo(); if (g.sh.solid && g.u > -0.1) lockSpots(g); }
+    if (spots.length && live()){ const g = A.geo(); if (g.u > -0.1) lockSpots(g); }
   };
   A.env = () => env(A.tau, T);
   A.line = () => {
@@ -357,23 +378,39 @@ ACT.scan = pl => {
   }
 
   // ---------------------------------------------------------------- brackets on real features, once the ring has passed them
-  // a feature, where it is now (P1: on the surface, camera-relative), and whether it can be seen well: facing the camera, not near the rim, in
-  // the picture and not behind the ship
-  const spotSeen = (sp, sh) => { const [la, lo] = sp.at(tg); globePt(sh, la, lo, P1); const f = facing(P1.p, P1.n); return f > 0.28 && onScreen(P1.p, 1.02) && !behindHull(P1.p) ? f : -1; };
+  // a feature: where it is now (SPT.p, camera-relative), its height along the sweep (SPT.h: -1 to 1 along a globe's axis, or across a disc)
+  // and its half size (SPT.r); and whether it can be seen well: on a surface, facing the camera and not near the rim (the score is how squarely
+  // it faces it); anywhere, in the picture, not behind the ship, not in a black hole's shadow, and another object only while it is drawn
+  const SPT = { p:[0, 0, 0], h:0, r:0 };
+  function spotSeen(sp, g){
+    const sh = g.sh;
+    if (sp.at){
+      if (!sh.solid) return -1;
+      const [la, lo] = sp.at(tg); globePt(sh, la, lo, P1); SPT.p = P1.p.slice(); SPT.h = Math.sin(la); SPT.r = sp.r*sh.a;
+      const f = facing(P1.p, P1.n); return f > 0.28 && onScreen(P1.p, 1.02) && !behindHull(P1.p) ? f : -1;
+    }
+    const s = tg.rad*magOf(tg);
+    if (sp.obj){ const o = BYKEY[sp.obj]; if (!o || o.hidden || (o.noImpostor && !(o.vis > 0.02))) return -1; SPT.p = o.rel.slice(); }
+    else { const l = typeof sp.local === 'function' ? sp.local(tg) : sp.local, R = tg.rot, C = tg.rel;
+      SPT.p = [C[0] + (R[0]*l[0] + R[3]*l[1] + R[6]*l[2])*s, C[1] + (R[1]*l[0] + R[4]*l[1] + R[7]*l[2])*s, C[2] + (R[2]*l[0] + R[5]*l[1] + R[8]*l[2])*s]; }
+    SPT.r = sp.r*s;
+    const d = V.sub(SPT.p, sh.C);
+    if (sh.disc){ const l = M3.applyT(sh.R, d); SPT.h = (l[0]*A.dAx[0] + l[2]*A.dAx[1])/sh.a; } else SPT.h = V.dot(d, [sh.R[3], sh.R[4], sh.R[5]])/sh.b;
+    return onScreen(SPT.p, 1.02) && !behindHull(SPT.p) && !(sh.hole && inShadow(SPT.p, sh.C, sh.hr)) ? 1 : -1;
+  }
   // a bracket locks on once the ring has passed its feature, while the camera can see it
   function lockSpots(g){
     for (let i=0;i<spots.length;i++){
       if (A.lock[i] >= 0 || g.u >= 1.2) continue;
-      const la = spots[i].at(tg)[0], swept = g.dir*Math.sin(la) >= ringS(g.u) - 1e-9 || g.u >= 1;
-      if (swept && spotSeen(spots[i], g.sh) > 0) A.lock[i] = A.tau;
+      if (spotSeen(spots[i], g) > 0 && (g.dir*SPT.h >= ringS(g.u) - 1e-9 || g.u >= 1)) A.lock[i] = A.tau;
     }
   }
   function drawSpots(g){
-    const tau = A.tau, sh = g.sh, show = [], out = 1 - smooth(SCAN.SW0 + SCAN.SWT + 1.6, SCAN.SW0 + SCAN.SWT + 3, tau);
-    if (sh.solid && out > 0.01) for (let i=0;i<spots.length;i++){
+    const tau = A.tau, show = [], out = 1 - smooth(SCAN.SW0 + SCAN.SWT + 1.6, SCAN.SW0 + SCAN.SWT + 3, tau);
+    if (out > 0.01) for (let i=0;i<spots.length;i++){
       if (A.lock[i] < 0) continue;
-      const f = spotSeen(spots[i], sh); if (f < 0) continue;
-      show.push({ i, sp:spots[i], p:P1.p.slice(), r:spots[i].r*sh.a, f, age:tau - A.lock[i], out });
+      const f = spotSeen(spots[i], g); if (f < 0) continue;
+      show.push({ i, sp:spots[i], p:SPT.p, r:SPT.r, f, age:tau - A.lock[i], out });
     }
     // (at most three, those facing the camera most squarely)
     show.sort((x, y) => y.f - x.f); show.length = Math.min(show.length, 3);

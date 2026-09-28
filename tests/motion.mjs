@@ -224,7 +224,7 @@ const halo = await page.evaluate(HALO_SEED => {
     // 22.4 degrees south, at a longitude where it is in the picture and faces the camera; its bracket locks on the next step)
     if (tau === 8.1){ n = 0; while (D.tau < SC.SCAN.SW0 + SC.SCAN.SWT + 0.1 && n++ < 30*60) C.tick(dt);
       const cL = loc([0, 0, 0], J, 1), lonC = Math.atan2(-cL[2], cL[0]);
-      for (let k=0;k<40;k++){ const lon = lonC + (k % 2 ? 1 : -1)*Math.ceil(k/2)*0.08, p = spot(lon); if (inView(p) && faceJ(p) > 0.4){ J.t = (((1.1 - lon) % (2*Math.PI)) + 2*Math.PI)/0.0015; scan.turned = true; break; } } }
+      for (let k=0;k<126;k++){ const lon = lonC + (k % 2 ? 1 : -1)*Math.ceil(k/2)*0.05, p = spot(lon); if (inView(p) && faceJ(p) > 0.35){ J.t = (((1.1 - lon) % (2*Math.PI)) + 2*Math.PI)/0.0015; scan.turned = true; break; } } }
     n = 0; while (D.tau < tau && n++ < 30*60) C.tick(dt);
     C.render();
     const A = SC.job, U = A && A.holoU; if (!U) continue;
@@ -301,7 +301,8 @@ if (Object.keys(halo.acts).length < 4) fail('the Halo did fewer than 4 kinds of 
 const sc = halo.scan;
 if (sc.holo < 3 || sc.kind !== 0 || sc.frame > 1e-9 || sc.ring < 48 || !(sc.worst < 1e-3)) fail('the scan\'s hologram is not on Jupiter\'s drawn surface: ' + JSON.stringify({ holo:sc.holo, kind:sc.kind, frame:sc.frame, ring:sc.ring, worst:sc.worst }));
 if (sc.faceMin < 0.2) fail('a scan bracket sits on a feature the camera cannot see: ' + sc.faceMin);
-if (!(sc.brk >= 0 && sc.brk < 1e-6)) fail('the Great Red Spot\'s bracket is not on the spot: ' + sc.brk);
+// (on another route, HALO_SEED, the camera may not see Jupiter's southern latitudes at all; on the route every run flies, seed 1, it does)
+if ((sc.turned || HALO_SEED === 1) && !(sc.brk >= 0 && sc.brk < 1e-6)) fail('the Great Red Spot\'s bracket is not on the spot: ' + JSON.stringify({ turned:sc.turned, off:sc.brk }));
 if (!sc.said || sc.noFacts.length || sc.sizes.some(s => s[1] > 0.04)) fail('the scan\'s numbers do not match its table, or the table the drawn sizes: ' + JSON.stringify({ said:sc.said, noFacts:sc.noFacts, sizes:sc.sizes }));
 if (sc.lines > 1500) fail('the scan drew ' + sc.lines + ' line ends in a frame');
 if (sc.left.hook || sc.left.labels || sc.left.lines || sc.left.holo) fail('the scan left something behind: ' + JSON.stringify(sc.left));
