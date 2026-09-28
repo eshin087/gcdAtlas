@@ -21,7 +21,7 @@ const BADGES = [
   { id:'all', name:'completionist', frac:1 },
 ];
 const GRAND_KEYS = TOURS.find(t => t.id === 'grand').stops.map(([k]) => k).filter(k => BYKEY[k]);
-const ATLAS_KEYS = atlasRows.map(r => r.o.key);
+const ATLAS_KEYS = atlasRows.filter(r => !r.o.fiction).map(r => r.o.key);   // (the Halo counts, it has its own badge; anything marked fiction:true does not)
 function badgeProgress(b){
   let pool;
   if (b.keys) pool = b.keys.filter(k => BYKEY[k]);
@@ -59,7 +59,7 @@ syncCollection(); renderAtlas();
 
 // ---------------------------------------------------------------- today's discovery: one object a day, the same for everyone
 const DAILY = (() => {
-  const key = dayKey(), pool = atlasRows.map(r => r.o).filter(o => o.fact && o.group !== 'travel' && o.key !== 'earth');
+  const key = dayKey(), pool = atlasRows.map(r => r.o).filter(o => tourable(o) && o.fact && o.group !== 'travel' && o.key !== 'earth');
   return { key, o:pool[fnv('gcdatlas:' + key) % pool.length] };
 })();
 function dailyStreak(){
@@ -89,7 +89,7 @@ if (store.get('dailySeen', '') !== DAILY.key && !location.hash) setTimeout(() =>
 const SAVER = { on:false, prevTravel:null, lastInput:performance.now(), startAt:0, x:0, y:0 };
 TOURS.push({ id:'saver', name:'screensaver', blurb:'everything, shuffled', stops:[] });
 function saverStops(){
-  const keys = atlasRows.map(r => r.o).filter(o => o.views && o.views.length && o.group !== 'travel').map(o => o.key);
+  const keys = atlasRows.map(r => r.o).filter(o => tourable(o) && o.group !== 'travel').map(o => o.key);
   for (let i = keys.length - 1; i > 0; i--){ const j = Math.floor(Math.random()*(i + 1)); [keys[i], keys[j]] = [keys[j], keys[i]]; }
   return keys.map(k => [k, '']);
 }

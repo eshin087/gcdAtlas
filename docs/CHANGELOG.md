@@ -4,7 +4,7 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
-## 0.8.10 · 2026-09-28
+## 0.9.1 · 2026-09-28
 
 **The Halo's new look** (the ship is made up; the pull it works against is real)
 - A shield. A fine silver-blue line runs just outside the hull. In open space it is faint. Near strong gravity the shield works harder: the line brightens, most on the side facing the pull, the heart beats faster and harder, beads of light run out along its chains and the rings spin faster. How hard it works follows the real escape speed where the ship is: nothing at the planets, about a quarter at the Sun's surface, about half as a black-hole pass begins and all of it at the closest point. On a phone, where the ship is small, the flare shows as a bright line round its outline. Under load the rows of lights on the hull beat with the heart, so its work shows from every camera, the bridge too.
@@ -18,6 +18,29 @@ All notable changes, newest first. Dates are UTC.
 - Fixed: the dotted rings round the heart whipped round and flickered while the fold drive spooled up, more so the longer the page had been open.
 - Fixed: a caption whose end changes (a live number) kept starting over and could not be read; it now keeps what is already typed.
 - If the browser resets the graphics (a driver reset, a GPU hang), the page says so and reloads when they are back. The ship's shader compiles in about 1.1 s on a fast desk, in the background, instead of up to 6 s for a heavier look tried during the review.
+
+## 0.8.8 · 2026-09-27
+
+**New: a random tour**
+- "random tour" is second in the list of tours, on a desk and on a phone. It picks 12 places from the whole atlas, a new mix every time you start it. It also reaches the 23 places no other tour visits, such as Vega, the Horsehead and Voyager 2.
+- Places you have not seen yet come first. A place you have seen comes up when no unseen place is left to pick, or when the trip to every unseen one would be much rougher: with only a few places left to see, the tour gets to them through places you know, instead of zooming out to the whole universe and back for each one. With 6 places left unseen, 3% of trips zoom out more than 100,000 times, as for a new visitor. What you have seen is kept on your device only.
+- One stop per place: Earth, the Moon and the ISS count as one place, and so do a star and its planet, or the Crab and its pulsar. At most 3 stops are of one kind (stars, galaxies, black holes and so on). The first stop is never where you are; from Earth, the Moon or the ISS can still come later in the tour.
+- The trips stay smooth: trips that zoom far out and back in are picked much less often. In 440 test trips, 2% zoomed out to a view more than 100,000 times wider than at either end, against 7% on the grand tour and 29% for places picked blindly. Trips that would fly through another object on the way are left out.
+- On the last stop the green button reads "new random tour ›". The button, the ] key and the end of the last angle pick 12 new places, starting from where you are and never the 12 you just saw, so the tour goes on without repeating. The next 12 are picked a little at a time while the last stop plays or waits paused (and a new tour's first 12 while the list of tours is open), so the next trip usually starts without a hitch.
+- No captions: the card already shows each place's fact.
+- On a phone on its side, the list of tours now comes before "time at each stop", so the random tour is in view without scrolling.
+- A shared link to a random tour starts a new one at the linked place. The order is not in the link, since it depends on what each visitor has seen.
+- Every visitor gets their own tours: the order comes from the browser's own random numbers, not from the page's fixed seed.
+
+**Fixed**
+- The tour track on the scale bar shows the right names after a new random tour or a new screensaver shuffle. The screensaver used to keep the names of its first shuffle.
+- Epsilon Eridani's far angle looked empty: its debris ring was drawn far too faint to see. It now shows as a faint ring of dust around the star. The readout called the ring ~65 AU across; it lies ~65 AU from the star.
+- 55 Cancri and KELT-9 were specks on a phone from both of their angles. Their cameras now sit closer, so the star fills more of a phone screen.
+- The Tarantula Nebula filled a desk screen edge to edge from its first angle. That angle now sits further back, so the whole nebula fits on a desk and fills about two thirds of a phone's width.
+- Tours skip the Tarantula Nebula's close angle, where the glow fills the screen with bright characters, and play only the Ring Nebula's view from Earth: from the side the Ring is a solid block of bright characters. That side angle now sits further back, in dark sky. Picked by themselves both still play all their angles.
+- HR 8799 b's second angle looked mostly at its night side: a large, dark red disc with little to see. It now looks up at the line between day and night, where the lit clouds and their bands show. Its three sister planets have the same new angle.
+- Voyager 2 had a single, distant angle. It now has a second, close one of its sunlit dish. New Horizons' second angle is closer: the probe fills about a third of a phone screen.
+- A shared link could make "your sky" (the view from your own backyard) the first stop of a random tour. Such a link now opens the sky without starting the tour: it is a backdrop, not a place.
 
 ## 0.8.7 · 2026-09-27
 
