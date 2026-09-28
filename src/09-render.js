@@ -1184,6 +1184,7 @@ function tick(dt){
     if (tour.on) updateTour(dt);
     else if (flyMove){ if (!flyMove.frozen) flyMove.t += dt; const h = flyMove.v.hold; playMove(flyMove.o, flyMove.v, clamp(flyMove.t/h, 0, 1)); if (flyMove.t >= h){ flyMove = null; if (motion.last === 'show' && orbit.lock >= 0) resumeShow(); } }
     else if (show.on) updateShow(dt);
+    dealAhead();   // (a random tour dealt ahead, a bit each frame: the next one on its last stop, or a first one while the list of tours is open)
     updateKeys(dt);
     if (!tween) orbit.dist = Math.exp(Math.log(orbit.dist) + (Math.log(orbit.distT) - Math.log(orbit.dist))*(1 - Math.exp(-dt*7)));
     riseAboveDisk(dt);

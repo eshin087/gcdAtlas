@@ -308,7 +308,6 @@ function tourNext(dir = 1){
 }
 function updateTour(dt){
   const o = OBJ[tour.obj];
-  if (tour.phase !== 'fly' && tourDeals()) dealAhead();   // (the random tour deals its next 12 stops while its last stop plays, a bit each frame)
   if (tour.phase === 'hold'){
     const v = o.views[tour.view], hold = holdOf(v);
     tour.t += dt;

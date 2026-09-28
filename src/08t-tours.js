@@ -108,32 +108,43 @@ const TOURS = [
 let TOUR_ID = 'grand', TOUR_CAP = {};
 let TOUR_GEN = 0;   // goes up whenever TOUR is rebuilt (the tour track on the scale bar keys on it: a new deal of the same length has new names)
 function tourStops(id){ const t = TOURS.find(t => t.id === id) || TOURS[0]; return t.stops.filter(([k]) => BYKEY[k] && !BYKEY[k].marker).map(([k, cap]) => ({ i:BYKEY[k].index, cap })); }
-let nextDeal = null;   // the random tour's next 12 stops, dealt ahead while its last stop plays (dealAhead)
+let nextDeal = null;   // a random tour dealt ahead, a small step per frame (dealAhead)
 // first: a dealt tour starts with this place (a shared link); from: the place a dealt tour sets off from (default: where the camera is);
-// stops: its stops if they were dealt ahead
+// stops: its stops, if they are given
 function useTour(id, first, from, stops){
-  const prev = TOUR_ID === id ? new Set(TOUR) : new Set();   // (a new deal of the same tour avoids the places just played)
+  const prev = TOUR_ID === id ? new Set(TOUR) : new Set();   // (a new deal of the same tour avoids the places just played: see dealAvoid)
   TOUR_ID = TOURS.some(t => t.id === id) ? id : 'grand';
   const t = TOURS.find(t => t.id === TOUR_ID);
-  if (t.deal) t.stops = stops || dealRandom(first && tourable(first) ? null : from || hereObj(), first && tourable(first) ? first : null, prev);
+  if (t.deal){ const f = first && tourable(first) ? first : null, at = f ? null : from || hereObj(); t.stops = stops || (!f && takeDeal(at)) || dealRandom(at, f, prev); }
   TOUR.length = 0; TOUR_CAP = {}; TOUR_GEN++; nextDeal = null;
   for (const s of tourStops(TOUR_ID)){ TOUR.push(s.i); if (s.cap) TOUR_CAP[s.i] = s.cap; }
 }
 const tourName = () => (TOURS.find(t => t.id === TOUR_ID) || TOURS[0]).name;
 const tourDeals = () => !!(TOURS.find(t => t.id === TOUR_ID) || TOURS[0]).deal;
 // the last stop of the random tour goes on to 12 new places, starting from there (usually dealt ahead already: see dealAhead)
-function dealAgain(from){
-  const pre = nextDeal && nextDeal.gen === TOUR_GEN && nextDeal.from === from ? nextDeal.stops : null;
-  useTour(TOUR_ID, null, from, pre); toast(tourName() + ' · ' + TOUR.length + ' new places');
-}
-// A deal takes a few milliseconds (more on a slow phone), too long for the frame the next trip sets off in. So while the random tour's last
-// stop plays, updateTour deals the next 12 ahead, a small step per frame. Positions are relative to the camera's focus, so a deal that is still
-// going starts again if the focus changes. (If it is not ready, or no longer fits, dealAgain deals on the spot.)
+function dealAgain(from){ useTour(TOUR_ID, null, from); toast(tourName() + ' · ' + TOUR.length + ' new places'); }
+// A deal takes a few milliseconds (tens on a slow phone), too long for the frame a trip sets off in. So a random tour is dealt ahead, a
+// small step per frame: the next 12 while the random tour's last stop plays or waits paused, and a first one from where you are while the
+// list of tours is open. Positions are relative to the camera's focus, so a deal that is still going starts again if the focus changes. A
+// deal that is not finished when it is needed is finished then (takeDeal); if none fits, useTour deals on the spot.
 function dealAhead(){
-  const from = OBJ[TOUR[TOUR.length - 1]], d = nextDeal;
-  if (!from || tour.obj !== from.index) return;
-  if (d && d.gen === TOUR_GEN && (d.stops || d.focus === cam.focus)){ if (!d.stops){ const r = d.it.next(); if (r.done) d.stops = r.value; } return; }
-  nextDeal = { gen:TOUR_GEN, from, focus:cam.focus, it:dealSteps(from, null, new Set(TOUR)), stops:null };
+  if (flight || shipCam.on) return;
+  const k = TOUR.length - 1, last = k >= 0 && tourDeals() && tour.obj === TOUR[k] && (tour.on ? tour.phase !== 'fly' : tour.last === tour.obj && orbit.lock === tour.obj);
+  if (last) dealStep(OBJ[tour.obj]); else if (!toursEl.hidden) dealStep(hereObj());
+}
+const toursEl = $('#tours');
+// (the places a new random tour leaves out: those the random tour just played, as useTour's prev)
+const dealAvoid = () => new Set(tourDeals() ? TOUR : []);
+function dealStep(from){
+  const d = nextDeal;
+  if (d && d.gen === TOUR_GEN && d.from === from && (d.stops || d.focus === cam.focus)){ if (!d.stops){ const r = d.it.next(); if (r.done) d.stops = r.value; } return; }
+  nextDeal = { gen:TOUR_GEN, from, focus:cam.focus, it:dealSteps(from, null, dealAvoid()), stops:null };
+}
+// the stops dealt ahead from this place, finished now if the deal is still going; null if none fits
+function takeDeal(from){
+  const d = nextDeal; if (!d || d.gen !== TOUR_GEN || d.from !== from || !(d.stops || d.focus === cam.focus)) return null;
+  if (!d.stops){ let r; do r = d.it.next(); while (!r.done); d.stops = r.value; }
+  return d.stops;
 }
 const hereObj = () => OBJ[flight ? cam.focus : orbit.lock >= 0 ? orbit.lock : cam.focus];
 
