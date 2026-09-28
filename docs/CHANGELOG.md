@@ -15,8 +15,17 @@ All notable changes, newest first. Dates are UTC.
 - Each song starts in a key close to the last one's, so one song flows into the next.
 - Songs are named after places in the atlas, such as "Rain on Titan" or "Night Drive to Vega". No name comes back within 60 songs, about two hours.
 - The new styles have a full, low bass like lofi's, so the volume stays about even when the style changes: every style is within about 2 dB of lofi's loudness, both on headphones and on laptop or phone speakers.
-- Ambient has a soft low note under its chords now, and its songs last 1 min 20 s to 2 min 8 s instead of about a minute, so the calm mood changes songs less often. Lofi and chill house keep the same sounds and levels.
-- In the new styles the melody always fits the chord under it, and every song ends on its home chord.
+- Ambient has a soft low note under its chords now, and its songs last 1 min 20 s to 2 min 10 s instead of about a minute, so the calm mood changes songs less often.
+- Two songs of the same style now sound like two different songs, not two mixes of one. Each song picks its own sounds and keeps them to the end:
+  - Chords: 12 to 22 progressions per style instead of 3 to 6, in major and in minor, some with two chords to a bar and some with one chord over two or four bars. Many songs play a second progression in their B part.
+  - Instruments: lofi picks its keys (Rhodes, Wurlitzer, felt piano or a muted guitar) and its lead (a soft sine, flute, music box, vibraphone, kalimba, guitar, piano, ocarina or Rhodes). Downtempo picks from Rhodes, organ, Wurlitzer, guitar or piano, with its own lead. Ambient picks its pad (saw, choir, glass, strings or a warm pad) and its chime (bells, music box, kalimba, glockenspiel, piano or vibraphone). Synthwave picks its pad (saw, strings, soft brass or choir), its arpeggio and its lead. Chill house plays a pad, organ stabs, Rhodes or strings, with plucks, a mallet riff or a choir on top.
+  - Rhythm: each song picks its bass line, drum sounds (four kicks; a snare, rim click, brush, snap or clap; three hi-hat sounds or a shaker), its groove and swing, and sometimes congas, a wood block or soft toms. Downtempo can be half time, a broken beat or a shuffle.
+  - Tunes: A and B parts get tunes of their own, in four different phrase shapes, and some songs add a second instrument that answers the tune or a slow line under it.
+  - Shape: two to six song shapes per style (with or without an intro, a break or a second B), and wider tempo ranges.
+  - Texture: a quiet bed of vinyl crackle, rain, wind or tape hiss, chosen per song. Some lofi and downtempo songs start as if heard from the next room and open up.
+- The next song of a style never repeats the last one's progression, instruments, drums or song shape, and the lead instrument changes from song to song. Every song stays about as loud as the others: each instrument that can stand in for another was matched in loudness.
+- In every style the melody fits the chord under it, and every song ends on its home chord. The low drone under ambient follows the song's key.
+- Skipping a song fades out its long notes at once, so the last song no longer rings on under the next one in its old key.
 
 ## 0.8.6 · 2026-09-27
 
