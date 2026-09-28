@@ -1,38 +1,16 @@
-<div align="center">
+# gcdatlas
 
-```text
-   .          +                 .                    *            .
- .*@@@%=    +%@@#:  *%%%%#-    +%%+  *%%%%%%%-.%%-       *%%-    =%@@%=
-.%@@%@@@=  #@@@@@@: %@@@@@@=   %@@@. #@@@@@@@=:@@=      :@@@#   -@@*#@@=
-*@@- .#*- =@@+ :%@= %@%.-%@%  -@@%@= :--@@#:-.:@@=      +@%@@:  *@%. +*=
-@@#  .... *@@.  .   #@%  +@@: *@*+@#    @@*   :@@=      %@=#@+  =@@@%+:
-@@# :@@@% #@@       #@%  =@@:.@@::@@:   @@#   :@@=     -@@.=@%   =%@@@@=
-%@% .*#@% *@@.  ==. #@%  +@@.=@@++@@+   @@*   :@@=     *@@=*@@- ...:+@@%
-*@@-  +@% -@@+ -@@* %@%.:%@% #@@@@@@%   @@*   :@@*:--..@@@@@@@* %@#  #@%
-.%@@%@@@#  #@@@@@@. %@@@@@@-:@@*--*@@-  @@#   :@@@@@@*=@@+--#@@.=@@%#@@+
- .*%@@#=    +%@@#:  *%#%#*- =%#.  .#%+  #%+   :%####%++%#   -%%- =%@@%=
-      .                  *          .              +                .
+An explorable atlas of the real universe, drawn entirely in ASCII characters.
 
-             the real universe, drawn entirely in ASCII
-```
-
-### [ ▶ explore it live at gcdatlas.com ](https://gcdatlas.com)
+Live at [gcdatlas.com](https://gcdatlas.com).
 
 <a href="https://gcdatlas.com"><img src="docs/media/clip-blackhole.webp" alt="Sagittarius A*, the black hole at the heart of the Milky Way, drawn in ASCII characters as the camera circles it" width="100%"></a>
 
-</div>
-
-Every frame is made of plain text characters. Fly from a city street's worth of sky to the edge of the observable universe in one smooth zoom. Planets are where they are today, about 2,000 naked-eye stars sit at their measured distances, and every active satellite circles the Earth in real time.
-
-```text
-  dark   .   :   -   =   +   *   #   %   @   bright
-```
+Fly from a city street's worth of sky to the edge of the observable universe in one smooth zoom. Planets are where they are today, about 2,000 naked-eye stars sit at their measured distances, and every active satellite circles the Earth in real time.
 
 More light means a denser character. Colour comes from the physics: the temperature of a star, the glow of hot gas, the shift of light from things moving fast. Positions, distances and sizes are real; the look of each object is a physically based artist's rendering ([how accurate is it?](docs/ACCURACY.md)).
 
 No sign-up, nothing to install. It runs in any modern browser, on a desk or a phone.
-
-<p align="center"><code>.    *    .    +    .    *    .    +    .    *    .</code></p>
 
 ## 127 places to visit (more to come...)
 
@@ -57,8 +35,6 @@ No sign-up, nothing to install. It runs in any modern browser, on a desk or a ph
 
 Black holes bend light above the true shape of their curved space. Galaxies collide, binary stars trade gas, a star is torn apart, and two black holes merge and ripple spacetime.
 
-<p align="center"><code>.    +    .    *    .    +    .    *    .    +    .</code></p>
-
 ## The Halo
 
 One thing here is invented: **the Halo**, a long-range cruiser with a captured star for a heart. It roams the atlas on its own, scanning planets, launching probes and crossing space at light speed. Follow behind it, or ride along from its bridge.
@@ -66,8 +42,6 @@ One thing here is invented: **the Halo**, a long-range cruiser with a captured s
 <img src="docs/media/clip-halo-chase.webp" alt="Riding behind the Halo as it jumps to light speed and drops out beside the Moon" width="100%">
 
 <sub>Riding behind the Halo as it jumps to light speed and drops out beside the Moon.</sub>
-
-<p align="center"><code>.    *    .    +    .    *    .    +    .    *    .</code></p>
 
 ## Things to do
 
@@ -103,16 +77,7 @@ One thing here is invented: **the Halo**, a long-range cruiser with a captured s
 
 A thumb-sized dock, an info card you can swipe away, and pinch to zoom. Works upright and on its side.
 
-<p align="center"><code>.    +    .    *    .    +    .    *    .    +    .</code></p>
-
 ## In the future
-
-```text
-  now                                                                 later
-   *----------------*----------------*----------------*----------------->
-   |                |                |                |
-   Earth, closer    the Halo         new places       easier to use
-```
 
 These are plans and ideas, not promises. They will land one at a time.
 
@@ -147,5 +112,3 @@ These are plans and ideas, not promises. They will land one at a time.
 - Planet orbits: JPL approximate Keplerian elements; body orientations: IAU WGCCRE
 - Satellites: [CelesTrak](https://celestrak.org/) general perturbations data; launches: [The Space Devs](https://thespacedevs.com/) Launch Library 2
 - Object facts and measurements: NASA, ESA, ESO and the published literature (see [docs/ACCURACY.md](docs/ACCURACY.md))
-
-<p align="center"><code>. : - = + * # % @   thanks for looking   @ % # * + = - : .</code></p>
