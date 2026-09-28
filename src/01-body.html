@@ -60,13 +60,29 @@
     <input id="atlasSearch" type="search" placeholder="search the universe" autocomplete="off" spellcheck="false" aria-label="Search objects">
     <button class="btn" id="atlasClose" aria-label="Close atlas">close</button>
   </div>
-  <div class="atlas-tools">
-    <div class="row" id="atlasSort"><span class="lbl">sort</span><button class="chip" data-sort="distance">distance</button><button class="chip" data-sort="size">size</button><button class="chip" data-sort="name">name</button><button class="chip" id="atlasDir" title="Reverse the order">&darr; nearest first</button><button class="chip reset" id="atlasReset" title="Back to the default view">reset</button></div>
-    <div class="row" id="atlasCats"><span class="lbl">show</span></div>
-    <div class="row seen-row"><span class="lbl">seen</span><span id="seenCount" class="seen-count"></span><span id="badges" class="badges"></span></div>
+  <!-- every choice in plain sight (nothing scrolls sideways): the sort and its order, all or one kind (a grid, near to far like the list),
+       and "not seen yet", which works with any kind. src/09-render.js fills the counts; the results line says what the list shows and holds the reset. -->
+  <div class="atlas-tools" id="atlasTools">
+    <div class="atl-row sort-row"><span class="lbl" id="sortLbl">sort</span>
+      <div class="sortseg" id="atlasSort" role="radiogroup" aria-labelledby="sortLbl"><button role="radio" data-sort="kind" title="Grouped by kind">kind</button><button role="radio" data-sort="distance" title="One list by distance from Earth">distance</button><button role="radio" data-sort="size" title="One list by true size">size</button><button role="radio" data-sort="name" title="One list by name">name</button></div>
+      <button class="dirbtn" id="atlasDir"><b aria-hidden="true">&#8645;</b><span></span></button>
+    </div>
+    <div class="atl-row show-row"><span class="lbl" id="showLbl">show</span>
+      <button class="cell allcell" id="atlasAll" data-cat="all" aria-pressed="true"><span class="cl">all</span><span class="n"></span></button>
+      <button class="unseen" id="atlasUnseen" role="checkbox" aria-checked="false" title="Only the places you have not visited yet"><b aria-hidden="true">[ ]</b><span>not seen yet</span></button>
+    </div>
+    <div class="cats" id="atlasCats" role="radiogroup" aria-labelledby="showLbl"></div>
   </div>
+  <div class="aresult" id="atlasResult" hidden><span class="rtxt"><span id="atlasResultTxt"></span><span class="rnote" id="atlasResultNote"></span></span><button class="chip rreset" id="atlasReset" title="Back to the default view">reset</button></div>
+  <div class="sr" id="atlasLive" aria-live="polite"></div>
   <div id="atlasList" class="atlas-list" role="listbox" aria-label="Objects"></div>
-  <div class="atlas-foot">real positions and sizes · distances from Earth</div>
+  <!-- the collection: a tray of badges over the bottom of the list, opened from the footer line -->
+  <div class="btray" id="badgeTray" role="region" aria-label="Badges" hidden>
+    <div class="bt-head"><span class="ptitle">badges</span><span class="bt-n" id="badgeTrayN"></span><button class="chip" id="badgeTrayClose">close</button></div>
+    <p class="bt-note">a place counts as seen after 3 seconds on it · kept on this device only</p>
+    <div class="bt-list" id="badges"></div>
+  </div>
+  <button class="afoot" id="seenBtn" aria-expanded="false" aria-controls="badgeTray"><span class="sf-seen">seen <b id="seenCount"></b></span><span class="sf-bar" id="seenBar" aria-hidden="true"></span><span class="sf-badges">badges <b id="badgeCount"></b></span><i aria-hidden="true">&rsaquo;</i></button>
 </aside>
 
 <aside id="tours" class="panel" aria-label="Tours" hidden>

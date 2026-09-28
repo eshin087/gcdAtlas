@@ -31,12 +31,31 @@ function badgeProgress(b){
   const have = pool.filter(k => SEEN.has(k)).length, need = b.frac ? Math.ceil(pool.length*b.frac) : Math.min(b.need || pool.length, pool.length);
   return { have:Math.min(have, need), need, done:need > 0 && have >= need };
 }
-const badgeEls = BADGES.map(b => { const e = document.createElement('span'); e.className = 'badge'; e.textContent = b.name; $('#badges').appendChild(e); return e; });
+// the badge tray (opened from the atlas footer): one row per badge, "✓ planet hopper 8 of 8" once earned, "black hole hunter 3 of 8 ›" on the way.
+// A badge with a kind of its own is a button: it shows the places of that kind still to see (or all of them, once it is earned)
+const BADGE_KIND = { planets:'solar', bh:'bh', nebulae:'nebulae', galaxies:'galaxies', half:'all', all:'all' };
+const badgeEls = BADGES.map(b => {
+  const kind = BADGE_KIND[b.id], e = document.createElement(kind ? 'button' : 'div'); e.className = 'brow';
+  e.innerHTML = '<i aria-hidden="true"></i><span class="bn"></span><span class="bp"></span><i aria-hidden="true"></i>';
+  e.children[1].textContent = b.name;
+  if (kind){ e.lastChild.textContent = '›'; e.addEventListener('click', () => { setBadgeTray(false); showKind(kind, !badgeGot(b)); }); }
+  $('#badges').appendChild(e); return e;
+});
 let earned = new Set(store.get('badges', []));
+const badgeGot = b => earned.has(b.id) || badgeProgress(b).done;
 function syncCollection(){
   const n = ATLAS_KEYS.filter(k => SEEN.has(k)).length;
   $('#seenCount').textContent = `${n} of ${ATLAS_KEYS.length}`;
-  BADGES.forEach((b, i) => { const p = badgeProgress(b); badgeEls[i].classList.toggle('got', p.done); badgeEls[i].title = p.done ? 'earned' : `${p.have} of ${p.need}`; });
+  let got = 0;
+  BADGES.forEach((b, i) => { const p = badgeProgress(b), done = badgeGot(b), e = badgeEls[i], kind = BADGE_KIND[b.id]; if (done) got++;
+    e.classList.toggle('got', done); e.firstChild.textContent = done ? '✓' : '';
+    e.children[2].textContent = done && p.have < p.need ? 'earned' : `${p.have} of ${p.need}`;
+    const what = kind && CATS.find(c => c[0] === kind)[2];
+    if (kind){ e.title = done ? 'Show the ' + what : 'Show the ' + what + ' you have not seen yet'; e.setAttribute('aria-label', `${b.name}, ${done ? 'earned' : p.have + ' of ' + p.need}. ${e.title}`); } });
+  $('#badgeCount').textContent = `${got} of ${BADGES.length}`;
+  $('#badgeTrayN').textContent = `${got} of ${BADGES.length} earned`;
+  seenBtn.setAttribute('aria-label', `Seen ${n} of ${ATLAS_KEYS.length} places, badges ${got} of ${BADGES.length}. Show the badges`);
+  fitSeenBar(); syncCatCounts();
 }
 function markSeen(o){
   if (!o || SEEN.has(o.key) || o.marker) return;
@@ -52,10 +71,7 @@ function updateSeen(dt){
   if (i !== seenIdx){ seenIdx = i; seenClock = 0; }
   seenClock += dt; if (seenClock > 3) markSeen(OBJ[i]);
 }
-// the atlas filter gets a "not seen yet" chip
-{ const b = document.createElement('button'); b.className = 'chip'; b.dataset.cat = 'unseen'; b.textContent = 'not seen yet'; b.title = 'Objects you have not visited yet';
-  b.addEventListener('click', () => { ATL.cat = 'unseen'; saveAtl(); renderAtlas(); }); $('#atlasCats').appendChild(b); catBtns.push(b); }
-syncCollection(); renderAtlas();
+syncCollection();
 
 // ---------------------------------------------------------------- today's discovery: one object a day, the same for everyone
 const DAILY = (() => {
