@@ -57,7 +57,15 @@ function skyCamera(){
   setBasis(dir, up);
 }
 function viewParams(o, vi){ return viewParamsV(o, o.views[vi]); }
+// A view can say when it is worth playing and when the framing it gave is out of date:
+//   ready()  false: the angle loop and the tour skip it (Mimas's crater angle while Herschel is in the night)
+//   state()  a value that changes when its framing should change (Mimas going into Saturn's shadow). Each framing remembers the state it
+//            was made for; while the camera holds on the angle and the state changes, it glides to the new framing, or moves on if the
+//            angle is no longer ready (holdCheck)
+const FRAMED = new WeakMap();
+const viewReady = v => !v || !v.ready || !!v.ready();
 function viewParamsV(o, v){
+  if (v.state) FRAMED.set(v, v.state());
   let d = [0, 0.3, 1];
   if (v.d) d = v.d;
   if (v.dirFn || v.track) d = M3.applyT(o.R0, (v.track || v.dirFn)());
@@ -205,11 +213,14 @@ function updateFlight(dt){
 }
 let flyMove = null;   // a flyby playing outside a tour
 function startTween(to, dur){ tween = { t:0, dur, from:{yaw:orbit.yaw, pitch:orbit.pitch, dist:orbit.dist, off:orbit.off.slice()}, to }; }
+const wrapA = a => Math.atan2(Math.sin(a), Math.cos(a));
 function updateTween(dt){
   const w = tween; w.t += dt; const u = ease(clamp(w.t/w.dur, 0, 1));
-  if (w.to.track) [w.to.yaw, w.to.pitch] = w.to.track();
-  let dy = w.to.yaw - w.from.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
-  orbit.yaw = w.from.yaw + dy*u;
+  // the way round is chosen once, on the first frame; after that a tracked angle only adds its own motion, so a target that
+  // crosses the far side during the swing does not flip the turn the other way (it used to jump up to 120 degrees in one frame)
+  if (w.to.track){ const [y, p] = w.to.track(); w.dy = w.dy == null ? wrapA(y - w.from.yaw) : w.dy + wrapA(y - w.ty); w.ty = y; w.to.yaw = y; w.to.pitch = p; }
+  else if (w.dy == null) w.dy = wrapA(w.to.yaw - w.from.yaw);
+  orbit.yaw = w.from.yaw + w.dy*u;
   orbit.pitch = w.from.pitch + (w.to.pitch - w.from.pitch)*u;
   orbit.dist = orbit.distT = Math.exp(Math.log(w.from.dist) + (Math.log(w.to.dist) - Math.log(w.from.dist))*u);
   orbit.off = V.lerp(w.from.off, w.to.offFn ? w.to.offFn() : (w.to.off || [0,0,0]), u);
@@ -246,13 +257,21 @@ function updateTour(dt){
   if (tour.phase === 'hold'){
     const v = o.views[tour.view], hold = holdOf(v);
     tour.t += dt;
+    const chk = holdCheck(v);
+    if (chk === 'reframe'){
+      tour.phase = 'swing'; tour.t = 0; tour.to = tour.view;
+      startTween(viewParams(o, tour.view), swingDur()); tween.onDone = () => { tour.to = null; tour.phase = 'hold'; tour.t = 0; };
+      return;
+    }
+    if (chk === 'skip') tour.t = hold + 1;
     if (v.to) playMove(o, v, clamp(tour.t/hold, 0, 1));
     else if (v.track) trackView(o, v, dt);
     else orbit.yaw += v.drift*dt;
     if (tour.t > hold){
       const L = tourViews(o), k = L.indexOf(tour.view);
-      if (k >= 0 && k < L.length - 1){
-        const next = L[k + 1];
+      let j = k + 1; while (j < L.length && !viewReady(o.views[L[j]])) j++;   // (angles that are not ready are skipped)
+      if (k >= 0 && j < L.length){
+        const next = L[j];
         tour.phase = 'swing'; tour.t = 0; tour.to = next;
         startTween(viewParams(o, next), swingDur());
         tween.onDone = () => { tour.view = next; tour.to = null; tour.phase = 'hold'; tour.t = 0; };
@@ -261,6 +280,11 @@ function updateTour(dt){
   }
 }
 const holdOf = v => v.hold*(v.to ? Math.max(dwellK(), 0.75) : dwellK());
+// holding on an angle whose state() changed since its framing was made: 'reframe' (glide to its new framing) or 'skip' (it is not ready any more: move on)
+function holdCheck(v){
+  if (!v.state || !FRAMED.has(v) || v.state() === FRAMED.get(v)) return null;
+  return viewReady(v) ? 'reframe' : 'skip';
+}
 // a view with track(): while it holds, the camera keeps turning toward a moving direction (world frame) instead of drifting
 function trackView(o, v, dt){
   const [y, p] = trackYP(o, v);
@@ -337,11 +361,19 @@ function updateShow(dt){
   if (show.free){ orbit.yaw += 0.035*dt; return; }
   const v = o.views[show.view], hold = holdOf(v);
   show.t += dt;
+  const chk = holdCheck(v);
+  if (chk === 'reframe'){
+    show.phase = 'swing'; show.t = 0; show.to = show.view;
+    startTween(viewParams(o, show.view), swingDur()); tween.onDone = () => { show.to = null; show.phase = 'hold'; show.t = 0; };
+    return;
+  }
+  if (chk === 'skip') show.t = hold + 1;
   if (v.to) playMove(o, v, clamp(show.t/hold, 0, 1));
   else if (v.track) trackView(o, v, dt);
   else orbit.yaw += v.drift*dt;
   if (show.t > hold && o.views.length > 1){
-    const next = (show.view + 1) % o.views.length;
+    const n = o.views.length; let next = (show.view + 1) % n;
+    for (let j=1;j<n;j++){ const c = (show.view + j) % n; if (viewReady(o.views[c])){ next = c; break; } }   // (angles that are not ready are skipped)
     show.phase = 'swing'; show.t = 0; show.to = next;
     startTween(viewParams(o, next), swingDur());
     tween.onDone = () => { show.view = next; show.to = null; show.phase = 'hold'; show.t = 0; };
