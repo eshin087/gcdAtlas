@@ -130,7 +130,7 @@ const merger = (() => {
     fact:'An ordinary-looking galaxy where, 130 million years ago, two neutron stars collided. Its gravitational waves reached Earth on 17 August 2017.',
     pos:hostPos, rad:40000, incl:60, pa:0, g:{ arms:0, bulge:1.6, dust:0.8, H:0.03, sf:0.05, Rd:0.3, ring:0.35, irr:0.4, seed:61 }, readout:() => '130 million light-years' });
   const side = V.norm(V.cross(V.norm(hostPos), [0, 0, 1])), offset = V.mul(side, 6500);
-  const o = addObj({ key:'gw170817', tags:['events'], name:'GW170817', label:'GW170817', type:'neutron star merger · first seen in gravitational waves and light', group:'galaxies', sortKey:130e6 + 1,
+  const o = addObj({ key:'gw170817', atlasKind:'stars', tags:['events'], name:'GW170817', label:'GW170817', type:'neutron star merger · first seen in gravitational waves and light', group:'galaxies', sortKey:130e6 + 1,
     fact:'Two neutron stars spiral in, shaking spacetime with gravitational waves, collide, collapse to a black hole and fling out a kilonova that forged gold. Replayed on a loop.',
     parent:host, offset, rad:353*KM, R0:facingEarth(V.add(hostPos, offset), V.norm([0, 0.5, 1]), 0), prog:program(VS_RECT, FS_NSMERGER), minZoom:0.1, pxMin:6, noImpostor:true, labelRange:3e5, aka:'kilonova gravitational waves neutron star merger',
     views:[{d:[0,0.5,1],k:1.8,hold:8,drift:0.03},{d:[0.1,0.28,1],k:1.05,hold:8,drift:0.05},{d:[0.05,1,0.1],k:1.7,hold:8,drift:0.02},{d:[1,0.15,0.3],k:1.9,hold:8,drift:-0.03}],

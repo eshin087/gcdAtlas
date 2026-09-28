@@ -499,7 +499,7 @@ const oort = (() => {
   ps.upload('ac');
   return addObj({ key:'oort', name:'the Oort cloud', label:'Oort cloud', type:'shell of icy bodies · source of long-period comets', group:'solar', sortKey:-0.5, layer:2,
     fact:'Trillions of comet nuclei surround the Sun out to a light-year or more, a third of the way to the nearest star. None has ever been seen directly.',
-    pos:[0,0,0], rad:1.6, R0:ECL, minZoom:0.02, pxMin:3, noImpostor:true, labelRange:60, farLum:0, distEarth:'2,000 to 100,000 AU from the Sun', atlasDist:'all around',
+    pos:[0,0,0], rad:1.6, R0:ECL, minZoom:0.02, pxMin:3, noImpostor:true, labelRange:60, farLum:0, distEarth:'2,000 to 100,000 AU from the Sun', atlasDist:'all around us',
     views:[{d:[0.3, 0.45, 1], k:3.4, hold:9, drift:0.03}, {d:[0.9, 0.2, 0.3], k:1.3, hold:8, drift:0.03}],
     particleVis:rpx => smooth(8, 40, rpx)*smooth(0.004, 0.03, orbit.dist),
     particles:[{ps, prog:'ptBasic', mode:3, sb:0.4, size:1.6, rad:AU_LY}],

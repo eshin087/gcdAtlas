@@ -13,7 +13,7 @@ const BADGES = [
   { id:'planets', name:'planet hopper', keys:['mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune'] },
   { id:'bh', name:'black hole hunter', test:o => o.prog === P.blackhole || o.isBH },
   { id:'nebulae', name:'nebula chaser', test:o => o.group === 'nebulae' },
-  { id:'galaxies', name:'galaxy collector', test:o => o.group === 'galaxies' && !(o.prog === P.blackhole || o.isBH), need:12 },
+  { id:'galaxies', name:'galaxy collector', test:o => catOf(o) === 'galaxies', need:12 },
   { id:'grand', name:'grand tourist', grand:true },
   { id:'edge', name:'edge of everything', keys:['universe'] },
   { id:'halo', name:'ship spotter', keys:['halo'] },
@@ -32,13 +32,19 @@ function badgeProgress(b){
   return { have:Math.min(have, need), need, done:need > 0 && have >= need };
 }
 // the badge tray (opened from the atlas footer): one row per badge, "✓ planet hopper 8 of 8" once earned, "black hole hunter 3 of 8 ›" on the way.
-// A badge with a kind of its own is a button: it shows the places of that kind still to see (or all of them, once it is earned)
-const BADGE_KIND = { planets:'solar', bh:'bh', nebulae:'nebulae', galaxies:'galaxies', half:'all', all:'all' };
-const badgeEls = BADGES.map(b => {
-  const kind = BADGE_KIND[b.id], e = document.createElement(kind ? 'button' : 'div'); e.className = 'brow';
-  e.innerHTML = '<i aria-hidden="true"></i><span class="bn"></span><span class="bp"></span><i aria-hidden="true"></i>';
+// Every row is a button. It shows the places that count for the badge, the ones still to see (all of them once it is earned): as a kind when a kind
+// is the same list (black hole hunter: black holes), otherwise as the badge's own list (planet hopper: the eight planets). A badge for one place
+// (edge of everything, ship spotter) flies there.
+const badgeAct = BADGES.map(b => {
+  const keys = (b.keys ? b.keys : b.grand ? GRAND_KEYS : b.test ? ATLAS_KEYS.filter(k => b.test(BYKEY[k])) : ATLAS_KEYS).filter(k => ATLAS_KEYS.includes(k));
+  const same = CATS.find(([id]) => catRows[id].length === keys.length && catRows[id].every(r => keys.includes(r.o.key)));
+  return keys.length === 1 ? { go:BYKEY[keys[0]] } : same ? { kind:same[0], what:same[2] } : { pick:{ name:b.name, keys:new Set(keys) }, what:'places that count for it' };
+});
+const badgeEls = BADGES.map((b, i) => {
+  const a = badgeAct[i], e = document.createElement('button'); e.className = 'brow';
+  e.innerHTML = '<i aria-hidden="true"></i><span class="bn"></span><span class="bp"></span><i aria-hidden="true">›</i>';
   e.children[1].textContent = b.name;
-  if (kind){ e.lastChild.textContent = '›'; e.addEventListener('click', () => { setBadgeTray(false); showKind(kind, !badgeGot(b)); }); }
+  e.addEventListener('click', () => { setBadgeTray(false); if (a.go) goTo(a.go.index); else showKind(a.kind || 'all', !badgeGot(b), a.pick); });
   $('#badges').appendChild(e); return e;
 });
 let earned = new Set(store.get('badges', []));
@@ -47,11 +53,11 @@ function syncCollection(){
   const n = ATLAS_KEYS.filter(k => SEEN.has(k)).length;
   $('#seenCount').textContent = `${n} of ${ATLAS_KEYS.length}`;
   let got = 0;
-  BADGES.forEach((b, i) => { const p = badgeProgress(b), done = badgeGot(b), e = badgeEls[i], kind = BADGE_KIND[b.id]; if (done) got++;
+  BADGES.forEach((b, i) => { const p = badgeProgress(b), done = badgeGot(b), e = badgeEls[i], a = badgeAct[i]; if (done) got++;
     e.classList.toggle('got', done); e.firstChild.textContent = done ? '✓' : '';
     e.children[2].textContent = done && p.have < p.need ? 'earned' : `${p.have} of ${p.need}`;
-    const what = kind && CATS.find(c => c[0] === kind)[2];
-    if (kind){ e.title = done ? 'Show the ' + what : 'Show the ' + what + ' you have not seen yet'; e.setAttribute('aria-label', `${b.name}, ${done ? 'earned' : p.have + ' of ' + p.need}. ${e.title}`); } });
+    e.title = a.go ? 'Go to ' + a.go.name : done ? 'Show the ' + a.what : 'Show the ' + a.what + ' you have not seen yet';
+    e.setAttribute('aria-label', `${b.name}, ${done ? 'earned' : p.have + ' of ' + p.need}. ${e.title}`); });
   $('#badgeCount').textContent = `${got} of ${BADGES.length}`;
   $('#badgeTrayN').textContent = `${got} of ${BADGES.length} earned`;
   seenBtn.setAttribute('aria-label', `Seen ${n} of ${ATLAS_KEYS.length} places, badges ${got} of ${BADGES.length}. Show the badges`);
@@ -63,6 +69,8 @@ function markSeen(o){
   const row = atlasRows.find(r => r.o === o); if (row) row.b.classList.add('seen');
   for (const b of BADGES){ if (earned.has(b.id)) continue; if (badgeProgress(b).done){ earned.add(b.id); store.set('badges', [...earned]); toast('badge earned · ' + b.name); } }
   syncCollection();
+  // (the open atlas says the new count at once: the place stays in the list with its ✓ until the next change, but no longer counts as not seen yet)
+  if (!atlasEl.hidden) atlasCountNow();
 }
 let seenClock = 0, seenIdx = -1;
 function updateSeen(dt){
