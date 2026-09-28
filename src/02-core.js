@@ -86,8 +86,10 @@ function progFinish(pr){
   pr.ready = true;
 }
 // true when the program can be used now; with wait = true (or no parallel compile) it finishes synchronously
+// (never while the context is lost: nothing compiles then, and reading a lost program's status would throw)
 function progReady(pr, wait){
   if (pr.ready) return true;
+  if (gl.isContextLost()) return false;
   progStart(pr);
   if (!wait && PAR && !window.__syncCompile && !gl.getProgramParameter(pr.p, PAR.COMPLETION_STATUS_KHR)) return false;
   progFinish(pr); return true;

@@ -435,6 +435,7 @@ function shieldUpdate(dt){
 }
 ship.update = function(dt){
   if (!S_.plan){ S_.visits = 0; foldVisit(BYKEY.saturn); S_.t = 3; }
+  if (S_.shPend != null) ship.shieldSwap();   // (a new shield look, once its shader has compiled in the background: setShield in 07-extras.js)
   if (S_.hold){ shieldUpdate(dt); foldUpdate(dt); drone.ctl(dt); return; }   // (the showcase holds it still while the camera circles it, the hull still forming if it just folded in; on the site it never stops)
   // (a camera flying up to the ship: the ship carries on, but it will not jump until the camera has landed)
   const flying = !!(flight && flight.obj === ship);
@@ -1207,7 +1208,7 @@ ship.dbg = {
     foldVisit(BYKEY[key]); S_.t = 3;
   },
   force(o){ Object.assign(S_.force, o); },
-  escapeAt, isHoleTarget, surfDrawn, shieldPower, setShield:v => ship.setShield(v),
+  escapeAt, isHoleTarget, surfDrawn, shieldPower, setShield:v => ship.setShield(v, true),
   replan(){ if (S_.phase !== 'pass') return; const C = pickNext(S_.target); S_.next = { tg:C, mode:travelMode(S_.target, C) }; },
   skip(){ if (S_.phase === 'pass') S_.t = S_.plan.T; else if (S_.phase === 'align') S_.t = S_.jumpAt; },
   get beams(){ return S_.act && S_.act.beams ? S_.act.beams : []; },

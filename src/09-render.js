@@ -1198,9 +1198,15 @@ function tick(dt){
   if (cmp) placeCompare(dt);
   updateDrift(dt);
 }
+// The browser can take the GPU away from the page (a driver reset, a GPU hang in another tab, its own watchdog): drawing stops, a line says so,
+// and when the browser gives the context back the page reloads (every texture, buffer and program would have to be made again). Without
+// preventDefault the context would never come back.
+let glLost = false;
+canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); glLost = true; const m = $('#nogl'); m.textContent = 'The browser reset the graphics. The page reloads when they are back, or you can reload it now.'; m.hidden = false; });
+canvas.addEventListener('webglcontextrestored', () => { location.reload(); });
 function frame(now){
   requestAnimationFrame(frame);
-  if (window.__freeze){ last = now; return; }
+  if (window.__freeze || glLost){ last = now; return; }
   const dtR = Math.min((now - last)/1000, 0.25); last = now;
   const hitch = progBusy > 0; progBusy = 0;   // the last frame compiled a shader: its time says nothing about how fast the scene draws
   const dt = Math.min(dtR, 0.05);
