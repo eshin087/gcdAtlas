@@ -370,7 +370,10 @@ ACT.scan = pl => {
       const pts = [], fk = smooth(0, 0.08, u)*(1 - smooth(0.92, 1, u));
       for (let k=0;k<64;k++){ ringPt(g, g.s, k/64, P1); if (V.dot(V.sub(E, P1.p), P1.n) > 0 && facing(P1.p, P1.n) > 0.08 && !(sh.hole && inShadow(P1.p, sh.C, sh.hr))) pts.push(P1.p.slice()); }
       const K = Math.min(5, pts.length), occ = p => (sh.solid && behindSphere(p, sh.C, sh.a*0.998)) || behindHull(p) || (sh.hole && inShadow(p, sh.C, sh.hr));
-      for (let k=0;k<K;k++) beamLine(E, pts[Math.floor((k + 0.5)*pts.length/K)], CYAN, 0.16*fk, occ, SC_RING, 0.45*fk, 10, ship.rad*0.25);
+      // (each in two parts: the first 200 ship radii in fine pieces near the array, where the hull can hide it, the rest in a few; one line
+      // from the ship to a galaxy in fine pieces all the way used some 130 line ends)
+      for (let k=0;k<K;k++){ const q = pts[Math.floor((k + 0.5)*pts.length/K)], d = V.sub(q, E), L = V.len(d), m = Math.min(L, ship.rad*200), M = V.add(E, V.mul(d, m/L)), bm = 0.16 + 0.29*m/L;
+        beamLine(E, M, CYAN, 0.16*fk, occ, CYAN, bm*fk, 6, ship.rad*0.25); if (L > m*1.001) beamLine(M, q, CYAN, bm*fk, occ, SC_RING, 0.45*fk, 8); }
     }
     // the ring closes at the far end with a small spark
     const ue = tau - SCAN.SW0 - SCAN.SWT;
