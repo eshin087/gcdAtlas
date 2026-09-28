@@ -42,7 +42,7 @@ const cosmicWeb = (() => {
   ps.count = k; ps.upload('ac');
   const o = addObj({ key:'cosmicweb', name:'the cosmic web', label:'cosmic web', type:'filaments of galaxies around vast empty voids', group:'cosmic', sortKey:1e9, layer:1,
     fact:'Galaxies gather into clusters strung along filaments hundreds of millions of light-years long, around voids. The famous clusters and voids here are at their real positions; the web between them is a statistical model.',
-    pos:[0, 0, 0], rad:R, minZoom:0.002, pxMin:3, noImpostor:true, labelRange:1.2e11, labelMin:3e8, distEarth:'all around us', aka:'large scale structure laniakea filaments voids',
+    pos:[0, 0, 0], rad:R, sizeR:4.65e10, minZoom:0.002, pxMin:3, noImpostor:true, labelRange:1.2e11, labelMin:3e8, distEarth:'all around us', aka:'large scale structure laniakea filaments voids',
     particleVis:rpx => smooth(3e6, 3e7, orbit.dist),
     views:[{d:[0.4, 0.55, 1], k:1.9, hold:10, drift:0.02}, {d:[1, 0.2, 0.2], k:0.55, hold:9, drift:0.03}, {d:[0.3, 1, 0.1], k:0.22, hold:8, drift:0.03}],
     particles:[{ps, prog:'ptBasic', mode:0, sb:0.75, size:1.3, cap:0.55, rot:() => I3}],
@@ -87,7 +87,7 @@ const universe = (() => {
   ps.upload('ac');
   const o = addObj({ key:'universe', name:'the observable universe', label:'observable universe', type:'everything light has had time to reach us from, in 13.8 billion years', group:'cosmic', sortKey:9e10, layer:0,
     fact:'A sphere 93 billion light-years across centred on us. Its edge is the cosmic microwave background, the afterglow of the Big Bang released 380,000 years after it began. (The pattern is illustrative.)',
-    pos:[0, 0, 0], rad:R, prog:program(VS_RECT, FS_UNIVERSE), minZoom:0.03, pxMin:2, noImpostor:true, labelRange:1e13, labelMin:6e10, distEarth:'46.5 billion ly to the edge', aka:'cmb big bang edge horizon',
+    pos:[0, 0, 0], rad:R, sizeR:R, prog:program(VS_RECT, FS_UNIVERSE), minZoom:0.03, pxMin:2, noImpostor:true, labelRange:1e13, labelMin:6e10, distEarth:'46.5 billion ly to the edge', atlasDist:'all around us', aka:'cmb big bang edge horizon',
     visFn:() => smooth(8e8, 1.2e10, orbit.dist),
     particleVis:() => smooth(4e9, 2.5e10, orbit.dist),
     setU(pr){ gl.uniform4f(pr.u.uP0, smooth(2e10, 8e10, V.len(this.rel)), smooth(3e9, 3e10, orbit.dist), 0, 0); },

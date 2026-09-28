@@ -381,7 +381,7 @@ const sl9 = (() => {
     A = V.norm(V.add(V.mul(P0, 0.55), [0, -0.8, 0]));
   };
   geom();
-  const o = addObj({ key:'sl9', name:'Comet Shoemaker-Levy 9', label:'Shoemaker-Levy 9', type:'the comet that hit Jupiter in July 1994 · replayed', group:'comets', layer:3,
+  const o = addObj({ key:'sl9', tags:['events'], name:'Comet Shoemaker-Levy 9', label:'Shoemaker-Levy 9', type:'the comet that hit Jupiter in July 1994 · replayed', group:'comets', layer:3,
     parent:jupiter, offset:[0, 0, 0], rad:RJ*16, R0:jupiter.R0, sizeR:1*KM, pxMin:2, minZoom:0.02, farLum:0, noImpostor:true, noWaypoint:true, labelRange:0.05*AU_LY, sortKey:5.2,
     fact:'Jupiter\'s gravity tore this comet into about 21 pieces in July 1992. Two years later, from 16 to 22 July 1994, they hit Jupiter one after another at 60 km/s: the first collision between two Solar System bodies ever watched.',
     aka:'shoemaker levy 9 sl9 d/1993 f2 jupiter impact 1994 string of pearls',

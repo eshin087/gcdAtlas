@@ -253,7 +253,7 @@ void main(){
 }`;
 const veil = (() => {
   const pos = radec(hms(20,51,0), dms(30,40,0), 2400);
-  return addObj({ key:'veil', name:'Veil Nebula', label:'Veil Nebula', type:'supernova remnant · the Cygnus Loop', group:'nebulae', sortKey:2400,
+  return addObj({ key:'veil', tags:['events'], name:'Veil Nebula', label:'Veil Nebula', type:'supernova remnant · the Cygnus Loop', group:'nebulae', sortKey:2400,
     fact:'The expanding wreckage of a star that exploded 10,000 to 20,000 years ago. The blast wave is still ploughing into surrounding gas, lighting it up in long twisted filaments.',
     pos, rad:65, R0:facingEarth(pos, [0, 0, 1], 0), prog:program(VS_RECT, FS_VEIL), minZoom:0.05, pxMin:6, farColor:[0.55, 0.9, 1], farLum:0.4, labelRange:1.5e5, labelMin:10, aka:'cygnus loop ngc 6960 6992 witch broom supernova remnant',
     visFn(rpx){ return smooth(6, 16, rpx)*(0.15 + 0.85*smooth(3, 40, orbit.dist)); },

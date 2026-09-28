@@ -98,7 +98,7 @@ const collide = (() => {
   };
   st.init();
   const wpos = radec(hms(12,1,53), dms(-18,52,10), 62e6);
-  const o = addObj({ key:'antennae', name:'Antennae Galaxies', label:'Antennae', type:'colliding galaxies · NGC 4038/4039', group:'galaxies', sortKey:62e6,
+  const o = addObj({ key:'antennae', tags:['events'], name:'Antennae Galaxies', label:'Antennae', type:'colliding galaxies · NGC 4038/4039', group:'galaxies', sortKey:62e6,
     fact:'Two spirals in the middle of a collision. Tides fling stars into long tails and colliding gas ignites bursts of star formation. Replayed here: 600 million years in a minute.',
     pos:wpos, rad:130000, R0:facingEarth(wpos, V.norm([0, 0.75, 0.65]), 0), prog:program(VS_RECT, FS_COLLIDE), minZoom:0.12, pxMin:7, farColor:[0.9, 0.85, 1], farLum:0.8, labelRange:2e8, layer:2, aka:'ngc 4038 4039 merger collision',
     views:[{d:[0,0.75,0.65],k:2.2,hold:10,drift:0.03},{d:[0.15,1,0.1],k:2.8,hold:8,drift:0.03},{d:[1,0.3,-0.3],k:1.3,hold:8,drift:-0.04}],

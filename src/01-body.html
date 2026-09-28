@@ -60,13 +60,32 @@
     <input id="atlasSearch" type="search" placeholder="search the universe" autocomplete="off" spellcheck="false" aria-label="Search objects">
     <button class="btn" id="atlasClose" aria-label="Close atlas">close</button>
   </div>
-  <div class="atlas-tools">
-    <div class="row" id="atlasSort"><span class="lbl">sort</span><button class="chip" data-sort="distance">distance</button><button class="chip" data-sort="size">size</button><button class="chip" data-sort="name">name</button><button class="chip" id="atlasDir" title="Reverse the order">&darr; nearest first</button><button class="chip reset" id="atlasReset" title="Back to the default view">reset</button></div>
-    <div class="row" id="atlasCats"><span class="lbl">show</span></div>
-    <div class="row seen-row"><span class="lbl">seen</span><span id="seenCount" class="seen-count"></span><span id="badges" class="badges"></span></div>
+  <!-- every choice in plain sight (nothing scrolls sideways): the sort and its order, "not seen yet" (a box that works with any kind), then all or
+       one kind (one radio group: "all" across the top of the grid, the twelve kinds under it, near to far like the list). src/09-render.js fills the
+       counts; the results line says what the list shows and holds the reset. On a phone held upright (and wherever the list would be squeezed) the
+       atlas is one scrolling column (.flow): the controls scroll away with the list, the results line and the headings stay at the top. -->
+  <div class="atlas-body" id="atlasBody">
+  <div class="atlas-tools" id="atlasTools">
+    <div class="atl-row sort-row"><span class="lbl" id="sortLbl">sort</span>
+      <div class="sortseg" id="atlasSort" role="radiogroup" aria-labelledby="sortLbl"><button role="radio" data-sort="kind" title="Grouped by kind">kind</button><button role="radio" data-sort="distance" title="One list by distance from Earth">distance</button><button role="radio" data-sort="size" title="One list by true size">size</button><button role="radio" data-sort="name" title="One list by name">name</button></div>
+      <button class="dirbtn" id="atlasDir"><b aria-hidden="true">&#8645;</b><span></span></button>
+    </div>
+    <div class="atl-row show-row"><span class="lbl" id="showLbl">show</span>
+      <button class="unseen" id="atlasUnseen" role="checkbox" aria-checked="false" title="Only the places you have not visited yet"><b aria-hidden="true">[ ]</b><span>not seen yet</span></button>
+    </div>
+    <div class="cats" id="atlasCats" role="radiogroup" aria-labelledby="showLbl"><button class="cell allcell" id="atlasAll" role="radio" data-cat="all"><span class="cl">all</span><span class="n"></span></button></div>
   </div>
+  <div class="aresult" id="atlasResult" hidden><span class="rtxt"><span id="atlasResultTxt"></span><span class="rnote" id="atlasResultNote"></span></span><button class="chip rreset" id="atlasReset" title="Back to the default view">reset</button></div>
+  <div class="sr" id="atlasLive" aria-live="polite"></div>
   <div id="atlasList" class="atlas-list" role="listbox" aria-label="Objects"></div>
-  <div class="atlas-foot">real positions and sizes · distances from Earth</div>
+  </div>
+  <!-- the collection: a tray of badges over the bottom of the list, opened from the footer line -->
+  <div class="btray" id="badgeTray" role="region" aria-label="Badges" hidden>
+    <div class="bt-head"><span class="ptitle">badges</span><span class="bt-n" id="badgeTrayN"></span><button class="chip" id="badgeTrayClose">close</button></div>
+    <p class="bt-note">a place counts as seen after 3 seconds on it · kept on this device only</p>
+    <div class="bt-list" id="badges"></div>
+  </div>
+  <button class="afoot" id="seenBtn" aria-expanded="false" aria-controls="badgeTray"><span class="sf-seen">seen <b id="seenCount"></b></span><span class="sf-bar" id="seenBar" aria-hidden="true"></span><span class="sf-badges">badges <b id="badgeCount"></b></span><i aria-hidden="true">&rsaquo;</i></button>
 </aside>
 
 <aside id="tours" class="panel" aria-label="Tours" hidden>
@@ -252,7 +271,7 @@
       <dt>ship · ride · C</dt><dd>ship shows where the Halo is; ride follows it from behind (scroll to move nearer or further); C switches between the chase view and the cockpit</dd>
       <dt>idle</dt><dd>the interface fades after a few seconds (sooner during a tour); move the mouse or tap to bring it back</dd>
     </dl>
-    <p class="note">Everything sits at its real position and real size: the planets where they are today, 1,982 naked-eye stars at their measured distances, the Milky Way, its neighbours and the cosmic web out to the edge of the observable universe. Brightness is compressed so faint things stay visible, stars twinkle gently for life, and fast processes (orbits, explosions, mergers) are sped up. The few objects too small to see next to their surroundings (a quasar's engine, a kilonova) are drawn magnified, and the ruler shows their true size. The music is generated in your browser as you listen. The Halo, a long-range cruiser that wanders between wonders, is the one invented thing here. The Sun is drawn warm yellow-orange, like a filtered solar photo; from space its light is white.</p>
+    <p class="note">Everything sits at its real position and real size: the planets where they are today, 1,982 naked-eye stars at their measured distances, the Milky Way, its neighbours and the cosmic web out to the edge of the observable universe. Brightness is compressed so faint things stay visible, stars twinkle gently for life, and fast processes (orbits, explosions, mergers) are sped up. The few objects too small to see next to their surroundings (a quasar's engine, a kilonova) are drawn magnified, and the ruler shows their true size. The music is generated in your browser as you listen. The Halo, a long-range cruiser that wanders between wonders, and Pip, its little drone, are the only invented things here. The Sun is drawn warm yellow-orange, like a filtered solar photo; from space its light is white.</p>
     <p><button class="btn" id="helpClose">close</button></p>
   </div>
 </div>

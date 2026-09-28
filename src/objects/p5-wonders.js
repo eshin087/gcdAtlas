@@ -30,17 +30,43 @@ function orbitTrace(el, n, col, from = 0, to = 1){
 const nearSS = () => smooth(0.3*AU_LY, 3*AU_LY, orbit.dist)*(1 - smooth(300*AU_LY, 3000*AU_LY, V.len(sun.rel)));
 
 // ---------------------------------------------------------------- irregular small bodies: 'Oumuamua, Arrokoth, the nucleus of Halley's Comet
-// uP0: x shape (0 'Oumuamua, 1 Arrokoth, 2 Halley's nucleus), y activity (jets)   uP1: Sun direction (world)
+// uP0: x shape (0 'Oumuamua, 1 Arrokoth, 2 Halley's nucleus, 3 Vesta, 4 Bennu), y activity (jets)   uP1: Sun direction (world)
+// (the Halo's captured rocks use shapes 0 to 2 only: haloRock in 07h-halo.js)
 const FS_ROCK = COMMON + `
 float sdEll(vec3 p, vec3 r){ float k0 = length(p/r), k1 = length(p/(r*r)); return k0*(k0 - 1.)/max(k1, 1e-5); }
+// Vesta, 1 unit = 310 km: a squashed ball 573 x 557 x 446 km (local y = its pole, local x its prime meridian, east longitude toward -z).
+// Rheasilvia, 505 km wide, is centred at 72 deg S, 86 deg E (IAU gazetteer, in the IAU 2015 longitudes tick() turns Vesta by): a broad basin
+// ~13 km deep with a rim a few km high and a central peak rising ~22 km from the floor. Troughs (Divalia Fossae, up to ~5 km deep) ring the
+// equator around it. (The basin is worked out in a frame turned 86.3 deg about the pole, where its centre sits at longitude 0.)
+float vestaH(vec3 p){
+  vec3 u = normalize(p); u = vec3(u.x*0.06453 - u.z*0.99792, u.y, u.x*0.99792 + u.z*0.06453);
+  float cu = dot(u, vec3(0.30985, -0.95079, 0.)), th = acos(clamp(cu, -1., 1.)), x = th/0.96;
+  float h = x < 1. ? -13. + 17.*pow(smoothstep(0.28, 1., x), 1.5) + 22.*exp(-x*x/0.05) : 4.*exp(-(x - 1.)/0.15);
+  float az = atan(u.z, u.x - 0.30985*cu);
+  float arc = smoothstep(0.2, 0.55, noise(vec3(cos(az), sin(az), 0.)*1.6 + 4.));
+  h -= 5.*arc*(exp(-pow((th - 1.52)/0.022, 2.)) + 0.7*exp(-pow((th - 1.63)/0.018, 2.)) + 0.8*exp(-pow((th - 1.76)/0.02, 2.)));
+  return h/310.;
+}
+// Bennu, 1 unit = 280 m: a spinning top 505 x 492 x 457 m (OSIRIS-REx) with a ridge round its equator, a rubble pile strewn with boulders
+float smaxR(float a, float b, float k){ float h = clamp(0.5 - 0.5*(b - a)/k, 0., 1.); return mix(b, a, h) + k*h*(1. - h); }
+float bennuD(vec3 p){
+  float e = sdEll(p, vec3(0.903, 0.817, 0.879)), cone = (length(p.xz) + 0.7*abs(p.y) - 0.94)/1.2207;
+  return smaxR(e, cone, 0.06) - pow(noise(p*9. + 3.), 4.)*0.06 - pow(noise(p*23. + 1.), 5.)*0.04;
+}
 float mapR(vec3 p){
   float k = uP0.x, d;
   if(k < 0.5) d = sdEll(p, vec3(0.9, 0.22, 0.2));
   else if(k < 1.5){ d = min(sdEll(p - vec3(-0.42, 0., 0.), vec3(0.52, 0.5, 0.24)), sdEll(p - vec3(0.45, 0.02, 0.), vec3(0.38, 0.35, 0.25))); }
-  else d = min(sdEll(p - vec3(-0.3, 0., 0.), vec3(0.62, 0.46, 0.44)), sdEll(p - vec3(0.36, 0.06, 0.), vec3(0.5, 0.4, 0.38)));
+  else if(k < 2.5) d = min(sdEll(p - vec3(-0.3, 0., 0.), vec3(0.62, 0.46, 0.44)), sdEll(p - vec3(0.36, 0.06, 0.), vec3(0.5, 0.4, 0.38)));
+  else if(k < 3.5) return sdEll(p, vec3(0.924, 0.72, 0.899)) - vestaH(p) + (fbm3(p*9.) - 0.5)*0.012 + (noise(p*31.) - 0.5)*0.004;
+  else return bennuD(p) + (fbm3(p*7.) - 0.5)*0.02;
   return d + (fbm3(p*7.) - 0.5)*0.05 + (noise(p*19.) - 0.5)*0.015;
 }
 vec3 nrmR(vec3 p){ vec2 e = vec2(0.003, 0.); return normalize(vec3(mapR(p + e.xyy) - mapR(p - e.xyy), mapR(p + e.yxy) - mapR(p - e.yxy), mapR(p + e.yyx) - mapR(p - e.yyx))); }
+// Vesta's shading normal: its basin, peak and troughs with slopes 2.5 times steeper than the real ones, so the low relief reads in characters
+// (the outline and the shadows use the true heights)
+float mapV(vec3 p){ return sdEll(p, vec3(0.924, 0.72, 0.899)) - 2.5*vestaH(p) + (fbm3(p*9.) - 0.5)*0.012; }
+vec3 nrmV(vec3 p){ vec2 e = vec2(0.004, 0.); return normalize(vec3(mapV(p + e.xyy) - mapV(p - e.xyy), mapV(p + e.yxy) - mapV(p - e.yxy), mapV(p + e.yyx) - mapV(p - e.yyx))); }
 void main(){
   vec3 o, d; localRay(o, d);
   vec2 h = sphIsect(o, d, vec3(0.), 1.); if(h.y < 0.) discard;
@@ -49,11 +75,18 @@ void main(){
   for(int i=0;i<90;i++){ float s = mapR(o + d*t); if(s < 0.001){ hit = true; break; } t += s*0.8; if(t > h.y) break; }
   vec3 col = vec3(0.); float alpha = 0.;
   float k = uP0.x;
-  vec3 alb = k < 0.5 ? vec3(0.62, 0.45, 0.36) : (k < 1.5 ? vec3(0.72, 0.42, 0.3) : vec3(0.24, 0.21, 0.2));
+  vec3 alb = k < 0.5 ? vec3(0.62, 0.45, 0.36) : (k < 1.5 ? vec3(0.72, 0.42, 0.3) : (k < 2.5 || k > 3.5 ? vec3(0.24, 0.21, 0.2) : vec3(0.6, 0.56, 0.5)));
   if(hit){
-    vec3 p = o + d*t, n = nrmR(p);
+    vec3 p = o + d*t, n = k > 2.5 && k < 3.5 ? nrmV(p) : nrmR(p);
     float dif = max(dot(n, L), 0.), neck = k > 0.5 && k < 1.5 ? exp(-pow((p.x - 0.03)/0.08, 2.))*0.35 : 0.;
-    col = alb*(1. + neck)*(pow(dif, 0.85)*1.3 + 0.015)*(0.85 + 0.3*fbm3(p*11.))*(k < 0.5 ? 1.8 : 1.);
+    float mott = k > 2.5 && k < 3.5 ? 0.88 + 0.24*fbm3(p*3.5 + 2.) : 0.85 + 0.3*fbm3(p*11.);   // (Vesta: its patches of bright and dark rock)
+    // Vesta: Rheasilvia's rim, its central peak and the troughs cast shadows (a short walk toward the Sun over the true relief)
+    if(k > 2.5 && k < 3.5 && dif > 0.){
+      float s = 0.012, sh = 1.;
+      for(int j=0;j<36;j++){ float q = mapR(p + L*s); if(q < 0.0004){ sh = 0.; break; } sh = min(sh, 30.*q/s); s += clamp(q, 0.008, 0.05); if(s > 0.7) break; }
+      dif *= clamp(sh, 0., 1.);
+    }
+    col = alb*(1. + neck)*(pow(dif, k > 2.5 && k < 3.5 ? 1.5 : 0.85)*1.3 + 0.015)*mott*(k < 0.5 ? 1.8 : (k > 3.5 ? 1.6 : 1.));   // (Vesta: a harder falloff, so its low relief reads in characters; Bennu, blacker than coal, drawn brighter)
     alpha = 1.;
   }
   // a comet's nucleus puffs jets of gas and dust from its sunlit side
@@ -90,7 +123,7 @@ const oumuamua = addRock({ key:'oumuamua', name:"'Oumuamua", label:"'Oumuamua", 
   aka:'oumuamua 1i interstellar asteroid comet', farLum:0.2,
   readout:() => `${heliocentric(oumuamua).toFixed(0)} AU from the Sun and leaving at ~26 km/s\ndrawn as a long thin body, one of the shapes that fit its light curve` });
 // Arrokoth: a pristine contact binary in the Kuiper belt, visited by New Horizons on 1 January 2019
-const arrokoth = addRock({ key:'arrokoth', name:'Arrokoth', label:'Arrokoth', type:'contact binary in the Kuiper belt · the farthest world ever visited', shape:1, rad:19*KM, spin:0.15, sortKey:44.6,
+const arrokoth = addRock({ key:'arrokoth', tags:['moons'], name:'Arrokoth', label:'Arrokoth', type:'contact binary in the Kuiper belt · the farthest world ever visited', shape:1, rad:19*KM, spin:0.15, sortKey:44.6,
   el:{ a:44.18, e:0.0356, i:2.45, om:158.9, w:189.1, tp:2475741.404 },
   fact:'Two flattened lumps of ice that drifted together gently 4.5 billion years ago and stuck. New Horizons flew past it in 2019, 6.6 billion km from home: the most distant world any spacecraft has visited.',
   aka:'ultima thule 2014 mu69 kuiper belt new horizons', R0:R0of(0.3, 0.8, 0.2),
@@ -145,7 +178,7 @@ halleyTail.update();
 // ---------------------------------------------------------------- Ceres: the largest body in the asteroid belt (elements from the JPL small-body database, time of perihelion)
 {
   const a = 2.7663, n = 0.9856076686/Math.pow(a, 1.5), tp = 2461599.841, om = 80.25, w = 73.29, L0 = w + om + n*(2451545 - tp);
-  addBody({ key:'ceres', name:'Ceres', type:'dwarf planet · the largest body in the asteroid belt', parent:sun, R:469.7, pole:[291.4, 66.8], W:[170.65, 952.1532], kind:19,
+  addBody({ key:'ceres', tags:['moons'], name:'Ceres', type:'dwarf planet · the largest body in the asteroid belt', parent:sun, R:469.7, pole:[291.4, 66.8], W:[170.65, 952.1532], kind:19,
     el:[a, 0.0797, 10.587, L0, w + om, om, 0, 0, 0, n*36525, 0, 0], farLum:0.35, farColor:[0.8, 0.8, 0.8], sortKey:2.77, labelRange:1.5*AU_LY, aka:'ceres dwarf planet asteroid dawn occator',
     fact:'A round world 940 km across holding a quarter of the asteroid belt\'s mass. NASA\'s Dawn found bright patches of salt in Occator crater, left by briny water welling up from below.',
     readout:() => '940 km across · 2.8 AU from the Sun\none day lasts 9 hours; a year, 4.6 of ours' });
@@ -155,7 +188,7 @@ halleyTail.update();
 // a planet on a circular orbit around its host (periods shortened so you can see them move; the readout gives the real one)
 function exoPlanet(def){
   const host = def.host, a = def.a*AU_LY;
-  const b = addBody(Object.assign({ parent:host, pole:[0, 90], lightFrom:host, group:'stars', labelRange:Math.max(a*30, def.R*KM*3e3), farLum:0.3, atlas:true }, def));
+  const b = addBody(Object.assign({ parent:host, pole:[0, 90], lightFrom:host, group:'worlds', labelRange:Math.max(a*30, def.R*KM*3e3), farLum:0.3, atlas:true }, def));
   b.update = function(){ const th = (def.phase || 0) + this.t*2*Math.PI/def.P; this.offset = M3.apply(host.R0, [a*Math.cos(th), 0, -a*Math.sin(th)]); this.pos = V.add(host.pos, this.offset);
     this.rot = def.locked ? M3.mul(host.R0, M3.rotY(th)) : M3.mul(host.R0, M3.rotY(this.t*0.4)); };
   b.views = def.views || [{dirFn:() => sunSide(b, 0.7, 0.25), k:3, hold:8, drift:0.03}, {dirFn:() => sunSide(b, 2.5, 0.2), k:2, hold:7, drift:0.04}];
@@ -244,7 +277,7 @@ void main(){
 }`.replace('void main(){', 'vec2 vorc2(vec2 p){ vec2 i = floor(p), f = fract(p); float d1 = 8., d2 = 8.; for(int y=-1;y<=1;y++) for(int x=-1;x<=1;x++){ vec2 g = vec2(float(x), float(y)); vec2 r = g + vec2(hash12(i + g), hash12(i + g + 7.3)) - f; float dd = dot(r, r); if(dd < d1){ d2 = d1; d1 = dd; } else if(dd < d2) d2 = dd; } return vec2(sqrt(d1), sqrt(d2)); }\nvoid main(){');
 {
   const pos = radec(hms(23,23,24), dms(58,48,54), 11000);
-  addObj({ key:'casa', name:'Cassiopeia A', label:'Cas A', type:'supernova remnant · the youngest known from a massive star', group:'nebulae', sortKey:11000,
+  addObj({ key:'casa', tags:['events'], name:'Cassiopeia A', label:'Cas A', type:'supernova remnant · the youngest known from a massive star', group:'nebulae', sortKey:11000,
     fact:'The shredded remains of a massive star whose light from the explosion reached Earth around the 1660s, though nobody is known to have seen it. JWST sees its debris as knots of orange and pink, a shock front ahead of it, and a curious green curtain nicknamed the Green Monster.',
     pos, rad:6.5, R0:facingEarth(pos, [0, 0, 1], 0), prog:program(VS_RECT, FS_CASA), minZoom:0.1, pxMin:6, farColor:[1, 0.6, 0.45], farLum:0.5, labelRange:9e4, aka:'cas a cassiopeia supernova remnant green monster jwst',
     views:nebView(pos, [{ d:[0.5, 0.3, 0.8], k:1.1, hold:8, drift:0.03 }, { d:[0.1, 0.05, 1], k:0.55, off:[0.1, -0.02, 0.2], hold:8, drift:0.02 }]),
@@ -373,7 +406,7 @@ void main(){
   const bps = makePS(bright.length); bright.forEach((b, i) => { bps.a.set([...b.p, b.w], i*4); bps.c.set([...b.c, 0], i*4); }); bps.upload('ac');
   const sp = makeSpikes(bright.map(b => ({ p:b.p, w:b.w, c:b.c })));
   const lit = [4, 0, 3, 2].map(i => bright[i]);   // Merope lights the brightest nebula
-  addObj({ key:'pleiades', name:'the Pleiades', label:'Pleiades', type:'young star cluster · the Seven Sisters · M45', group:'nebulae', sortKey:444,
+  addObj({ key:'pleiades', tags:['clusters'], name:'the Pleiades', label:'Pleiades', type:'young star cluster · the Seven Sisters · M45', group:'nebulae', sortKey:444,
     fact:'About a thousand young stars born together some 100 to 125 million years ago. Their brightest members light up a dust cloud the cluster happens to be passing through, in streaks of blue.',
     pos, rad:RAD, R0, prog:program(VS_RECT, FS_PLEIADES), minZoom:0.08, pxMin:6, farColor:[0.7, 0.8, 1], farLum:0.9, labelRange:3e4, aka:'m45 seven sisters subaru pleiades',
     setU(pr){ lit.forEach((b, i) => gl.uniform4f(pr.u['uP' + i], b.p[0], b.p[1], b.p[2], b.w)); gl.uniformMatrix3fv(pr.u.uM0, false, [...bright[1].p, ...bright[5].p, ...bright[6].p]); },
@@ -473,7 +506,7 @@ void main(){
   for (let i=0;i<n;i++){ const b = rnd() < 0.55, c0 = b ? [-0.3, 0.08, 0] : [0.32, -0.05, 0], s = b ? 0.16 : 0.13, c = rnd() < 0.8 ? [1, 0.78, 0.55] : [0.75, 0.8, 1];
     ps.a.set([c0[0] + rndn()*s, c0[1] + rndn()*s, c0[2] + rndn()*s, 0.7 + rnd()], i*4); ps.c.set([...c, 0], i*4); }
   ps.upload('ac');
-  addObj({ key:'elgordo', name:'El Gordo', label:'El Gordo', type:'colliding galaxy clusters · the fat one', group:'cosmic', sortKey:9.9e9,
+  addObj({ key:'elgordo', tags:['events'], name:'El Gordo', label:'El Gordo', type:'colliding galaxy clusters · the fat one', group:'cosmic', sortKey:9.9e9,
     fact:'Two giant clusters of galaxies smashing together, together weighing about 3 million billion Suns. The collision heats its gas to about 170 million °C and drives shock waves that glow in radio at both ends.',
     pos, rad:6e6, R0:facingEarth(pos, [0, 0, 1], 20), prog:program(VS_RECT, FS_ELGORDO), minZoom:0.1, pxMin:6, farColor:[1, 0.6, 0.85], farLum:0.8, labelRange:3e10, aka:'act-cl j0102-4915 el gordo cluster',
     distEarth:'light left it 7 billion years ago · now ~10 billion ly', views:[{d:[0, 0.1, 1], k:2, hold:9, drift:0.02}, {d:[0.4, 0.8, 0.4], k:1.6, hold:8, drift:0.03}],

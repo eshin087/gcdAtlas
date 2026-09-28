@@ -93,8 +93,11 @@ const PB_NOVA = `void body(out vec3 p, out float br, out vec3 col){
 P.ptKDisk = program(particleVS(PB_KDISK), FS_POINT);
 P.ptNova = program(particleVS(PB_NOVA), FS_POINT);
 
-const binary = (() => {
-  const mu1 = 0.62, mu2 = 0.38, X1 = -mu2, X2 = mu1, S = 0.5, RD = 0.2, H = 0.004, RATE = 0.35, NOVA = 34;
+P.binary = program(VS_RECT, FS_BINARY);
+// a recurrent nova: a red giant (mass fraction mu1) spilling gas onto a white dwarf, which flares every NOVA seconds of the replay.
+// rad: the drawing's radius (the separation is rad/2); RD: the disk's radius, in separations; readout(tn, NOVA): the text, from the seconds since the last flare
+function novaBinary(def){
+  const mu1 = def.mu1, mu2 = 1 - mu1, X1 = -mu2, X2 = mu1, S = 0.5, RD = def.RD ?? 0.2, H = 0.004, RATE = 0.35, NOVA = def.NOVA ?? 34;
   const dPhi = x => mu1*(x - X1)/Math.pow(Math.abs(x - X1), 3) + mu2*(x - X2)/Math.pow(Math.abs(x - X2), 3) - x;
   let lo = X1 + 0.05, hi = X2 - 0.05;
   for (let i=0;i<60;i++){ const m = 0.5*(lo + hi); if (dPhi(m) > 0) lo = m; else hi = m; }
@@ -124,7 +127,7 @@ const binary = (() => {
   }
   // disk clumps
   const nd = Math.round(2600*QUALITY), disk = makePS(nd);
-  for (let i=0;i<nd;i++){ const r = 0.015 + 0.19*Math.pow(rnd(), 0.8), c = blackbodyJS(18000*Math.pow(r/0.015, -0.6)); disk.a.set([r, rndn()*0.03, 0.4 + rnd()*0.8, rnd()*6.2832], i*4); disk.c.set([c[0], c[1], c[2], 0], i*4); }
+  for (let i=0;i<nd;i++){ const r = 0.015 + (RD - 0.01)*Math.pow(rnd(), 0.8), c = blackbodyJS(18000*Math.pow(r/0.015, -0.6)); disk.a.set([r, rndn()*0.03, 0.4 + rnd()*0.8, rnd()*6.2832], i*4); disk.c.set([c[0], c[1], c[2], 0], i*4); }
   disk.upload('ac');
   // nova shell
   const nn = Math.round(4200*QUALITY), shell = makePS(nn);
@@ -149,11 +152,10 @@ const binary = (() => {
     }
     ps.upload('ac');
   };
-  const pos = radec(hms(17,50,13.2), dms(-6,42,28), 5000);
-  const o = addObj({ key:'rsoph', name:'RS Ophiuchi', label:'RS Oph', type:'recurrent nova · red giant feeding a white dwarf', group:'stars', sortKey:5000,
-    fact:'A red giant overflows its Roche lobe and feeds a white dwarf. Every ~15 years the piled-up hydrogen ignites in a nova that blasts out an hourglass shell (last in 2021).',
-    pos, rad:2.96*AU_LY, R0:facingEarth(pos, V.norm([0, 0.45, 1]), 0), prog:program(VS_RECT, FS_BINARY), minZoom:0.1, pxMin:6, farColor:[1, 0.6, 0.4], farLum:0.5, labelRange:2e3, aka:'nova binary white dwarf red giant',
-    views:[{d:[0,0.45,1],k:1.3,hold:9,drift:0},{d:[0.05,1,0.05],k:1.6,hold:9,drift:0},{d:[0.3,0.55,1],k:0.42,off:()=>M3.apply(M3.rotY(st.phase), [X2*S*0.8, 0, 0]),hold:8,drift:0}],
+  const pos = def.pos, face = V.norm(def.face || [0, 0.45, 1]);
+  const o = addObj(Object.assign({ group:'stars', tags:['events'], sortKey:def.dist,
+    pos, rad:def.rad, R0:facingEarth(pos, face, 0), prog:P.binary, minZoom:0.1, pxMin:6, farColor:[1, 0.6, 0.4], farLum:0.5, labelRange:2e3,
+    views:[{d:face,k:1.3,hold:9,drift:0},{d:[0.05,1,0.05],k:1.6,hold:9,drift:0},{d:[0.3,0.55,1],k:0.42,off:()=>M3.apply(M3.rotY(st.phase), [X2*S*0.8, 0, 0]),hold:8,drift:0}],
     sim:st, tourReset:()=>{ st.novaT = NOVA - 9; }, update(dt){ st.update(dt); this.rot = M3.mul(this.R0, M3.rotY(st.phase)); },
     setU(pr){ gl.uniform4f(pr.u.uP0, mu1, mu2, xL1, PhiS); gl.uniform4f(pr.u.uP1, gp, st.hsAng, RD, 0.35); gl.uniform4f(pr.u.uP2, st.flash, st.disrupt, smooth(0, 3, st.novaT), 0); },
     particles:[
@@ -161,10 +163,11 @@ const binary = (() => {
       {ps:disk, prog:'ptKDisk', mode:1, sb:1.8, size:1.9, q0:()=>[st.phase, X2, st.disrupt, 0]},
       {ps:shell, prog:'ptNova', mode:1, sb:3.4, size:2.2, q0:()=>[X2, st.shellR, st.shellA, smooth(0, 4, st.novaT)], mat:()=>M3.rotY(-(st.phase - st.novaPhase)), show:()=>st.shellA > 0.01},
     ],
-    readout:() => {
-      const tn = st.novaT;
-      if (tn < 12) return `NOVA: thermonuclear runaway on the white dwarf\nshell racing out at ~4,000 km/s, fastest toward the poles`;
-      return `orbital period ~454 days (shown ~20 s) · gas crossing L1\nnext nova in ${(NOVA - tn).toFixed(0)} s (real: every 15 to 20 years)`;
-    } });
+    readout:() => def.readout(st.novaT, NOVA) }, def.obj));
   return o;
-})();
+}
+const binary = novaBinary({ mu1:0.62, dist:5000, pos:radec(hms(17,50,13.2), dms(-6,42,28), 5000), rad:2.96*AU_LY,
+  obj:{ key:'rsoph', name:'RS Ophiuchi', label:'RS Oph', type:'recurrent nova · red giant feeding a white dwarf', aka:'nova binary white dwarf red giant',
+    fact:'A red giant overflows its Roche lobe and feeds a white dwarf. Every ~15 years the piled-up hydrogen ignites in a nova that blasts out an hourglass shell (last in 2021).' },
+  readout:(tn, NOVA) => tn < 12 ? `NOVA: thermonuclear runaway on the white dwarf\nshell racing out at ~4,000 km/s, fastest toward the poles` :
+    `orbital period ~454 days (shown ~20 s) · gas crossing L1\nnext nova in ${(NOVA - tn).toFixed(0)} s (real: every 15 to 20 years)` });

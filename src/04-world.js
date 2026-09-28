@@ -224,3 +224,6 @@ function ringPS(n, col, w = 1){
   ps.upload('ac'); return ps;
 }
 const EXTRAS = [];   // additional draw hooks (ship, events, overlays), run after all objects
+// (work done each tick after the camera has moved for it, before every object's place relative to the camera is worked out: Pip, the Halo's
+// drone, whose spot is picked in the camera's view)
+const AFTER_CAM = [];

@@ -77,7 +77,7 @@ P.ptDipole = program(particleVS(PB_DIPOLE), FS_POINT);
 
 const crab = (() => {
   const pos = radec(hms(5,34,31.94), dms(22,0,52.2), 6500);
-  const o = addObj({ key:'crab', name:'Crab Nebula', label:'Crab Nebula', type:'supernova remnant and pulsar wind nebula · M1', group:'nebulae', sortKey:6500,
+  const o = addObj({ key:'crab', tags:['events'], name:'Crab Nebula', label:'Crab Nebula', type:'supernova remnant and pulsar wind nebula · M1', group:'nebulae', sortKey:6500,
     fact:'The wreck of a star seen exploding in 1054. A city-sized neutron star spinning 30 times a second at its heart powers the whole nebula.',
     pos, rad:6, R0:facingEarth(pos, V.norm([0.3, 0.15, 1]), 0), prog:program(VS_RECT, FS_CRAB), minZoom:0.02, pxMin:6, farColor:[1, 0.62, 0.45], farLum:0.55, labelRange:6e4, aka:'m1 supernova remnant pulsar',
     views:[{d:[0.3,0.15,1],k:1.9,hold:8,drift:0.03},{d:[0.5,0.38,0.78],k:0.36,hold:7,drift:0.06},{d:[-0.85,0.3,0.4],k:1.05,hold:6,drift:0.05}],

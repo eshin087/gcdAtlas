@@ -125,7 +125,7 @@ const sstars = (() => {
   for (let j=0;j<SEG;j++) for (const e of [j, j + 1]){ const E = e/SEG*Math.PI*2, q = [s2.a*(Math.cos(E) - s2.e)/RAD, s2.a*Math.sqrt(1 - s2.e*s2.e)*Math.sin(E)/RAD]; const p = M3.apply(systems[0].m, [q[0], 0, -q[1]]); tr.a.set([p[0], p[1], p[2], 1], k*4); tr.c.set([0.45, 0.55, 0.9, 0], k*4); k++; }
   tr.upload('ac');
   const clock = () => sstars.t*0.8;   // 1 s = 0.8 years
-  const o = addObj({ key:'sstars', name:'S2 and the S-stars', label:'S-stars', type:'stars orbiting the black hole · proof it exists', group:'galaxies', sortKey:26670.1,
+  const o = addObj({ key:'sstars', atlasKind:'stars', name:'S2 and the S-stars', label:'S-stars', type:'stars orbiting the black hole · proof it exists', group:'galaxies', sortKey:26670.1,
     fact:'Tracking these stars for 30 years proved Sgr A* is a black hole (Nobel Prize 2020). S2 swings within 120 AU of it every 16 years, reaching 2.5% of light speed.',
     parent:sgra, offset:[0, 0, 0], rad:RAD*AU_LY, R0:facingEarth(SGRA_POS, [0, 1, 0]), minZoom:0.02, pxMin:3, noImpostor:true, labelRange:40, labelMin:3e-3,
     views:[{d:[0.15, 1, 0.25], k:1.1, hold:10, drift:0.02}, {d:[0.9, 0.3, 0.3], k:0.5, hold:8, drift:0.03}],
