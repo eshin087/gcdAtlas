@@ -85,27 +85,30 @@ function passR(tg, act){
 }
 
 // ---------------------------------------------------------------- where next, and how
+// (the dice for its choices: where next, how, which job, which side it banks to. On the site they are the shared rnd(); a test gives them
+// a sequence of their own with dbg.reset, so the ship flies the same route on every run)
+let hrnd = rnd;
 function travelMode(A, B){
   if (S_.force.travel){ const m = S_.force.travel; S_.force.travel = null; return m; }
   const D = V.len(V.sub(B.pos, A.pos));
   if (D < HALO.LS_NEAR || D < 1.2*Math.max(A.rad, B.rad)) return 'light';
-  if (D < HALO.LS_FAR && V.len(A.pos) < 6e4 && V.len(B.pos) < 6e4 && rnd() < HALO.LS_P) return 'light';
+  if (D < HALO.LS_FAR && V.len(A.pos) < 6e4 && V.len(B.pos) < 6e4 && hrnd() < HALO.LS_P) return 'light';
   return 'fold';
 }
 function pickNext(from){
   if (S_.force.target){ const t = BYKEY[S_.force.target]; S_.force.target = null; if (t && t !== from) return t; }
   const c = OBJ[tour.on ? tour.obj : (orbit.lock >= 0 ? orbit.lock : cam.focus)];
-  if (c && c !== ship && c !== from && SHIP_TARGETS.includes(c.key) && rnd() < 0.45) return c;
+  if (c && c !== ship && c !== from && SHIP_TARGETS.includes(c.key) && hrnd() < 0.45) return c;
   const all = SHIP_TARGETS.map(k => BYKEY[k]).filter(o => o && o !== from);
   const near = all.filter(o => V.len(V.sub(o.pos, from.pos)) < HALO.LS_NEAR);
-  if (near.length && rnd() < 0.5) return near[Math.floor(rnd()*near.length)];
-  return all[Math.floor(rnd()*all.length)];
+  if (near.length && hrnd() < 0.5) return near[Math.floor(hrnd()*near.length)];
+  return all[Math.floor(hrnd()*all.length)];
 }
 const actBag = [];
 function chooseAct(tg){
   if (S_.force.act){ const a = S_.force.act; S_.force.act = null; return a; }
-  if (SKIM.has(tg.key) && S_.visits - S_.lastSkim > 2 && rnd() < 0.6){ S_.lastSkim = S_.visits; return 'skim'; }
-  if (!actBag.length){ const b = ['scan', 'probe', 'weapons', 'tractor']; for (let i=b.length - 1;i>0;i--){ const j = Math.floor(rnd()*(i + 1)); [b[i], b[j]] = [b[j], b[i]]; } actBag.push(...b); }
+  if (SKIM.has(tg.key) && S_.visits - S_.lastSkim > 2 && hrnd() < 0.6){ S_.lastSkim = S_.visits; return 'skim'; }
+  if (!actBag.length){ const b = ['scan', 'probe', 'weapons', 'tractor']; for (let i=b.length - 1;i>0;i--){ const j = Math.floor(hrnd()*(i + 1)); [b[i], b[j]] = [b[j], b[i]]; } actBag.push(...b); }
   let a = actBag.shift();
   if (a === S_.lastAct && actBag.length){ actBag.push(a); a = actBag.shift(); }
   return a;
@@ -196,10 +199,36 @@ function makeAlign(p0, h0, v, h1, Rc){
   return al;
 }
 function alignAt(al, t){
+  if (al.t0) t -= al.t0;   // (a turn that carries on from an earlier one: its clock starts there)
   if (!al.nrm) return { p:V.add(al.p0, V.mul(al.h0, al.v*t)), h:al.h0, v:al.v };
   const r = al.v/al.om, w = al.om*Math.min(t, al.Tt);
   const p = V.add(al.p0, V.mul(V.add(V.mul(al.h0, Math.sin(w)), V.mul(al.nrm, 1 - Math.cos(w))), r)), h = V.add(V.mul(al.h0, Math.cos(w)), V.mul(al.nrm, Math.sin(w)));
   return t <= al.Tt ? { p, h, v:al.v } : { p:V.add(p, V.mul(h, al.v*(t - al.Tt))), h, v:al.v };
+}
+// the turn before a light-speed jump, aimed at a point T (both relative to the body it is leaving): along a circle of radius v/om to one side,
+// until the heading points straight at T (the tangent from the circle to T), then straight on. It turns at its usual rate (HALO.TURN) or
+// wider, to stay clear of the body, on whichever side needs less turning. When that is more than half a circle (T close by, inside the circle
+// on the near side, as Europa is from a pass at Jupiter) a tighter turn, up to three times as fast, does it in less. Null if nothing fits.
+function aimAlign(p0, h0, v, T, Rc){
+  const w = V.sub(T, p0), L = V.len(w), n0 = perpTo(w, h0), n1 = V.len(n0) > 1e-9*L ? V.norm(n0) : anyPerp(h0);
+  const turn = om => {
+    const r = v/om; let best = null;
+    for (const n of [n1, V.mul(n1, -1)]){
+      // in the plane of h0 and n, with the circle's centre at (0, r): the tangent point is where sin(th - atan2(qy, qx)) = r/|q|
+      const qx = V.dot(w, h0), qy = V.dot(w, n) - r, rho = Math.hypot(qx, qy);
+      if (!(rho > r*1.0001)) continue;
+      const th = ((Math.atan2(qy, qx) + Math.asin(r/rho)) % 6.2831853 + 6.2831853) % 6.2831853;
+      const al = { p0, h0, v, om, nrm:n, th, Tt:th/om, h1:V.add(V.mul(h0, Math.cos(th)), V.mul(n, Math.sin(th))) };
+      let mn = 1e300; for (let i=0;i<=16;i++) mn = Math.min(mn, V.len(alignAt(al, al.Tt*i/16).p));
+      if (mn > Rc*0.85 && (!best || th < best.th)) best = al;
+    }
+    return best;
+  };
+  let best = null;
+  for (let om = HALO.TURN, k = 0; k < 6 && !best; k++, om *= 0.65) best = turn(om);
+  // (the gentlest tighter turn that stays within half a circle; failing that, whichever turns least)
+  if (!best || best.th > Math.PI) for (const f of [1.5, 2, 3]){ const t = turn(HALO.TURN*f); if (t && (!best || t.th < best.th)) best = t; if (best.th <= Math.PI) break; }
+  return best;
 }
 // light speed: the ship leaves at its cruising speed and speeds up exponentially, then slows the same way into the next pass
 // (speed = k x distance from the nearer end, so what it leaves shrinks away smoothly and what it reaches grows smoothly)
@@ -212,14 +241,15 @@ function solveLeg(D, v0, v1, T){
   return { k, l0, l1, tm:Math.log(M/l0)/k, T:tot(k) };
 }
 function legAt(L, t){
-  let x, v;
-  if (L.ex){ const e = L.ex; if (t < e.tm){ x = e.l0*(Math.exp(e.k*t) - 1); v = e.k*(x + e.l0); } else { const y = e.l1*(Math.exp(e.k*Math.max(L.T - t, 0)) - 1); x = L.D - y; v = e.k*(y + e.l1); } }
-  else { const u = clamp(t/L.T, 0, 1), h10 = u*u*u - 2*u*u + u, h01 = -2*u*u*u + 3*u*u, h11 = u*u*u - u*u; x = clamp(h10*L.T*L.v0 + h01*L.D + h11*L.T*L.v1, 0, L.D);
+  let x, y, v;
+  if (L.ex){ const e = L.ex; if (t < e.tm){ x = e.l0*(Math.exp(e.k*t) - 1); y = L.D - x; v = e.k*(x + e.l0); } else { y = e.l1*(Math.exp(e.k*Math.max(L.T - t, 0)) - 1); x = L.D - y; v = e.k*(y + e.l1); } }
+  else { const u = clamp(t/L.T, 0, 1), h10 = u*u*u - 2*u*u + u, h01 = -2*u*u*u + 3*u*u, h11 = u*u*u - u*u; x = clamp(h10*L.T*L.v0 + h01*L.D + h11*L.T*L.v1, 0, L.D); y = L.D - x;
     v = Math.max(((3*u*u - 4*u + 1)*L.T*L.v0 + (6*u - 6*u*u)*L.D + (3*u*u - 2*u)*L.T*L.v1)/L.T, 0); }
-  // relative to where it left in the first half and to where it arrives in the second (precise near both ends); B's own drift since take-off is blended in
+  // relative to where it left in the first half and to where it arrives in the second (precise near both ends: x, the distance gone, is exact near
+  // the start and y, the distance still to go, near the end; D - x is not, on a leg of millions of light-years); B's own drift since take-off is blended in
   const w = smooth(0.25, 0.75, x/L.D), drift = V.sub(V.sub(V.add(L.B.pos, L.b0), V.add(L.A.pos, L.a0)), V.mul(L.d, L.D));
   if (x < L.D/2) return { par:L.A, p:V.add(V.add(L.a0, V.mul(L.d, x)), V.mul(drift, w)), h:L.d, v, x };
-  return { par:L.B, p:V.sub(V.sub(L.b0, V.mul(L.d, L.D - x)), V.mul(drift, 1 - w)), h:L.d, v, x };
+  return { par:L.B, p:V.sub(V.sub(L.b0, V.mul(L.d, y)), V.mul(drift, 1 - w)), h:L.d, v, x };
 }
 
 // ---------------------------------------------------------------- state
@@ -233,13 +263,15 @@ function keepCamera(A){ if (!riding() && cam.focus === ship.index){ const D = fr
 const localPt = l => M3.apply(ship.R0, V.mul(l, ship.rad));            // a point on the ship (ship-relative, world axes)
 const shipPt = l => V.add(ship.rel, localPt(l));                         // the same, camera-relative
 // a visit after a fold: where it goes next is chosen now, so the pass can already bend toward it
-function foldVisit(tg){
+function foldVisit(tg, nx){
+  // (a light-speed hop that became a fold keeps the stop after it and the job it had already chosen)
+  if (nx && nx.after){ beginVisit(tg, planVisit(tg, 'fold', null, nx.after, nx.actK, nx.seed), nx.after, 'fold'); return; }
   const C = pickNext(tg), after = { tg:C, mode:travelMode(tg, C) };
   beginVisit(tg, planVisit(tg, 'fold', null, after, chooseAct(tg), S_.seedN++), after, 'fold');
 }
 function beginVisit(tg, plan, next, how){
   S_.plan = plan; S_.next = next;
-  S_.target = tg; S_.phase = 'pass'; S_.t = 0; S_.visits++; S_.lastAct = plan.act; S_.side = rnd() < 0.5 ? -1 : 1;
+  S_.target = tg; S_.phase = 'pass'; S_.t = 0; S_.visits++; S_.lastAct = plan.act; S_.side = hrnd() < 0.5 ? -1 : 1;
   ship.labelRange = Math.max(tg.rad*40, ship.rad*1e4);
   S_.act = ACT[plan.act](plan);
   if (riding() && S_.visits > 1) toast((how === 'fold' ? 'the Halo folds space · ' : '') + 'at ' + tg.name + ': ' + ACT_TOAST[plan.act]);
@@ -249,28 +281,48 @@ function startAlign(){
   const pl = S_.plan, e = passAt(pl, pl.T), nx = S_.next;
   if (S_.act && S_.act.end) S_.act.end();
   S_.act = null;
-  let h1 = e.h;
+  let al = null;
   if (nx.mode === 'light'){
-    // plan the next visit now, so the ship can already turn toward where it will drop out of light speed
+    // plan the next visit now, so the ship can already turn toward where it will drop out of light speed: aimAlign works out the turn after
+    // which it points straight at where that pass starts (on a short hop the turn itself carries it a good part of the way there)
     const C = pickNext(nx.tg); nx.after = { tg:C, mode:travelMode(nx.tg, C) }; nx.actK = chooseAct(nx.tg); nx.seed = S_.seedN++;
-    const from = V.add(S_.target.pos, V.add(e.p, V.mul(e.h, e.v*2)));
-    let d = V.norm(V.sub(nx.tg.pos, from));
-    for (let k=0;k<3;k++){ nx.plan = planVisit(nx.tg, 'light', d, nx.after, nx.actK, nx.seed); d = V.norm(V.sub(V.add(nx.tg.pos, nx.plan.P[0]), from)); }
-    h1 = d;
+    const A = S_.target; let d = V.norm(V.sub(nx.tg.pos, V.add(A.pos, e.p)));
+    // (where that pass starts depends on the way the ship comes in, and the way in on where the turn ends: a few rounds settle both)
+    for (let k=0;k<4;k++){
+      nx.plan = planVisit(nx.tg, 'light', d, nx.after, nx.actK, nx.seed);
+      al = aimAlign(e.p, e.h, e.v, V.sub(V.add(nx.tg.pos, nx.plan.P[0]), A.pos), pl.Rc);
+      if (!al) break;
+      d = al.h1;
+    }
+    // already inside where that pass starts (Earth and the Milky Way): the leg would fly out past it and turn back, so it folds instead
+    if (!al || angleOf(d, nx.plan.dIn) > 0.5) nx.mode = 'fold';
   }
-  S_.align = makeAlign(e.p, e.h, e.v, h1, pl.Rc);
+  S_.align = nx.mode === 'light' ? al : makeAlign(e.p, e.h, e.v, e.h, pl.Rc); S_.reaim = 0;   // (a fold goes straight on)
   const spool = nx.mode === 'fold' ? HALO.FOLD_SPOOL : HALO.LS_SPOOL;
   S_.jumpAt = Math.max(S_.align.Tt + 0.4, spool);
   S_.phase = 'align'; S_.t = 0;
 }
 function startJump(){
   const nx = S_.next, A = S_.target, e = alignAt(S_.align, S_.t);
+  // the stop has moved on while the ship turned (Europa round Jupiter): a little more turning puts it back on the nose (twice at most, less
+  // than a radian each, or the ship would chase it round and round); if it is still off by more than a few degrees, it folds there instead
+  const off = nx.mode === 'light' ? angleOf(e.h, V.norm(V.sub(V.add(nx.tg.pos, nx.plan.P[0]), V.add(A.pos, e.p)))) : 0;
+  if (off > 0.02){
+    const al = S_.reaim < 2 ? aimAlign(e.p, e.h, e.v, V.sub(V.add(nx.tg.pos, nx.plan.P[0]), A.pos), S_.plan.Rc) : null;
+    if (al && al.th < 1){ S_.reaim++; al.t0 = S_.t; S_.align = al; S_.jumpAt = S_.t + al.Tt + 0.1; return; }
+    if (off > 0.1){ nx.mode = 'fold'; const st = makeAlign(e.p, e.h, e.v, e.h, S_.plan.Rc); st.t0 = S_.t; S_.align = st; S_.jumpAt = S_.t + HALO.FOLD_SPOOL; return; }
+  }
   keepCamera(A);
   if (nx.mode === 'light'){
-    const B = nx.tg, pl = nx.plan, from = V.add(A.pos, e.p), to = V.add(B.pos, pl.P[0]);
-    const D = Math.max(V.len(V.sub(to, from)), 1e-30), d = V.mul(V.sub(to, from), 1/D);
+    const B = nx.tg, from = V.add(A.pos, e.p); let pl = nx.plan;
+    // and the pass there is planned again for the way the ship really comes in, so the leg runs straight into it
+    let dd = V.norm(V.sub(V.add(B.pos, pl.P[0]), from));
+    for (let k=0;k<2;k++){ pl = nx.plan = planVisit(B, 'light', dd, nx.after, nx.actK, nx.seed); dd = V.norm(V.sub(V.add(B.pos, pl.P[0]), from)); }
+    const to = V.add(B.pos, pl.P[0]), D = Math.max(V.len(V.sub(to, from)), 1e-30), d = V.mul(V.sub(to, from), 1/D);
     const T = clamp(2.8 + 0.45*Math.log10(Math.max(D/pl.Rc, 1)), 3.2, 5.5), ex = solveLeg(D, e.v, pl.v0, T);
-    S_.leg = { A, B, a0:e.p, b0:pl.P[0], d, D, T:ex ? ex.T : T, ex, v0:e.v, v1:pl.v0 };
+    // (too close for a proper jump: a glide whose speed runs evenly from one pass's to the next's, which takes 2D/(v0 + v1); a fixed time
+    // made the curve overshoot, and the ship stood still at the end)
+    S_.leg = { A, B, a0:e.p, b0:pl.P[0], d, D, T:ex ? ex.T : 2*D/(e.v + pl.v0), ex, v0:e.v, v1:pl.v0 };
     S_.phase = 'light'; S_.t = 0;
     if (angleOf(e.h, d) > 0.005) S_.hFrom = { h:e.h, t:0, T:0.25 };
     fxLightOut(A, e.p, d);
@@ -293,7 +345,7 @@ function endFold(){
   const B = S_.next.tg;
   S_.belly = null; S_.viewA = 0; S_.fold = null;
   if (riding()){ foldFlash(); music.whoosh(1.2); }
-  foldVisit(B);
+  foldVisit(B, S_.next);
   S_.emerge = 0;
   fxFoldIn();
 }
@@ -840,12 +892,22 @@ function haloReadout(){
   return l + `\nthe Halo is made up · ~4.2 km from needle to engines · visit ${S.visits}`;
 }
 
-// ---------------------------------------------------------------- test hooks (tests/motion.mjs): force the next target, job or way of travel; skip ahead; read the last beams
+// ---------------------------------------------------------------- test hooks (tests/motion.mjs): start over on a route of its own; force the next target, job or way of travel;
+// skip ahead; read the last beams
 ship.dbg = {
+  // start over as on page load (a fold visit to `key`, 3 s in, nothing left of earlier jobs), its choices drawn from lcg(seed) from now on:
+  // with the same seed, clock and camera the ship flies the same route every time
+  reset(seed, key = 'saturn'){
+    if (S_.act && S_.act.end) S_.act.end();
+    hrnd = lcg(seed); actBag.length = 0; FX.length = 0; weapK = 0; rockShape = 0;
+    Object.assign(S_, { phase:'pass', t:0, target:null, spool:0, jg:0, scale:1, scoop:0, em:[0, 0, 0, 0], visits:0, force:{}, lastSkim:-9, lastAct:null, plan:null, next:null,
+      align:null, leg:null, fold:null, act:null, h:[0, 1, 0], belly:null, vel:[0, 0, 0], speed:0, viewA:0, side:1, hFrom:null, jumpAt:0, stretch:0, lsRun:0, emerge:1, seedN:1, reaim:0 });
+    foldVisit(BYKEY[key]); S_.t = 3;
+  },
   force(o){ Object.assign(S_.force, o); },
   replan(){ if (S_.phase !== 'pass') return; const C = pickNext(S_.target); S_.next = { tg:C, mode:travelMode(S_.target, C) }; },
   skip(){ if (S_.phase === 'pass') S_.t = S_.plan.T; else if (S_.phase === 'align') S_.t = S_.jumpAt; },
   get beams(){ return S_.act && S_.act.beams ? S_.act.beams : []; },
-  get act(){ return S_.act ? S_.act.kind : null; }, get tau(){ return S_.act ? S_.act.tau : null; },
+  get act(){ return S_.act ? S_.act.kind : null; }, get tau(){ return S_.act ? S_.act.tau : null; }, HALO,
   FX, get plan(){ return S_.plan; }, get next(){ return S_.next; },
 };
