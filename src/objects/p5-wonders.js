@@ -31,7 +31,7 @@ const nearSS = () => smooth(0.3*AU_LY, 3*AU_LY, orbit.dist)*(1 - smooth(300*AU_L
 
 // ---------------------------------------------------------------- irregular small bodies: 'Oumuamua, Arrokoth, the nucleus of Halley's Comet
 // uP0: x shape (0 'Oumuamua, 1 Arrokoth, 2 Halley's nucleus, 3 Vesta, 4 Bennu), y activity (jets)   uP1: Sun direction (world)
-// (the Halo's captured rocks use shapes 0 to 2 only: haloRock in 07h-halo.js)
+// (shapes 0 to 2 were also the Halo's captured rocks until 0.9.3)
 const FS_ROCK = COMMON + `
 float sdEll(vec3 p, vec3 r){ float k0 = length(p/r), k1 = length(p/(r*r)); return k0*(k0 - 1.)/max(k1, 1e-5); }
 // Vesta, 1 unit = 310 km: a squashed ball 573 x 557 x 446 km (local y = its pole, local x its prime meridian, east longitude toward -z).
