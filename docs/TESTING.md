@@ -19,7 +19,7 @@ npx playwright install chromium   # first time only, if Playwright has no browse
 | `npm run test:tour` (`tests/tour.mjs`) | plays the grand tour for 1,000 simulated seconds, then locks on, zooms, orbits and flies freely; reports any error or NaN | 5–8 min |
 | `npm run shots -- sun:0,ton618:1` (`tests/shots.mjs`) | screenshots of objects at given view indices into `tests/out/`, plus a contact sheet `tests/out/sheet.png` | ~10 s each |
 | `npm run shots -- --phone earth:0` | the same at a 390 x 844 phone viewport | |
-| `npm run showcase:video` (`tools/showcase-video.mjs`) | records the Halo showcase (`?showcase=halo`: all angles, then every job, light speed and a fold) to `tests/out/halo-showcase.webm`, frame by frame on the GPU, for reviewing changes to the ship | ~3 min |
+| `npm run showcase:video` (`tools/showcase-video.mjs`) | records the Halo showcase (`?showcase=halo`: all angles, then every job, light speed and a fold) to `tests/out/halo-showcase.webm`, frame by frame on the GPU, for reviewing changes to the ship. `--url="showcase=review&shield=b"` adds to the page's address (here: the looks review with shield B, to `tests/out/review-showcase.webm`); `--from=26 --dur=30` records only that stretch (the part before runs unrecorded, frame by frame as usual); `--phone` records a phone (390 x 844, touch); `--w`, `--h`, `--kbps` | ~3 min |
 | `npm run catalog` (`tools/catalog.mjs`) | not a test: regenerates `docs/CATALOG.md` from the built page | 30 s |
 
 ## Test hooks
