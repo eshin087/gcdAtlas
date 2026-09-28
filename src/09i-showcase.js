@@ -58,7 +58,7 @@ if (SHOWCASE.on){
   }
   // ---------------------------------------------------------------- the buttons
   const BTN = [['fold', 'teleport'], ['light', 'light speed'], ['hole', 'black hole'], ['scan', 'scan'], ['probe', 'Pip'], ['weapons', 'weapons'], ['skim', 'skim']];
-  const WORD = Object.fromEntries(BTN);
+  const WORD = Object.assign(Object.fromEntries(BTN), { back:'a fold back to Saturn' });
   // (a teleport goes on round the showcase's stops when the next is a fold, otherwise somewhere far; light speed to the nearest stop in reach)
   const FAR = ['pillars', 'crab', 'andromeda', 'catseye', 'omegacen', 'etacar'];
   function foldTarget(){ const r = ROUTE[S_.target.key]; if (r && r.by === 'fold') return BYKEY[r.next]; const k = FAR.filter(k => BYKEY[k] && BYKEY[k] !== S_.target); return BYKEY[k[Math.floor(Math.random()*k.length)]]; }
@@ -66,13 +66,14 @@ if (SHOWCASE.on){
     const A = S_.target, h = S_.h, r = ROUTE[A.key];
     if (r && r.by === 'light') return BYKEY[r.next];
     let best = null, bs = -9;
-    for (const k of SHIP_TARGETS){ const B = BYKEY[k]; if (!B || B === A) continue; const d = V.sub(B.pos, A.pos), L = V.len(d); if (!(L < HALO.LS_NEAR)) continue; const s = V.dot(h, V.mul(d, 1/L)) - 0.3*Math.log10(Math.max(L/AU_LY, 1e-3)); if (s > bs){ bs = s; best = B; } }
+    for (const k of SHIP_TARGETS){ const B = BYKEY[k]; if (!B || B === A) continue; const d = V.sub(B.pos, A.pos), L = V.len(d); if (!(L > 0) || !(L < HALO.LS_NEAR)) continue; const s = V.dot(h, V.mul(d, 1/L)) - 0.3*Math.log10(Math.max(L/AU_LY, 1e-3)); if (s > bs){ bs = s; best = B; } }
     return best;
   }
   function tryAct(kind){
     const S = S_;
     if (S.hold || S.asm < FLK_END || (S.phase !== 'pass' && S.phase !== 'loop' && S.phase !== 'align')) return false;   // (on the move, or the hull still forming)
     if (kind === 'fold') return ship.demo.leaveNow(foldTarget(), 'fold');
+    if (kind === 'back') return ship.demo.leaveNow(BYKEY.saturn, 'fold');
     if (kind === 'hole') return ship.demo.leaveNow(S.target === BYKEY.sgra ? BYKEY.m87bh : BYKEY.sgra, 'fold');
     if (kind === 'light'){ const B = lightTarget(); return B ? ship.demo.leaveNow(B, 'light') : ship.demo.leaveNow(BYKEY.saturn, 'fold'); }
     if (S.phase === 'align') return false;   // (a job waits for the next stop)
@@ -81,6 +82,8 @@ if (SHOWCASE.on){
   function press(kind){
     if (!SC.on) return;
     if (kind === 'skim' && !SKIM.has(S_.target.key)){ toast('nothing to skim here · skims happen at Jupiter, the Sun and other stars'); return; }
+    // (nothing the ship visits is within light speed's reach of some places, such as Sgr A*: it folds back to Saturn instead, and says so)
+    if (kind === 'light' && !lightTarget()){ toast('no stop close enough for light speed here · a fold back to Saturn instead'); if (SC.turn >= 0) endTurn(); SC.queue = ship.demo.leaveNow(BYKEY.saturn, 'fold') ? null : { kind:'back', t:0 }; syncBar(); return; }
     if (SC.turn >= 0) endTurn();
     const done = tryAct(kind);
     SC.queue = done ? null : { kind, t:0 };
