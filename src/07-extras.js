@@ -174,12 +174,11 @@ void main(){
   vec3 ice = vec3(0.6, 0.83, 1.), silver = vec3(0.85, 0.9, 1.), white = vec3(1.), shc = vec3(0.55, 0.8, 1.);
   // the shield: faint at rest, charging with the fold drive, about nine times brighter at the closest point of a black-hole pass, flickering
   // there (damped with reduced motion). Its fine detail only shows where the ship is big enough on screen (sv); the line that flares under
-  // load shows at any size. From the bridge the camera is inside it, so it is dimmer there, and the parts right beside the camera fade out
-  // (by how far along the ray they are). None of it at light speed.
+  // load shows at any size. From the bridge the camera is inside it: each part fades out only right beside the camera (by how far along the
+  // ray it is), so the rest flares there as it does outside. None of it at light speed.
   float sv = smoothstep(0.07, 0.05, px0);
   float fl = RM > 0 ? 0.3*(noise(vec3(tm*1.5, 3.1, 7.7)) - 0.5) : noise(vec3(tm*8., 3.1, 7.7)) - 0.5;
   float sh = sv*(0.25 + 1.6*load + 0.9*spool)*(1. + 0.8*load*load*fl), flare = load*(0.35 + 0.65*beat);
-  float damp = length(o) < 0.4 ? 0.35 : 1.; sh *= damp; flare *= damp;
 #if FOLD > 0
   // (in a fold the shield folds into the heart before the hull breaks up, and forms again after it has come back together)
   float shk = uM0[1].x; sh *= shk; flare *= shk;
@@ -244,8 +243,9 @@ void main(){
       lit += dots(p.y, 0.03, e - 0.016, 0.005)*step(0.02, p.y)*step(p.y, 0.7)*0.7;
       lit += dots(p.y + 0.017, 0.022, w, 0.008)*step(-0.03, p.y)*step(p.y, 0.08)*step(p.x, -0.03)*1.5;
     }
-    // (the fold drive spooling up: pulses of light run along the rows of lights in toward the heart)
-    lit *= 1. + spool*1.5*pow(0.5 + 0.5*sin(length(q - vec2(-0.3, 0.))*40. + tm*14.), 6.);
+    // (the fold drive spooling up: pulses of light run along the rows of lights in toward the heart; under load they beat with the heart, so
+    // its work shows from every camera, the bridge too)
+    lit *= 1. + spool*1.5*pow(0.5 + 0.5*sin(length(q - vec2(-0.3, 0.))*40. + tm*14.), 6.) + 1.2*load*beat;
     col += ice*lit*(2.3 + 0.6*sin(tm*1.3 + p.y*9.))*(0.85 + 0.15*hp);
     // skimming: the needle glows with the gas it rams through
     col += uP3.rgb*uP1.w*pow(max(n.y, 0.), 2.)*(1.2 + 0.8*noise(p*40. + tm*3.));
@@ -374,17 +374,19 @@ void main(){
 #else
   // under load a line hugs the hull's outline, one pixel out and about one wide, at any size: on a phone the fine detail is too small to show,
   // and this is what flares there (a crisp line, not a glow: a glow spread into a haze over a small ship)
-  if(!hit && SHIELD != 2){ float w0 = max(0.6*px0, 0.003); col += shc*flare*exp(-sq((am - 0.7*px0)/w0))*(1. - 0.85*sv)*2.; }
+  if(!hit && SHIELD != 2 && flare > 0.){ float w0 = max(0.6*px0, 0.003); col += shc*flare*exp(-sq((am - 0.7*px0)/w0))*(1. - 0.85*sv)*2.*smoothstep(0.1, 0.4, amT); }
 #endif
-#if SHIELD == 1
+#if SHIELD == 1 || SHIELD == 3
   // A, the outline: a fine silver-blue line just outside the hull (about one character out: DL), with a faint shimmer and two glints running
   // round it. Under load it brightens most on the side facing the pull, and waves of light run out from the heart along it on each beat.
   // It is where the ray's closest pass by the hull, over its whole length, is DL: so it runs round the ship's silhouette, and where two parts
   // are closer on screen than 2 DL it goes round the gap between them instead of filling it (the ray passes nearer than DL to one of them).
   // Rays that hit the hull draw none of it, so it never lies over the hull.
+  // C has the same line, but only under load (none at rest): its cells alone read as a scatter of dots on a small or edge-on ship, just when
+  // the shield should flare. (Folded away, shk 0, none of this is worked out.)
   // (lw: about one pixel at any size, so it is a line both on a phone and up close from the bridge)
   float DL = clamp(1.2*px0, 0.03, 0.06);
-  if(!hit && am < 3.*DL){
+  if(!hit && am < 3.*DL && shk > 0.001 && (SHIELD == 1 || load > 0.01)){
     // (the march only samples the ray every 0.8 of the distance to the hull: the closest pass between two samples, found exactly, so the
     // line stays unbroken up close)
     float id2, lo = max(amT - 0.9*am, 0.), hi = amT + 0.9*am;
@@ -396,7 +398,10 @@ void main(){
     vec3 nout = normalize(vec3(gx, gy, gz) - g0 + 1e-7);
     float ang = atan(pm.z, pm.y + 0.05), cg = cos(ang - (RM > 0 ? 0.3 : 0.9)*tm), glint = pow(cg*cg, 7.);
     float wave = exp(-sq((length(pm - CORE) - 1.3*bf)/0.08));
-    float v = lnV*(sh*(0.55 + 0.45*noise(pm*30. + vec3(0., tm*0.7, 0.)))*(1. + 1.2*glint) + 2.5*wave*load*sv*damp*shk)*(1. + 1.5*load*max(dot(nout, G), 0.));
+    float v = lnV*(sh*(0.55 + 0.45*noise(pm*30. + vec3(0., tm*0.7, 0.)))*(1. + 1.2*glint) + 2.5*wave*load*sv*shk)*(1. + 1.5*load*max(dot(nout, G), 0.));
+#if SHIELD == 3
+    v *= load;   // (C: it grows with the pull, from nothing at rest)
+#endif
     v *= 1. - smoothstep(0.95, 0.99, length(pm));
     col += mix(shc, uP3.rgb*1.4, uP1.w*smoothstep(0.25, 0.45, pm.y))*v;
   }
@@ -408,26 +413,32 @@ void main(){
     const vec3 E = vec3(0.27, 1.1, 0.62), c0 = vec3(0., -0.02, 0.);
     // (in the egg's own units it is a unit sphere: disc = 1 - (how far off centre the ray passes)^2, so a small disc is the rim)
     vec3 oe = (o - c0)/E, de = d/E; float dl = length(de); de /= dl; float b = dot(oe, de), disc = b*b - dot(oe, oe) + 1.;
+    // (from the bridge the camera is inside the egg, where it has no rim: there each beat sends a thin ring of light over the dome, brighter
+    // with the load)
+    float inE = step(dot(oe, oe), 1.);
     if(disc > 0.){
       float sd = sqrt(disc), rim = exp(-disc/max(3.*px0/0.45, 0.03));
       for(int k=0;k<2;k++){
         float tb = (k == 0 ? -b - sd : -b + sd)/dl; if(tb < 0. || tb > front) continue;
         vec3 p = o + d*tb, n = normalize((p - c0)/(E*E)); float fr = pow(1. - abs(dot(n, d)), 4.);
         float wave = exp(-sq((length(p - CORE) - 1.3*bf)/0.07))*smoothstep(0.12, 0.5, tb);
-        float v = rim*(sh*0.9*(1. + 0.8*load*max(dot(n, G), 0.)) + flare*(1. - 0.6*sv)) + fr*sh*0.12 + sh*0.25*wave*(0.35 + load);
-        col += (shc*v + uP3.rgb*uP1.w*fr*pow(max(n.y, 0.), 2.)*2.)*(k == 0 ? 1. : 0.45);
+        // (under load only the rim and its side facing the pull grow: the faces stay as faint as at rest, or the whole egg filled with dither
+        // over the hull, hiding its lights and edges)
+        float ring = inE*exp(-sq((length(p - CORE) - 1.3*bf)/0.022))*smoothstep(0.12, 0.5, tb);
+        float v = rim*(sh*0.9*(1. + 0.8*load*max(dot(n, G), 0.)) + flare*(1. - 0.6*sv)) + fr*min(sh, 0.45)*0.12 + min(sh, 0.45)*0.2*wave + sh*0.3*load*ring;
+        col += (shc*v + uP3.rgb*uP1.w*fr*pow(max(n.y, 0.), 2.)*2.)*(k == 0 ? 1. : 0.45)*smoothstep(0.1, 0.4, tb);
       }
     }
   }
 #endif
 #if SHIELD == 3
   // C, the honeycomb: a skin of cells a little outside the hull, dark until a wave of lit cells runs out from the heart on each beat; at rest a
-  // few cells twinkle. Under load the cells facing the pull stay lit and a faint rim flares. The cells are only drawn on the near side of the
-  // skin, in the one plane of the ship it faces most (a single clean lattice, not two or three laid over each other), and not where the ray
-  // goes on to hit the hull near a plate's silver edge (within about a character), so the skin never hides the hull's edges.
-  float edgeK = hit ? smoothstep(1.2, 2.4, hitEdge/max(uPix*t, 1e-5)) : 1.;
+  // few cells twinkle. Under load the cells facing the pull stay lit and the outline flares (A's line, above). The cells are only drawn on the
+  // near side of the skin, in the one plane of the ship it faces most (a single clean lattice, not two or three laid over each other), and not
+  // where the ray goes on to hit the hull near a plate's silver edge (within two to three characters), so the skin never hides the hull's edges.
+  float edgeK = hit ? smoothstep(2., 3.5, hitEdge/max(uPix*t, 1e-5)) : 1.;
   for(int k=0;k<2;k++){
-    float te = k == 0 ? tE0 : tE1; if(te < 0.) continue;
+    float te = k == 0 ? tE0 : tE1; if(te < 0. || shk <= 0.001) continue;
     vec3 pc = o + d*te; float id2; const vec2 kk = vec2(1., -1.); const float ee = 0.003;
     map(pc + kk.xyy*ee, id2); float b1 = gE; map(pc + kk.yyx*ee, id2); float b2 = gE; map(pc + kk.yxy*ee, id2); float b3 = gE; map(pc + kk.xxx*ee, id2); float b4 = gE;
     vec3 n = normalize(kk.xyy*b1 + kk.yyx*b2 + kk.yxy*b3 + kk.xxx*b4 + 1e-7);
@@ -438,7 +449,7 @@ void main(){
       cells = an.x >= an.y && an.x >= an.z ? honey(pc.yz, pc.x, 0, cpx, bf, load, n, G, tm) : an.z >= an.y ? honey(pc.yx, pc.z, 1, cpx, bf, load, n, G, tm) : honey(pc.xz, pc.y, 2, cpx, bf, load, n, G, tm);
       cells *= smoothstep(0.12, 0.5, te)*edgeK;
     }
-    float v = cells*0.9*shk*damp*(1. + 0.8*load*load*fl) + sh*0.2*load*fr + flare*fr*0.3;
+    float v = cells*0.9*shk*(1. + 0.8*load*load*fl) + sh*0.2*load*fr + flare*fr*0.3;
     col += mix(shc, uP3.rgb*1.4, uP1.w*smoothstep(0.25, 0.45, pc.y))*v*(k == 0 ? 1. : 0.3);
   }
 #endif
