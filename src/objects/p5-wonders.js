@@ -34,21 +34,23 @@ const nearSS = () => smooth(0.3*AU_LY, 3*AU_LY, orbit.dist)*(1 - smooth(300*AU_L
 // (the Halo's captured rocks use shapes 0 to 2 only: haloRock in 07h-halo.js)
 const FS_ROCK = COMMON + `
 float sdEll(vec3 p, vec3 r){ float k0 = length(p/r), k1 = length(p/(r*r)); return k0*(k0 - 1.)/max(k1, 1e-5); }
-// Vesta, 1 unit = 310 km: a squashed ball 573 x 557 x 446 km (local y = its pole). Rheasilvia, 505 km wide, is centred at 75 deg S: a broad basin
-// ~13 km deep with a rim a few km high and a central peak rising ~22 km from the floor. Troughs (Divalia Fossa, up to ~5 km deep) ring the equator.
+// Vesta, 1 unit = 310 km: a squashed ball 573 x 557 x 446 km (local y = its pole, local x its prime meridian, east longitude toward -z).
+// Rheasilvia, 505 km wide, is centred at 72 deg S, 86 deg E (IAU gazetteer, in the IAU 2015 longitudes tick() turns Vesta by): a broad basin
+// ~13 km deep with a rim a few km high and a central peak rising ~22 km from the floor. Troughs (Divalia Fossae, up to ~5 km deep) ring the
+// equator around it. (The basin is worked out in a frame turned 86.3 deg about the pole, where its centre sits at longitude 0.)
 float vestaH(vec3 p){
-  vec3 u = normalize(p);
-  float th = acos(clamp(dot(u, vec3(0.2588, -0.9659, 0.)), -1., 1.)), x = th/0.96;
+  vec3 u = normalize(p); u = vec3(u.x*0.06453 - u.z*0.99792, u.y, u.x*0.99792 + u.z*0.06453);
+  float cu = dot(u, vec3(0.30985, -0.95079, 0.)), th = acos(clamp(cu, -1., 1.)), x = th/0.96;
   float h = x < 1. ? -13. + 17.*pow(smoothstep(0.28, 1., x), 1.5) + 22.*exp(-x*x/0.05) : 4.*exp(-(x - 1.)/0.15);
-  float az = atan(u.z, u.x - 0.2588*dot(u, vec3(0.2588, -0.9659, 0.)));
+  float az = atan(u.z, u.x - 0.30985*cu);
   float arc = smoothstep(0.2, 0.55, noise(vec3(cos(az), sin(az), 0.)*1.6 + 4.));
   h -= 5.*arc*(exp(-pow((th - 1.52)/0.022, 2.)) + 0.7*exp(-pow((th - 1.63)/0.018, 2.)) + 0.8*exp(-pow((th - 1.76)/0.02, 2.)));
   return h/310.;
 }
-// Bennu, 1 unit = 280 m: a spinning top 505 x 492 x 457 m with a ridge round its equator, a rubble pile strewn with boulders
+// Bennu, 1 unit = 280 m: a spinning top 505 x 492 x 457 m (OSIRIS-REx) with a ridge round its equator, a rubble pile strewn with boulders
 float smaxR(float a, float b, float k){ float h = clamp(0.5 - 0.5*(b - a)/k, 0., 1.); return mix(b, a, h) + k*h*(1. - h); }
 float bennuD(vec3 p){
-  float e = sdEll(p, vec3(0.9, 0.82, 0.9)), cone = (length(p.xz) + 0.7*abs(p.y) - 0.94)/1.2207;
+  float e = sdEll(p, vec3(0.903, 0.817, 0.879)), cone = (length(p.xz) + 0.7*abs(p.y) - 0.94)/1.2207;
   return smaxR(e, cone, 0.06) - pow(noise(p*9. + 3.), 4.)*0.06 - pow(noise(p*23. + 1.), 5.)*0.04;
 }
 float mapR(vec3 p){
@@ -61,6 +63,10 @@ float mapR(vec3 p){
   return d + (fbm3(p*7.) - 0.5)*0.05 + (noise(p*19.) - 0.5)*0.015;
 }
 vec3 nrmR(vec3 p){ vec2 e = vec2(0.003, 0.); return normalize(vec3(mapR(p + e.xyy) - mapR(p - e.xyy), mapR(p + e.yxy) - mapR(p - e.yxy), mapR(p + e.yyx) - mapR(p - e.yyx))); }
+// Vesta's shading normal: its basin, peak and troughs with slopes 2.5 times steeper than the real ones, so the low relief reads in characters
+// (the outline and the shadows use the true heights)
+float mapV(vec3 p){ return sdEll(p, vec3(0.924, 0.72, 0.899)) - 2.5*vestaH(p) + (fbm3(p*9.) - 0.5)*0.012; }
+vec3 nrmV(vec3 p){ vec2 e = vec2(0.004, 0.); return normalize(vec3(mapV(p + e.xyy) - mapV(p - e.xyy), mapV(p + e.yxy) - mapV(p - e.yxy), mapV(p + e.yyx) - mapV(p - e.yyx))); }
 void main(){
   vec3 o, d; localRay(o, d);
   vec2 h = sphIsect(o, d, vec3(0.), 1.); if(h.y < 0.) discard;
@@ -71,9 +77,15 @@ void main(){
   float k = uP0.x;
   vec3 alb = k < 0.5 ? vec3(0.62, 0.45, 0.36) : (k < 1.5 ? vec3(0.72, 0.42, 0.3) : (k < 2.5 || k > 3.5 ? vec3(0.24, 0.21, 0.2) : vec3(0.6, 0.56, 0.5)));
   if(hit){
-    vec3 p = o + d*t, n = nrmR(p);
+    vec3 p = o + d*t, n = k > 2.5 && k < 3.5 ? nrmV(p) : nrmR(p);
     float dif = max(dot(n, L), 0.), neck = k > 0.5 && k < 1.5 ? exp(-pow((p.x - 0.03)/0.08, 2.))*0.35 : 0.;
     float mott = k > 2.5 && k < 3.5 ? 0.88 + 0.24*fbm3(p*3.5 + 2.) : 0.85 + 0.3*fbm3(p*11.);   // (Vesta: its patches of bright and dark rock)
+    // Vesta: Rheasilvia's rim, its central peak and the troughs cast shadows (a short walk toward the Sun over the true relief)
+    if(k > 2.5 && k < 3.5 && dif > 0.){
+      float s = 0.012, sh = 1.;
+      for(int j=0;j<36;j++){ float q = mapR(p + L*s); if(q < 0.0004){ sh = 0.; break; } sh = min(sh, 30.*q/s); s += clamp(q, 0.008, 0.05); if(s > 0.7) break; }
+      dif *= clamp(sh, 0., 1.);
+    }
     col = alb*(1. + neck)*(pow(dif, k > 2.5 && k < 3.5 ? 1.5 : 0.85)*1.3 + 0.015)*mott*(k < 0.5 ? 1.8 : (k > 3.5 ? 1.6 : 1.));   // (Vesta: a harder falloff, so its low relief reads in characters; Bennu, blacker than coal, drawn brighter)
     alpha = 1.;
   }

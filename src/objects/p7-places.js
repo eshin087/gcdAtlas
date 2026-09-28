@@ -14,9 +14,10 @@ const vesta = addRock({ key:'vesta', tags:['moons'], name:'Vesta', label:'Vesta'
   tick(){ this.rot = bodyFrame(309.031, 42.235, 285.39 + 1617.3329428*(jdNow() - 2451545)); },
   fact:'The second-heaviest body in the asteroid belt, a squashed ball about 525 km across. A giant impact dug Rheasilvia, a crater about 500 km wide around its south pole, and left a mountain in the middle about 22 km high. NASA\'s Dawn orbited Vesta in 2011 and 2012.',
   aka:'4 vesta asteroid rheasilvia divalia dawn protoplanet hed meteorites',
-  // (the second angle looks up at the south pole from the sunward side, so Rheasilvia and its peak are in view with the Sun low over them)
+  // (the second angle looks up at the south pole from well round the side of the Sun, so Rheasilvia and its peak are seen with the
+  // Sun low and from the side, their shadows long. From the sunward side, as before, every slope was lit head-on and the basin vanished)
   views:[{dirFn:() => sunSide(vesta, 0.8, 0.35), k:3.4, hold:8, drift:0.04},
-    {dirFn:() => { const S = M3.apply(vesta.R0, [0, -1, 0]), L = sunDirFrom(vesta); return V.norm(V.add(S, V.mul(L, 0.9))); }, k:2.1, hold:9, drift:0.02},
+    {dirFn:() => sunSide(vesta, 1.3, -0.9), k:2.6, hold:9, drift:0.02},
     {dirFn:() => sunSide(vesta, 1.45, 0.06), k:2.3, hold:8, drift:0.03}],
   readout:() => `${heliocentric(vesta).toFixed(2)} AU from the Sun · 573 x 557 x 446 km\nRheasilvia is 505 km wide; its central peak rises about 22 km` });
 
@@ -111,7 +112,9 @@ void main(){
     if(body < 0.002) continue;
     float g = fbmW(p*3. + vec3(0., 0., tm*0.003)), fil = pow(ridge(p*4.5 + w*2.), 3.);
     vec3 hq = p - HG; float core = exp(-dot(hq, hq)*40.);
-    float em = body*(0.06 + 2.6*g*g*g + 0.9*fil*g) + core*(0.6 + 2.2*g*g);
+    // (fine clumps and wisps on top, so from close up the glow breaks into structure instead of an even haze)
+    float fine = fbm3(p*11. + w*3. + 5.);
+    float em = (body*(0.04 + 2.6*g*g*g + 0.9*fil*g) + core*(0.6 + 2.2*g*g))*(0.3 + 1.5*fine*fine);
     vec3 c = mix(vec3(1., 0.3, 0.42), vec3(1., 0.52, 0.45), g);
     c = mix(c, vec3(1., 0.8, 0.62), core*0.7);
     c = mix(c, vec3(0.45, 0.9, 0.85), smoothstep(0.62, 0.85, fbm3(p*4. + 2.))*0.3);
@@ -129,14 +132,16 @@ void main(){
   outCol(col, (1. - T)*0.85);
 }`;
 const lagoon = (() => {
-  const pos = radec(hms(18,3,37), dms(-24,23,12), 4300), RAD = 60, HG = [-0.3, 0.04, 0.06];
+  const pos = radec(hms(18,3,37), dms(-24,23,12), 4300), RAD = 60;
   const cl = clusterPS(Math.round(380*QUALITY), [0.32, -0.02, 0.08], 0.2, 26000);
   return addObj({ key:'lagoon', name:'Lagoon Nebula', label:'Lagoon Nebula', type:'star-forming region · M8 · in Sagittarius', group:'nebulae', sortKey:4300,
     fact:'A cloud of glowing hydrogen about 110 by 50 light-years, where new stars are forming. A lane of dark dust across it gives it its name. On one side of the dark lane the young star Herschel 36 lights up the Hourglass; the young cluster NGC 6530 sits on the other.',
     pos, rad:RAD, sizeR:55, R0:facingEarth(pos, [0, 0, 1], -20), prog:program(VS_RECT, FS_LAGOON), minZoom:0.03, pxMin:6, farColor:[1, 0.5, 0.58], farLum:0.55, labelRange:1.5e5, labelMin:15,
     aka:'m8 messier 8 lagoon nebula ngc 6523 ngc 6530 hourglass herschel 36 sagittarius',
     visFn(rpx){ return smooth(6, 16, rpx)*(0.2 + 0.8*smooth(2, 30, orbit.dist)); },
-    views:nebView(pos, [{ d:[0.55, 0.3, 0.8], k:1.1, hold:8, drift:0.03 }, { dirFn:() => V.norm(V.mul(pos, -1)), k:0.3, off:HG, hold:9, drift:0.02 }]),
+    // (the close angle looks along the dark lane from a little below, with the glow round the Hourglass on one side of it and the stars of
+    // NGC 6530 on the other; aimed at the Hourglass from 18 light-years, as before, the camera sat inside the glow and saw an even pink haze)
+    views:nebView(pos, [{ d:[0.55, 0.3, 0.8], k:1.1, hold:8, drift:0.03 }, { d:[0.2, -0.45, 1], k:1, off:[-0.1, 0.02, 0.06], hold:9, drift:0.02 }]),
     particles:[{ ps:cl.ps, prog:'ptBasic', mode:1, sb:1.1, size:1.8 }, { ps:cl.spikes, prog:'spike', lines:true, mode:1, sb:1.1, size:1, len:0.03, q0:() => [1, 0, 0, 0] }],
     readout:() => 'about 4,300 light-years (Gaia measured its cluster) · 110 x 50 light-years\nfaintly visible to the naked eye from a dark site' });
 })();
