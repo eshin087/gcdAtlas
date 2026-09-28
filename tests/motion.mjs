@@ -278,11 +278,16 @@ if (say.earth.views.join() !== '0,2,1' || say.earth.t < 26 || say.earth.t > 36) 
 // same place (from Earth the Moon may come later, not first); places not seen yet come first (a seen place only when no unseen one could
 // be dealt); the tour track on the scale bar shows each new deal's names; on the last stop the green button (also when paused there), ] and
 // the end of the last angle deal 12 new places from there, none of the 12 just played (the end of the last angle uses the deal made ahead
-// while that stop played); a shared link starts a new random tour at the linked place; the same seed deals the same tour (visitors get
-// their seed from Math.random); and the tour played as a visitor sees it (every angle, then the trip into the next deal) never dips or
-// flies through a third object
+// while that stop played); a shared link starts a new random tour at the linked place (a link to 'your sky' opens the sky); the same seed
+// deals the same tour (visitors get their seed from Math.random); and the tour played as a visitor sees it (every angle, then the trip
+// into the next deal) never dips or flies through a third object.
+// (Deterministic: the page is frozen, so no live frame marks places seen between the steps; it starts with nothing seen, whatever the
+// sections above did, and with the Solar System clock on a fixed date, so the planets stand in the same places on any day. What it has
+// seen and the clock are put back at the end)
 const rt = await page.evaluate(() => {
   const C = __cosmos, g = document.getElementById('goNext'), key = k => dispatchEvent(new KeyboardEvent('keydown', { key:k, bubbles:true })), r = {};
+  window.__freeze = true; const wasSeen = [...C.SEEN]; C.SEEN.clear();
+  location.hash = '#o=earth&jd=2461310.5'; C.applyHash(); history.replaceState(null, '', location.pathname);   // (2026-09-27 0:00 UTC)
   const keys = () => C.TOUR.map(i => C.OBJ[i].key), btn = () => g.hidden ? null : g.textContent, catOf = o => (o.isBH || o.prog === C.BYKEY.sgra.prog) ? 'bh' : o.group;
   const overlap = T => C.TOUR.filter(i => T.includes(i)).length;
   const check = (T, from) => { const os = T.map(i => C.OBJ[i]), bad = [], per = {};
@@ -313,8 +318,9 @@ const rt = await page.evaluate(() => {
   r.auto = { overlap:overlap(T5), obj:C.OBJ[C.tour.obj].key, first:keys()[0], t:+t.toFixed(1), ahead:ahead === keys().join(), bad:check(C.TOUR, C.OBJ[T5[11]]) }; C.setOpt('dwell', 'normal', true); C.land(0.1);
   C.setTour(false); location.hash = '#o=crab&tour=random'; const linked = C.applyHash();
   r.link = { linked, on:C.tour.on, id:C.tourId, first:keys()[0], n:C.TOUR.length, lock:C.orbit.lock >= 0 ? C.OBJ[C.orbit.lock].key : null, bad:check(C.TOUR, null), hash:C.viewHash() };
-  // (not a place: 'your sky' is a backdrop, so a link to it starts the random tour somewhere else)
-  C.setTour(false); location.hash = '#o=backyard&tour=random'; C.applyHash(); r.link.backyard = keys()[0];
+  // (not a place: 'your sky' is a backdrop, so a random tour link to it opens the sky without starting the tour)
+  C.setTour(false); location.hash = '#o=backyard&tour=random'; C.applyHash();
+  r.link.backyard = { first:keys()[0], lock:C.orbit.lock >= 0 ? C.OBJ[C.orbit.lock].key : null, on:C.tour.on };
   history.replaceState(null, '', location.pathname);
   const deal = s => { C.randomSeed(s); return C.dealRandom(C.BYKEY.earth, null, new Set()).join(); };
   r.seeded = { same:deal(7) === deal(7), differ:deal(7) !== deal(8) };
@@ -354,6 +360,7 @@ const rt = await page.evaluate(() => {
     }
   }
   C.setOpt('travel', 'quick', true); C.setOpt('dwell', 'normal', true); C.setTour(false);
+  C.SEEN.clear(); for (const k of wasSeen) C.SEEN.add(k); C.setDays(0); window.__freeze = false;
   return r;
 });
 if (rt.first.id !== 'random' || rt.first.n !== 12 || rt.first.bad.length || rt.first.halo || rt.first.to !== rt.first.want) fail('the random tour did not deal 12 good places: ' + JSON.stringify(rt.first));
@@ -367,7 +374,7 @@ if (rt.paused.on || rt.paused.btn !== 'new random tour›' || !rt.paused.after |
 if (rt.auto.overlap || rt.auto.obj !== rt.auto.first || rt.auto.bad.length) fail('the end of the last angle did not go on to a new random tour: ' + JSON.stringify(rt.auto));
 if (!rt.auto.ahead) fail('the next random tour was not dealt ahead while the last stop played: ' + JSON.stringify(rt.auto));
 if (!rt.link.linked || !rt.link.on || rt.link.id !== 'random' || rt.link.first !== 'crab' || rt.link.lock !== 'crab' || rt.link.n !== 12 || rt.link.bad.length || !/tour=random/.test(rt.link.hash)) fail('a shared random tour link did not start one at the Crab: ' + JSON.stringify(rt.link));
-if (rt.link.backyard === 'backyard') fail('a random tour link to "your sky" made it a stop');
+if (rt.link.backyard.first === 'backyard' || rt.link.backyard.lock !== 'backyard' || rt.link.backyard.on) fail('a random tour link to "your sky" did not open the sky without the tour: ' + JSON.stringify(rt.link.backyard));
 if (!rt.seeded.same || !rt.seeded.differ) fail('the random tour does not follow its seed: ' + JSON.stringify(rt.seeded));
 if (!rt.near) fail('no random tour from Earth in 30 visits the Moon, the ISS, Hubble or JWST');
 if (rt.tiers.bad.length || rt.tiers.unseen !== 10 || rt.tiers.seen < 6) fail('the random tour dealt a place already seen before an unseen one: ' + JSON.stringify(rt.tiers));
