@@ -1182,7 +1182,7 @@ function haloReadout(){
   const g = S.gTg, nm = g.label && g.label.length < g.name.length && !/^the /.test(g.name) ? g.label : g.name, job = S.phase === 'pass' && !!S.act;
   // (SGR 1806-20's mass is not measured: its escape speed is for a typical neutron star, so it is not called real)
   const v = S.vesc, esc = v >= 0.01 ? Math.round(v*100) + '% of light speed' : Math.round(v*C_KMS).toLocaleString('en') + ' km/s';
-  const escL = RS_KM[g.key] ? `escape speed here: about ${esc} (for a typical 1.4-Sun neutron star) · the Halo is made up` : `escape speed here: ${esc} (real) · the Halo is made up`;
+  const escL = RS_KM[g.key] ? `escape speed here: about ${esc} (for a typical 1.4-Sun neutron star) · the Halo and its shield are made up` : `escape speed here: ${esc} (real) · the Halo and its shield are made up`;
   return [L[0], `shield power ${Math.round(pw*100)}% · ${S.climbK > 0.5 ? 'climbing out of' : 'holding course in'} ${nm}'s gravity`,
     L[1] || (job || !(v*C_KMS >= 0.5) ? `the Halo and its shield are made up · visit ${S.visits}` : escL)].join('\n');
 }
