@@ -6,14 +6,16 @@ All notable changes, newest first. Dates are UTC.
 
 ## 0.8.9 · 2026-09-27
 
-**More music, for hours of calm listening**
+**More music, and 16 songs you can pick from a list**
+- The radio now plays a fixed list of 16 songs, all made live in your browser: one lofi, two downtempo, four ambient, two ambient piano, four chill house and three synthwave. Together they last about 33 minutes; the mix has 9 of them, about 17 minutes. The owner picked them by ear from 24 and removed 8.
+- Each song is the same every time it plays, from its first note to its last, with its full intro and ending (the first song after you arrive still starts where the groove comes in).
+- The settings list every song by style, with its length and the moods it plays in. The song playing is marked. Click or tap a song, or press Enter on it, and it plays at once; the shuffle then carries on from there. It turns the music on if it was off.
+- The shuffle plays every song of your mood once, in a random order, before any plays again. No song plays twice in a row, a new order never starts with a song you just heard, and the mix still plays an ambient or ambient piano song at least every fifth song.
 - Three new styles, made live in your browser like the others: ambient piano (a soft felt piano over a faint pad), downtempo (slow drums, electric piano, a gliding bass and a soft choir) and soft synthwave (warm pads and a gentle arpeggio with an echo).
 - The style buttons are now moods: mix, calm (ambient and ambient piano), beats (lofi and downtempo) and groove (chill house and synthwave). A line under them says what the chosen mood plays.
 - The mix plays every style except chill house and synthwave. Those two play only when you pick groove.
 - A style you picked before carries over: lofi becomes beats, chill house becomes groove and ambient becomes calm.
-- The shuffle deals songs from a weighted deck. The same style never plays twice in a row, and the mix plays an ambient or ambient piano song at least every fifth song.
-- Each song starts in a key close to the last one's, so one song flows into the next.
-- Songs are named after places in the atlas, such as "Rain on Titan" or "Night Drive to Vega". No name comes back within 60 songs, about two hours.
+- Songs are named after places in the atlas, such as "Slowly past Io" or "Tapes from Rigel".
 - The new styles have a full, low bass like lofi's, so the volume stays about even when the style changes: every style is within about 2 dB of lofi's loudness, both on headphones and on laptop or phone speakers.
 - Ambient has a soft low note under its chords now, and its songs last 1 min 20 s to 2 min 10 s instead of about a minute, so the calm mood changes songs less often.
 - Two songs of the same style now sound like two different songs, not two mixes of one. Each song picks its own sounds and keeps them to the end:
@@ -23,7 +25,7 @@ All notable changes, newest first. Dates are UTC.
   - Tunes: A and B parts get tunes of their own, in four different phrase shapes, and some songs add a second instrument that answers the tune or a slow line under it.
   - Shape: two to six song shapes per style (with or without an intro, a break or a second B), and wider tempo ranges.
   - Texture: a quiet bed of vinyl crackle, rain, wind or tape hiss, chosen per song. Some lofi and downtempo songs start as if heard from the next room and open up.
-- The next song of a style never repeats the last one's progression, instruments, drums or song shape, and the lead instrument changes from song to song. Every song stays about as loud as the others: each instrument that can stand in for another was matched in loudness.
+- Every song stays about as loud as the others: each instrument that can stand in for another was matched in loudness, and every one of the 16 songs is within 3 dB of lofi.
 - In every style the melody fits the chord under it, and every song ends on its home chord. The low drone under ambient follows the song's key.
 - Skipping a song fades out its long notes at once, so the last song no longer rings on under the next one in its old key.
 
