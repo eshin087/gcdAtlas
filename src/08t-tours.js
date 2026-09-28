@@ -149,16 +149,20 @@ function takeDeal(from){
 const hereObj = () => OBJ[flight ? cam.focus : orbit.lock >= 0 ? orbit.lock : cam.focus];
 
 // ---------------------------------------------------------------- the random tour: 12 places from the whole atlas, a new mix every time
-// A weighted walk. Places you have not seen come first: a place you have seen is only picked when no unseen one is left to pick (SEEN
-// stays on your device). Among those, each next stop is picked at random, but less often when the trip there pulls the view far back and
+// A weighted walk. Places you have not seen come first (SEEN stays on your device): a place you have seen is only picked when no unseen one
+// is left to pick, or when the trip to every unseen one is at most a tenth as likely as the best trip to a seen place (RANDOM_W.defer; so
+// with only a few unseen places left, the tour reaches them through places seen before, not by zooming out to the whole universe and back
+// for each one). Among those, each next stop is picked at random, but less often when the trip there pulls the view far back and
 // closes in again (back: the widest view on the way against the wider end, x0.03 past 100,000 times, x0.1 past 10,000, x0.3 past 1,000,
 // x0.6 past 100; and x0.2 more for a trip over the galactic pole, isScenic, the rule of startFlight), and less often when it would be a
 // third place of one kind in a row (x0.4). No place twice (see samePlace), at most 3 from one atlas category, never the place it sets off
 // from as the first stop, and no trip that would fly through a third object (tripClear).
 // Measured over 440 trips of 40 deals from Earth at cinematic speed: 2% pull back more than 100,000 times and 9% more than 1,000 times
 // (the grand tour: 7% and 30%; places picked blindly: 29% and 47%); 21% go over the galactic pole (grand tour 43%, blindly 57%); 10.9 s
-// a trip on average (grand tour 9.5 s, blindly 13.1 s), and about 6 of the atlas's kinds of place in each deal.
-const RANDOM_N = 12, RANDOM_W = { back:[[1e5, 0.03], [1e4, 0.1], [1e3, 0.3], [1e2, 0.6]], far:0.2, sameCat:0.4, run:2 };
+// a trip on average (grand tour 9.5 s, blindly 13.1 s), and about 6 of the atlas's kinds of place in each deal. With only 6 places left
+// unseen, on the flight paths of 40 deals from Earth: 10% pull back more than 1,000 times and 3% more than 100,000 times (a new visitor:
+// 8% and 3%; unseen places strictly first: 23% and 13%), and a deal still reaches 5.6 of the 6.
+const RANDOM_N = 12, RANDOM_W = { back:[[1e5, 0.03], [1e4, 0.1], [1e3, 0.3], [1e2, 0.6]], far:0.2, sameCat:0.4, run:2, defer:0.1 };
 // (a seed of its own from Math.random: the shared rnd() starts from a fixed seed, so every visitor would get the same "random" tour)
 let RSEED = (Math.random()*4294967296) >>> 0;
 const rrnd = () => { let t = RSEED = (RSEED + 0x6D2B79F5) >>> 0; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0)/4294967296; };   // (mulberry32)
@@ -181,6 +185,15 @@ function samePlace(a, b){
 }
 // the places the random tour deals from: the atlas, as far as a tour may visit it
 const tourPool = () => atlasRows.map(r => r.o).filter(tourable);
+// one end of a trip: the point a place's first tour angle looks at, and how far away that angle sits
+const tripEnd = o => { const vp = viewParams(o, tourViews(o)[0]); return { p:V.add(frel(o), vp.off), d:vp.dist }; };
+// the trip from end A to end B as startFlight would fly it: how much less often to pick it (1 for a smooth trip)
+function tripWeight(A, B){
+  const path = vwPath(V.len(V.sub(B.p, A.p)), A.d, B.d, 1.3), wMax = pathWidest(path), back = wMax/Math.max(A.d, B.d);
+  let x = isScenic(path, A.d, B.d, wMax) ? RANDOM_W.far : 1;
+  for (const [k, f] of RANDOM_W.back) if (back > k){ x *= f; break; }
+  return x;
+}
 // from: where it sets off (never a stop, and the first stop is never the same place; it weighs the first trip), first: the first stop if it
 // must be one (a shared link), avoid: object indices to leave out (the stops just played). Returns the stops as [key] rows.
 function dealRandom(from, first, avoid, n = RANDOM_N){ const it = dealSteps(from, first, avoid, n); let r; do r = it.next(); while (!r.done); return r.value; }
@@ -188,13 +201,7 @@ function dealRandom(from, first, avoid, n = RANDOM_N){ const it = dealSteps(from
 function* dealSteps(from, first, avoid, n = RANDOM_N){
   const pool = tourPool(), cat = pool.map(catOf), out = [], per = {}, vps = new Map(), list = clearList();
   const same = new Uint8Array(pool.length), take = o => { out.push(o); per[catOf(o)] = (per[catOf(o)] || 0) + 1; pool.forEach((c, i) => { if (samePlace(o, c)) same[i] = 1; }); };   // (same: one place with a stop already taken)
-  const at = o => { let v = vps.get(o); if (!v){ const vp = viewParams(o, tourViews(o)[0]); v = { p:V.add(frel(o), vp.off), d:vp.dist }; vps.set(o, v); } return v; };
-  // (the trip from a to b as startFlight would fly it, from a's first tour angle to b's: how much less often to pick it)
-  const tripW = (a, b) => {
-    const A = at(a), B = at(b), path = vwPath(V.len(V.sub(B.p, A.p)), A.d, B.d, 1.3), wMax = pathWidest(path), back = wMax/Math.max(A.d, B.d);
-    let x = isScenic(path, A.d, B.d, wMax) ? RANDOM_W.far : 1;
-    for (const [k, f] of RANDOM_W.back) if (back > k){ x *= f; break; }
-    return x; };
+  const at = o => { let v = vps.get(o); if (!v){ v = tripEnd(o); vps.set(o, v); } return v; }, tripW = (a, b) => tripWeight(at(a), at(b));
   const pick = (w, t) => { let r = rrnd()*t, j = -1; for (let i = 0; i < w.length; i++) if (w[i] > 0){ j = i; if ((r -= w[i]) < 0) break; } return j; };
   if (first) take(first);
   yield 0;   // (pauses for dealAhead: after setting up, every 40 places weighed, and after each trip put back)
@@ -210,15 +217,19 @@ function* dealSteps(from, first, avoid, n = RANDOM_N){
       w.push(x); seen.push(SEEN.has(c.key));
       if (i % 40 === 39) yield out.length;
     }
-    // (unseen places first; within them, a trip that would fly through something on the way is put back and another one picked)
+    // (unseen places first, unless the trip there is much rougher: an unseen place waits with the seen ones when it weighs at most
+    // RANDOM_W.defer of the best seen place. Within a tier, a trip that would fly through something on the way is put back and another
+    // one picked)
+    let best = 0; for (let i = 0; i < w.length; i++) if (seen[i] && w[i] > best) best = w[i];
+    const tier = w.map((x, i) => seen[i] || x <= best*RANDOM_W.defer ? 1 : 0);
     let j = -1;
-    for (const s of [false, true]){
-      const ws = w.map((x, i) => seen[i] === s ? x : 0); let left = ws.reduce((a, b) => a + b, 0);
+    for (const s of [0, 1]){
+      const ws = w.map((x, i) => tier[i] === s ? x : 0); let left = ws.reduce((a, b) => a + b, 0);
       while (left > 0){ const i = pick(ws, left); if (i < 0) break; if (!p || tripClear(p, pool[i], list)){ j = i; break; } left -= ws[i]; ws[i] = 0; yield out.length; }
       if (j >= 0) break;
     }
     // (every trip from here would: take one anyway, unseen first, rather than end the tour early)
-    for (const s of [false, true]){ if (j >= 0) break; const ws = w.map((x, i) => seen[i] === s ? x : 0), t = ws.reduce((a, b) => a + b, 0); if (t > 0) j = pick(ws, t); }
+    for (const s of [0, 1]){ if (j >= 0) break; const ws = w.map((x, i) => tier[i] === s ? x : 0), t = ws.reduce((a, b) => a + b, 0); if (t > 0) j = pick(ws, t); }
     if (j < 0){ if (relax++ < 2) continue; break; }
     take(pool[j]);
     yield out.length;
