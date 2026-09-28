@@ -110,14 +110,14 @@ await shot('7c-tours-from-name');
 await page.tap('#toursClose'); await page.waitForTimeout(300);
 
 // the random tour: second in the list of tours from the dock, in full view; a tap closes the list and starts it ("stop 1 / 12")
-// (rowInView: the whole row, or on a phone on its side at least its name (the panel is short there and scrolls), lies inside the panel
-// and on screen, and nothing covers it)
-const rowInView = whole => page.evaluate(whole => { const b = document.querySelectorAll('#tourList .trow')[1], r = (whole ? b : b.querySelector('b')).getBoundingClientRect(), p = document.querySelector('#tours').getBoundingClientRect();
+// (rowInView: the whole row, its name and its line below, lies inside the panel and on screen, and nothing covers it; on a phone on its
+// side too, where the list of tours comes before "time at each stop")
+const rowInView = () => page.evaluate(() => { const b = document.querySelectorAll('#tourList .trow')[1], r = b.getBoundingClientRect(), p = document.querySelector('#tours').getBoundingClientRect();
   const e = document.elementFromPoint((r.left + r.right)/2, (r.top + r.bottom)/2);
-  return { name:b.querySelector('b').textContent, shown:r.top >= p.top - 1 && r.bottom <= Math.min(p.bottom, innerHeight) + 1 && r.left >= p.left - 1 && r.right <= p.right + 1 && !!e && e.closest('.trow') === b }; }, whole);
+  return { name:b.querySelector('b').textContent, shown:r.top >= p.top - 1 && r.bottom <= Math.min(p.bottom, innerHeight) + 1 && r.left >= p.left - 1 && r.right <= p.right + 1 && !!e && e.closest('.trow') === b }; });
 const grandAt = await page.evaluate(() => { __cosmos.randomSeed(1); return __cosmos.tour.obj; });
 await page.tap('#btnTours'); await page.waitForTimeout(500); await shot('7d-tours-random');
-const rrow = await rowInView(true);
+const rrow = await rowInView();
 if (rrow.name !== 'random tour' || !rrow.shown) fail('the random tour is not second in view in the list of tours: ' + JSON.stringify(rrow));
 else {
   await page.tap('#tourList .trow:nth-child(2)'); await page.waitForTimeout(500);
@@ -234,7 +234,7 @@ const inCard = await page.evaluate(() => { const i = document.querySelector('#in
 if (inCard.length) fail('on its side these stick out of the card: ' + inCard.join(', '));
 // (by clicks: the first tap after the synthetic two-finger gestures above never becomes a click, see the play button)
 await page.evaluate(() => document.querySelector('#btnTours').click()); await page.waitForTimeout(500); await shot('8b-landscape-tours');
-const lrow = await rowInView(false);
+const lrow = await rowInView();
 if (lrow.name !== 'random tour' || !lrow.shown) fail('on its side the random tour is not in view in the list of tours: ' + JSON.stringify(lrow));
 await page.evaluate(() => document.querySelector('#toursClose').click()); await page.waitForTimeout(300);
 await page.tap('#btnAtlas'); await page.waitForTimeout(800); await shot('9-landscape-atlas');
