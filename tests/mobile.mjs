@@ -1,6 +1,6 @@
 // Phone layout regression: the dock fits, the info card sits above it and can be expanded, collapsed and hidden,
 // the scale chip opens the ladder, the interface fades when idle and a first tap on the sky only brings it back
-// (a first tap on a faded button works), the card's green "next stop" button, the tour name and the angle arrows.
+// (a first tap on a faded button works), the card's green "next stop" button, the tour name, the angle arrows and the song list in the settings.
 // Screenshots of every state go to tests/out/mobile/. Usage: node tests/mobile.mjs
 import { openPage, report, OUT } from './lib.mjs';
 import path from 'node:path';
@@ -118,6 +118,35 @@ const dg = await page.evaluate(() => { const C = __cosmos, k = C.TOUR.indexOf(C.
 if (!(await rect('#goNext')).shown || dg.txt !== dg.want) fail(`after breaking the tour the green button reads "${dg.txt}", not "${dg.want}"`);
 else { await page.tap('#goNext'); await page.waitForTimeout(400); const r = await page.evaluate(() => ({ tour:__cosmos.tour.on, obj:__cosmos.OBJ[__cosmos.tour.obj].key })); if (!r.tour || r.obj !== dg.next) fail(`"${dg.txt}" in the card did not go on with the tour: ` + JSON.stringify(r)); }
 
+// the song list in the settings: every song, by style, with its length, all on screen without sideways scrolling and easy
+// to tap; a tap plays that song now and marks it, and so does Enter on a song picked with the keyboard
+await page.evaluate(() => { const C = __cosmos; C.setOpt('sound', true, true); if (document.querySelector('#settings').hidden) document.querySelector('#btnSettings').click(); });
+await page.waitForTimeout(300);
+await page.evaluate(() => document.querySelector('#songsBtn').scrollIntoView({ block:'start' }));
+await page.tap('#songsBtn'); await page.waitForTimeout(300);
+const sl = await page.evaluate(() => { const p = document.querySelector('#settings'), l = document.querySelector('#songList'), pr = p.getBoundingClientRect(), rows = [...l.querySelectorAll('.song')];
+  return { open:!l.hidden && document.querySelector('#songsBtn').getAttribute('aria-expanded') === 'true', n:rows.length, want:__cosmos.music.songs().length, groups:l.querySelectorAll('.sg-h').length,
+    over:Math.max(p.scrollWidth - p.clientWidth, l.scrollWidth - l.clientWidth), small:rows.filter(b => b.getBoundingClientRect().height < 28).map(b => b.textContent),
+    out:rows.filter(b => { const r = b.getBoundingClientRect(); return r.left < pr.left - 1 || r.right > pr.right + 1; }).map(b => b.textContent),
+    cut:rows.filter(b => { const t = b.querySelector('.sn'); return t.scrollWidth > t.clientWidth + 1; }).map(b => b.textContent),
+    len:rows.every(b => /^\d+:\d\d$/.test(b.querySelector('.sl').textContent)) }; });
+if (!sl.open || sl.n !== sl.want || sl.n < 10 || sl.groups !== 6) fail('the song list did not open with every song by style: ' + JSON.stringify(sl));
+if (sl.over > 1 || sl.out.length || sl.cut.length) fail('the song list does not fit the panel: ' + JSON.stringify(sl));
+if (sl.small.length) fail('song rows under 28 px: ' + sl.small.join(', '));
+if (!sl.len) fail('a song has no length');
+const pickId = await page.evaluate(() => { const b = [...document.querySelectorAll('#songList .song')][10]; b.scrollIntoView({ block:'center' }); return b.dataset.id; });
+await page.tap(`#songList .song[data-id="${pickId}"]`); await page.waitForTimeout(500);
+await shot('13-songs');
+const pk = await page.evaluate(() => { const m = __cosmos.music, t = m.track, cur = [...document.querySelectorAll('#songList .song[aria-current=true]')].map(b => b.dataset.id);
+  return { song:t && t.song, bpm:t && t.bpm, cur, list:m.songs(), np:document.querySelector('#nowPlaying').textContent }; });
+const pkSong = pk.list.find(x => x.id === pickId);
+if (pk.song !== pickId || pk.cur.join() !== pickId || pk.bpm !== pkSong.bpm || !pk.np.startsWith(pkSong.title)) fail(`a tap on "${pkSong.title}" did not play and mark it: ` + JSON.stringify({ song:pk.song, cur:pk.cur, bpm:pk.bpm, np:pk.np }));
+const kbId = await page.evaluate(() => { const b = document.querySelector('#songList .song'); b.focus(); return b.dataset.id; });
+await page.keyboard.press('Enter'); await page.waitForTimeout(400);
+const kb = await page.evaluate(() => ({ song:__cosmos.music.track && __cosmos.music.track.song, cur:document.querySelector('#songList .song[aria-current=true]')?.dataset.id }));
+if (kb.song !== kbId || kb.cur !== kbId) fail('Enter on a song did not play it: ' + JSON.stringify(kb));
+await page.evaluate(() => { __cosmos.setOpt('sound', false, true); if (!document.querySelector('#settings').hidden) document.querySelector('#btnSettings').click(); });
+
 // two fingers (real touch events): a pinch zooms exactly as far as the fingers spread and stays on the object; moving both fingers together
 // slides the object on a leash (still locked on, still on screen, clear of the card); lifting one finger does not turn the gesture into an
 // orbit; a double-tap on the sky and play both bring the object back to the middle; while paused the card shows the gesture hint
@@ -224,5 +253,5 @@ await shot('12-landscape-slide');
 if (ls.lock !== 'earth' || !(ls.x > 0 && ls.x < 844 && ls.y > 0 && ls.y < 390) || (ls.x > ls.card[0] + 1 && ls.x < ls.card[2] - 1 && ls.y > ls.card[1] + 1 && ls.y < ls.card[3] - 1))
   fail('on its side a two-finger slide put Earth off screen or under the card: ' + JSON.stringify(ls));
 
-report('mobile', errors, 'screenshots in tests/out/mobile' + (lab ? ` · wake-up tap on "${lab.t}" checked` : '') + ` · pinch x${ratio.toFixed(2)} for fingers 3x apart · two-finger slide stays locked, Earth at ${Math.round(g2.x)}, ${Math.round(g2.y)} · home first in the dock · first tap on the faded "${gn.txt}" flew on to ${gn.next}`);
+report('mobile', errors, 'screenshots in tests/out/mobile' + (lab ? ` · wake-up tap on "${lab.t}" checked` : '') + ` · pinch x${ratio.toFixed(2)} for fingers 3x apart · two-finger slide stays locked, Earth at ${Math.round(g2.x)}, ${Math.round(g2.y)} · home first in the dock · song list: ${sl.n} songs, a tap played ${pickId} · first tap on the faded "${gn.txt}" flew on to ${gn.next}`);
 await browser.close();

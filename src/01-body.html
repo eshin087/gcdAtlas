@@ -178,7 +178,7 @@
     </div>
   </div>
   <div class="opt">
-    <div class="opt-l">sound <span class="opt-note">generated live, never the same twice</span></div>
+    <div class="opt-l">sound <span class="opt-note">songs made live in your browser</span></div>
     <div class="tog sound-row">
       <button data-key="sound" aria-pressed="true">music</button>
       <input id="volume" type="range" min="0" max="1" step="0.05" aria-label="Volume">
@@ -188,6 +188,8 @@
     </div>
     <div class="mood-note" id="moodNote"></div>
     <div class="now-playing"><span class="np-l">now playing</span><span id="nowPlaying">press play: music starts with your first click</span><button class="chip" id="npSkip" title="Next track">next &#9656;&#9656;</button></div>
+    <button class="songs-btn" id="songsBtn" aria-expanded="false" aria-controls="songList"><span>pick a song</span><span class="sb-n" id="songsN"></span></button>
+    <div class="song-list" id="songList" hidden></div>
   </div>
   <div class="opt">
     <div class="opt-l">screensaver <span class="opt-note">start by itself when nobody touches anything</span></div>

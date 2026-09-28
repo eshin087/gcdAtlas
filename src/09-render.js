@@ -940,8 +940,39 @@ function playFlyby(o){
   updateModeUI(); toast('flyby · ' + o.flyby.flyby);
 }
 $('#btnFlyby').addEventListener('click', () => { const o = OBJ[infoObj]; if (o.flyby) playFlyby(o); });
-music.onTrack = tr => { $('#nowPlaying').textContent = tr.name; if (SET.sound && music.audible) toast('\u266a ' + tr.name); };   // (no track name while the browser still holds the music back)
+music.onTrack = tr => { $('#nowPlaying').textContent = tr.name; syncSongs(); if (SET.sound && music.audible) toast('\u266a ' + tr.name); };   // (no track name while the browser still holds the music back)
 $('#npSkip').addEventListener('click', () => { music.skip(); if (!SET.sound) toast('music is off · turn it on to hear the next track'); });
+// the song list in the settings: every song by style, with its length; a click plays it now (and turns the music on)
+const songListEl = $('#songList'), songLen = s => { s = Math.round(s); return Math.floor(s/60) + ':' + String(s % 60).padStart(2, '0'); };
+const songsLabel = () => { $('#songsN').textContent = music.songs().length + ' songs ' + (songListEl.hidden ? '\u25BE' : '\u25B4'); };
+songsLabel();
+function buildSongs(){
+  if (songListEl.childElementCount) return;
+  const L = music.songs(), styles = [...new Set(L.map(x => x.style))];
+  for (const st of styles){
+    const moods = Object.keys(music.moods).filter(m => music.moods[m].includes(st)), h = document.createElement('div');
+    h.className = 'sg-h'; h.innerHTML = '<span></span><span class="sg-m"></span>';
+    h.firstChild.textContent = L.find(x => x.style === st).label; h.lastChild.textContent = moods.join(' · ');
+    songListEl.appendChild(h);
+    for (const x of L.filter(y => y.style === st)){
+      const b = document.createElement('button'); b.className = 'song'; b.dataset.id = x.id;
+      b.innerHTML = '<span class="sn"></span><span class="sl"></span>';
+      b.firstChild.textContent = x.title; b.lastChild.textContent = songLen(x.sec);
+      b.setAttribute('aria-label', `${x.title}, ${x.label}, ${songLen(x.sec)}`);
+      b.addEventListener('click', () => { music.play(x.id); if (!SET.sound) setOpt('sound', true, true); syncSongs(x.id); });
+      songListEl.appendChild(b);
+    }
+  }
+  syncSongs();
+}
+function syncSongs(id){
+  const cur = id || (music.track && music.track.song);
+  songListEl.querySelectorAll('.song').forEach(b => { if (b.dataset.id === cur) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current'); });
+}
+$('#songsBtn').addEventListener('click', () => {
+  const on = songListEl.hidden; if (on) buildSongs(); songListEl.hidden = !on;
+  $('#songsBtn').setAttribute('aria-expanded', String(on)); songsLabel();
+});
 for (const b of ['#btnPlay', '#btnPlayM']) $(b).addEventListener('click', () => { hideHint(); if (cmp) endCompare(false); togglePlay(); });
 // home: the button (first in the dock on phones, after the search box on desks) and the logo
 $('#btnHome').addEventListener('click', goHome);

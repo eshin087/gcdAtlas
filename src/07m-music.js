@@ -1,13 +1,14 @@
 
-// ================================================================ soundtrack: gcd radio, a generative mix that never repeats
-// Six styles (STYLES): lofi beats, chill house, ambient, ambient piano, downtempo and soft synthwave.
-// A mood in the settings (MOODS) picks which ones play: the default mix plays all but chill house and synthwave, which play
-// under 'groove'. Every song is dealt its own palette within its style: key and mode (close to the last song's key), tempo,
-// one or two chord progressions from a bank of a dozen or more, its instruments (keys, lead, bass, pad), drum kit and groove,
-// its melodies, its arrangement and a quiet texture (vinyl, rain, wind or tape), and a name from a place in the atlas. The next
-// song of a style never repeats the last one's progression, instruments, kit or arrangement (choose), so two songs of a style
-// sound like two songs, not two mixes of one. Every style is about as loud as lofi, on headphones and on small speakers
-// (tests/music.mjs checks both), and every instrument that can take another's place is about as loud as it.
+// ================================================================ soundtrack: gcd radio, a catalogue of songs made live
+// Six styles (STYLES): lofi beats, chill house, ambient, ambient piano, downtempo and soft synthwave. The radio plays a fixed
+// list of songs (SONGS): each is a style and a seed, and a seed deals the same song every time (the owner picked them by ear
+// from offline renders). A mood in the settings (MOODS) picks which styles play: the default mix plays all but chill house and
+// synthwave, which play under 'groove'. The list is shuffled and every song of the mood plays once before any plays again;
+// the settings list every song, and a picked song plays at once (the shuffle then carries on).
+// A seed deals a song's palette within its style: key and mode, tempo, one or two chord progressions from a bank of a dozen
+// or more, its instruments (keys, lead, bass, pad), drum kit and groove, its melodies, its arrangement, a quiet texture
+// (vinyl, rain, wind or tape) and a name from a place in the atlas. Every style is about as loud as lofi, on headphones and
+// on small speakers (tests/music.mjs checks both), and every instrument that can take another's place is about as loud as it.
 // Everything is synthesised in the browser: no audio files. It tries to start on load; browsers that block that start it on the first
 // click, tap or key press. The first track skips its intro so the groove is there at once.
 const music = (() => {
@@ -18,7 +19,9 @@ const music = (() => {
   const VMAX = 48;   // live notes; optional notes are skipped beyond this (phones)
   const busy = () => !offline && live > VMAX;
   const hz = m => 440*Math.pow(2, (m - 69)/12);
-  let R = Math.random;   // (swapped for a seeded generator in offline renders)
+  let R = Math.random;   // (a song's seeded generator while it plays or renders; see gen)
+  // a seeded generator (scrambled so nearby seeds give different songs)
+  const gen = x => { let z = Math.imul(x ^ 0x9e3779b9, 2654435761) >>> 0; const f = () => { z = (z*1664525 + 1013904223) >>> 0; return z/4294967296; }; for (let i=0;i<4;i++) f(); return f; };
   const pick = a => a[Math.floor(R()*a.length)];
   // ---------------------------------------------------------------- harmony
   // (soft colours only: sevenths, ninths, sixths, elevenths, a lydian fourth and sus chords; no flat or sharp ninths)
@@ -93,8 +96,8 @@ const music = (() => {
     return best;
   }
   // ---------------------------------------------------------------- per-song choices
-  // A choice from a list (repeat an entry to make it likelier). The next song of the same style never makes the same choice as
-  // the last one did (SH.memo), so two songs of a style in a row differ in progression, instruments, kit and arrangement.
+  // A choice from a list (repeat an entry to make it likelier). It leaves out the choice the last song of the style made
+  // (SH.memo); catalogue songs are dealt with a fresh SH, so for them this is idle and a seed always deals the same song.
   // (avoid: one more value to leave out, such as the last song's lead in any style; force: set by offline renders)
   function choose(name, list, avoid){
     const f = T.force ? T.force[name] : undefined;
@@ -282,42 +285,58 @@ const music = (() => {
   };
   // an ambient song's length in bars (a multiple of 4): 1 min 20 s to 2 min 10 s at its tempo
   const ambBars = T => 4*Math.max(4, Math.round((80 + R()*50)/(240/T.bpm)/4));
-  // ---------------------------------------------------------------- the shuffle
-  // A mood picks the styles, with weights. The default mix plays the gentle ones: all but chill house and synthwave, which play
-  // under groove. (calm is the mood of ambient and ambient piano, and CALM those two styles.)
+  // ---------------------------------------------------------------- the songs and the shuffle
+  // The catalogue: every song the radio plays, as its style, its seed and its name. A seed deals the same song every time
+  // (music._render(style, sec, { seed }) renders it, music._info says what it plays), so a new song is a seed that sounds
+  // good: render a few, listen, and add the ones to keep. (the name is the one its seed deals; tests/music.mjs checks it)
+  // The owner kept these 16 of 24 on 2026-09-28.
+  const SONGS = [
+    ['lofi', 20, 'Slow Orbit of Halley'],
+    ['downtempo', 24, 'Soft Focus on Mars'], ['downtempo', 4, 'Low Tide on Orion'],
+    ['ambient', 1, 'Slowly past Io'], ['ambient', 18, 'Slowly past Mars'], ['ambient', 14, 'Silence over Halley'], ['ambient', 6, 'Dust over Mars'],
+    ['piano', 1, 'Lullaby for Io'], ['piano', 64, 'Lullaby for Proxima b'],
+    ['house', 1, 'Night Bus to Io'], ['house', 25, 'Warm Signal from Hale-Bopp'], ['house', 74, 'Sunrise over Halley'], ['house', 33, 'Golden Hour on Antares'],
+    ['synthwave', 1, 'Tapes from Io'], ['synthwave', 40, 'Tapes from Rigel'], ['synthwave', 12, 'City Lights of Mars'],
+  ].map(([style, seed, title]) => ({ id:style + '-' + seed, style, seed, title }));
+  // A mood picks the styles. The default mix plays the gentle ones: all but chill house and synthwave, which play under
+  // groove. (calm is the mood of ambient and ambient piano, and CALM those two styles.)
   const MOODS = {
-    mix:{ ambient:2, piano:2, lofi:3, downtempo:2 },
-    calm:{ ambient:1, piano:1 },
-    beats:{ lofi:3, downtempo:2 },
-    groove:{ house:1, synthwave:1 },
+    mix:['ambient', 'piano', 'lofi', 'downtempo'],
+    calm:['ambient', 'piano'],
+    beats:['lofi', 'downtempo'],
+    groove:['house', 'synthwave'],
   };
   const CALM = ['ambient', 'piano'];
   const moodOf = () => MOODS[SET.musicStyle] ? SET.musicStyle : 'mix';
-  // Songs are dealt from a weighted bag, refilled when empty: never the same style twice in a row, and in the mix a calm song
-  // (ambient or piano) at least every fifth song. sig: the key signature of the last song, recent: the last 60 names,
-  // memo: each style's last song's choices, lastLead: the last song's lead instrument.
-  const fresh = () => ({ mood:null, bag:[], last:null, sinceCalm:0, sig:null, recent:[], memo:{}, lastLead:null });
-  let SH = fresh();
-  function nextStyle(){
-    const mood = moodOf(), W = MOODS[mood];
-    if (SH.mood !== mood){ SH.mood = mood; SH.bag = []; }
-    const fill = () => { for (const st in W) for (let i=0;i<W[st];i++) SH.bag.push(st); };
-    const calmDue = mood === 'mix' && SH.sinceCalm >= 4, ok = st => st !== SH.last && (!calmDue || CALM.includes(st));
-    if (!SH.bag.length) fill();
-    let pool = SH.bag.filter(ok);
-    if (!pool.length){ fill(); pool = SH.bag.filter(ok); }
-    const st = pool.length ? pick(pool) : pick(Object.keys(W));
-    if (SH.bag.includes(st)) SH.bag.splice(SH.bag.indexOf(st), 1);
-    SH.last = st; SH.sinceCalm = CALM.includes(st) ? 0 : SH.sinceCalm + 1;
-    return st;
+  // The shuffle (its own state, Q, and Math.random, never a song's generator): the mood's songs in a random order, each once,
+  // then a new order. Never the same song twice in a row (across two orders too), a new style each time when it can, and in
+  // the mix a calm song (ambient or piano) at least every fifth song. A picked song (Q.next) plays next, whatever the mood.
+  // SH: the dealing state of the song being dealt (fresh for every song, so a seed always deals the same song).
+  const fresh = () => ({ sig:null, recent:[], memo:{}, lastLead:null });
+  let SH = fresh(), Q = { mood:null, order:[], last:null, sinceCalm:0, next:null, recent:[] };
+  function nextSong(){
+    const mood = moodOf(), rnd = Math.random;
+    let song = Q.next && SONGS.find(x => x.id === Q.next); Q.next = null;
+    if (!song){
+      if (Q.mood !== mood){ Q.mood = mood; Q.order = []; }
+      if (!Q.order.length){
+        Q.order = SONGS.filter(x => MOODS[mood].includes(x.style));
+        for (let i = Q.order.length - 1; i > 0; i--){ const j = Math.floor(rnd()*(i + 1)); [Q.order[i], Q.order[j]] = [Q.order[j], Q.order[i]]; }
+      }
+      // (the first test that some song passes picks it: a song from the last half of the list is kept back when a new order starts)
+      const last = Q.last || {}, calmDue = mood === 'mix' && Q.sinceCalm >= 4, n = SONGS.filter(x => MOODS[mood].includes(x.style)).length;
+      const recent = Q.recent.slice(-Math.floor(n/2)), calm = x => !calmDue || CALM.includes(x.style), unheard = x => !recent.includes(x.id);
+      const tests = [x => unheard(x) && x.style !== last.style && calm(x), x => unheard(x) && calm(x), x => x.id !== last.id && x.style !== last.style && calm(x), x => x.id !== last.id && calm(x), x => x.id !== last.id];
+      let i = -1; for (const ok of tests){ i = Q.order.findIndex(ok); if (i >= 0) break; }
+      song = Q.order.splice(Math.max(i, 0), 1)[0];
+    } else Q.order = Q.order.filter(x => x !== song);
+    Q.last = song; Q.sinceCalm = CALM.includes(song.style) ? 0 : Q.sinceCalm + 1;
+    Q.recent.push(song.id); if (Q.recent.length > 20) Q.recent.shift();
+    return song;
   }
-  // Keys move gently from song to song: the key signature stays or moves by one or two sharps or flats (a fourth, a fifth or a
-  // whole tone), and a song in minor takes the relative minor, so the next song starts close to where the last one ended.
-  const fold = pc => 48 + ((pc - 48) % 12 + 12) % 12;   // C3 .. B3
+  // a song's key: D3 .. A3 (sig: its key signature)
   function nextKey(minor){
-    let key;
-    if (SH.sig === null) key = 50 + Math.floor(R()*8);   // the first song: D3 .. A3
-    else key = fold((SH.sig + pick([0, 5, -5, 5, -5, 2, -2]) + (minor ? 9 : 0)) % 12);
+    const key = 50 + Math.floor(R()*8);
     SH.sig = ((key + (minor ? 3 : 0)) % 12 + 12) % 12;
     return key;
   }
@@ -346,12 +365,14 @@ const music = (() => {
     return name;
   }
   let T = null, nextT = 0, step = 0, forceStyle = null, forceWith = null;
-  // (at: the time the track starts; a new track is made a little ahead of the music)
-  function newTrack(at){
-    const style = forceStyle || nextStyle(), S = STYLES[style];
+  // Deal a song: its palette, harmony, arrangement and tunes (T), drawn from R. (song: from the catalogue; its seed
+  // is set here and R stays on it while it plays)
+  function deal(style, song){
+    if (song){ R = gen(song.seed); SH = fresh(); }
+    const S = STYLES[style];
     const minor = R() < S.minor, key = nextKey(minor);
-    const bpm = S.bpm[0] + Math.floor(R()*(S.bpm[1] - S.bpm[0] + 1));
-    T = { style, key, bpm, minor, mode:minor ? 'minor' : 'major', title:makeTitle(style), label:S.label + ' · ' + bpm + ' bpm', held:[], chosen:{}, mem:SH.memo[style] || {},
+    const bpm = S.bpm[0] + Math.floor(R()*(S.bpm[1] - S.bpm[0] + 1)), title = makeTitle(style);
+    T = { style, key, bpm, minor, mode:minor ? 'minor' : 'major', title:song ? song.title : title, song:song ? song.id : null, label:S.label + ' · ' + bpm + ' bpm', held:[], chosen:{}, mem:SH.memo[style] || {},
       force:forceWith, swing:0, subPrev:0, guidePrev:0, pushed:-1 };
     // the song's harmony: progression A, and B (A again, or another in the same mode)
     const bank = S.progs[T.mode], a = choose('prog', bank), b = R() < S.sameB ? a : choose('progB', bank.filter(p => p !== a));
@@ -368,7 +389,18 @@ const music = (() => {
     T.cur = [T.chords[0].root, T.chords[0].type];   // the chord playing now (for sounds that should stay in tune with the music)
     T.name = `${T.title} · ${T.label}`;
     SH.memo[style] = T.chosen; if (T.leadI && T.leadI !== 'none') SH.lastLead = T.leadI;
+    return T;
+  }
+  // a song's length in seconds (the piano's breathing tempo included)
+  const lengthOf = T => { let s = 0; for (let b = 0; b < T.sections.length; b++) s += 4*60/(T.drift ? T.bpm*(1 + T.drift*Math.sin(b*0.45 + T.driftPh)) : T.bpm); return s; };
+  // (at: the time the track starts; a new track is made a little ahead of the music)
+  function newTrack(at){
+    const song = forceStyle ? null : nextSong(), style = song ? song.style : forceStyle, S = STYLES[style];
+    deal(style, song); const { key, bpm, sections } = T;
     step = first ? T.introEnd*16 : 0; first = false;
+    // (a render starts where the intro ends, so an intro draws from a generator of its own: after it the song goes on
+    // exactly as it renders)
+    if (song && step === 0 && T.introEnd){ T.mainR = R; R = gen(song.seed + 104729); }
     if (!offline && typeof onTrack === 'function') onTrack(T);
     // the style's level (set on each note as it is made, so the last song's tail keeps its own) and the song's texture
     vel = S.level;
@@ -797,6 +829,7 @@ const music = (() => {
   // ---------------------------------------------------------------- the sequencer: sixteenth notes, scheduled a little ahead
   function play(t){
     if (!T || step >= T.sections.length*16){ newTrack(t); }
+    if (T.mainR && step === T.introEnd*16){ R = T.mainR; T.mainR = null; }
     const s = step % 16, bar = Math.floor(step/16), sec = T.sections[bar];
     const sd = 60/(T.drift ? T.bpm*(1 + T.drift*Math.sin(bar*0.45 + T.driftPh)) : T.bpm)/4;
     // swing: every odd sixteenth comes a little late
@@ -1116,9 +1149,7 @@ const music = (() => {
     const G = () => [ctx, master, mixG, verbSend, drumBus, drumLP, musBus, musLP, duck, crackleG, rainG, windG, droneG, drones, wobble, noiseBuf, WAVES, vibesBus, arpBus, echoIn, echoL, echoR,
       R, T, nextT, step, first, forceStyle, forceWith, offline, vel, SH, hissNow];
     const keep = G();
-    // (seeded, scrambled so nearby seeds give different songs; the noise and reverb buffers draw from a generator of their own,
-    // so a seed deals the same song at any sample rate)
-    const gen = x => { let z = Math.imul(x ^ 0x9e3779b9, 2654435761) >>> 0; const f = () => { z = (z*1664525 + 1013904223) >>> 0; return z/4294967296; }; for (let i=0;i<4;i++) f(); return f; };
+    // (the noise and reverb buffers draw from a generator of their own, so a seed deals the same song at any sample rate)
     let oc = null;
     try {
       R = gen(seed + 7919); oc = new OAC(2, Math.ceil(sec*rate), rate); offline = true; build(oc);
@@ -1126,7 +1157,7 @@ const music = (() => {
       forceStyle = style; forceWith = force || null; first = true; T = null; SH = fresh(); hissNow = null; newTrack(0); lastRender = T.name;
       // (what the song chose: its key, tempo, progressions as degrees, arrangement and palette)
       const rel = P => P.p.map(([r, ty, b]) => [r - T.key, ty, Math.max(1, Math.round((b || P.bpc)*P.slow))]);
-      lastInfo = { title:T.title, label:T.label, style, key:T.key, mode:T.mode, bpm:T.bpm, progA:rel(T.pA), progB:T.pB === T.pA ? null : rel(T.pB), progAt:[T.pA.at, T.pB.at],
+      lastInfo = { length:lengthOf(T), title:T.title, label:T.label, style, key:T.key, mode:T.mode, bpm:T.bpm, progA:rel(T.pA), progB:T.pB === T.pA ? null : rel(T.pB), progAt:[T.pA.at, T.pB.at],
         plan:T.plan.map(([a, b]) => a + ' ' + b).join(', '), bars:T.sections.length };
       for (const k in T) if (['string', 'number', 'boolean'].includes(typeof T[k]) && !(k in lastInfo)) lastInfo[k] = T[k];
       let t = 0.1; while (t < sec) t += play(t);
@@ -1137,16 +1168,23 @@ const music = (() => {
     }
     return oc.startRendering();
   }
-  // the next n songs a mood would deal (style, key and name), without playing anything (for the tests)
-  function plan(mood, n){
-    const keep = [SH, SET.musicStyle, R], out = [];
-    try {
-      SH = fresh(); SET.musicStyle = mood; R = Math.random;
-      for (let i=0;i<n;i++){ const st = nextStyle(), key = nextKey(R() < STYLES[st].minor); out.push({ style:st, key, sig:SH.sig, title:makeTitle(st) }); }
-    } finally { [SH, SET.musicStyle, R] = keep; }
+  // the catalogue with each song's tempo and length (dealt once, without a sound)
+  let songList = null;
+  function songs(){
+    if (songList) return songList;
+    const keep = [R, T, SH, forceWith];
+    try { forceWith = null; songList = SONGS.map(x => { const t = deal(x.style, x); return { ...x, label:STYLES[x.style].label, bpm:t.bpm, sec:lengthOf(t) }; }); }
+    finally { [R, T, SH, forceWith] = keep; }
+    return songList;
+  }
+  // the next n songs a mood would play (for the tests), without playing anything
+  function shuffle(mood, n){
+    const keep = [Q, SET.musicStyle], out = [];
+    try { Q = { mood:null, order:[], last:null, sinceCalm:0, next:null, recent:[] }; SET.musicStyle = mood; for (let i=0;i<n;i++) out.push(nextSong()); }
+    finally { [Q, SET.musicStyle] = keep; }
     return out;
   }
-  const moodText = m => { const L = Object.keys(MOODS[m] || MOODS.mix).map(st => STYLES[st].label); return L.length > 1 ? L.slice(0, -1).join(', ') + ' and ' + L[L.length - 1] : L[0]; };
+  const moodText = m => { const L = (MOODS[m] || MOODS.mix).map(st => STYLES[st].label); return L.length > 1 ? L.slice(0, -1).join(', ') + ' and ' + L[L.length - 1] : L[0]; };
   return {
     get on(){ return wantOn; },
     // really playing: wanted, started and not held back by the browser (before the first click the context stays suspended)
@@ -1157,7 +1195,7 @@ const music = (() => {
     // the moods of the settings panel, and what each one plays ('ambient, piano and lofi')
     moods:MOODS, moodText,
     _render:(style, sec = 30, { seed = 1, rate = 48000, force = null } = {}) => render(style, sec, seed, rate, force),   // for tests/music.mjs
-    _plan:plan, _places:PLACES, _names:NAMES,
+    songs, calm:CALM, _shuffle:shuffle, _places:PLACES, _names:NAMES,
     get _last(){ return lastRender; },
     get _info(){ return lastInfo; },
     set onTrack(f){ onTrack = f; },
@@ -1172,6 +1210,8 @@ const music = (() => {
       musBus.gain.cancelScheduledValues(t); musBus.gain.setValueAtTime(musBus.gain.value, t); musBus.gain.linearRampToValueAtTime(0, t + 0.4); musBus.gain.linearRampToValueAtTime(1, t + 1.2); T = null; newTrack();
     },
     styleChanged(){ if (ctx && running) this.skip(); else T = null; },
+    // play a song from the list now (id: 'style-seed'); the shuffle carries on after it
+    play(id){ if (!SONGS.some(x => x.id === id)) return; Q.next = id; if (ctx && running) this.skip(); else T = null; },
     whoosh(dur){
       if (!running || !ctx) return;
       const t = ctx.currentTime, d = Math.max(dur, 0.8);
