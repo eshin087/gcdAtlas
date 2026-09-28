@@ -38,6 +38,15 @@ All notable changes, newest first. Dates are UTC.
 - Distances in the atlas: the James Webb Space Telescope read "0 m", the observable universe "1.00 AU" and the Halo where it was at start-up. The universe now reads "all around us", the satellites "in Earth orbit", and things that move are measured each time the atlas opens.
 - With ten more places in the atlas, today's discovery reshuffles on release day, and the collection log and badges count the new places.
 
+## 0.8.7 · 2026-09-27
+
+**Fixed: how the Halo flies** (the ship is fictional; these were mistakes in its route, found by the motion test once it flew fixed routes)
+- A light-speed hop into something the ship was already inside (from Earth or anywhere else in the Milky Way to the Milky Way, from SN 1987A to the Large Magellanic Cloud) flew out to where its pass began and turned back there, about 160 degrees in under 2 seconds. It now folds space to the start of that pass instead. The same goes for the Pleiades from HL Tau, whose pass starts beyond where the ship already is.
+- The turn before a light-speed jump aimed from where the ship would be after 2 seconds of straight flight, not from where the turn ends. On a short hop (Jupiter to Europa) or leaving a galaxy for something inside it (the Milky Way to Earth), the ship then swung round by up to 130 degrees as it jumped and again when it arrived. It now works out the turn exactly, so it points straight at the next pass when it jumps and flies straight into it; if the stop has moved on meanwhile (Europa round Jupiter), it turns a little more first, or folds.
+- When a light-speed hop is too short for a proper jump (the Pleiades to HL Tau), the ship glided on a curve that overshot and was held back, so it stood dead still for up to 2.4 seconds. The glide now changes speed evenly and never stops.
+- At the end of a light-speed leg across the Milky Way the ship moved in jerks, with pauses between, because the distance still to go was rounded over the whole length of the leg. It is now measured from where the ship arrives, and the ship comes in smoothly.
+- The ship never turns faster than its tightest turn, three times its usual rate. The motion test checks this on a whole route and on each of the hops above.
+
 ## 0.8.6 · 2026-09-27
 
 **Calmer ASCII**
