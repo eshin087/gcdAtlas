@@ -74,15 +74,18 @@ void main(){
   int N = int(mix(28., 48., uLod));
   if(hb.y > 0.) for(int i=0;i<48;i++){ if(i >= N) break; float h = map(o + d*t); if(h < 0.0015){ hit = true; id = gId; break; } t += h; if(t > hb.y) break; }
   vec3 col = vec3(0.), irisC = mix(uP3.rgb, white, clamp(uP0.y - 1., 0., 1.)); float alpha = 0.;
+  // (sm: how small it is on screen, 0 from a radius of about 40 pixels up, 1 at 10 and under: its outline, A's fins and C's lantern grow
+  // brighter and bolder as it shrinks, so each look keeps its own mark at the few characters it covers riding along)
+  float sm = smoothstep(0.025, 0.1, uPix*length(o));
   if(hit){
     vec3 p = o + d*t, n = nrmD(p);
-    float dif = max(dot(n, L), 0.), mu = max(dot(n, -d), 0.), rim = pow(1. - mu, 6.);
+    float dif = max(dot(n, L), 0.), mu = max(dot(n, -d), 0.), rim = pow(1. - mu, mix(6., 3., sm));
     float spec = pow(max(dot(n, normalize(L - d)), 0.), 40.);
     // smooth black lacquer and a thin silver rim all round its outline (whatever side the Sun is on), so even a small Pip shows its shape
     // against black space: a black silhouette, a crisp silver outline, one big blue eye. (A broad rim and a grainy hull made it a dotted oval.)
-    vec3 hull = vec3(0.05, 0.055, 0.07), body = hull*(dif*1.3 + 0.2) + silver*(spec*1.1 + rim*1.8);
+    vec3 hull = vec3(0.05, 0.055, 0.07), body = hull*(dif*1.3 + 0.2) + silver*(spec*1.1 + rim*(1.8 + 2.5*sm));
     col = body;
-    if(id > 2.5) col = hull*(dif*1.3 + 0.4) + silver*(0.25 + 1.2*rim + spec);               // fins, antenna, wings
+    if(id > 2.5) col = hull*(dif*1.3 + 0.4) + silver*(0.25 + 1.2*rim + spec + (LOOK == 1 ? 0.6 : 0.)*sm);   // fins, antenna, wings (A's fins lit when small)
     else if(id > 1.5) col = silver*(0.4 + 0.9*dif + 0.9*rim) + white*spec;                 // the bezel and the thruster ring
     else if(id > 0.5){
       // the eye. Lids close it to a slit when it blinks; a happy squint bends it into an arch (^); narrowed, both lids close in a little
@@ -100,7 +103,7 @@ void main(){
     if(id < 0.5) col += silver*exp(-sq((p.z + 0.12)/0.012))*(0.3 + 0.5*dif);   // a silver seam round its waist
 #elif LOOK == 3
     // its lantern: the tail end glows, breathing slowly, brighter as it flies
-    if(id < 0.5) col += ice*smoothstep(-0.06, -0.36, p.y)*(0.75 + 0.25*sin(tm*(RM > 0 ? 1.2 : 2.6)))*(1.1 + 1.3*uP0.z);
+    if(id < 0.5) col += ice*smoothstep(-0.06, -0.36, p.y)*(0.75 + 0.25*sin(tm*(RM > 0 ? 1.2 : 2.6)))*(1.1 + 1.3*uP0.z)*(1. + 0.5*sm);
 #endif
     alpha = 1.;
   }
@@ -133,7 +136,7 @@ void main(){
 #if LOOK == 3
   float PL = 0.1 + 0.28*uM0[0].z;
   // (its lantern's glow spills round the body, so it shows even when Pip faces you)
-  col += ice*blob(o, d, vec3(0., -0.33, 0.), 0.22)*(0.55 + 0.6*th)*(0.75 + 0.25*sin(tm*(RM > 0 ? 1.2 : 2.6)))*(1. - 0.75*alpha);
+  col += ice*blob(o, d, vec3(0., -0.33, 0.), mix(0.22, 0.3, sm))*(0.55 + 0.6*th)*(1. + 0.5*sm)*(0.75 + 0.25*sin(tm*(RM > 0 ? 1.2 : 2.6)))*(1. - 0.75*alpha);
   col += jet(o - NZ, d, vec3(0., -1., 0.), PL, 0.035, 0.075, 0.4, tm*6., vec3(0.85, 0.95, 1.), vec3(0.3, 0.55, 1.))*(3. + 10.*th)*behind;
 #else
   float PL = 0.1 + 0.25*th;
@@ -153,9 +156,11 @@ P.drone = droneProg(droneLook);
 // (st: 'stowed', 'out' on a job, 'pose' held by a test or a screenshot; kind: 'land' hovers over the ground or the cloud tops, 'star' keeps
 // further off and squints, 'near' stays by the ship near a black hole or a magnetar, 'cloud' flies out toward the heart of a nebula or galaxy)
 const ICE_P = [0.6, 0.83, 1];
-const PIP = { st:'stowed', A:null, kind:'land', H:null, pos:[0, 0, 0], pupil:[0, 1, 0], body:[0, 1, 0], ax:[1, 0, 0], open:1, blinkIn:3, blinkT:9, glow:1, flash:0,
+// (all of its state as on page load: drone.reset puts it all back, so a test's result never depends on the job before it)
+const pipFresh = () => ({ st:'stowed', A:null, kind:'land', H:null, pos:[0, 0, 0], pupil:[0, 1, 0], body:[0, 1, 0], ax:[1, 0, 0], open:1, blinkIn:3, blinkT:9, glow:1, flash:0,
   thr:0, mood:0, unfold:0, scale:0.25, ring:0, tail:0.3, shots:0, nShots:5, at:[], lamp:0, px:0, pz:0, ant:0, iris:ICE_P.slice(), r:lcg(7), trail:[], trAcc:0,
-  vis:0, pose:null, H2:null, hi:0, spot:null, alt:0.08, wd:null, wt:null, gas:false, minAlt:9 };
+  vis:0, pose:null, H2:null, hi:0, spot:null, alt:0.08, wd:null, wt:null, gas:false, minAlt:9, glide:[0, 0, 0] });
+const PIP = pipFresh();
 const DM0 = new Float32Array(9);
 const drone = addObj({ key:'halo-drone', name:'Pip', label:'', type:"the Halo's little drone (made up)", group:'travel', layer:3, parent:ship, offset:[0, 0, 0], pos:[0, 0, 0],
   rad:0.12*ship.rad, prog:P.drone, selfPos:true, hidden:true, noPick:true, noLabel:true, noImpostor:true, atlas:false, noWaypoint:true,
@@ -170,16 +175,13 @@ drone.setLook = v => { if (!(v >= 1 && v <= 3)) return; droneLook = v; drone.pro
 // pop out of the bay, say hello (looking at you, then at the ship), turn to the body, fly there, work, fly home, a happy look, dock
 const PT = { POP:0.5, HI:1.1, SEE:1.45, TURN:1.75, GO:2.2, AT:4.4, WK:8.8, HM:10.4, DK:10.8, IN:11.9 };
 const PB1 = [0.2, -0.1, 0];   // just under the bay (ship radii, ship axes: x the belly, y forward, z the side)
-// where it waits near a black hole or a magnetar: 0.12 ship radii off the deck on the dorsal side, aft of the heart and to the side the ship
-// banks toward (0.37 of the way out to shield B's bubble, (x/0.27)^2 + ((y + 0.02)/1.1)^2 + (z/0.62)^2)
-const PNEAR = () => [-0.12, -0.4, 0.14*S_.side];
 const pipKind = tg => isHoleTarget(tg) || RS_KM[tg.key] ? 'near' : !surfOf(tg) ? 'cloud' : tg === sun || tg.group === 'stars' ? 'star' : 'land';
 const pipName = tg => tg.label && tg.label.length < tg.name.length && !/^the /.test(tg.name) ? tg.label : tg.name;
 const backOut = x => { const y = x - 1; return 1 + 2.7*y*y*y + 1.7*y*y; };
 function herm(a, ma, b, mb, D, u){ const u2 = u*u, u3 = u2*u; return V.add(V.add(V.mul(a, 2*u3 - 3*u2 + 1), V.mul(ma, (u3 - 2*u2 + u)*D)), V.add(V.mul(b, -2*u3 + 3*u2), V.mul(mb, (u3 - u2)*D))); }
 function pipPlan(A){
   const q = PIP, tg = A.tg, pl = A.pl;
-  q.A = A; q.kind = pipKind(tg); q.shots = 0; q.hi = 0; q.trail.length = 0; q.H = null; q.spot = null; q.minAlt = 9;
+  q.A = A; q.kind = pipKind(tg); q.shots = 0; q.hi = 0; q.trail.length = 0; q.H = null; q.spot = null; q.minAlt = 9; q.glide = [0, 0, 0];
   q.r = lcg(pl.seed*17 + 3);
   q.at = q.kind === 'near' ? [3.2, 5.6, 8.0] : [4.9, 5.7, 6.5, 7.3, 8.1]; q.nShots = q.at.length;
   q.gas = tg.key === 'jupiter' || tg.key === 'saturn';
@@ -196,15 +198,21 @@ function pipPlan(A){
 // characters); on a phone, where the ship is wider than the screen, 0.8 ship radii away in the sky above it; on the bridge (the camera inside
 // the ship's sphere), 1.3 ship radii ahead and a little above
 // the horizon, clear of the needle below it. The first such spot that the hull does not hide, with a margin (the hull's outline in behindHull
-// is rough). With the camera far away, a spot beside the belly pod (l: ship axes, ship radii).
+// is rough); near a black hole, where Pip stays at this spot for its whole job, not over the hole's bright disc either (its black body read
+// as a second shadow there), trying the side of the view away from the hole first. With the camera far away, a spot beside the belly pod
+// (l: ship axes, ship radii).
 function pipHello(){
   const sd = S_.side, sp = camNear() ? V.len(ship.rel) : -1;
   if (sp >= 0){
+    const hole = PIP.kind === 'near' && PIP.A ? PIP.A.tg : null, dr = hole ? Math.asin(Math.min(1, hole.rad*0.8/Math.max(V.len(hole.rel), 1e-300))) : 0;
+    const onDisc = p => !!hole && angleOf(V.norm(p), V.norm(hole.rel)) < dr;
     const bridge = sp < ship.rad, D = bridge ? 1.3*ship.rad : Math.min((isCompact() ? 0.8 : 1)*ship.rad, sp*0.4), m = ship.rad*0.15;
+    // (br: picked for a camera on the bridge or outside the ship, so a camera that moves in or out gets a spot of its own: drone.ctl)
     const C = bridge ? [[0.4*sd, 0.12], [-0.4*sd, 0.12], [0.2*sd, 0.35]] : isCompact() ? [[0.3*sd, 0.3], [-0.3*sd, 0.3], [0.3*sd, 0.45]] : [[0.42*sd, -0.16], [0.42*sd, 0.14], [-0.42*sd, -0.16], [0.25*sd, 0.35]];
+    if (hole){ const s = Math.sign(V.dot(hole.rel, cam.right)) || 1; C.sort((a, b) => a[0]*s - b[0]*s); }
     for (let i=0;i<C.length;i++){
       const h = { c:[C[i][0], C[i][1], D] }, p = camSpot(h.c);
-      if (i === C.length - 1 || (!behindHull(p) && !behindHull(V.sub(p, V.mul(cam.up, m))) && !behindHull(V.sub(p, V.mul(cam.right, m*Math.sign(h.c[0])))))){ spotLocal(h); return h; }
+      if (i === C.length - 1 || (!behindHull(p) && !behindHull(V.sub(p, V.mul(cam.up, m))) && !behindHull(V.sub(p, V.mul(cam.right, m*Math.sign(h.c[0])))) && !onDisc(p))){ h.br = bridge; spotLocal(h); return h; }
     }
   }
   return { l:[0.2, 0.3, 0.5*sd] };
@@ -220,9 +228,9 @@ function pipWork(q, u){
     const W = V.mul(V.norm(V.add(q.wd, V.mul(q.wt, sw))), surfDrawn(tg)*(1 + q.alt));
     return { r:V.sub(W, ps.p), m:V.mul(ps.h, -ps.v) };
   }
-  // (near a black hole or a magnetar: tucked in over the deck beside the heart, on the side away from the pull, where the chase camera and a
-  // camera above the ship see it against the ship, not against the hole's disc; inside shield B's bubble, but not inside the thin skins of A and C)
-  if (q.kind === 'near') return { r:localPt(PNEAR()), m:[0, 0, 0] };
+  // (near a black hole or a magnetar: it stays at its hello spot for the whole job, in the camera's view and clear of the hull, where its face
+  // covers several characters. Tucked in over the deck it was about two characters lying on the hull's own, and could not be picked out)
+  if (q.kind === 'near') return { r:localPt(q.H.l), m:[0, 0, 0] };
   const H = localPt(q.H.l);
   // a cloud: out ahead toward its heart (moving with the ship: the ship crosses a nebula or a galaxy far too fast to leave it behind)
   return { r:V.add(H, V.mul(V.norm(V.mul(ship.offset, -1)), ship.rad*14)), m:[0, 0, 0] };
@@ -276,11 +284,15 @@ drone.ctl = dt => {
     const f = V.norm(V.mul(V.add(ship.rel, localPt(HULL.bay)), -1)); q.pupil = f; q.body = f; q.blinkIn = 1.6 + q.r(); q.flash = 0; q.thr = 0.4; q.mood = 0;
   }
   if (u >= PT.WK && !q.H2) q.H2 = pipHello();
+  // (near a black hole it works at its hello spot: when the camera moves onto the bridge or off it, the spot is picked afresh for the new view
+  // and Pip glides over to it)
+  if (q.kind === 'near' && q.H.c && camNear() && u > PT.HI && (V.len(ship.rel) < ship.rad) !== q.H.br) drone.reframe();
   spotLocal(q.H); if (q.H2) spotLocal(q.H2);
   // (a trail while it flies: at most 6 fading points, fixed where they were left)
   for (const t of q.trail){ t.age += dt; t.r = V.sub(t.r, V.mul(S_.vel, dt)); }
   while (q.trail.length && q.trail[0].age > 0.5) q.trail.shift();
   let pos = pipPos(q, u);
+  if (V.len(q.glide) > 1e-6){ q.glide = V.mul(q.glide, Math.exp(-dt/0.35)); pos = V.add(pos, localPt(q.glide)); }
   const tg = A.tg, up = V.norm(localPt([-1, 0, 0])), land = q.kind === 'land' || q.kind === 'star';
   // (never below the drawn surface on its way down or back up)
   if (land && u > PT.GO && u < PT.HM){ const tp = V.add(ship.offset, pos), r = V.len(tp), rmin = surfDrawn(tg)*(1 + 0.5*q.alt); if (r < rmin) pos = V.sub(V.mul(tp, rmin/r), ship.offset); }
@@ -343,6 +355,12 @@ drone.ctl = dt => {
   q.iris = V.lerp(ICE_P, [fc[0]/mx, fc[1]/mx, fc[2]/mx], ks);
   pipOrient(q, up, Math.max(q.mood, 0));
 };
+// near a black hole, while it works at its spot in the camera's view: a spot picked afresh for where the camera is now (the bridge, or the
+// looks review's view from above), and Pip glides over to it from where it was
+drone.reframe = () => {
+  const q = PIP; if (q.st !== 'out' || q.kind !== 'near' || !q.H || !q.H.c || !camNear() || !(S_.t - q.A.t0 < PT.WK)) return;
+  const was = M3.applyT(ship.R0, V.mul(q.pos, 1/ship.rad)); q.H = pipHello(); q.glide = V.sub(was, q.H.l);
+};
 // its frame from where it looks (+y) and the ship's up (+z), rolling in a little wiggle when it is happy; and where the pupil sits in the eye
 function pipOrient(q, up, happy){
   let ax = V.cross(q.body, up); ax = V.len(ax) > 0.2 ? V.norm(ax) : q.ax; q.ax = ax;
@@ -388,16 +406,15 @@ function pipLine(A){
   if (u < 0) return 'approaching ' + A.tg.name + " · Pip, the ship's drone, gets ready";
   if (u < PT.POP) return 'Pip pops out of the belly bay';
   if (u < PT.TURN) return 'Pip says hello';
-  // (near a black hole it waits over the deck: inside shield B's bubble, but A and C are skins on the hull, too thin for a 400 m drone)
-  const near = shieldLook === 2 ? `Pip stays inside the Halo's shield this close to ${nm}` : `Pip stays right by the ship this close to ${nm}`;
-  if (u < PT.AT) return k === 'near' ? `Pip tucks in by the ship: ${nm} is too close to fly out` : k === 'cloud' ? 'Pip flies out ahead toward ' + nm : 'Pip flies down to ' + nm;
+  // (near a black hole or a magnetar it stays by the ship: a choice of the story, not physics, so no reason is given)
+  if (u < PT.AT) return k === 'near' ? `Pip tucks in by the ship for the pass by ${nm}` : k === 'cloud' ? 'Pip flies out ahead toward ' + nm : 'Pip flies down to ' + nm;
   if (u < PT.WK){ const n = ` · picture ${Math.max(q.shots, 1)} of ${q.nShots}`;
-    return (k === 'land' ? `Pip lights up ${q.gas ? 'the cloud tops' : 'the ground'}` : k === 'star' ? 'Pip squints at ' + nm : k === 'near' ? near : 'Pip takes pictures of ' + nm) + n; }
+    return (k === 'land' ? `Pip lights up ${q.gas ? 'the cloud tops' : 'the ground'}` : k === 'star' ? 'Pip squints at ' + nm : k === 'near' ? `Pip takes pictures of ${nm} from beside the ship` : 'Pip takes pictures of ' + nm) + n; }
   if (u < PT.DK) return k === 'near' ? 'Pip heads back to the bay' : 'Pip flies home to the Halo';
   if (u < PT.IN) return 'Pip docks in the belly bay';
   return `Pip is back aboard · ${q.nShots} pictures of ${nm}`;
 }
-drone.reset = () => { pipStow(); Object.assign(PIP, { A:null, pose:null, r:lcg(7), blinkIn:3, blinkT:9, ring:0, thr:0, mood:0, shots:0 }); };
+drone.reset = () => { Object.assign(PIP, pipFresh()); };
 // whether it is in the picture: in front of the camera and inside the view, big enough to draw, and not hidden by the hull or the body (the
 // geometry only, so a test can ask without drawing)
 function pipShows(){

@@ -55,7 +55,7 @@ if (SHOWCASE.on){
   function toAbove(){
     const R = ship.R0, e = V.mul(M3.applyT(R, shipCam.eye || [0, 0, 0]), 1/ship.rad), f = M3.applyT(R, shipCam.fwd || cam.fwd);
     SC.cam = { t:0, e0:e, l0:V.add(e, V.mul(f, Math.max(V.len(e), 1))), u0:M3.applyT(R, shipCam.up || cam.up) };
-    if (PIP.H) PIP.H.c = null;
+    if (PIP.H && PIP.kind !== 'near') PIP.H.c = null;
     shipCam.turn = { eye:e, look:SC.cam.l0, up:SC.cam.u0 }; setMode('turn');
   }
   function abovePose(dt){
@@ -65,6 +65,8 @@ if (SHOWCASE.on){
     const g = M3.applyT(ship.R0, V.norm(V.mul(ship.offset, -1))), e = V.norm(V.add(V.mul(g, -A.eye[0]), [-(A.eye[3] || 0), A.eye[1], 0]));
     const eye = V.mul(e, A.eye[2]*fit), look = V.add(V.mul(g, A.look[0]*Math.min(1, tanX/tanY)), [0, A.look[1], 0]), f = V.norm(V.sub(look, eye)), up = V.norm(V.sub(A.up, V.mul(f, V.dot(A.up, f))));
     shipCam.turn = { eye:V.lerp(c.e0, eye, k), look:V.lerp(c.l0, look, k), up:V.norm(V.lerp(c.u0, up, k)) };
+    // (once the camera is up there, Pip, waiting by the ship near the hole, takes a spot of its own in the new view: drone.reframe)
+    if (c.t > 1 && !c.re){ c.re = true; drone.reframe(); }
   }
   function reviewStart(){
     S_.force = Object.assign({}, NEXT.magnetar); foldVisit(BYKEY.saturn); S_.force = Object.assign({}, NEXT.saturn);
