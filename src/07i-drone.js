@@ -127,8 +127,11 @@ const pipFresh = () => ({ st:'stowed', A:null, kind:'land', plan:null, g:null, l
   cells:null, brk:0, wz:1, arr:0, embN:0, embIn:0, rb:lcg(7), clr:9, far:0, bobK:0, wasOut:false });
 const PIP = pipFresh();
 const DM0 = new Float32Array(9);
+// its size: its bounding sphere in ship radii (0.04: a third of 0.8's Pip). Its body reaches 0.54 of that from its centre, so the clearance it
+// keeps from the hull (PIP_R, below) follows it
+const PIP_SIZE = 0.04;
 const drone = addObj({ key:'halo-drone', name:'Pip', label:'', type:"the Halo's little drone (made up)", group:'travel', layer:3, parent:ship, offset:[0, 0, 0], pos:[0, 0, 0],
-  rad:0.04*ship.rad, prog:P.drone, selfPos:true, hidden:true, noPick:true, noLabel:true, noImpostor:true, atlas:false, noWaypoint:true,
+  rad:PIP_SIZE*ship.rad, prog:P.drone, selfPos:true, hidden:true, noPick:true, noLabel:true, noImpostor:true, atlas:false, noWaypoint:true,
   // (lit like the ship: by the Sun, or by the showcase's fixed light)
   setU(pr){ const S = ship.S, q = PIP, L = S.light ? M3.apply(ship.R0, V.norm(S.light)) : V.norm(V.sub(sun.rel, this.rel)), c = q.iris, b = q.bayL;
     gl.uniform4f(pr.u.uP0, q.open, q.glow, q.thr, q.mood); gl.uniform4f(pr.u.uP1, L[0], L[1], L[2], q.unfold);
@@ -143,7 +146,7 @@ const camL = () => M3.applyT(ship.R0, V.mul(ship.rel, -1/ship.rad));          //
 
 // ---------------------------------------------------------------- the hull as the ship's shader draws it (map() in FS_SHIP_BODY), in ship radii and ship axes: Pip keeps
 // its body (PIP_R across its middle) clear of it, follows its plates and lands on it
-const PIP_R = 0.023;   // (its body's radius in ship radii: 0.54 of its own radius, 0.04 ship radii, and a little)
+const PIP_R = 0.575*PIP_SIZE;   // (its body's radius in ship radii, 0.54 of its own radius, and a little: 0.023)
 const sdCapJS = (px, py, pz, ax, ay, az, bx, by, bz, r) => { const pax = px - ax, pay = py - ay, paz = pz - az, bax = bx - ax, bay = by - ay, baz = bz - az;
   const h = clamp((pax*bax + pay*bay + paz*baz)/(bax*bax + bay*bay + baz*baz), 0, 1); return Math.hypot(pax - bax*h, pay - bay*h, paz - baz*h) - r; };
 const sdEllJS = (x, y, z, a, b, c) => { const k0 = Math.hypot(x/a, y/b, z/c), k1 = Math.hypot(x/(a*a), y/(b*b), z/(c*c)); return k0*(k0 - 1)/Math.max(k1, 1e-9); };
