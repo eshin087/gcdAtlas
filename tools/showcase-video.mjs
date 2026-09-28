@@ -6,7 +6,8 @@
 // --url adds to the page's address, or replaces what is there.
 // One full loop of ?showcase=halo is about 167 s; --dur defaults to one loop.
 // --from=s runs the first s seconds without recording (the clip is --dur long from there); --phone records a phone (390 x 844, touch, the
-// phone layout).
+// phone layout). --press=t:kind,t:kind... presses the showcase's buttons at those times (s from the start; kind: fold, light, hole, scan,
+// probe, weapons, skim), e.g. --press=25:probe,60:fold.
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -41,12 +42,15 @@ await page.addInitScript(() => { window.__noAdapt = true; window.__syncCompile =
 await page.goto(PAGE + '?' + query.toString());
 await page.waitForFunction(() => window.__cosmos && window.__cosmos.OBJ, null, { timeout:60000 });
 const N0 = Math.round(FROM*FPS), N = Math.round(dur*FPS), t0 = Date.now();
+const PRESS = (str('press') || '').split(',').filter(Boolean).map(x => { const [t, k] = x.split(':'); return { f:Math.round(+t*FPS), k }; });
+const press = async f => { for (const p of PRESS) if (p.f === f) await page.evaluate(k => { const b = document.querySelector(`.demo-bar button[data-v="${k}"]`); if (b) b.click(); }, p.k); };
 // (the first --from seconds run frame by frame exactly as when they are recorded, drawn but not photographed, so the clip matches that stretch
 // of a full recording)
 const step = n => page.evaluate(([dt, n]) => { const C = __cosmos; for (let k=0;k<n;k++){ C.tick(dt); C.render(); C.hud(); C.caption(dt); } }, [1/FPS, n]);
-for (let i=0;i<N0;i+=FPS) await step(Math.min(FPS, N0 - i));
+for (let i=0;i<N0;i+=FPS){ for (let f=i;f<Math.min(i + FPS, N0);f++) await press(f); await step(Math.min(FPS, N0 - i)); }
 if (N0) console.log(`skipped the first ${FROM} s · ${((Date.now() - t0)/1000).toFixed(0)} s so far`);
 for (let i=0;i<N;i++){
+  await press(N0 + i);
   await step(1);
   const buf = await page.screenshot({ type:'jpeg', quality:92 });
   if (!ff.stdin.write(buf)) await new Promise(r => ff.stdin.once('drain', r));

@@ -4,6 +4,18 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.9.3 · 2026-09-28
+
+**The Halo roams, folds more slowly, and its shield is subtler** (the ship is made up)
+- It stays at each place for about two minutes and roams round it: three or so slow passes from different sides (low, wide, over a pole, over the day side, along the line between day and night), with a wide U-turn out and back between them. Every turn is gentle, at most its usual rate.
+- One or two jobs at each place, a loop apart, never the same kind twice in a row, and none on the first pass: the ship arrives and looks round first. On plain passes the cameras turn toward the body too, so it stays in view.
+- It mostly hops to places nearby at light speed. It folds space only for the long trips, so it teleports every few stops instead of every half minute.
+- The readout says what each pass is, and only when that is true: "passing over Saturn's north pole", "a low pass by Jupiter", "along the line between day and night on Earth", "a wide turn out from Mars", "leaving Saturn · next stop: Earth".
+- The rock it caught with a green tractor beam and drilled is gone.
+- A slower fold. The drive spools up for about 7 seconds while the ship eases off to under half its speed and its heart beats faster. The shield folds into the heart, the hull burns away over about 2.5 seconds, and the heart pulls in the embers. A starburst marks the jump: a white point, eight thin rays and two rings, gone within a second. It arrives with another starburst. The hull then forms over 3 seconds while the ship picks up speed over 5 seconds, and the shield unfolds last.
+- A subtler shield. At rest it is barely there, with one faint glint running round it every 9 seconds. It still shows clearly in strong gravity, such as near a black hole.
+- The Halo showcase (?showcase=halo) has buttons that act at once: teleport, light speed, black hole, scan, Pip, weapons and skim (keys 1 to 7). A button stays lit until the ship can do it. The showcase's stays last 75 seconds instead of about two minutes, so a round of it is quicker.
+
 ## 0.9.2 · 2026-09-28
 
 **More music, and 16 songs you can pick from a list**
