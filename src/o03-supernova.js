@@ -121,7 +121,7 @@ const supernova = (() => {
   };
   const pos = radec(hms(5,35,28.03), dms(-69,16,11.8), 168000);
   const camLocal = () => V.norm(M3.applyT(o.rot, V.mul(o.rel, -1)));
-  const o = addObj({ key:'sn1987a', name:'SN 1987A', label:'SN 1987A', type:'core-collapse supernova in the Large Magellanic Cloud', group:'stars', sortKey:168000,
+  const o = addObj({ key:'sn1987a', tags:['events'], name:'SN 1987A', label:'SN 1987A', type:'core-collapse supernova in the Large Magellanic Cloud', group:'stars', sortKey:168000,
     fact:'In 1987 a blue supergiant\'s core collapsed in under a second. The flash lit up rings the star shed 20,000 years earlier; then the blast hit them. Replayed on a loop.',
     pos, rad:1.9, R0:facingEarth(pos, V.norm([0.1, 0.72, 0.68]), 10), prog:program(VS_RECT, FS_SUPERNOVA), minZoom:0.3, pxMin:6, farColor:[1, 0.5, 0.45], farLum:0.5, labelRange:3e5, aka:'supernova sn 1987a',
     views:[{d:[0.1,0.72,0.68],k:1.6,hold:10,drift:0.03},{d:[0.85,0.28,0.45],k:1.25,hold:9,drift:0.05},{d:[-0.3,0.06,1],k:2.6,hold:9,drift:-0.03}],

@@ -282,7 +282,7 @@ const earth = (() => {
   o.weather = earthWeather;
   return o;
 })();
-const moon = addBody({ key:'moon', name:'the Moon', label:'Moon', type:'Earth\'s natural satellite', parent:earth, R:1737.4, pole:[269.9949, 66.5392], W:[38.3213, 13.17635815], kind:6,
+const moon = addBody({ key:'moon', tags:['moons'], name:'the Moon', label:'Moon', type:'Earth\'s natural satellite', parent:earth, R:1737.4, pole:[269.9949, 66.5392], W:[38.3213, 13.17635815], kind:6,
   offsetFn:jd => moonGeo(jd), shadowOf:earth, farLum:0.8, farColor:[0.9, 0.9, 0.88], sortKey:1.001, labelRange:0.004, minZoom:1.15,
   fact:'Born from a giant impact 4.5 billion years ago. The dark "seas" are ancient lava plains; bright rays splash out from young craters like Tycho.',
   views:[{dirFn:() => sunSide(moon, 0.35, 0.12), k:3.2, hold:8, drift:0.03}, {dirFn:() => sunSide(moon, 1.45, 0.1), k:1.8, hold:7, drift:0.03},

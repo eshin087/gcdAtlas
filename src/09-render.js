@@ -786,7 +786,7 @@ function setOpt(key, v, quiet){
 const cycle = (list, cur) => list[(list.indexOf(cur) + 1) % list.length];
 let toggleSettings = on => { settingsEl.hidden = !on; $('#btnSettings').setAttribute('aria-expanded', String(on)); if (on) syncSettingsUI(); };
 document.querySelectorAll('.seg[data-key] button').forEach(b => b.addEventListener('click', () => setOpt(b.parentElement.dataset.key, b.dataset.v)));
-function applyTextSize(){ const r = document.documentElement.style; r.setProperty('--ts', String(SET.textSize)); r.setProperty('--tsm', String(+(SET.textSize*SET.menuSize).toFixed(3))); roLast = ''; }
+function applyTextSize(){ const r = document.documentElement.style; r.setProperty('--ts', String(SET.textSize)); r.setProperty('--tsm', String(+(SET.textSize*SET.menuSize).toFixed(3))); roLast = ''; if (!atlasEl.hidden){ fitAtlas(); fitSeenBar(); } }
 applyTextSize();
 $('#textSize').addEventListener('input', e => { setOpt('textSize', e.target.value, true); });
 $('#menuSize').addEventListener('input', e => { setOpt('menuSize', e.target.value, true); });
@@ -797,95 +797,331 @@ $('#settingsClose').addEventListener('click', () => toggleSettings(false));
 
 // ---------------------------------------------------------------- atlas and search
 const atlasList = $('#atlasList'), searchEl = $('#search'), atlasSearch = $('#atlasSearch');
-const GROUPS = [['solar', 'Solar System'], ['comets', 'Comets & meteors'], ['stars', 'Stars & stellar remnants'], ['nebulae', 'Nebulae & star clusters'], ['galaxies', 'Galaxies & black holes'], ['cosmic', 'The large-scale universe'], ['travel', 'Travellers']];
-// categories for the atlas filter (black holes get their own, whatever group they are listed under)
-const CATS = [['all', 'all'], ['solar', 'solar system'], ['comets', 'comets & meteors'], ['stars', 'stars'], ['bh', 'black holes'], ['nebulae', 'nebulae'], ['galaxies', 'galaxies'], ['cosmic', 'large-scale'], ['travel', 'spacecraft']];
-const catOf = o => (o.prog === P.blackhole || o.isBH) ? 'bh' : o.group;
+const GROUPS = [['solar', 'Solar System'], ['comets', 'Comets & meteors'], ['stars', 'Stars & stellar remnants'], ['worlds', 'Other worlds'], ['nebulae', 'Nebulae & star clusters'], ['galaxies', 'Galaxies & black holes'], ['cosmic', 'The large-scale universe'], ['travel', 'Travellers']];
+// what the numbers under each heading measure: the Solar System and the comets from the Sun (so they climb outward, in the planets' order), the rest from Earth
+const FROM_SUN = new Set(['solar', 'comets']);
+// the kinds, in the order of the atlas grid ("all" across the top, then three to a row, near to far like the list, then the two kinds that cut
+// across it): [id, the short name on its cell, the full name (many), one of them, the heading when it is the one kind shown]. Each object has one
+// main kind, catOf (its group, or `atlasKind` when it is not what its group says: the S-stars are stars; black holes get their own, whatever group they
+// are listed under), and its `tags` put it in more (catsOf): moons and small worlds, explosions and collisions, star clusters, human-made. With all
+// kinds the headings list every object once, under its group. (Human-made matches the tag only, so the made-up Halo is not in it.)
+const CATS = [['all', 'all', 'places', 'place', ''],
+  ['solar', 'solar system', 'places in the Solar System', 'place in the Solar System', 'Solar System'], ['moons', 'moons & more', 'moons & small worlds', 'moon or small world', 'Moons & small worlds'], ['comets', 'comets', 'comets & meteors', 'comet or meteor shower', 'Comets & meteors'],
+  ['stars', 'stars', 'stars & stellar remnants', 'star', 'Stars & stellar remnants'], ['worlds', 'other worlds', 'planets of other stars', 'planet of another star', 'Other worlds'], ['nebulae', 'nebulae', 'nebulae', 'nebula', 'Nebulae'],
+  ['clusters', 'star clusters', 'star clusters', 'star cluster', 'Star clusters'], ['bh', 'black holes', 'black holes', 'black hole', 'Black holes'], ['galaxies', 'galaxies', 'galaxies', 'galaxy', 'Galaxies'],
+  ['cosmic', 'universe', 'places in the universe at large', 'place in the universe at large', 'The universe at large'], ['events', 'explosions', 'explosions & collisions', 'explosion or collision', 'Explosions & collisions'], ['human', 'human-made', 'human-made craft', 'human-made craft', 'Human-made craft']];
+const catOf = o => o.atlasKind || ((o.prog === P.blackhole || o.isBH) ? 'bh' : o.group);
+const catsOf = o => [catOf(o), ...(o.tags || [])];
 // true size (radius in light-years): a black hole's event horizon, a star's surface, otherwise the object's extent
 const atlasSize = o => o.prog === P.blackhole ? o.rad/20 : (o.sizeR || (o.starR ? o.starR*o.rad : o.rad*(o.solid || 0.6)));
 const earthDist = o => o.key === 'earth' ? 0 : o.distNow ? o.distNow() : V.len(V.sub(o.pos, earth.pos));   // (distNow: drawn at a past moment, sorted by where it is now)
+// from the Sun: where a comet is today (it is drawn where it was at its famous moment), anything else where it is drawn
+const sunDist = o => o.elNow ? V.len(orbitTp(o.elNow, jdNow())) : V.len(V.sub(o.pos, sun.pos));
+const sunAU = ly => { const r = ly/AU_LY; return (r < 0.1 ? r.toFixed(3) : r < 10 ? r.toFixed(2) : r < 100 ? r.toFixed(1) : Math.round(r).toLocaleString('en-US')) + ' AU'; };
 const SEEN = new Set((() => { try { return JSON.parse(localStorage.getItem('gcdatlas.seen') || '[]'); } catch (e) { return []; } })());
-const catMatch = r => ATL.cat === 'all' || (ATL.cat === 'unseen' ? !SEEN.has(r.o.key) : r.cat === ATL.cat);
-const ATL_DEF = { sort:'distance', dir:1, cat:'all' };
-const ATL = Object.assign({}, ATL_DEF, (() => { try { return JSON.parse(localStorage.getItem('gcdatlas.atlas') || '{}'); } catch (e) { return {}; } })());
-const saveAtl = () => { try { localStorage.setItem('gcdatlas.atlas', JSON.stringify(ATL)); } catch (e) {} };
+// the view: sort (kind = grouped under the headings; distance, size and name = one list), its order, one kind or all, and "not seen yet" on top of it
+const SORTS = ['kind', 'distance', 'size', 'name'];
+const ATL_DEF = { sort:'kind', dir:1, cat:'all', unseen:false };
+// the last choice is kept (gcdatlas.atlas). Saved before these controls (no v): the grouped default was "distance, nearest first",
+// "not seen yet" was a chip of its own (now all + the box ticked) and human-made was the spacecraft chip ("travel")
+const ATL = (() => {
+  const a = Object.assign({}, ATL_DEF); let s = null;
+  try { s = JSON.parse(localStorage.getItem('gcdatlas.atlas') || 'null'); } catch (e) {}
+  if (!s || typeof s !== 'object') return a;
+  let cat = s.cat, sort = s.sort, unseen = !!s.unseen;
+  if (!s.v){ if (sort === 'distance' && s.dir !== -1 && (cat || 'all') === 'all') sort = 'kind'; if (cat === 'unseen'){ cat = 'all'; unseen = true; } }
+  if (cat === 'travel') cat = 'human';
+  a.cat = CATS.some(([id]) => id === cat) ? cat : 'all';
+  a.sort = SORTS.includes(sort) ? sort : 'kind';
+  a.dir = s.dir === -1 ? -1 : 1;
+  a.unseen = unseen;
+  return a;
+})();
+const saveAtl = () => { try { localStorage.setItem('gcdatlas.atlas', JSON.stringify(Object.assign({ v:2 }, ATL))); } catch (e) {} };
+// a badge in the tray can show exactly the places that count for it (planet hopper: the eight planets), when no kind is the same list: { name, keys }.
+// It is not saved, and any kind, "all" or the reset ends it.
+let badgePick = null;
+const atlDefault = () => !badgePick && ATL.sort === ATL_DEF.sort && ATL.dir === ATL_DEF.dir && ATL.cat === ATL_DEF.cat && ATL.unseen === ATL_DEF.unseen;
+const catMatch = r => (badgePick ? badgePick.keys.has(r.o.key) : ATL.cat === 'all' || r.cats.includes(ATL.cat)) && !(ATL.unseen && SEEN.has(r.o.key));
+// the words for the order, as the list reads from the top: [ascending, descending]
+const DIRW = { kind:['near → far', 'far → near'], distance:['near → far', 'far → near'], size:['small → big', 'big → small'], name:['A → Z', 'Z → A'] };
+const dirWord = () => DIRW[ATL.sort][ATL.dir > 0 ? 0 : 1];
+const NBSP = String.fromCharCode(160);
+
 const atlasRows = [], groupHeads = {};
-GROUPS.forEach(([g, title]) => { const h = document.createElement('div'); h.className = 'agroup'; h.textContent = title; groupHeads[g] = h; });
+const mkHead = (title, note) => { const h = document.createElement('div'); h.className = 'agroup'; h.innerHTML = '<span class="gt"></span><span class="gnote"></span>'; h.firstChild.textContent = title; h.lastChild.textContent = note; return h; };
+GROUPS.forEach(([g, title]) => { groupHeads[g] = mkHead(title, FROM_SUN.has(g) ? 'from the Sun' : 'from Earth'); });
+// grouped with one kind chosen: one heading, the kind's name ("Galaxies"), and what its numbers measure
+const kindHead = mkHead('', '');
+// (one list by distance: the places we are inside have no one distance; they come last, under their own heading)
+const aroundHead = mkHead('all around us', 'we are inside these');
 OBJ.filter(o => o.atlas !== false && !o.marker && GROUPS.some(([g]) => g === o.group)).forEach(o => {
   const b = document.createElement('button'); b.className = 'arow'; b.setAttribute('role', 'option'); b.setAttribute('aria-selected', 'false');
   b.innerHTML = `<span class="an"></span><span class="ad"></span>`;
   b.querySelector('.an').textContent = o.name;
   b.title = o.type;
-  b.addEventListener('click', () => goTo(o.index));
-  const dtxt = o.key === 'earth' ? 'home' : (o.atlasDist || (o.distEarth && o.distEarth.length < 14 ? o.distEarth : fmtDist(V.len(V.sub(o.pos, earth.pos)))));
-  atlasRows.push({ b, o, cat:catOf(o), dtxt, stxt:fmtLen(2*atlasSize(o)*LY, 2) + ' across', text:(o.name + ' ' + (o.label || '') + ' ' + o.type + ' ' + (o.aka || '')).toLowerCase() });
+  b.addEventListener('click', () => { if (!trayEl.hidden) setBadgeTray(false); goTo(o.index); });
+  // (a distance written out stays; any other is measured each time the atlas opens: things that move, like the Halo or JWST, are only placed on the first frame)
+  const dfix = o.key === 'earth' ? 'home' : (o.atlasDist || (o.distEarth && o.distEarth.length < 14 ? o.distEarth : null));
+  // (true size across, short: "93 billion ly"; the results line says "true size, across")
+  atlasRows.push({ b, o, cat:catOf(o), cats:catsOf(o), dfix, around:/^(here|all around)/.test(dfix || ''), stxt:fmtLen(2*atlasSize(o)*LY, 2).replace(/ light-years?$/, ' ly'), text:(o.name + ' ' + (o.label || '') + ' ' + o.type + ' ' + (o.aka || '')).toLowerCase() });
 });
-const atlasEmpty = document.createElement('div'); atlasEmpty.className = 'atlas-empty'; atlasEmpty.textContent = 'nothing found yet · try a planet, star, nebula or galaxy';
-// the tools: sort (distance, size, name, either direction), a category filter, and reset
-const sortBtns = [...document.querySelectorAll('#atlasSort [data-sort]')], dirBtn = $('#atlasDir'), catRow = $('#atlasCats');
-const catBtns = CATS.map(([id, name]) => {
-  const n = id === 'all' ? atlasRows.length : atlasRows.filter(r => r.cat === id).length; if (!n) return null;
-  const b = document.createElement('button'); b.className = 'chip'; b.dataset.cat = id; b.textContent = name; b.title = n + (n === 1 ? ' object' : ' objects');
-  b.addEventListener('click', () => { ATL.cat = id; saveAtl(); renderAtlas(); });
-  catRow.appendChild(b); return b;
-}).filter(Boolean);
-sortBtns.forEach(b => b.addEventListener('click', () => { if (ATL.sort === b.dataset.sort) ATL.dir = -ATL.dir; else { ATL.sort = b.dataset.sort; ATL.dir = b.dataset.sort === 'size' ? -1 : 1; } saveAtl(); renderAtlas(); }));
-dirBtn.addEventListener('click', () => { ATL.dir = -ATL.dir; saveAtl(); renderAtlas(); });
-$('#atlasReset').addEventListener('click', () => { Object.assign(ATL, ATL_DEF); saveAtl(); searchEl.value = atlasSearch.value = ''; renderAtlas(); toast('atlas reset'); });
+// moons sit under their planet in the Solar System heading ("└ Io"), measured from it
+atlasRows.forEach(r => { const p = typeof r.o.parent === 'string' ? BYKEY[r.o.parent] : r.o.parent;
+  r.par = r.o.group === 'solar' && p && p !== sun ? atlasRows.find(q => q.o === p && q.o.group === 'solar') || null : null; });
+const catRows = {}; CATS.forEach(([id]) => { catRows[id] = id === 'all' ? atlasRows : atlasRows.filter(r => r.cats.includes(id)); });
+const atlasEmpty = document.createElement('div'); atlasEmpty.className = 'atlas-empty'; atlasEmpty.innerHTML = '<div></div><button type="button"></button>';
+const atlasEnd = Object.assign(document.createElement('div'), { className:'aend', textContent:'real positions and sizes' });
+
+// the controls
+const toolsEl = $('#atlasTools'), sortBtns = [...document.querySelectorAll('#atlasSort [data-sort]')], dirBtn = $('#atlasDir'), allBtn = $('#atlasAll'), unseenBtn = $('#atlasUnseen'), catGrid = $('#atlasCats');
+const trayEl = $('#badgeTray'), seenBtn = $('#seenBtn'), atlasBody = $('#atlasBody');
+const catBtns = CATS.filter(([id]) => id !== 'all' && catRows[id].length).map(([id, short, full]) => {
+  const b = document.createElement('button'); b.className = 'cell'; b.setAttribute('role', 'radio'); b.dataset.cat = id; b.title = full[0].toUpperCase() + full.slice(1);
+  b.innerHTML = '<span class="cl"></span><span class="n"></span>'; b.firstChild.textContent = short;
+  b.addEventListener('click', () => pickCat(id, true));
+  catGrid.appendChild(b); return b;
+});
+const kindBtns = [allBtn, ...catBtns];   // (one radio group: "all" first, across the top of the grid)
+const hadSearch = () => { const q = !!(searchEl.value || atlasSearch.value); if (q){ searchEl.value = atlasSearch.value = ''; } return q; };
+// the list's scroller: the list itself, or in .flow the whole column under the head. After a new choice the list starts from its top
+// (in .flow that shows the controls again, where the choice was made)
+const atlasFlow = () => atlasEl.classList.contains('flow');
+const atlasScroller = () => atlasFlow() ? atlasBody : atlasList;
+function atlasTop(){ atlasList.scrollTop = 0; atlasBody.scrollTop = 0; }
+// a kind: a second tap on the chosen one goes back to all (a tap while a search is typed clears the search and shows the kind)
+function pickCat(id, toggle){ const q = hadSearch(); ATL.cat = toggle && !q && !badgePick && ATL.cat === id ? 'all' : id; badgePick = null; saveAtl(); renderAtlas(); atlasTop(); }
+function setSort(s){ if (ATL.sort === s) return; ATL.sort = s; ATL.dir = s === 'size' ? -1 : 1; saveAtl(); renderAtlas(); atlasTop(); }   // (each sort starts in its natural order: size biggest first)
+// from the badge tray: one kind (black hole hunter: the black holes), or just the places that count for the badge
+function showKind(id, unseen, pick){ hadSearch(); ATL.cat = pick ? 'all' : id; badgePick = pick || null; ATL.unseen = unseen; saveAtl(); renderAtlas(); atlasTop(); }
+sortBtns.forEach(b => b.addEventListener('click', () => setSort(b.dataset.sort)));
+dirBtn.addEventListener('click', () => { ATL.dir = -ATL.dir; saveAtl(); renderAtlas(); atlasTop(); });
+allBtn.addEventListener('click', () => pickCat('all'));
+unseenBtn.addEventListener('click', () => { hadSearch(); ATL.unseen = !ATL.unseen; saveAtl(); renderAtlas(); atlasTop(); });
+// the results line's button: "clear" while a search is typed, otherwise "reset" (back to the default view)
+$('#atlasReset').addEventListener('click', () => {
+  if (searchEl.value || atlasSearch.value){ searchEl.value = atlasSearch.value = ''; filterAtlas(''); atlasTop(); return; }
+  Object.assign(ATL, ATL_DEF); badgePick = null; saveAtl(); renderAtlas(); atlasTop(); toast('atlas reset');
+});
+atlasEmpty.lastChild.addEventListener('click', () => {
+  if (searchEl.value || atlasSearch.value){ searchEl.value = atlasSearch.value = ''; filterAtlas(''); }
+  else if (ATL.unseen){ ATL.unseen = false; saveAtl(); renderAtlas(); }
+  else pickCat('all');
+  atlasTop();
+});
+// arrow keys move through a radio group and choose; Home and End jump to the ends. The sort is one row; in the kinds, "all" sits across the top
+// of the grid (down or right from it goes to the first kind, up or left from the first row goes back to it)
+function radioKeys(box, items, cols){
+  box.addEventListener('keydown', e => {
+    const L = items(), i = L.indexOf(document.activeElement); if (i < 0) return;
+    const c = cols(), top = cols.top || 0, d = { ArrowRight:1, ArrowLeft:-1, ArrowDown:c, ArrowUp:-c }[e.key];
+    let j = e.key === 'Home' ? 0 : e.key === 'End' ? L.length - 1 : d === undefined ? -1 : i + d;
+    if (top && d !== undefined){ if (i < top) j = d > 0 ? top : i; else if (j < top) j = 0; }   // ("all")
+    if (j < 0 && d === undefined) return;
+    j = clamp(j, 0, L.length - 1);
+    e.preventDefault(); e.stopPropagation();   // (the arrows would otherwise also turn the camera)
+    if (j === i) return;
+    L[j].focus(); L[j].click();
+  });
+}
+radioKeys($('#atlasSort'), () => sortBtns, () => 1);
+const kindCols = () => getComputedStyle(catGrid).gridTemplateColumns.split(' ').length; kindCols.top = 1;
+radioKeys(catGrid, () => kindBtns, kindCols);
+function syncAtlasTools(){
+  sortBtns.forEach(b => { const on = b.dataset.sort === ATL.sort; b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1; });
+  const w = dirWord();
+  dirBtn.lastChild.textContent = w;
+  dirBtn.title = (ATL.sort === 'kind' ? 'Each group runs ' : 'The list runs ') + w.replace('→', 'to') + '. Click to reverse';
+  dirBtn.setAttribute('aria-label', 'Order: ' + w.replace('→', 'to') + (ATL.sort === 'kind' ? ' in each group' : '') + '. Reverse it');
+  // (a badge's own list checks no kind; the Tab key still lands on "all")
+  kindBtns.forEach(b => b.setAttribute('aria-checked', String(!badgePick && b.dataset.cat === ATL.cat)));
+  const tab = (!badgePick && kindBtns.find(b => b.dataset.cat === ATL.cat)) || allBtn; kindBtns.forEach(b => { b.tabIndex = b === tab ? 0 : -1; });
+  unseenBtn.setAttribute('aria-checked', String(ATL.unseen)); unseenBtn.firstChild.textContent = ATL.unseen ? '[x]' : '[ ]';
+  syncCatCounts();
+}
+// the counts on the cells: how many there are, or with "not seen yet" ticked how many are left to see (a green ✓ once there are none)
+function syncCatCounts(){
+  const left = rs => ATL.unseen ? rs.filter(r => !SEEN.has(r.o.key)).length : rs.length;
+  const nAll = left(atlasRows); allBtn.lastChild.textContent = nAll;
+  allBtn.setAttribute('aria-label', 'all places, ' + (ATL.unseen ? nAll + ' not seen yet' : nAll));
+  catBtns.forEach(b => { const c = CATS.find(k => k[0] === b.dataset.cat), n = left(catRows[c[0]]), done = ATL.unseen && !n;
+    b.lastChild.textContent = done ? '✓' : n; b.classList.toggle('done', done);
+    b.setAttribute('aria-label', c[2] + ', ' + (done ? 'all seen' : ATL.unseen ? n + ' not seen yet' : n)); });
+}
+const rowDist = r => r.dfix || fmtDist(earthDist(r.o));
+// grouped under the headings, the Solar System and the comets are measured from the Sun, and a moon from its planet
+function rowSun(r){
+  const k = r.o.key;
+  if (r.par) return fmtDist(V.len(V.sub(r.o.pos, r.par.o.pos))) + ' from ' + r.par.o.name.replace(/^the /, '');
+  if (k === 'sun') return 'centre';
+  if (/ from the Sun$/.test(r.o.distEarth || '')) return r.o.distEarth.replace(/ from the Sun$/, '');   // (the Oort cloud: 2,000 to 100,000 AU)
+  if (r.around) return r.dfix;
+  const t = sunAU(sunDist(r.o));
+  return k === 'earth' ? 'home · ' + t : t;
+}
+// the number on a row: its true size, or its distance, from the Sun (r.sun: grouped under a heading that measures from the Sun) or from Earth
+const rowNum = r => ATL.sort === 'size' ? r.stxt : ATL.sort === 'kind' && r.sun ? rowSun(r) : rowDist(r);
+// equal distances (a star and its planet, a galaxy and its black hole) keep the order the objects were given (sortKey)
+const near = (ka, kb, a, b) => { const d = ka - kb; return Math.abs(d) > 2e-3*Math.max(Math.abs(ka), Math.abs(kb)) ? d : (a.o.sortKey ?? 0) - (b.o.sortKey ?? 0); };
+// one heading's rows, sorted by the number they show so the column always climbs: from the Sun, the Solar System first, then the Sun, the planets
+// outward with their moons under them, the Oort cloud last. A moon whose planet is not under the same heading sits where the planet would be.
+function sectionRows(rows, fromSun){
+  const inSet = new Set(rows), lone = r => r.par && !inSet.has(r.par) ? r.par : null;
+  const key = r => fromSun ? ({ solarsystem:-2, sun:-1, oort:1e30 }[r.o.key] ?? sunDist(r.o)) : r.around ? -1 : earthDist(r.o);
+  const moonD = r => V.len(V.sub(r.o.pos, r.par.o.pos));
+  const top = rows.filter(r => !r.par || lone(r)), ks = new Map(top.map(r => [r, key(lone(r) || r)])), out = [];
+  top.sort((a, b) => (lone(a) && lone(a) === lone(b) ? moonD(a) - moonD(b) : near(ks.get(a), ks.get(b), a, b))*ATL.dir);
+  top.forEach(r => { out.push(r); r.branch = false; const kids = rows.filter(q => q.par === r), kd = new Map(kids.map(q => [q, moonD(q)]));
+    kids.sort((a, b) => (kd.get(a) - kd.get(b))*ATL.dir); kids.forEach(q => { q.branch = true; }); out.push(...kids); });
+  return out;
+}
+function flatRows(){
+  const rows = atlasRows.slice();
+  if (ATL.sort === 'name') return rows.sort((a, b) => a.o.name.replace(/^the /i, '').localeCompare(b.o.name.replace(/^the /i, ''))*ATL.dir);
+  const key = ATL.sort === 'size' ? r => atlasSize(r.o) : r => earthDist(r.o), ks = new Map(rows.map(r => [r, key(r)]));
+  return rows.sort((a, b) => near(ks.get(a), ks.get(b), a, b)*ATL.dir);
+}
+// every row is in the list (a search looks through everything); the kind and "not seen yet" hide the others.
+// Grouped: with all kinds, one heading per group; with one kind, its places first under one heading named after it ("Galaxies · from Earth"),
+// then the rest under their groups for a search. One list by distance: the places we are inside come last, under "all around us".
 function renderAtlas(){
-  const dirWords = { distance:['nearest first', 'farthest first'], size:['smallest first', 'biggest first'], name:['A to Z', 'Z to A'] }[ATL.sort];
-  sortBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.sort === ATL.sort)));
-  dirBtn.innerHTML = (ATL.dir > 0 ? '&darr; ' : '&uarr; ') + dirWords[ATL.dir > 0 ? 0 : 1];
-  catBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cat === ATL.cat)));
-  const isDefault = ATL.sort === ATL_DEF.sort && ATL.dir === ATL_DEF.dir && ATL.cat === ATL_DEF.cat;
-  $('#atlasReset').hidden = isDefault && !searchEl.value;
-  const rows = atlasRows.filter(catMatch);
-  const key = ATL.sort === 'size' ? r => atlasSize(r.o) : ATL.sort === 'name' ? null : r => earthDist(r.o);
-  if (key) rows.sort((a, b) => (key(a) - key(b))*ATL.dir); else rows.sort((a, b) => a.o.name.replace(/^the /i, '').localeCompare(b.o.name.replace(/^the /i, ''))*ATL.dir);
+  syncAtlasTools();
+  atlasRows.forEach(r => { r.shown = catMatch(r); r.b.classList.toggle('seen', SEEN.has(r.o.key)); r.branch = false; r.sun = false; });
   atlasList.textContent = '';
-  if (isDefault){
-    // the default view keeps the familiar grouping, nearest first within each group
-    GROUPS.forEach(([g]) => { const gr = atlasRows.filter(r => r.o.group === g); if (!gr.length) return;
-      gr.sort((a, b) => (a.o.sortKey ?? V.len(a.o.pos)) - (b.o.sortKey ?? V.len(b.o.pos)));
-      atlasList.appendChild(groupHeads[g]); gr.forEach(r => { r.h = groupHeads[g]; atlasList.appendChild(r.b); }); });
+  const put = (h, rows) => { if (!rows.length) return; if (h) atlasList.appendChild(h); rows.forEach(r => atlasList.appendChild(r.b)); };
+  if (ATL.sort === 'kind'){
+    const one = ATL.cat !== 'all' && !badgePick ? catRows[ATL.cat] : [], mine = new Set(one);
+    if (one.length){
+      const sun = one.every(r => FROM_SUN.has(r.o.group)), c = CATS.find(k => k[0] === ATL.cat);
+      kindHead.firstChild.textContent = c[4]; kindHead.lastChild.textContent = sun ? 'from the Sun' : 'from Earth';
+      one.forEach(r => { r.sun = sun; }); put(kindHead, sectionRows(one, sun));
+    }
+    GROUPS.forEach(([g]) => { const sun = FROM_SUN.has(g), gr = atlasRows.filter(r => r.o.group === g && !mine.has(r)); gr.forEach(r => { r.sun = sun; }); put(groupHeads[g], sectionRows(gr, sun)); });
   } else {
-    const h = groupHeads._flat || (groupHeads._flat = Object.assign(document.createElement('div'), { className:'agroup' }));
-    h.textContent = (ATL.cat === 'all' ? 'everything' : (CATS.find(c => c[0] === ATL.cat) || [0, 'not seen yet'])[1]) + ' · by ' + ATL.sort + ' · ' + dirWords[ATL.dir > 0 ? 0 : 1];
-    atlasList.appendChild(h); rows.forEach(r => { r.h = h; atlasList.appendChild(r.b); });
+    const rows = flatRows(), pin = ATL.sort === 'distance';
+    put(null, pin ? rows.filter(r => !r.around) : rows);
+    if (pin) put(aroundHead, rows.filter(r => r.around));
   }
-  atlasRows.forEach(r => { r.shown = catMatch(r); r.b.classList.toggle('seen', SEEN.has(r.o.key)); r.b.querySelector('.ad').textContent = ATL.sort === 'size' ? r.stxt : r.dtxt; });
-  atlasList.appendChild(atlasEmpty);
-  filterAtlas(searchEl.value);
+  atlasRows.forEach(r => { r.b.querySelector('.ad').textContent = rowNum(r); });
+  atlasList.append(atlasEmpty, atlasEnd);
+  filterAtlas(searchEl.value, true);
   atlasMark(infoObj);
 }
 let kbRow = -1;
+// keep a row in sight in the list's scroller (under the headings and the results line that stay at its top)
+function keepInView(b){
+  const sc = atlasScroller(), sr = sc.getBoundingClientRect(), br = b.getBoundingClientRect(), top = sr.top + (parseFloat(getComputedStyle(b).scrollMarginTop) || 0);
+  if (br.top < top || br.bottom > sr.bottom) b.scrollIntoView({ block:'nearest' });
+}
 function atlasMark(i){
   let cur = null;
   atlasRows.forEach(r => { const on = r.o.index === i; r.b.setAttribute('aria-selected', String(on)); if (on) cur = r; });
-  if (cur && !atlasEl.hidden && !cur.b.hidden && cur.b.isConnected){ const lr = atlasList.getBoundingClientRect(), br = cur.b.getBoundingClientRect(); if (br.top < lr.top || br.bottom > lr.bottom) cur.b.scrollIntoView({ block:'nearest' }); }
+  if (cur && !atlasEl.hidden && !cur.b.hidden && cur.b.isConnected) keepInView(cur.b);
 }
 function visibleRows(){ return [...atlasList.querySelectorAll('.arow')].filter(b => !b.hidden).map(b => atlasRows.find(r => r.b === b)); }
+// the keyboard's row while a search is typed (arrow keys, Enter); none otherwise, so no row looks chosen but the object in view
 function setKb(k){
-  const vis = visibleRows(); atlasRows.forEach(r => r.b.classList.remove('kb'));
+  atlasRows.forEach(r => r.b.classList.remove('kb'));
+  if (k < 0){ kbRow = -1; return; }
+  const vis = visibleRows();
   kbRow = vis.length ? clamp(k, 0, vis.length - 1) : -1;
-  if (kbRow >= 0){ vis[kbRow].b.classList.add('kb'); vis[kbRow].b.scrollIntoView({ block:'nearest' }); }
+  if (kbRow >= 0){ vis[kbRow].b.classList.add('kb'); keepInView(vis[kbRow].b); }
 }
+// one column that scrolls (.flow), or the controls beside or above the list: a phone held upright always flows; elsewhere it flows only when the
+// list would be squeezed (narrower than 30 characters or 240 px, or under 6 rows tall) or the controls would not fit their pane. Measured when the
+// atlas opens, on resize and when the menu text changes.
+const ATLAS_UP_MQ = matchMedia('(max-width:680px) and (min-height:521px)');
+function fitAtlas(){
+  if (atlasEl.hidden) return;
+  // (the phone's search box says "search the universe" when that fits, "search" with big menu text)
+  const fs = parseFloat(getComputedStyle(atlasSearch).fontSize) || 12;
+  atlasSearch.placeholder = atlasSearch.clientWidth - 16 >= 19*0.6*fs ? 'search the universe' : 'search';
+  const was = atlasFlow();
+  if (ATLAS_UP_MQ.matches){ atlasEl.classList.add('flow'); if (!was) atlasTop(); return; }
+  atlasEl.classList.remove('flow');
+  const vr = atlasList.querySelector('.arow:not([hidden])'), l = atlasList.getBoundingClientRect(), row = (vr && vr.getBoundingClientRect().height) || 28;
+  const ch = 0.6*(parseFloat(getComputedStyle(atlasRows[0].b).fontSize) || 14);   // (the width of a character in a row)
+  const flow = l.width < Math.max(240, 30*ch) || l.height < 6*row || toolsEl.scrollHeight > toolsEl.clientHeight + 1;
+  atlasEl.classList.toggle('flow', flow);
+  if (flow !== was) atlasTop();
+}
+addEventListener('resize', () => { if (!atlasEl.hidden){ fitAtlas(); fitSeenBar(); } });
+// the results line's height: in .flow the headings stick just under it
+new ResizeObserver(() => { atlasEl.style.setProperty('--rh', $('#atlasResult').offsetHeight + 'px'); }).observe($('#atlasResult'));
 function toggleAtlas(on){
   atlasEl.hidden = !on; document.body.classList.toggle('atlas-open', on); $('#btnAtlas').setAttribute('aria-expanded', String(on));   // (the scale bar hides while it is open)
   if (on && document.body.classList.contains('lad-open')) setLadOpen(false);   // (on a phone the ladder folds away)
-  if (on){ filterAtlas(searchEl.value); const cur = atlasRows.find(r => r.o.index === infoObj); if (cur && !searchEl.value && !cur.b.hidden) cur.b.scrollIntoView({ block:'center' }); }
-  else { atlasRows.forEach(r => r.b.classList.remove('kb')); kbRow = -1; }
+  if (on){ fitAtlas(); renderAtlas(); fitSeenBar();   // (distances are measured again each time it opens: things move)
+    // (it opens with the controls in sight in .flow; beside or above the list, the list centres the object in view)
+    const cur = atlasRows.find(r => r.o.index === infoObj);
+    if (atlasFlow() || searchEl.value) atlasTop(); else if (cur && !cur.b.hidden) cur.b.scrollIntoView({ block:'center' }); }
+  else { atlasRows.forEach(r => r.b.classList.remove('kb')); kbRow = -1; if (!trayEl.hidden) setBadgeTray(false); }
 }
-function filterAtlas(q){
-  q = q.trim().toLowerCase();
-  let n = 0;
-  atlasRows.forEach(r => { const hide = !r.shown || (!!q && !q.split(/\s+/).every(w => r.text.includes(w))); r.b.hidden = hide; if (!hide) n++; });
+// show the rows that match (the search, or the kind and "not seen yet"); the headings with none hide. keep: a new render, not a new search
+function filterAtlas(q, keep){
+  q = q.trim().toLowerCase(); const words = q ? q.split(/\s+/) : null;
+  atlasRows.forEach(r => { r.b.hidden = words ? !words.every(w => r.text.includes(w)) : !r.shown; });
+  atlasRows.forEach(r => r.b.classList.toggle('child', r.branch && !r.par.b.hidden));
   atlasList.querySelectorAll('.agroup').forEach(h => { let x = h.nextElementSibling, any = false; while (x && !x.classList.contains('agroup')){ if (x.classList.contains('arow') && !x.hidden) any = true; x = x.nextElementSibling; } h.hidden = !any; });
-  atlasEmpty.hidden = n > 0;
-  $('#atlasCount').textContent = q || ATL.cat !== 'all' ? `${n} of ${atlasRows.length}` : `${atlasRows.length} places`;
-  $('#atlasReset').hidden = ATL.sort === ATL_DEF.sort && ATL.dir === ATL_DEF.dir && ATL.cat === ATL_DEF.cat && !q;
+  atlasCountNow(q);
   setKb(q ? 0 : -1);
+  // (in .flow a search shows its results at the top, above the keyboard: the controls scroll away)
+  if (q && !keep && atlasFlow()) atlasBody.scrollTop = toolsEl.offsetHeight;
 }
+// the count in the results line and the head: the rows that match now (a place just seen stays in the list, with its ✓, until the next change,
+// but no longer counts as not seen yet)
+function atlasCountNow(q){
+  q = (q ?? searchEl.value).trim().toLowerCase();
+  const n = atlasRows.filter(r => !r.b.hidden && (q || catMatch(r))).length;
+  atlasSummary(n, q);
+}
+// the results line says what the list shows, in words ("19 galaxies not seen yet · near → far", "from Earth"), and holds the only reset.
+// The default view (grouped by kind, everything) has none. A screen reader hears the same words.
+let atlasSaid = '';
+function atlasSummary(n, q){
+  const total = atlasRows.length, def = atlDefault(), c = CATS.find(k => k[0] === ATL.cat), res = $('#atlasResult');
+  $('#atlasCount').textContent = q || n < total ? `${n} of ${total}` : `${total} places`;
+  toolsEl.classList.toggle('searching', !!q);
+  let txt, note = '';
+  // (a badge's own list: "5 places not seen yet for planet hopper")
+  const what = k => badgePick ? (k === 1 ? 'place' : 'places') : k === 1 ? c[3] : c[2], forB = badgePick ? ' for ' + badgePick.name : '';
+  if (q) txt = n ? `${n} found · searching all ${total}` : `nothing found for "${q}"`;
+  else {
+    txt = `${n} ${what(n)}${ATL.unseen ? ' not seen yet' : ''}${forB}` + (ATL.sort === 'kind' ? (ATL.dir > 0 ? '' : ' · far → near in each group') : ' · ' + dirWord());
+    note = ATL.sort === 'kind' ? '' : ATL.sort === 'size' ? 'true size, across' : 'from Earth';
+  }
+  res.hidden = !q && def;
+  $('#atlasResultTxt').textContent = txt.replace(/ → /g, NBSP + '→' + NBSP); $('#atlasResultNote').textContent = note;   // ("near → far" never breaks)
+  $('#atlasReset').textContent = q ? 'clear' : 'reset';
+  $('#atlasReset').title = q ? 'Clear the search' : 'Back to the default view';
+  // nothing to show: say why, with a button that gets out of it
+  atlasEmpty.hidden = n > 0;
+  if (!n){
+    const all = badgePick ? atlasRows.filter(r => badgePick.keys.has(r.o.key)).length : catRows[ATL.cat].length;
+    const [t, b] = q ? ['nothing found · try a planet, star, nebula or galaxy', 'clear the search']
+      : ATL.unseen ? [`you have seen all ${all} ${what(all)}${forB} ✓`, 'show them all'] : ['nothing here', 'show everything'];
+    atlasEmpty.firstChild.textContent = t; atlasEmpty.lastChild.textContent = b;
+  }
+  const say = res.hidden ? `${total} places, grouped by kind` : txt + (note ? ', measured ' + note : '');
+  if (say !== atlasSaid){ atlasSaid = say; $('#atlasLive').textContent = say.replace(/→/g, 'to'); }
+}
+// the collection footer's ASCII bar takes the room the words leave (and hides when that is under six characters)
+function fitSeenBar(){
+  const bar = $('#seenBar'); if (atlasEl.hidden) return;
+  bar.textContent = '';
+  const w = bar.getBoundingClientRect().width, cw = parseFloat(getComputedStyle(bar).fontSize)*0.6, k = Math.min(20, Math.floor(w/cw) - 2);
+  if (!(k >= 6)) return;
+  const have = atlasRows.filter(r => SEEN.has(r.o.key)).length, total = atlasRows.length;
+  let on = Math.round(have/total*k); if (have && !on) on = 1; if (have < total) on = Math.min(on, k - 1);
+  bar.textContent = '[' + '#'.repeat(on) + '-'.repeat(k - on) + ']';
+}
+// the badge tray slides up over the bottom of the list; the footer, its close button and Esc close it (focus goes back to the footer)
+function setBadgeTray(on, focus){
+  trayEl.hidden = !on; seenBtn.setAttribute('aria-expanded', String(on));
+  if (on) $('#badgeTrayClose').focus({ preventScroll:true }); else if (focus) seenBtn.focus({ preventScroll:true });
+}
+seenBtn.addEventListener('click', () => setBadgeTray(trayEl.hidden, !trayEl.hidden));
+$('#badgeTrayClose').addEventListener('click', () => setBadgeTray(false, true));
 renderAtlas();
 function onSearchInput(e){
   const v = e.target.value; if (e.target === searchEl) atlasSearch.value = v; else searchEl.value = v;
@@ -895,7 +1131,7 @@ function onSearchInput(e){
 function onSearchKey(e){
   const vis = visibleRows();
   if (e.key === 'ArrowDown'){ e.preventDefault(); setKb(kbRow + 1); }
-  else if (e.key === 'ArrowUp'){ e.preventDefault(); setKb(kbRow - 1); }
+  else if (e.key === 'ArrowUp'){ e.preventDefault(); setKb(Math.max(0, kbRow - 1)); }
   else if (e.key === 'Enter'){ const r = vis[kbRow >= 0 ? kbRow : 0]; if (r) goTo(r.o.index); }
   else if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); closeAtlas(); }   // (Esc in the search box closes the search, never lets go of the object)
 }
@@ -912,7 +1148,7 @@ function closeOpen(){
   if (b.contains('photo')){ stopPhoto(); return true; }
   if (!$('#story').hidden){ closeStory(); return true; }
   if (!settingsEl.hidden || !$('#tours').hidden || !$('#timem').hidden){ togglePanel(null, false); return true; }
-  if (!atlasEl.hidden){ closeAtlas(); return true; }
+  if (!atlasEl.hidden){ if (!trayEl.hidden) setBadgeTray(false, true); else closeAtlas(); return true; }   // (the badge tray first, then the atlas)
   if (b.contains('lad-open')){ setLadOpen(false); return true; }
   return false;
 }
@@ -1259,4 +1495,6 @@ window.__cosmos = { startTour, playFlyby, setMove(o, v, f){ flight = null; tween
   setDetail:i => setOpt('detail', i, true), render, zoomTo, tick, caption:dt => updateCaption(dt), get showcap(){ return SHOWCAP.txt; }, flightDur:() => flight ? flight.dur : 0, hud:() => { roTimer = 0; updateHUD(0.2); },
   simulate:(sec) => { for (let k=0; k<sec*30; k++) tick(1/30); return { obj:tour.obj, view:tour.view, phase:tour.phase, lock:orbit.lock }; },
   view:(i, v) => { if (typeof i === 'string') i = BYKEY[i].index; const o = OBJ[i], vp = viewParams(o, v); flight = null; shipCam.on = false; tween = null; cam.focus = i; leash.x = leash.y = 0; orbit.lock = i; orbit.frame = camFrameOf(o); orbit.yaw = vp.yaw; orbit.pitch = vp.pitch; orbit.dist = orbit.distT = vp.dist; orbit.off = vp.off; orbit.offFn = vp.offFn; orbit.target = V.add(frel(o), vp.off); setInfo(i); applyOrbit(); tick(0); } };
+// (the atlas headings and chips, for tools/catalog.mjs, and the seed the smoke test checks; a line of its own so it stays clear of edits to the hooks above)
+Object.assign(window.__cosmos.dbg, { GROUPS, CATS, catsOf, ATL, seedObjects:SEED_OBJECTS });
 requestAnimationFrame(frame);

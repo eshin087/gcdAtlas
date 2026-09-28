@@ -1,6 +1,7 @@
 // Phone layout regression: the dock fits, the info card sits above it and can be expanded, collapsed and hidden,
 // the scale chip opens the ladder, the interface fades when idle and a first tap on the sky only brings it back
-// (a first tap on a faded button works), the card's green "next stop" button, the tour name and the angle arrows, and the random tour in the list of tours.
+// (a first tap on a faded button works), the card's green "next stop" button, the tour name and the angle arrows, the random tour in the list of tours,
+// and the atlas controls (all in the card, nothing sideways, upright at four sizes and on its side at two, at 90 to 160% menu text).
 // Screenshots of every state go to tests/out/mobile/. Usage: node tests/mobile.mjs
 import { openPage, report, OUT } from './lib.mjs';
 import path from 'node:path';
@@ -54,10 +55,80 @@ const lockBefore = await page.evaluate(() => __cosmos.orbit.lock);
 await page.touchscreen.tap(60, 420); await page.waitForTimeout(400);
 if (await has('lad-open')) fail('a tap outside did not close the ladder');
 
-// the atlas opens above the dock and the object is re-framed into the space left
+// the atlas opens above the dock and the object is re-framed into the space left. Every control is in the card and nothing is wider than its box
+// (nothing scrolls sideways); targets are at least 32 px tall (28 on its side). Upright it is one scrolling column (.flow): the controls in sight
+// when it opens, and once they scroll away the list has the card, also with a kind and "not seen yet" ticked. On its side the controls sit in their
+// own pane, all of it in sight. Everywhere: no name cut short, no heading over its note, the sort row keeps its height whatever the sort,
+// no row looks chosen by the keyboard when nothing is typed, and the badge tray is solid. Checked at several sizes and at 90 to 160% menu text.
+const atlasCheck = (minH, minRows) => page.evaluate(async ([minH, minRows]) => {
+  const $ = s => document.querySelector(s), a = $('#atlas'), bad = [], wait = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  dispatchEvent(new Event('resize')); await wait();
+  const flow = a.classList.contains('flow'), sc = flow ? $('#atlasBody') : $('#atlasList'), ar = a.getBoundingClientRect();
+  sc.scrollTop = 0; await wait();
+  for (const e of a.querySelectorAll('*')) if (e.clientWidth > 0 && !e.closest('.atlas-list') && !e.classList.contains('sr') && e !== $('#atlasBody') && e.scrollWidth > e.clientWidth + 1) bad.push('overflows: ' + (e.id || e.className));
+  const pane = flow ? ar : $('#atlasTools').getBoundingClientRect();
+  for (const b of a.querySelectorAll('#atlasTools button, #seenBtn, #atlasClose')){ const q = b.getBoundingClientRect(), id = b.id || b.dataset.cat || b.dataset.sort, box = b.closest('#atlasTools') ? pane : ar;
+    if (q.left < ar.left - 1 || q.right > ar.right + 1 || q.top < box.top - 1 || (!flow && q.bottom > box.bottom + 1)) bad.push('outside its pane: ' + id);
+    if (q.height < minH) bad.push(`under ${minH} px: ${id}`); }
+  if (flow && $('#atlasTools').getBoundingClientRect().top > sc.getBoundingClientRect().top + 1) bad.push('the controls are not in sight when it opens');
+  const cut = () => [...document.querySelectorAll('.arow:not([hidden])')].filter(x => { const n = x.querySelector('.an'), d = x.querySelector('.ad'), ch = 0.6*parseFloat(getComputedStyle(n).fontSize);
+    return n.scrollWidth > n.clientWidth + 1 || d.scrollWidth > d.clientWidth + 1 || n.getBoundingClientRect().width < Math.min(5, n.textContent.length)*ch - 1; }).map(x => x.querySelector('.an').textContent);
+  const over = () => [...document.querySelectorAll('.agroup:not([hidden])')].filter(g => { const t = g.firstChild.getBoundingClientRect(), n = g.lastChild.getBoundingClientRect();
+    return n.width && t.right > n.left + 1 && t.bottom > n.top + 1 && n.bottom > t.top + 1; }).map(g => g.firstChild.textContent);
+  const sortH = new Set();
+  for (const s of ['distance', 'size', 'name', 'kind']){ $(`#atlasSort [data-sort="${s}"]`).click(); await wait(); sortH.add(Math.round($('.sort-row').getBoundingClientRect().height));
+    const c = cut(); if (c.length) bad.push(`${c.length} names cut short sorted by ${s}: ${c.slice(0, 3).join(', ')}`); }
+  if (sortH.size > 1) bad.push('the sort row changes height with the sort: ' + [...sortH].join(', '));
+  const o = over(); if (o.length) bad.push('a heading runs into its note: ' + o.join(', '));
+  if (document.querySelectorAll('.arow.kb').length) bad.push('a row looks chosen by the keyboard with nothing typed');
+  if (!/^rgb\(/.test(getComputedStyle($('#badgeTray')).backgroundColor)) bad.push('the badge tray lets the rows show through: ' + getComputedStyle($('#badgeTray')).backgroundColor);
+  // a kind and "not seen yet": the rows the list has room for once the controls are scrolled away (less the results line and a heading)
+  $('#atlasCats [data-cat="galaxies"]').click(); if ($('#atlasUnseen').getAttribute('aria-checked') !== 'true') $('#atlasUnseen').click(); await wait();
+  if (flow) sc.scrollTop = $('#atlasTools').offsetHeight;
+  await wait();
+  const s = sc.getBoundingClientRect(), row = [...document.querySelectorAll('.arow:not([hidden])')].map(x => x.getBoundingClientRect().height).sort((p, q) => p - q)[0];
+  const rows = +((Math.min(s.bottom, $('#seenBtn').getBoundingClientRect().top) - $('.agroup:not([hidden])').getBoundingClientRect().bottom)/row).toFixed(1);
+  if (rows < minRows) bad.push(`room for ${rows} rows with a kind and "not seen yet" (${minRows} wanted)`);
+  const c = cut(); if (c.length) bad.push(`${c.length} names cut short with galaxies: ${c.slice(0, 3).join(', ')}`);
+  $('#atlasReset').click(); sc.scrollTop = 0; await wait();
+  return { bad, rows, flow, cols:getComputedStyle($('#atlasCats')).gridTemplateColumns.split(' ').length };
+}, [minH, minRows]);
+const menu = v => page.evaluate(v => __cosmos.setOpt('menuSize', v, true), v);
 await page.tap('#btnAtlas'); await page.waitForTimeout(1200); await shot('5-atlas');
 const atl = await rect('#atlas');
 if (!atl || atl.bottom > dock.top + 1) fail('atlas overlaps the dock');
+let af = await atlasCheck(32, 7);
+if (af.bad.length) fail('the atlas at 390 x 844: ' + af.bad.join(', '));
+if (!af.flow || af.cols !== 3) fail(`upright the atlas is not one scrolling column (${af.flow}) or the kinds are in ${af.cols} columns, not 3`);
+// a kind, then "not seen yet" on top of it: the results line says what the list shows; the badge tray opens inside the card and Esc closes it first
+await page.tap('#atlasCats [data-cat="galaxies"]'); await page.waitForTimeout(200);
+await page.tap('#atlasUnseen'); await page.waitForTimeout(300); await shot('5b-atlas-galaxies-unseen');
+const said = await page.evaluate(() => [document.querySelector('#atlasResult').hidden, document.querySelector('#atlasResultTxt').textContent, document.querySelector('#atlasCats [data-cat="galaxies"]').getAttribute('aria-checked'), document.querySelector('#atlasUnseen').textContent, document.querySelector('.agroup:not([hidden])').textContent]);
+if (said[0] || !/^\d+ galaxies not seen yet$/.test(said[1]) || said[2] !== 'true' || said[3] !== '[x]not seen yet' || said[4] !== 'Galaxiesfrom Earth') fail('galaxies with "not seen yet": ' + JSON.stringify(said));
+// scrolled: the results line and the heading stay at the top of the card
+const stuck = await page.evaluate(() => { const b = document.querySelector('#atlasBody'); b.scrollTop = b.scrollHeight; const t = b.getBoundingClientRect().top, r = document.querySelector('#atlasResult').getBoundingClientRect(), h = document.querySelector('.agroup:not([hidden])').getBoundingClientRect();
+  return [Math.round(r.top - t), Math.round(h.top - r.bottom)]; });
+await shot('5b2-atlas-scrolled');
+if (stuck.join() !== '0,0') fail('scrolled, the results line and the heading do not stay at the top of the card: ' + stuck);
+await page.tap('#seenBtn'); await page.waitForTimeout(400); await shot('5c-atlas-badges');
+const tray = await rect('#badgeTray');
+if (!tray || !tray.shown || tray.bottom > atl.bottom + 1 || tray.top < atl.top) fail('the badge tray is not inside the card: ' + JSON.stringify(tray));
+await page.keyboard.press('Escape'); await page.waitForTimeout(200);
+if ((await rect('#badgeTray')).shown || !(await rect('#atlas')).shown) fail('Esc did not close the badge tray first');
+await page.tap('#atlasReset'); await page.waitForTimeout(200);
+// smaller phones, and smaller or bigger menu text: nothing sideways, and the list keeps its room once the controls scroll away
+const upright = [];
+for (const [w, h, rows] of [[390, 844, 7], [360, 780, 7], [375, 667, 7], [375, 553, 5]]){
+  await page.setViewportSize({ width:w, height:h }); await page.waitForTimeout(300);
+  for (const ms of [0.9, 1.15, 1.3, 1.6]){
+    await menu(ms); af = await atlasCheck(32, rows);
+    if (af.bad.length) fail(`the atlas at ${w} x ${h}, menu text ${Math.round(ms*100)}%: ` + af.bad.join(', '));
+    if (ms === 1.15) upright.push(`${af.rows} at ${w} x ${h}`);
+  }
+  if (w === 375 && h === 667){ await menu(1.15); await shot('5d-atlas-375x667'); }
+}
+await menu(1.15);
+await page.setViewportSize({ width:390, height:844 }); await page.waitForTimeout(700);
 await page.tap('#atlasClose'); await page.waitForTimeout(300);
 
 // idle: on a tour the interface fades after a few seconds; the first tap only brings it back and the tour keeps going
@@ -237,7 +308,27 @@ await page.evaluate(() => document.querySelector('#btnTours').click()); await pa
 const lrow = await rowInView();
 if (lrow.name !== 'random tour' || !lrow.shown) fail('on its side the random tour is not in view in the list of tours: ' + JSON.stringify(lrow));
 await page.evaluate(() => document.querySelector('#toursClose').click()); await page.waitForTimeout(300);
-await page.tap('#btnAtlas'); await page.waitForTimeout(800); await shot('9-landscape-atlas');
+// (opened by a click: after the raw two-finger touches above, the first tap here is sometimes lost in headless Chromium, before this test too)
+await page.evaluate(() => document.querySelector('#btnAtlas').click()); await page.waitForTimeout(800); await shot('9-landscape-atlas');
+// on its side the atlas has two panes, the controls beside the list (which runs from the top), above the dock; the info card, the logo and the
+// chips step aside while it is open. At the default menu text on a 667 x 375 phone too; with very big menu text it may be one scrolling column
+const la = await page.evaluate(() => { const r = s => document.querySelector(s).getBoundingClientRect(), op = s => getComputedStyle(document.querySelector(s)).opacity;
+  return { tools:r('#atlasTools'), list:r('#atlasList'), atlas:r('#atlas'), dock:r('.controls'), hidden:[op('#info'), op('.topr'), op('.brand')] }; });
+if (!(la.tools.right <= la.list.left + 1 && la.list.top <= la.tools.top + 1)) fail('on its side the atlas panes are not side by side: ' + JSON.stringify([la.tools, la.list]));
+if (la.atlas.bottom > la.dock.top + 1) fail('on its side the atlas overlaps the dock');
+if (la.hidden.join() !== '0,0,0') fail('the info card, the chips or the logo stay over the atlas on its side: ' + la.hidden);
+const sideways = [];
+for (const [w, h] of [[844, 390], [667, 375]]){
+  await page.setViewportSize({ width:w, height:h }); await page.waitForTimeout(300);
+  for (const ms of [0.9, 1.15, 1.3, 1.6]){
+    await menu(ms); af = await atlasCheck(28, ms > 1.15 ? 3 : 5);   // (a phone on its side is short: bigger menu text leaves three or four rows)
+    if (af.bad.length) fail(`the atlas on its side at ${w} x ${h}, menu text ${Math.round(ms*100)}%: ` + af.bad.join(', '));
+    if (ms === 1.15){ sideways.push(`${af.rows} at ${w} x ${h}`); if (af.flow || af.cols !== 3) fail(`on its side at ${w} x ${h} the atlas is not two panes (${af.flow}) or the kinds are in ${af.cols} columns, not 3`); }
+  }
+  if (w === 667){ await menu(1.15); await shot('9b-landscape-atlas-667'); }
+}
+await menu(1.15);
+await page.setViewportSize({ width:844, height:390 }); await page.waitForTimeout(500);
 // on its side the card sits beside the object: a two-finger slide toward it stops with the object's centre on screen and off the card
 await page.evaluate(() => { document.querySelector('#atlasClose').click(); const C = __cosmos; C.setTour(false); C.view('earth', 0); C.tick(1/60); });
 await page.waitForTimeout(800);
@@ -250,5 +341,5 @@ await shot('12-landscape-slide');
 if (ls.lock !== 'earth' || !(ls.x > 0 && ls.x < 844 && ls.y > 0 && ls.y < 390) || (ls.x > ls.card[0] + 1 && ls.x < ls.card[2] - 1 && ls.y > ls.card[1] + 1 && ls.y < ls.card[3] - 1))
   fail('on its side a two-finger slide put Earth off screen or under the card: ' + JSON.stringify(ls));
 
-report('mobile', errors, 'screenshots in tests/out/mobile' + (lab ? ` · wake-up tap on "${lab.t}" checked` : '') + ` · pinch x${ratio.toFixed(2)} for fingers 3x apart · two-finger slide stays locked, Earth at ${Math.round(g2.x)}, ${Math.round(g2.y)} · home first in the dock · first tap on the faded "${gn.txt}" flew on to ${gn.next}`);
+report('mobile', errors, 'screenshots in tests/out/mobile' + ` · atlas fits at 90 to 160% menu text; rows with a kind and "not seen yet": upright ${upright.join(', ')}; on its side ${sideways.join(', ')}` + (lab ? ` · wake-up tap on "${lab.t}" checked` : '') + ` · pinch x${ratio.toFixed(2)} for fingers 3x apart · two-finger slide stays locked, Earth at ${Math.round(g2.x)}, ${Math.round(g2.y)} · home first in the dock · first tap on the faded "${gn.txt}" flew on to ${gn.next}`);
 await browser.close();

@@ -4,7 +4,7 @@ Ideas are cheap to keep here; what gets built next is decided by moving items in
 
 ## Next
 
-- **Content packs still open** (see docs/CONTENT.md): small worlds (Ceres, Vesta, Bennu, Arrokoth, Halley, 'Oumuamua), human spaceflight sites (Apollo landing sites, Perseverance, Curiosity, Parker Solar Probe), exoplanets (51 Pegasi b, HR 8799, K2-18 b, KELT-9 b, 55 Cancri e, Kepler-16 b), planet surfaces (Olympus Mons, Valles Marineris, Io's plumes).
+- **Content packs still open** (see docs/CONTENT.md): 0.9.1 human reach (Parker Solar Probe, Starman's Roadster, Tiangong, our radio bubble, the Arecibo message), 0.9.2 surfaces (a terrain shader, Olympus Mons, the Apollo sites, Perseverance, Valles Marineris, Io's plumes, Didymos), 0.9.3 the biggest things (Laniakea, the Virgo Cluster, the Hercules-Corona Borealis Great Wall, Porphyrion, the heliosphere).
 - **ASCII Earth, phase 2**: zoom to city scale. Landmark models (pyramids, Eiffel Tower, Burj Khalifa…) as small SDF shaders appearing below ~50 km altitude; higher-resolution coastline tiles loaded on demand.
 - **Live sky events, phase 2**: a "happening now" toast when an ISS pass or launch is minutes away; notifications opt-in.
 - **Content Security Policy** (docs/SECURITY.md).

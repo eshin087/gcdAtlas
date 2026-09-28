@@ -314,6 +314,25 @@ vec3 surface(vec3 n, float kind, out float spec){
     float spot = exp(-dot(n - oc, n - oc)/0.0005) + 0.6*exp(-dot(n - oc - vec3(0.03, 0.01, 0.02), n - oc - vec3(0.03, 0.01, 0.02))/0.0002);
     return vec3(0.42, 0.41, 0.4)*(0.8 + 0.5*craters(n, 8.) + 0.3*craters(n, 19.) + 0.15*fbm3(n*5.)) + vec3(0.95)*spot;
   }
+  else if(kind > 20.5){
+    if(kind < 21.5){ // a hot Jupiter drawn as a guess (51 Pegasi b): dark cloud bands, the day side glowing faintly red with its own heat
+      float day = dot(n, gL), b = sin(lat*11. + fbm3(n*vec3(3., 11., 3.) + vec3(uTime*0.02, 0., 0.))*2.2)*0.5 + 0.5;
+      gEm = vec3(0.75, 0.2, 0.06)*smoothstep(-0.3, 0.9, day)*(0.1 + 0.12*b);
+      return mix(vec3(0.42, 0.34, 0.27), vec3(0.64, 0.52, 0.4), b);
+    }
+    if(kind < 22.5){ // a hazy sub-Neptune drawn as a guess (K2-18 b): soft bands under a thick hydrogen sky
+      float b = sin(lat*9. + fbm3(n*vec3(3., 9., 3.) + vec3(uTime*0.01, 0., 0.))*1.6)*0.5 + 0.5;
+      return mix(vec3(0.5, 0.66, 0.74), vec3(0.74, 0.86, 0.9), b*0.5 + smoothstep(0.55, 0.9, abs(lat))*0.35);
+    }
+    if(kind < 23.5){ // HD 189733 b: deep blue (Hubble measured its colour), streaked by winds of thousands of km/h
+      float w = lon + uTime*0.08*(1. - lat*lat), cl = sqrt(max(1. - lat*lat, 0.));
+      vec3 q = vec3(cos(w)*cl, lat, sin(w)*cl);
+      float b = sin(lat*13. + fbm3(q*vec3(4., 16., 4.))*2.4)*0.5 + 0.5;
+      return mix(vec3(0.07, 0.18, 0.6), vec3(0.2, 0.4, 0.95), b*0.6 + 0.3*fbm3(q*vec3(8., 30., 8.)));
+    }
+    // Mimas: old ice, craters on craters (the relief of Herschel is added in main)
+    return vec3(0.84, 0.83, 0.8)*(0.8 + 0.45*craters(n, 8.) + 0.25*craters(n, 19.) + 0.15*fbm3(n*5.));
+  }
   // temperate rocky world locked to its star (TRAPPIST-1e, an illustrative guess): open sea around the point under the star,
   // a few rocky islands, ice beyond the warm middle and across the night side, and a slow swirl of cloud over the warmest water (plus a thin blue haze: atm in main)
   float day = dot(n, gL), f = fbm(n*3.5 + 1.), g = fbm3(n*9. + 4.);
@@ -325,23 +344,51 @@ vec3 surface(vec3 n, float kind, out float spec){
   float cl = smoothstep(0.55, 0.78, fbm(n*5. + vec3(uTime*0.01, 0., 0.)))*smoothstep(0.3, 0.8, day);
   return mix(c, vec3(0.95), cl*0.6);
 }
+// Herschel, the giant crater on Mimas (centred 1.4 deg S, 111.8 deg W; 130 km wide). Its height in Mimas radii against the distance from its
+// centre in crater radii, after NASA's figures: parts of the floor ~10 km deep, walls ~5 km high, a central peak 6 km tall
+const vec3 HC = vec3(-0.37061, -0.02408, 0.92848);
+const float HR = 0.328;
+float herH(float x){ return x < 1. ? -0.045 + 0.057*pow(smoothstep(0.42, 1., x), 1.6) + 0.03*exp(-x*x/0.03) : 0.012*exp(-(x - 1.)/0.22); }
+float herAt(vec3 q){ return herH(acos(clamp(dot(normalize(q), HC), -1., 1.))/HR); }
+// the surface normal tilted by the crater's slopes, and the shadows its rim and peak cast (a short walk toward the Sun above the relief)
+// (the shading uses slopes 2.5 times steeper than the real ones, so the walls and peak still read in characters with the Sun high over
+// the crater; the shadows are cast by the true heights)
+vec3 herschel(vec3 n, vec3 L, out float shade){
+  shade = 1.;
+  float th = acos(clamp(dot(n, HC), -1., 1.)), x = th/HR;
+  if(x > 2.2) return n;
+  vec3 t = n*dot(n, HC) - HC; float tl = length(t);
+  float e = 0.004, slope = 2.5*(herH((th + e)/HR) - herH(max(th - e, 0.)/HR))/(e + min(th, e));
+  vec3 nn = tl < 1e-5 ? n : normalize(n - t/tl*slope);
+  if(dot(n, L) > -0.25){
+    vec3 p = n*(1. + herH(x));
+    for(int i=1;i<=14;i++){ vec3 q = p + L*(float(i)*0.05); if(length(q) - 1. < herAt(q) - 0.001){ shade = 0.; break; } }
+  }
+  return nn;
+}
 void main(){
   vec3 o, d; localRay(o, d);
   float kind = uP0.x;
   vec3 L = normalize(uP1.xyz*uRot);
   vec2 h = sphIsect(o, d, vec3(0.), RP);
   vec3 col = vec3(0.); float alpha = 0.;
-  bool giantX = kind > 15.5 && kind < 18.5;
-  vec3 atm = giantX ? (kind < 16.5 ? vec3(1., 0.55, 0.25) : (kind < 17.5 ? vec3(0.9, 0.8, 0.6) : vec3(0.8, 0.45, 0.55))) : kind > 19.5 ? vec3(0.45, 0.65, 1.) : kind < 0.5 || (kind > 4.5 && kind < 11.) || kind > 11.5 ? vec3(0.) : (kind < 1.5 ? vec3(1., 0.85, 0.55) : (kind < 2.5 ? vec3(0.95, 0.62, 0.45) : (kind < 3.5 ? vec3(0.55, 0.85, 0.95) : (kind < 4.5 ? vec3(0.4, 0.55, 1.) : vec3(0.95, 0.6, 0.25)))));
-  float atmK = giantX ? 0.8 : kind > 19.5 ? 0.4 : kind < 1.5 ? 0.9 : (kind < 2.5 ? 0.35 : (kind < 4.5 ? 0.7 : 1.));
+  bool giantX = kind > 15.5 && kind < 18.5, newX = kind > 20.5;
+  vec3 atm = newX ? (kind < 21.5 ? vec3(0.9, 0.55, 0.35) : (kind < 22.5 ? vec3(0.6, 0.8, 0.95) : (kind < 23.5 ? vec3(0.35, 0.55, 1.) : vec3(0.)))) : giantX ? (kind < 16.5 ? vec3(1., 0.55, 0.25) : (kind < 17.5 ? vec3(0.9, 0.8, 0.6) : vec3(0.8, 0.45, 0.55))) : kind > 19.5 ? vec3(0.45, 0.65, 1.) : kind < 0.5 || (kind > 4.5 && kind < 11.) || kind > 11.5 ? vec3(0.) : (kind < 1.5 ? vec3(1., 0.85, 0.55) : (kind < 2.5 ? vec3(0.95, 0.62, 0.45) : (kind < 3.5 ? vec3(0.55, 0.85, 0.95) : (kind < 4.5 ? vec3(0.4, 0.55, 1.) : vec3(0.95, 0.6, 0.25)))));
+  float atmK = newX ? (kind < 21.5 ? 0.7 : (kind < 22.5 ? 1.1 : 0.9)) : giantX ? 0.8 : kind > 19.5 ? 0.4 : kind < 1.5 ? 0.9 : (kind < 2.5 ? 0.35 : (kind < 4.5 ? 0.7 : 1.));
   if(h.x > 0.){
     vec3 p = o + d*h.x, n = p/RP;
     gL = L; float spec; vec3 base = surface(n, kind, spec);
-    float dif = max(dot(n, L), 0.), mu = max(dot(n, -d), 0.);
+    float mu = max(dot(n, -d), 0.), sh = 1.;
+    vec3 nl = n;
+    if(kind > 23.5){   // (Mimas: the slopes and shadows of Herschel; its floor a shade darker than the fresh ice of its walls and peak)
+      nl = herschel(n, L, sh); float x = acos(clamp(dot(n, HC), -1., 1.))/HR;
+      base *= 1. - 0.14*smoothstep(0.85, 0.5, x) + 0.12*exp(-pow((x - 0.9)/0.1, 2.)) + 0.12*exp(-x*x/0.02);
+    }
+    float dif = max(dot(nl, L), 0.);
     // eclipse by a nearby body (a planet's shadow on its moon)
-    float sh = 1.;
-    if(uP2.w > 0.){ vec3 q = uP2.xyz - p; float tq = dot(q, L); if(tq > 0.){ float dq = length(q - L*tq); sh = smoothstep(uP2.w*0.96, uP2.w*1.04, dq); } }
-    float lam = kind > 0.5 && kind < 4.5 ? dif : pow(dif, 0.8)*(0.4 + 0.6*pow(mu, 0.2));   // gas and cloud tops vs rough regolith
+    if(uP2.w > 0.){ vec3 q = uP2.xyz - p; float tq = dot(q, L); if(tq > 0.){ float dq = length(q - L*tq); sh *= smoothstep(uP2.w*0.96, uP2.w*1.04, dq); } }
+    float lam = (kind > 0.5 && kind < 4.5) || (newX && kind < 23.5) ? dif : pow(dif, 0.8)*(0.4 + 0.6*pow(mu, 0.2));   // gas and cloud tops vs rough regolith
+    if(kind > 23.5) lam = pow(dif, 1.5)*(0.5 + 0.5*pow(mu, 0.2))*1.25;   // (Mimas: a harder falloff, like Vesta's, so the crater's relief shows)
     col = base*(lam*sh*1.25 + 0.006) + gEm;
     col += diskAir(mu, dot(n, L), atm, atm*vec3(1., 0.6, 0.45), atmK*1.3);
     if(kind > 0.5 && kind < 1.5) col += vec3(0.25, 0.08, 0.02)*smoothstep(0.1, -0.2, dot(n, L))*0.08;
@@ -452,7 +499,7 @@ const oort = (() => {
   ps.upload('ac');
   return addObj({ key:'oort', name:'the Oort cloud', label:'Oort cloud', type:'shell of icy bodies · source of long-period comets', group:'solar', sortKey:-0.5, layer:2,
     fact:'Trillions of comet nuclei surround the Sun out to a light-year or more, a third of the way to the nearest star. None has ever been seen directly.',
-    pos:[0,0,0], rad:1.6, R0:ECL, minZoom:0.02, pxMin:3, noImpostor:true, labelRange:60, farLum:0, distEarth:'2,000 to 100,000 AU from the Sun', atlasDist:'all around',
+    pos:[0,0,0], rad:1.6, R0:ECL, minZoom:0.02, pxMin:3, noImpostor:true, labelRange:60, farLum:0, distEarth:'2,000 to 100,000 AU from the Sun', atlasDist:'all around us',
     views:[{d:[0.3, 0.45, 1], k:3.4, hold:9, drift:0.03}, {d:[0.9, 0.2, 0.3], k:1.3, hold:8, drift:0.03}],
     particleVis:rpx => smooth(8, 40, rpx)*smooth(0.004, 0.03, orbit.dist),
     particles:[{ps, prog:'ptBasic', mode:3, sb:0.4, size:1.6, rad:AU_LY}],
@@ -475,7 +522,7 @@ const uranus = addBody({ key:'uranus', name:'Uranus', type:'ice giant · tipped 
 const neptune = addBody({ key:'neptune', name:'Neptune', type:'ice giant · outermost planet', parent:sun, el:PLANET_EL.neptune, R:24622, pole:[299.36, 43.46], W:[249.978, 541.1397757], kind:4,
   fact:'The windiest world known: storms race at 2,000 km/h around a deep-blue methane atmosphere. It takes 165 years to orbit the Sun once.', farLum:0.35, farColor:[0.5, 0.65, 1], sortKey:30,
   readout:() => 'radius 24,620 km · 30 AU from the Sun\nfound in 1846 by mathematics before telescopes' });
-const pluto = addBody({ key:'pluto', name:'Pluto', type:'dwarf planet · Kuiper belt', parent:sun, R:1188.3, pole:[132.993, -6.163], W:[302.695, 56.3625225], kind:5,
+const pluto = addBody({ key:'pluto', tags:['moons'], name:'Pluto', type:'dwarf planet · Kuiper belt', parent:sun, R:1188.3, pole:[132.993, -6.163], W:[302.695, 56.3625225], kind:5,
   el:[39.48211675, 0.24882730, 17.14001206, 238.92903833, 224.06891629, 110.30393684, -0.00031596, 0.00005170, 0.00004818, 145.20780515, -0.04062942, -0.01183482],
   fact:'A world of nitrogen glaciers, water-ice mountains and a vast pale heart, seen close up only once, by New Horizons in 2015.', farLum:0.2, farColor:[0.9, 0.8, 0.7], sortKey:39.5,
   readout:() => 'radius 1,188 km, smaller than our Moon\nsunlight there is 1,000 times dimmer than at Earth' });
