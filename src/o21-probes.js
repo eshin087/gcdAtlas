@@ -121,11 +121,12 @@ const voyager1 = (() => {
 const voyager2 = addProbe({ key:'voyager2', name:'Voyager 2', label:'Voyager 2', type:'space probe · the only visitor to Uranus and Neptune', kind:0, sortKey:1.1,
   fact:'Voyager 1\'s twin took the grand tour past all four giant planets and crossed into interstellar space in 2018, heading south below the plane of the planets.',
   pos:V.mul(radecDir(hms(20,5), dms(-59,35)), 144*AU_LY), rad:0.018*KM, R0:frameY(V.mul(radecDir(hms(20,5), dms(-59,35)), -1), [0, 0, 1]), labelRange:0.02, distEarth:'~144 AU from the Sun',
-  views:[{d:[0.6, 0.3, 0.75], k:2.4, hold:8, drift:0.05}], readout:() => '144 AU out · 15 km/s' });
+  // (second angle: close, on the sunlit side, the dish that still talks to Earth filling the view with the body and the power boom under it)
+  views:[{d:[0.6, 0.3, 0.75], k:2.4, hold:8, drift:0.05}, {d:[-0.5, 0.6, 0.6], k:1.3, hold:9, drift:0.02}], readout:() => '144 AU out · 15 km/s' });
 const newHorizons = addProbe({ key:'newhorizons', name:'New Horizons', label:'New Horizons', type:'space probe · first to Pluto', kind:2, sortKey:1.2,
   fact:'Flew past Pluto in 2015 and the icy Kuiper-belt object Arrokoth in 2019, and is still heading out of the Solar System.',
   pos:V.mul(radecDir(hms(19,50), dms(-20,30)), 65*AU_LY), rad:0.0042*KM, R0:frameY(V.mul(radecDir(hms(19,50), dms(-20,30)), -1), [0, 0, 1]), labelRange:0.01, distEarth:'~65 AU from the Sun',
-  views:[{d:[0.55, 0.45, 0.7], k:2.2, hold:8, drift:0.05}, {d:[-0.8, 0.2, -0.5], k:2.6, hold:7, drift:0.04}], readout:() => '65 AU out · 14 km/s · the size of a grand piano, powered by plutonium' });
+  views:[{d:[0.55, 0.45, 0.7], k:2.2, hold:8, drift:0.05}, {d:[-0.8, 0.2, -0.5], k:1.5, hold:7, drift:0.04}], readout:() => '65 AU out · 14 km/s · the size of a grand piano, powered by plutonium' });
 const jwst = addProbe({ key:'jwst', name:'James Webb Space Telescope', label:'JWST', type:'infrared space telescope at Sun-Earth L2', kind:1, sortKey:1.0005, parent:earth,
   fact:'Parked 1.5 million km from Earth, always in Earth\'s shadow side, behind a sunshield the size of a tennis court. Its 6.5 m gold mirror sees the first galaxies.',
   offset:[0, 0, 0], rad:0.012*KM, labelRange:3e-5, distEarth:'1.5 million km from Earth',

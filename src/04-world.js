@@ -12,7 +12,7 @@ const isCompact = () => COMPACT_MQ.matches;
 const SET = (() => {
   const d = { detail:1, travel:reduceMotion ? 'quick' : 'cinematic', glow:true, labels:true, twinkle:true, haloMark:false, menuSize:1.15, sound:true, volume:0.55, dwell:'normal', textSize:1, musicStyle:'mix', saverIdle:0, fadeUI:'quick', infoD:'full', infoM:'compact' };
   try { const s = JSON.parse(localStorage.getItem('gcdatlas.settings') || '{}'); for (const k in d) if (k in s && typeof s[k] === typeof d[k]) d[k] = s[k]; } catch (e) {}
-  // music moods since 0.8.9: a style saved before then becomes the mood that plays it
+  // music moods since 0.9.2: a style saved before then becomes the mood that plays it
   d.musicStyle = { lofi:'beats', house:'groove', ambient:'calm' }[d.musicStyle] || (['mix', 'calm', 'beats', 'groove'].includes(d.musicStyle) ? d.musicStyle : 'mix');
   return d;
 })();

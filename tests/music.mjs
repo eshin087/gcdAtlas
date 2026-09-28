@@ -98,7 +98,7 @@ for (const p of sh.places){ const q = p.replace(/^the /, ''); if (!sh.names.some
 for (const [st, list] of Object.entries(sh.tpls)) for (const tpl of list)
   if (!/^# at |\b(on|over|of|from|to|for|past|under|above|at|by|in) #/i.test(tpl)) errors.push(`${st} song name "${tpl}" reads badly with a place like "the Moon"`);
 for (const x of songs) if (/\bthe the\b|^The the |—/i.test(x.title)) errors.push(`song name "${x.title}"`);
-// moods saved before 0.8.9 map across: lofi -> beats, house -> groove, ambient -> calm, anything else (such as the dropped lounge mood) -> mix
+// moods saved before 0.9.2 map across: lofi -> beats, house -> groove, ambient -> calm, anything else (such as the dropped lounge mood) -> mix
 await page.addInitScript(() => { const v = sessionStorage.getItem('__ms'); if (v) localStorage.setItem('gcdatlas.settings', JSON.stringify({ musicStyle:v, sound:false, fadeUI:'off' })); });
 for (const [was, now] of [['lofi', 'beats'], ['house', 'groove'], ['ambient', 'calm'], ['lounge', 'mix'], ['bossa', 'mix']]){
   await page.evaluate(v => sessionStorage.setItem('__ms', v), was);
