@@ -1,11 +1,14 @@
 // Camera motion regression: the angle loop after picking an object, play / pause (button and space), flights that land
 // exactly on a moving destination (no jump on arrival), ladder picks that keep moving, riding along with the Halo, tour trips without zoom dips,
 // the Halo at work (always travelling, light speed and folds, its jobs, scan beams on the surface), and the controls that say where they go
-// (next stop, angle arrows that count every tap, Esc closing panels first, the tour's angles at Earth). Deterministic: steps the simulation with __cosmos.tick.
+// (next stop, angle arrows that count every tap, Esc closing panels first, the tour's angles at Earth). Deterministic: the page's clock is fixed and
+// its own animation loop frozen, so only __cosmos.tick moves the simulation, and the Halo flies a route of its own (dbg.reset): every run is the same.
 // Usage: node tests/motion.mjs
 import { openPage, report } from './lib.mjs';
 
-const { browser, page, errors } = await openPage({ width:1200, height:750 });
+const NOW = Date.UTC(2026, 8, 26, 12);   // (the Solar System as on this date; the Halo sections put the clock back to it with setDays(0))
+const HALO_SEED = +(process.env.HALO_SEED || 1);   // (the Halo's route; HALO_SEED=n node tests/motion.mjs flies another one, the same on every run)
+const { browser, page, errors } = await openPage({ width:1200, height:750, now:NOW, freeze:true });
 const fail = m => errors.push('check: ' + m);
 
 // 1. picking an object flies there, then loops through its tour angles
@@ -59,36 +62,39 @@ const lad = await page.evaluate(() => {
 if (!lad.show || !lad.playing || !lad.moved) fail('a ladder pick arrived paused: ' + JSON.stringify(lad));
 
 // 5. the Halo: its indicator is off until the ship button is pressed; riding along lands behind it, stays with it through a fold and a
-// light-speed jump, and a drag lets go
-const ride = await page.evaluate(() => {
+// light-speed jump, and a drag lets go. The chase camera eases toward a point on its rig, |SHIP_POSE.chase.eye| ship radii from the ship's
+// centre and in the ship's own frame, so while it rides it is never further than that: a camera that lost the ship would be far beyond it.
+const ride = await page.evaluate(seed => {
   const C = __cosmos, h = C.BYKEY.halo, D = h.dbg, vis = () => !document.getElementById('shipMark').hidden || !document.getElementById('shipArrow').hidden;
-  const r = { markOff:!vis() };
+  C.setDays(0); C.tick(0); D.reset(seed);   // (the same route every run, whatever came before: the clock back to NOW, the planets moved there, then the ship)
+  const r = { markOff:!vis(), rig:Math.hypot(...C.SHIP_POSE.chase.eye)*C.shipCam.zoom };
   document.getElementById('btnShip').click(); C.tick(1/60); C.hud(); r.markOn = C.SET.haloMark;
   document.getElementById('btnShip').click();
   C.startShipCam('chase'); C.land(0.3);
-  r.riding = C.shipCam.on; r.dist = Math.hypot(...h.rel)/h.rad;
+  r.riding = C.shipCam.on; r.dist = +(Math.hypot(...h.rel)/h.rad).toFixed(4);
   // the next hop is a fold, the one after it a light-speed jump; the camera must stay on the ship all the way
   let i = 0; while (h.S.phase !== 'pass' && i++ < 60*30) C.tick(1/60);
   D.force({ travel:'fold' }); D.replan();
   const k0 = h.S.target.key; let far = 0, farLs = 0, legs = 0; i = 0;
   while (h.S.target.key === k0 && i < 60*60){ C.tick(1/60); i++; }
   for (let j=0;j<60;j++){ C.tick(1/60); far = Math.max(far, Math.hypot(...h.rel)/h.rad); }
-  r.folded = h.S.target.key !== k0; r.farAfterFold = +far.toFixed(2); r.stillRiding = C.shipCam.on;
+  r.folded = h.S.target.key !== k0; r.farAfterFold = +far.toFixed(4); r.stillRiding = C.shipCam.on;
   i = 0; while (h.S.phase !== 'pass' && i++ < 60*30) C.tick(1/60);
   D.force({ travel:'light' }); D.replan();
   const k1 = h.S.target.key; i = 0;
   while ((h.S.target.key === k1 || h.S.phase !== 'pass') && i < 60*70){ C.tick(1/60); i++; if (h.S.phase === 'light') legs++; farLs = Math.max(farLs, Math.hypot(...h.rel)/h.rad); }
-  r.jumped = h.S.target.key !== k1 && legs > 60; r.farInLightSpeed = +farLs.toFixed(2); r.ridingAfterJump = C.shipCam.on;
+  r.jumped = h.S.target.key !== k1 && legs > 60; r.farInLightSpeed = +farLs.toFixed(4); r.ridingAfterJump = C.shipCam.on;
   C.setShipCamMode('cockpit'); for (let j=0;j<60;j++) C.tick(1/60); r.cockpit = Math.hypot(...h.rel)/h.rad < 1;
   C.togglePlay(); r.paused = !C.shipCam.on; C.togglePlay(); r.resumed = C.shipCam.on;
   C.setShipCamMode('chase'); C.stopShipCam();
   return r;
-});
+}, HALO_SEED);
 if (!ride.markOff) fail('the Halo indicator shows before the ship button is pressed');
 if (!ride.markOn) fail('the ship button did not switch the Halo indicator on');
-if (!ride.riding || ride.dist > 6) fail('riding along did not land behind the ship: ' + JSON.stringify(ride));
-if (!ride.folded || !ride.stillRiding || ride.farAfterFold > 6) fail('the camera lost the ship when it folded space: ' + JSON.stringify(ride));
-if (!ride.jumped || !ride.ridingAfterJump || ride.farInLightSpeed > 6) fail('the camera lost the ship at light speed: ' + JSON.stringify(ride));
+const offRig = d => d > ride.rig*(1 + 1e-6);
+if (!ride.riding || offRig(ride.dist)) fail('riding along did not land behind the ship: ' + JSON.stringify(ride));
+if (!ride.folded || !ride.stillRiding || offRig(ride.farAfterFold)) fail('the camera lost the ship when it folded space: ' + JSON.stringify(ride));
+if (!ride.jumped || !ride.ridingAfterJump || offRig(ride.farInLightSpeed)) fail('the camera lost the ship at light speed: ' + JSON.stringify(ride));
 if (!ride.cockpit) fail('the cockpit view is not on the ship');
 if (!ride.paused || !ride.resumed) fail('pause / play did not stop and resume riding along');
 
@@ -140,9 +146,10 @@ if (trips.bad.length) fail('tour trips that dip or fly through something: ' + tr
 
 // 8. the Halo at work: it is always travelling (never stopped, never turning on the spot, never circling), it travels both by light
 // speed and by folds, it does different jobs, scan beams end exactly where they first meet the surface, and a weapons test leaves nothing behind
-const halo = await page.evaluate(() => {
+const halo = await page.evaluate(HALO_SEED => {
   const C = __cosmos, h = C.BYKEY.halo, D = h.dbg, S = h.S, dt = 1/30;
-  C.setTour(false); if (C.shipCam.on) C.stopShipCam(); C.view('earth', 0);
+  C.setTour(false); if (C.shipCam.on) C.stopShipCam(); C.setDays(0); C.view('earth', 0); D.reset(HALO_SEED);   // (the same route every run, as in 5)
+  C.tick(0);   // (the ship takes its place on the new route before anything is measured: otherwise the first step turns it from where it was)
   const r = { modes:{}, acts:{}, minTurnRadius:1e9, maxTurn20s:0, stopped:0, steps:0 };
   const head = () => [h.R0[3], h.R0[4], h.R0[5]];
   let H0 = head(), P0 = h.pos.slice(), ph0 = S.phase, win = [];
@@ -186,7 +193,7 @@ const halo = await page.evaluate(() => {
   for (let i=0;i<30*6;i++) C.tick(dt);
   r.blasts = blasts; r.leftAfter = D.FX.filter(e => made.has(e)).length;
   return r;
-});
+}, HALO_SEED);
 if (halo.stopped) fail('the Halo stood still for ' + halo.stopped + ' steps');
 if (halo.minTurnRadius < 20) fail('the Halo turned on the spot (turn radius ' + halo.minTurnRadius + ' ship lengths)');
 if (halo.maxTurn20s > 300) fail('the Halo turned ' + halo.maxTurn20s + ' degrees within 20 s (circling)');
@@ -273,5 +280,5 @@ if (say.escSearch.atlas || say.escSearch.box || !say.escSearch.lock) fail('Esc i
 if (say.escNothing !== null) fail('Esc with nothing open did not let go of the object');
 if (say.earth.views.join() !== '0,2,1' || say.earth.t < 26 || say.earth.t > 36) fail('the tour does not play three Earth angles in about 30 s: ' + JSON.stringify(say.earth));
 
-report('motion', errors, `next stop, start again and back to the tour · three fast angle taps, three angles · Esc closes panels first · Earth on the tour: angles ${say.earth.views.join(', ')} in ${say.earth.t} s · home from the Crab pauses the tour · free camera stays with Earth (${stay.drift.off.toFixed(1)}° off centre after 5 s), back by play and by the pill ("${(stay.pill || '').replace(/^\W/, '› ')}") · Jupiter x${stay.jupiterFree} after letting go, x${stay.overviewFree} in the overview · W A S D within ${stay.reach} view distances · Saturn loops through ${loop.views} angles · pause, play and space work · universe to Earth, largest frame-to-frame change x${fl.worstFrameToFrameScale} · ladder picks keep moving · riding the Halo through a fold and a light-speed jump (camera within ${ride.farAfterFold} / ${ride.farInLightSpeed} ship radii) · the Halo always moving (tightest turn ${halo.minTurnRadius} ship lengths, at most ${halo.maxTurn20s} degrees in 20 s), ${Object.keys(halo.acts).length} kinds of job, ${halo.beams} scan beams on the surface (error ${halo.beamWorst.toExponential(1)}) · Moon → ${nav.next} → ${nav.next2} · mid-flight speed change ${nav.slow}s → ${nav.fast}s · ${trips.n} tour trips without dips (${trips.passes} pass-bys)`);
+report('motion', errors, `next stop, start again and back to the tour · three fast angle taps, three angles · Esc closes panels first · Earth on the tour: angles ${say.earth.views.join(', ')} in ${say.earth.t} s · home from the Crab pauses the tour · free camera stays with Earth (${stay.drift.off.toFixed(1)}° off centre after 5 s), back by play and by the pill ("${(stay.pill || '').replace(/^\W/, '› ')}") · Jupiter x${stay.jupiterFree} after letting go, x${stay.overviewFree} in the overview · W A S D within ${stay.reach} view distances · Saturn loops through ${loop.views} angles · pause, play and space work · universe to Earth, largest frame-to-frame change x${fl.worstFrameToFrameScale} · ladder picks keep moving · riding the Halo through a fold and a light-speed jump (camera within ${ride.farAfterFold.toFixed(2)} / ${ride.farInLightSpeed.toFixed(2)} of ${ride.rig.toFixed(2)} ship radii) · the Halo always moving (tightest turn ${halo.minTurnRadius} ship lengths, at most ${halo.maxTurn20s} degrees in 20 s), ${Object.keys(halo.acts).length} kinds of job, ${halo.beams} scan beams on the surface (error ${halo.beamWorst.toExponential(1)}) · Moon → ${nav.next} → ${nav.next2} · mid-flight speed change ${nav.slow}s → ${nav.fast}s · ${trips.n} tour trips without dips (${trips.passes} pass-bys)`);
 await browser.close();
