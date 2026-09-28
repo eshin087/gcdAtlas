@@ -1,5 +1,5 @@
 
-// ================================================================ Pip, the Halo's little drone (made up, like the ship). Review build: three looks, ?drone=a|b|c.
+// ================================================================ Pip, the Halo's little drone (made up, like the ship): an eye-pod.
 // It lives in the belly bay. On a probe job (ACT.probe in 07h-halo.js) it pops out, says hello to the camera, glances at the ship and then at
 // the body, flies there, hovers taking pictures while it looks at what it photographs, flies home and docks. Near a black hole or a magnetar
 // it stays by the ship. It is a small volume of its own (FS_DRONE; its body about 400 m across in a 600 m sphere), drawn right after the ship (ship.drawAfter) so the hull
@@ -8,40 +8,23 @@
 // a spot worked out from the camera's last place made it shake with uneven frames; an object's own update would run before the camera), and
 // its dice come from lcg, never hrnd, so the Halo's route stays the same. This file must load after 07h-halo.js (it uses S_, HULL, ACT).
 const FS_DRONE_BODY = `
-// Local frame: bounding sphere 1, +y the way it looks (its eye), +z up, x across. LOOK 1 eye-pod: a black egg with one big eye, two tiny
-// crescent fins (the ship's arms in miniature), an antenna and a thruster ring. LOOK 2 little Halo: a round pod whose eye sits inside a ring of
-// lights, like the ship's heart inside its dotted rings. LOOK 3 firefly: a teardrop with a big eye, its tail end glowing like a firefly's
-// lantern and streaming light behind it.
+// Local frame: bounding sphere 1, +y the way it looks (its eye), +z up, x across. An eye-pod: a black egg with one big eye, two tiny
+// crescent fins (the ship's arms in miniature), an antenna and a thruster ring.
 // uP0: x the eye open (0 shut, 1 open), y the iris's glow (1; above 1 it flashes white for a picture), z the thruster, w mood (> 0 a happy
 // squint, < 0 narrowed)   uP1: xyz the light's direction (world), w unfold (the fins, wings and antenna tuck in when it is stowed)
 // uP2: xy where the pupil looks (in the eye's plane, -1..1), z the antenna's wink, w the lens lamp   uP3: rgb the iris's colour, w how much of
 // it is there (1 whole; its glows fade with it as it breaks up)
-// uM0 column 0: its scale, B's ring phase, C's tail length; column 1: its break-up into embers (dissolve g, mode 1 leaving / -1 arriving /
+// uM0 column 0: its scale; column 1: its break-up into embers (dissolve g, mode 1 leaving / -1 arriving /
 // 0 whole, the cells' size); column 2: toward the ship's bay, in its own frame (the side nearest the bay goes last and comes back first)
 float sdEll(vec3 p, vec3 r){ float k0 = length(p/r), k1 = length(p/(r*r)); return k0*(k0 - 1.)/max(k1, 1e-5); }
 float sdCap(vec3 p, vec3 a, vec3 b, float r){ vec3 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba)/dot(ba, ba), 0., 1.); return length(pa - ba*h) - r; }
-// a round cone: a sphere r1 at a narrowing to r2 at b
-float sdRC(vec3 p, vec3 a, vec3 b, float r1, float r2){
-  vec3 ba = b - a; float l2 = dot(ba, ba), rr = r1 - r2, a2 = l2 - rr*rr, il2 = 1./l2;
-  vec3 pa = p - a; float y = dot(pa, ba), z = y - l2; vec3 xv = pa*l2 - ba*y; float x2 = dot(xv, xv), y2 = y*y*l2, z2 = z*z*l2, k = sign(rr)*rr*rr*x2;
-  if(sign(z)*a2*z2 > k) return sqrt(x2 + z2)*il2 - r2;
-  if(sign(y)*a2*y2 < k) return sqrt(x2 + y2)*il2 - r1;
-  return (sqrt(x2*a2*il2) + y*rr)*il2 - r1;
-}
 float sq(float x){ return x*x; }
 float lampD(vec3 o, vec3 d, vec3 c, float s, float front){ return dot(c - o, d) < front ? pblob(o, d, c, s) : 0.; }
 // the eye: a glass dome on the front (centre EC, half sizes ED), with a silver bezel round it; NZ the thruster's nozzle
-#if LOOK == 1
 const vec3 EC = vec3(0., 0.355, 0.1), ED = vec3(0.235, 0.09, 0.235), NZ = vec3(0., -0.42, -0.03);
-#elif LOOK == 2
-const vec3 EC = vec3(0., 0.345, 0.03), ED = vec3(0.24, 0.09, 0.24), NZ = vec3(0., -0.39, 0.);
-#else
-const vec3 EC = vec3(0., 0.445, 0.08), ED = vec3(0.23, 0.085, 0.23), NZ = vec3(0., -0.55, 0.02);
-#endif
 float gId = 0.;
 float map(vec3 p){
   float u = uP1.w, d, fin = 1e9, trim = 1e9;
-#if LOOK == 1
   // an egg, its top a little fuller, with two swept fins and an antenna; a ring round the thruster at the back
   vec3 q = p - vec3(0., 0., -0.03); float tq = 1. + 0.12*clamp(q.z/0.54, -1., 1.);
   d = sdEll(vec3(q.xy/tq, q.z), vec3(0.42, 0.4, 0.54))*0.85;
@@ -49,16 +32,6 @@ float map(vec3 p){
   fin = min(sdCap(pf, f0, f1, 0.03), sdCap(pf, f1, f2, 0.021));
   fin = min(fin, sdCap(p, vec3(0., -0.06, 0.47), vec3(0., -0.12, 0.51 + 0.17*u), 0.016));
   trim = length(vec2(length(p.xz - vec2(0., -0.03)) - 0.14, p.y + 0.385)) - 0.028;
-#elif LOOK == 2
-  // a round pod (its ring of lights is drawn as light, below)
-  d = sdEll(p, vec3(0.4, 0.38, 0.36))*0.95;
-  trim = length(vec2(length(p.xz) - 0.12, p.y + 0.365)) - 0.024;
-#else
-  // a teardrop, its point aft, with two little wings on its back and two feelers curling up from its head
-  d = sdRC(p, vec3(0., 0.14, 0.04), vec3(0., -0.5, 0.02), 0.34, 0.06);
-  vec3 pw = vec3(abs(p.x), p.y, p.z), a1 = vec3(0.1 + 0.08*u, 0.3 + 0.06*u, 0.4 + 0.14*u);
-  fin = min(sdCap(pw, vec3(0.1, 0.02, 0.3), vec3(0.2 + 0.1*u, -0.16 - 0.08*u, 0.35 + 0.05*u), 0.02), min(sdCap(pw, vec3(0.06, 0.26, 0.3), a1, 0.013), sdCap(pw, a1, a1 + vec3(0.07, 0.03, -0.02)*u, 0.013)));
-#endif
   float eye = sdEll(p - EC, ED)*0.9;
   float bez = length(vec2(length(vec2(p.x, p.z - EC.z)) - ED.x - 0.006, p.y - EC.y + 0.004)) - 0.022;
   gId = 0.;
@@ -81,8 +54,8 @@ void main(){
   int N = int(mix(28., 48., uLod));
   if(hb.y > 0.) for(int i=0;i<48;i++){ if(i >= N) break; float h = map(o + d*t); if(h < 0.0015){ hit = true; id = gId; break; } t += h; if(t > hb.y) break; }
   vec3 col = vec3(0.), irisC = mix(uP3.rgb, white, clamp(uP0.y - 1., 0., 1.)); float alpha = 0.;
-  // (sm: how small it is on screen, 0 from a radius of about 40 pixels up, 1 at 10 and under: its outline, A's fins and C's lantern grow
-  // brighter and bolder as it shrinks, so each look keeps its own mark at the few characters it covers riding along)
+  // (sm: how small it is on screen, 0 from a radius of about 40 pixels up, 1 at 10 and under: its outline and fins grow brighter and bolder
+  // as it shrinks, so it keeps its shape at the few characters it covers riding along)
   float sm = smoothstep(0.025, 0.1, uPix*length(o));
   // (breaking up: where the ray meets a cell that is gone it sees through it; a cell about to go, or just back, burns from within)
   float heat = 0.;
@@ -95,7 +68,7 @@ void main(){
     // against black space: a black silhouette, a crisp silver outline, one big blue eye. (A broad rim and a grainy hull made it a dotted oval.)
     vec3 hull = vec3(0.05, 0.055, 0.07), body = hull*(dif*1.3 + 0.2) + silver*(spec*1.1 + rim*(1.8 + 2.5*sm));
     col = body;
-    if(id > 2.5) col = hull*(dif*1.3 + 0.4) + silver*(0.25 + 1.2*rim + spec + (LOOK == 1 ? 0.6 : 0.)*sm);   // fins, antenna, wings (A's fins lit when small)
+    if(id > 2.5) col = hull*(dif*1.3 + 0.4) + silver*(0.25 + 1.2*rim + spec + 0.6*sm);   // fins and antenna (lit when small)
     else if(id > 1.5) col = silver*(0.4 + 0.9*dif + 0.9*rim) + white*spec;                 // the bezel and the thruster ring
     else if(id > 0.5){
       // the eye. Lids close it to a slit when it blinks; a happy squint bends it into an arch (^); narrowed, both lids close in a little
@@ -109,13 +82,8 @@ void main(){
       vec3 eyeC = vec3(0.02, 0.035, 0.07) + silver*spec*0.8 + (irisC*vec3(0.55, 0.8, 1.)*iris*1.6 + irisC*ringI*1.9)*uP0.y + white*cat*1.4*uP0.x;
       col = mix(body + silver*0.4*exp(-sq((abs(e.y - c) - hw)/0.07)), eyeC, lid);
     }
-#if LOOK == 1
     if(id < 0.5) col += silver*exp(-sq((p.z + 0.12)/0.012))*(0.3 + 0.5*dif);   // a silver seam round its waist
-#elif LOOK == 3
-    // its lantern: the tail end glows, breathing slowly, brighter as it flies
-    if(id < 0.5) col += ice*smoothstep(-0.06, -0.36, p.y)*(0.75 + 0.25*sin(tm*(RM > 0 ? 1.2 : 2.6)))*(1.1 + 1.3*uP0.z)*(1. + 0.5*sm);
-#endif
-    // (the burn: from a blue glow to white-hot, like the ship's cells in fold A)
+    // (the burn: from a blue glow to white-hot, like the ship's cells in a fold)
     // (toned down from the ship's: a small body whose cells all burn at once read as a white blob)
     col = mix(col, mix(vec3(0.3, 0.48, 1.), vec3(1.3, 1.5, 1.8), heat*heat*heat), 0.85*smoothstep(0., 0.55, heat));
     alpha = 1.;
@@ -126,45 +94,16 @@ void main(){
   col += irisC*blob(o, d, EC + vec3(0., 0.07, 0.), 0.13)*0.7*uP0.y*max(uP0.x, 0.2)*face*small*pres;
   // the lens lamp: light pouring out of the eye onto what it looks at
   if(uP2.w > 0.01) col += mix(ice, white, 0.5)*blob(o, d, EC + vec3(0., 0.24, 0.), 0.1)*uP2.w*face*1.4*pres;
-#if LOOK == 1
   col += white*lampD(o, d, vec3(0., -0.125, 0.53 + 0.17*uP1.w), 0.03, front + 0.02)*(10. + 24.*uP2.z)*pres;   // the antenna's lamp, winking now and then
-#endif
-#if LOOK == 2
-  // the ring of lights round it, tilted a little, turning (like the ship's dotted rings round its heart); it hides behind the pod
-  {
-    const vec3 nr = vec3(0., -0.2474, 0.9689), ex = vec3(1., 0., 0.), ey = vec3(0., 0.9689, 0.2474);
-    float dn = dot(d, nr);
-    if(abs(dn) > 0.01){
-      float tp = -dot(o, nr)/dn;
-      if(tp > 0. && tp < front){
-        vec3 pp = o + d*tp; float rr = length(pp), an = atan(dot(pp, ey), dot(pp, ex)), lw = max(0.02, uPix*tp*0.8);
-        float ring = exp(-sq((rr - 0.63)/lw))*0.02/lw, dots = pow(0.5 + 0.5*cos(an*10. + uM0[0].y), 4.);
-        col += (ice*dots*13. + silver*1.1)*ring*pres;
-      }
-    }
-  }
-#endif
-  // the thruster: a nozzle glow and a short plume that fades well inside the bounding sphere (C's tail is its firefly glow, longer as it flies)
+  // the thruster: a nozzle glow and a short plume that fades well inside the bounding sphere
   float th = uP0.z, behind = dot(NZ - o, d) > front ? 0.15 : 1.;   // (the body hides most of a plume behind it)
-#if LOOK == 3
-  float PL = 0.1 + 0.28*uM0[0].z;
-  // (its lantern's glow spills round the body, so it shows even when Pip faces you)
-  col += ice*blob(o, d, vec3(0., -0.33, 0.), mix(0.22, 0.3, sm))*(0.55 + 0.6*th)*(1. + 0.5*sm)*(0.75 + 0.25*sin(tm*(RM > 0 ? 1.2 : 2.6)))*(1. - 0.75*alpha)*pres;
-  col += jet(o - NZ, d, vec3(0., -1., 0.), PL, 0.035, 0.075, 0.4, tm*6., vec3(0.85, 0.95, 1.), vec3(0.3, 0.55, 1.))*(3. + 10.*th)*behind*pres;
-#else
   float PL = 0.1 + 0.25*th;
   col += jet(o - NZ, d, vec3(0., -1., 0.), PL, 0.03, 0.06, 0.5, tm*6., vec3(0.85, 0.95, 1.), vec3(0.3, 0.55, 1.))*(1. + 10.*th)*th*behind*pres;
-#endif
   col += mix(white, ice, 0.4)*lampD(o, d, NZ, 0.035, front + 0.02)*(2. + 7.*th)*pres;
   outCol(col, alpha);
 }`;
-const DRONE_LOOKS = { a:1, b:2, c:3 }, DRONE_NAMES = ['', 'Pip A · eye-pod', 'Pip B · little Halo', 'Pip C · firefly'];
-const DRONE_Q = (new URLSearchParams(location.search).get('drone') || '').toLowerCase();
-let droneLook = DRONE_LOOKS[DRONE_Q] || 1;
-const droneProgs = [];
 // (highp int: the cells' hash needs 32-bit integers to match pipHash in JS)
-const droneProg = v => droneProgs[v] || (droneProgs[v] = program(VS_RECT, COMMON + `precision highp int;\n#define LOOK ${v}\n#define RM ${reduceMotion ? 1 : 0}\n` + FS_DRONE_BODY));
-P.drone = droneProg(droneLook);
+P.drone = program(VS_RECT, COMMON + `precision highp int;\n#define RM ${reduceMotion ? 1 : 0}\n` + FS_DRONE_BODY);
 
 // ---------------------------------------------------------------- its state: where it is (ship-relative, world axes), where it looks, its face
 // (st: 'stowed', 'out' on a job, 'pose' held by a test or a screenshot; kind: 'land' hovers over the ground or the cloud tops, 'star' keeps
@@ -176,7 +115,7 @@ const ICE_P = [0.6, 0.83, 1];
 // or shake. dg, dm, pres: its break-up into embers (the dissolve, its mode, how much of it is there); cs its cells' size, bayL the way to the
 // bay in its own frame (both fixed for each break-up), cells their table, wz the side its stream of embers bends to
 const pipFresh = () => ({ st:'stowed', A:null, kind:'land', H:null, pos:[0, 0, 0], pupil:[0, 1, 0], body:[0, 1, 0], ax:[1, 0, 0], open:1, blinkIn:3, blinkT:9, glow:1, flash:0,
-  thr:0, mood:0, unfold:0, scale:1, ring:0, tail:0.3, shots:0, nShots:4, at:[], lamp:0, px:0, pz:0, ant:0, iris:ICE_P.slice(), r:lcg(7), trail:[], trAcc:0,
+  thr:0, mood:0, unfold:0, scale:1, shots:0, nShots:4, at:[], lamp:0, px:0, pz:0, ant:0, iris:ICE_P.slice(), r:lcg(7), trail:[], trAcc:0,
   vis:0, pose:null, H2:null, spot:null, alt:0.08, wd:null, wt:null, gas:false, minAlt:9, anc:null, ancV:[0, 0, 0], fx:null,
   dg:0, dm:0, pres:1, cs:0.19, bayL:[0, 0, 1], cells:null, brk:0, wz:1, arr:0, embN:0, embIn:0, hi:0, lsx:0 });
 const PIP = pipFresh();
@@ -187,9 +126,8 @@ const drone = addObj({ key:'halo-drone', name:'Pip', label:'', type:"the Halo's 
   setU(pr){ const S = ship.S, q = PIP, L = S.light ? M3.apply(ship.R0, V.norm(S.light)) : V.norm(V.sub(sun.rel, this.rel)), c = q.iris, b = q.bayL;
     gl.uniform4f(pr.u.uP0, q.open, q.glow, q.thr, q.mood); gl.uniform4f(pr.u.uP1, L[0], L[1], L[2], q.unfold);
     gl.uniform4f(pr.u.uP2, q.px, q.pz, q.ant, q.lamp); gl.uniform4f(pr.u.uP3, c[0], c[1], c[2], q.pres);
-    DM0[0] = q.scale; DM0[1] = q.ring; DM0[2] = q.tail; DM0[3] = q.dg; DM0[4] = q.dm; DM0[5] = q.cs; DM0[6] = b[0]; DM0[7] = b[1]; DM0[8] = b[2];
+    DM0[0] = q.scale; DM0[3] = q.dg; DM0[4] = q.dm; DM0[5] = q.cs; DM0[6] = b[0]; DM0[7] = b[1]; DM0[8] = b[2];
     gl.uniformMatrix3fv(pr.u.uM0, false, DM0); } });
-drone.setLook = v => { if (!(v >= 1 && v <= 3)) return; droneLook = v; drone.prog = droneProg(v); progReady(drone.prog, true); };
 
 // ---------------------------------------------------------------- the job's timeline (seconds after launch; ACTS.probe's timing is unchanged, so the route is too: it
 // launches 0.3 s into the job and is back aboard 11.9 s later). It streams out of the belly bay as embers and takes shape at its spot in view
@@ -294,7 +232,7 @@ function pipFlash(q, pos){
 }
 function pipStow(){ const q = PIP; q.st = 'stowed'; q.trail.length = 0; q.spot = null; q.lamp = 0; q.flash = 0; q.vis = 0; q.dm = 0; q.dg = 0; q.pres = 1; q.arr = 0; q.embN = 0; }
 
-// ---------------------------------------------------------------- its break-up into embers, the same look as the ship's fold A (ember wind): as it comes out, embers
+// ---------------------------------------------------------------- its break-up into embers, the same look as the ship's fold (ember wind): as it comes out, embers
 // stream out of the belly bay and settle on its cells, which appear one by one from the side nearest the bay; going home, its cells burn and go
 // one by one from the far side, and each sends an ember streaming into the bay, where they light the bay as they arrive. The cells are cubes
 // about one character on screen (PIP_CS, chosen as each break-up starts), only those on its skin; pipCellThr gives each the threshold thrP gives
@@ -306,29 +244,22 @@ function pipHash(ix, iy, iz){
   return (h >>> 8)/16777216;
 }
 const pipCellThr = (a, c, b) => 0.5 + 0.45*clamp((a[c]*b[0] + a[c + 1]*b[1] + a[c + 2]*b[2])/0.5, -1, 1) + 0.3*(a[c + 3] - 0.5);
-// its body in its own frame (bounding sphere 1), as map() draws it for each look, without the fins: the cells on its skin
-function pipBodyD(x, y, z, look){
+// its body in its own frame (bounding sphere 1), as map() draws it, without the fins: the cells on its skin
+function pipBodyD(x, y, z){
   const ell = (x, y, z, a, b, c) => { const k0 = Math.hypot(x/a, y/b, z/c), k1 = Math.hypot(x/(a*a), y/(b*b), z/(c*c)); return k0*(k0 - 1)/Math.max(k1, 1e-5); };
-  const E = look === 1 ? [0, 0.355, 0.1, 0.235, 0.09, 0.235] : look === 2 ? [0, 0.345, 0.03, 0.24, 0.09, 0.24] : [0, 0.445, 0.08, 0.23, 0.085, 0.23];
-  const eye = ell(x - E[0], y - E[1], z - E[2], E[3], E[4], E[5])*0.9;
-  if (look === 1){ const qz = z + 0.03, tq = 1 + 0.12*clamp(qz/0.54, -1, 1); return Math.min(ell(x/tq, y/tq, qz, 0.42, 0.4, 0.54)*0.85, eye); }
-  if (look === 2) return Math.min(ell(x, y, z, 0.4, 0.38, 0.36)*0.95, eye);
-  // (C: the teardrop, a round cone from its head to its tail)
-  const ay = 0.14, az = 0.04, by = -0.5, bz = 0.02, r1 = 0.34, r2 = 0.06, pa = [x, y - ay, z - az], ba = [0, by - ay, bz - az], l2 = V.dot(ba, ba), rr = r1 - r2, a2 = l2 - rr*rr, il2 = 1/l2;
-  const yy = V.dot(pa, ba), zz = yy - l2, xv = V.sub(V.mul(pa, l2), V.mul(ba, yy)), x2 = V.dot(xv, xv), y2 = yy*yy*l2, z2 = zz*zz*l2, k = Math.sign(rr)*rr*rr*x2;
-  const d = Math.sign(zz)*a2*z2 > k ? Math.sqrt(x2 + z2)*il2 - r2 : Math.sign(yy)*a2*y2 < k ? Math.sqrt(x2 + y2)*il2 - r1 : (Math.sqrt(x2*a2*il2) + yy*rr)*il2 - r1;
-  return Math.min(d, eye);
+  const eye = ell(x, y - 0.355, z - 0.1, 0.235, 0.09, 0.235)*0.9, qz = z + 0.03, tq = 1 + 0.12*clamp(qz/0.54, -1, 1);
+  return Math.min(ell(x/tq, y/tq, qz, 0.42, 0.4, 0.54)*0.85, eye);
 }
 // (numbers per cell: its centre x y z in its own frame, its hash, then dice: flight time, bend, eddy radius, eddy phase, ash, keep)
-function pipTable(look, cs){
-  const key = look + ':' + cs; if (PIP_TAB.has(key)) return PIP_TAB.get(key);
-  const L = [], r = lcg(4242 + look), n = Math.ceil(0.62/cs);
+function pipTable(cs){
+  if (PIP_TAB.has(cs)) return PIP_TAB.get(cs);
+  const L = [], r = lcg(4243), n = Math.ceil(0.62/cs);
   for (let ix=-n;ix<n;ix++) for (let iy=-n;iy<n;iy++) for (let iz=-n;iz<n;iz++){
     const x = (ix + 0.5)*cs, y = (iy + 0.5)*cs, z = (iz + 0.5)*cs;
-    if (Math.abs(pipBodyD(x, y, z, look)) > 0.6*cs) continue;
+    if (Math.abs(pipBodyD(x, y, z)) > 0.6*cs) continue;
     L.push(x, y, z, pipHash(ix, iy, iz), r(), r(), r(), r(), r(), r());
   }
-  const T = { cs, n:L.length/PIP_CW, a:new Float64Array(L) }; PIP_TAB.set(key, T); return T;
+  const T = { cs, n:L.length/PIP_CW, a:new Float64Array(L) }; PIP_TAB.set(cs, T); return T;
 }
 // (the cells' size: the nearest step to one character on screen, from its radius in scene pixels; two scene pixels to a character)
 function pipCs(){ const rpx = drone.rad/Math.max(drone.dist, 1e-300)*sceneH*0.5/tanY, w = clamp(2.4/Math.max(rpx, 1), PIP_CS[0], PIP_CS[3]);
@@ -339,7 +270,7 @@ const pipLandU = thr => PT.ASM0 + clamp((PIP_GHI - thr)/(PIP_GHI - PIP_GLO), 0, 
 const pipLeaveU = thr => PT.DIS0 + clamp((thr - PIP_GLO)/(PIP_GHI - PIP_GLO), 0, 1)*(PT.DIS - PT.DIS0);
 // start a break-up (1 going home, -1 coming out): the cells' size, the way to the bay in its own frame, both kept to the end of it
 function pipBreak(q, mode){
-  q.brk = mode; q.cs = pipCs(); q.cells = pipTable(droneLook, q.cs);
+  q.brk = mode; q.cs = pipCs(); q.cells = pipTable(q.cs);
   const R = drone.rot || I3, b = M3.applyT(R, V.norm(V.sub(localPt(HULL.bay), q.pos)));
   q.bayL = b;
 }
@@ -406,7 +337,6 @@ function pipEmbers(q, u){
 AFTER_CAM.push(dt => { ship.rel = V.sub(frel(ship), cam.rel); ship.dist = V.len(ship.rel); drone.ctl(dt*timeScale); });
 drone.ctl = dt => {
   const q = PIP;
-  q.ring = (q.ring + dt*(reduceMotion ? 0.5 : 1.2 + 3*q.thr)) % 6.2831853;
   if (q.pose){ pipPose(q.pose); return; }
   const A = S_.act && S_.act.kind === 'probe' && S_.phase === 'pass' ? S_.act : null;
   if (!A){ if (q.st !== 'stowed') pipStow(); q.A = null; return; }
@@ -508,7 +438,7 @@ drone.ctl = dt => {
   else if (far && u > PT.HOME && u < PT.HM) th = u < PT.HOME + 0.5 ? 0.9 : u < PT.HM - 0.5 ? 0.7 : 0.35;
   th = Math.max(th, 0.45*envW(PT.HI, PT.SPIN, u, 0.15), 0.5*hop, 0.85*kL);
   if (q.kind === 'near') th *= 0.6;
-  q.thr += (th - q.thr)*(1 - Math.exp(-dt*6)); q.tail += (0.35 + 0.65*q.thr - q.tail)*(1 - Math.exp(-dt*4));
+  q.thr += (th - q.thr)*(1 - Math.exp(-dt*6));
   // its fins and antenna unfold once it has taken shape and tuck in before it breaks up
   q.unfold = smooth(PT.ASM - 0.1, PT.OPEN + 0.1, u)*(1 - smooth(PT.DIS0 - 0.35, PT.DIS0, u)); q.scale = 1;
   const ph = (drone.t*0.62) % 1; q.ant = ph < 0.08 ? Math.sin(Math.PI*ph/0.08) : 0;
@@ -529,21 +459,8 @@ drone.ctl = dt => {
   const streaming = q.brk > 0 ? envW(PT.DIS0, PT.DIS + 0.6, u, 0.2) : q.brk < 0 ? envW(0, PT.ASM, u, 0.2) : 0;
   S_.em[3] = Math.max(S_.em[3], Math.min(0.35*streaming + (q.brk > 0 ? q.arr : 0), 1.3));
 };
-// (the looks review's buttons, while Pip is out: it goes home now, smoothly. At its spot by the ship with nothing under way (no flight, loop,
-// hop, wiggle, spin or lean) it starts breaking up into the bay at once; otherwise its own clock runs three times as fast (every move is a
-// smooth function of it) until it is. No more pictures. It moves its own clock on, never the route's. true once it is breaking up)
-drone.hurry = dt => {
-  const q = PIP, A = q.A; if (q.st !== 'out' || !A) return false;
-  const u = S_.t - A.t0, a = pipActs(q), far = q.kind !== 'near';
-  if (u >= PT.DIS0 - 0.05) return true;
-  q.shots = q.nShots;
-  const busy = u < PT.SPIN + 0.05 || envW(a.peek[0], a.peek[1], u, 0.15) > 0.001 || q.at.some(ts => u > ts - 0.05 && u < ts + 0.55) || (u > a.loop[0] - 0.02 && u < a.loop[1] + 0.02) ||
-    (a.bye && u > a.bye[0] - 0.02 && u < a.bye[1] + 0.02) || (u > a.back[0] - 0.02 && u < a.back[1] + 0.02) || (far && u >= PT.GO && u < PT.HM + 0.02);
-  if (!busy){ A.t0 = S_.t - PT.DIS0; return true; }
-  A.t0 -= 2*(dt || 0); return false;
-};
-// near a black hole, while it works at its spot in the camera's view: a spot picked afresh for where the camera is now (the bridge, or the
-// looks review's view from above); Pip glides there on its spring
+// near a black hole, while it works at its spot in the camera's view: a spot picked afresh for where the camera is now (the bridge);
+// Pip glides there on its spring
 drone.reframe = () => {
   const q = PIP; if (q.st !== 'out' || q.kind !== 'near' || !q.H || !q.H.c || !camNear() || !(S_.t - q.A.t0 < PT.DIS0)) return;
   if (q.H2) q.H2 = pipHello(); else q.H = pipHello();
@@ -575,7 +492,7 @@ function pipPose(o){
   const want = V.norm(V.add(toCam, V.add(V.mul(cam.right, lk[0]), V.mul(cam.up, lk[1]))));
   q.pupil = want; q.body = o.eyes ? toCam : want;
   q.open = o.open ?? 1; q.mood = o.mood ?? 0; q.glow = o.glow ?? 1; q.thr = o.thr ?? 0.25; q.lamp = o.lamp ?? 0; q.scale = o.scale ?? 1; q.unfold = o.unfold ?? 1;
-  q.ant = o.ant ?? 0; q.iris = o.iris || ICE_P; q.tail = 0.35 + 0.65*q.thr;
+  q.ant = o.ant ?? 0; q.iris = o.iris || ICE_P;
   pipOrient(q, V.norm(localPt([-1, 0, 0])), null);
 }
 // how much of its volume shows (a glint takes over below about 3.5 pixels), 0 where the hull or the body is in front of it
@@ -625,16 +542,9 @@ function pipShows(){
   const rpx = drone.rad*q.scale/Math.max(drone.dist, 1e-300)*sceneH*0.5/tanY;
   return rpx > 1.5 && onScreen(drone.rel, 1) && !pipHidden(drone.rel);
 }
-// a read-only view of it (for the Halo's sounds later), and the test hooks: its state, a pose to hold it in, its look
+// a read-only view of it (for the Halo's sounds later), and the test hooks: its state, a pose to hold it in
 // (bayD: how far it is from the bay, in ship radii; minAlt: its lowest height over the drawn surface on this job, in surface radii, as the
 // controller keeps it; shows: pipShows; pres: how much of it is there; embIn: the share of its embers that has arrived, in the bay going home)
 Object.defineProperty(drone, 'state', { get:() => ({ st:PIP.st, kind:PIP.kind, shots:PIP.shots, flash:PIP.flash, thr:PIP.thr, vis:PIP.vis, pos:PIP.pos.slice(), minAlt:PIP.minAlt,
   bayD:V.len(V.sub(PIP.pos, localPt(HULL.bay)))/ship.rad, shows:pipShows(), scale:PIP.scale, pres:PIP.pres, brk:PIP.brk, embIn:PIP.embIn, embN:PIP.embN, mood:PIP.mood, open:PIP.open }) });
-ship.dbg.drone = { get state(){ return drone.state; }, pose(o){ PIP.pose = o || null; if (!o) pipStow(); }, setLook:v => drone.setLook(v), get look(){ return droneLook; }, PT, ACTS:PIP_ACTS };
-// review only: with ?drone= in the address (or the looks review), a small chip switches between the looks (under the shield's and the fold's: reviewChip)
-if (DRONE_Q || REVIEW_SC){
-  const chip = reviewChip('Pip', 'Drone look (review)', ['A', 'B', 'C'], i => i + 1), pick = v => { drone.setLook(v); sync(); toast(DRONE_NAMES[v]); };
-  const sync = () => { for (const b of chip.querySelectorAll('button')) b.classList.toggle('on', +b.dataset.v === droneLook); };
-  chip.addEventListener('click', e => { const b = e.target.closest('button'); if (b) pick(+b.dataset.v); });
-  sync();
-}
+ship.dbg.drone = { get state(){ return drone.state; }, pose(o){ PIP.pose = o || null; if (!o) pipStow(); }, PT, ACTS:PIP_ACTS };

@@ -1,10 +1,10 @@
-// Records the Halo showcase (the page opened with ?showcase=halo, or the looks review with ?showcase=review) to a WebM video, for reviewing the ship
+// Records the Halo showcase (the page opened with ?showcase=halo) to a WebM video, for reviewing the ship
 // without opening the site.
 // Frame by frame and deterministic (the page's own clock is stepped 1/fps at a time), drawn on the GPU where Chromium can use it.
 // Encodes with the ffmpeg that Playwright installs next to its browsers (VP8 in WebM).
-// Usage: npm run showcase:video [-- out.webm --dur=167 --w=1280 --h=720 --fps=30 --kbps=2400 --url="shield=b&fold=c" --from=26 --phone]
-// --url adds to the page's address, or replaces what is there: --url="showcase=review&shield=b" records the looks review with shield B.
-// One full loop of ?showcase=halo is about 167 s, of the looks review (?showcase=review) about 85 s; --dur defaults to one loop.
+// Usage: npm run showcase:video [-- out.webm --dur=167 --w=1280 --h=720 --fps=30 --kbps=2400 --url="..." --from=26 --phone]
+// --url adds to the page's address, or replaces what is there.
+// One full loop of ?showcase=halo is about 167 s; --dur defaults to one loop.
 // --from=s runs the first s seconds without recording (the clip is --dur long from there); --phone records a phone (390 x 844, touch, the
 // phone layout).
 import { chromium } from 'playwright';
@@ -17,9 +17,8 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'), PAGE = 'file://' + path.join(ROOT, 'dist', 'index.html');
 const args = process.argv.slice(2), str = k => { const a = args.find(a => a.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : undefined; }, opt = (k, d) => str(k) === undefined ? d : +str(k);
 const query = new URLSearchParams('showcase=halo'); for (const [k, v] of new URLSearchParams(str('url') || '')) query.set(k, v);
-const review = query.get('showcase') === 'review';
-const out = args.find(a => !a.startsWith('--')) || path.join(ROOT, 'tests', 'out', review ? 'review-showcase.webm' : 'halo-showcase.webm');
-const dur = opt('dur', review ? 86 : 167), FROM = opt('from', 0), PHONE = args.includes('--phone'), W = PHONE ? 390 : opt('w', 1280), H = PHONE ? 844 : opt('h', 720), FPS = opt('fps', 30), KBPS = opt('kbps', 2400);
+const out = args.find(a => !a.startsWith('--')) || path.join(ROOT, 'tests', 'out', 'halo-showcase.webm');
+const dur = opt('dur', 167), FROM = opt('from', 0), PHONE = args.includes('--phone'), W = PHONE ? 390 : opt('w', 1280), H = PHONE ? 844 : opt('h', 720), FPS = opt('fps', 30), KBPS = opt('kbps', 2400);
 if (!fs.existsSync(path.join(ROOT, 'dist', 'index.html'))) throw new Error('build first: node build.mjs');
 // Playwright's ffmpeg: %LOCALAPPDATA%\ms-playwright (Windows), ~/Library/Caches/ms-playwright (macOS), ~/.cache/ms-playwright (Linux)
 const cache = process.env.PLAYWRIGHT_BROWSERS_PATH || (process.platform === 'win32' ? path.join(os.homedir(), 'AppData', 'Local', 'ms-playwright')

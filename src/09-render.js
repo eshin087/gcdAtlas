@@ -246,7 +246,7 @@ function render(){
     if (vis > 0.003){
       // farther glowing dots go down first, so a nearer opaque object (a black hole's shadow) covers them
       if (o.prog && ni){ imp.count = ni; imp.upload('ac'); drawParticles(null, impSpec); ni = 0; }
-      if (o.prog) o.onScreen = drawVolume(o, o.prog, o.rel, R*(o.drawK || 1), o.setU && (pr => o.setU(pr)), o.rot, vis);   // (drawK: drawn in a sphere wider than rad, e.g. the Halo's shield)
+      if (o.prog) o.onScreen = drawVolume(o, o.prog, o.rel, R, o.setU && (pr => o.setU(pr)), o.rot, vis);
       if (o.drawBefore) o.drawBefore(vis);
     }
     const pv = o.particleVis ? o.particleVis(rpxTrue) : smooth(pmin*0.4, pmin*1.4, rpxTrue);
