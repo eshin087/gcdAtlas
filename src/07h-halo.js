@@ -13,7 +13,7 @@
 // (T_ROAM: a pass's cruising time, drawn for each; LOOP_OM: the loops turn at this share of the usual rate; FOLD_SPOOL: from the drive spooling
 // up to the jump, the fold's wind-up)
 const HALO = { LS_NEAR:100, LS_FAR:3e4, LS_P:0.5, MAXBEND:1.4, TURN:0.42, T_FAST:10, FOLD_SPOOL:7, LS_SPOOL:1.7, FOLD_T:0.4, EMERGE:0.5,
-  STAY:[100, 140], T_ROAM:[15, 22], LOOP_OM:0.75 };
+  STAY:[100, 140], T_ROAM:[15, 22], LOOP_OM:0.9 };
 // per job: how long it lasts (s), how much the ship slows for it, where on the pass it happens (share of the path); and the framing while it
 // works: how much of it applies (view), how far the ship banks (bank), how far the trailing camera turns toward the body (turn), and where
 // the lock-on and chase cameras aim (aim, chaseAim: ship axes in ship radii, x below the belly, y ahead, z to the side it banks toward)
@@ -21,7 +21,7 @@ const ACTS = { scan:{ T:11, rho:0.3, fc:0.47, view:1, bank:1, turn:1, aim:[0.6, 
   probe:{ T:12.5, rho:0.28, fc:0.45, view:0.85, bank:1, turn:1, aim:[0.6, 0, 0], chaseAim:[0.9, -1.2, 0] },
   weapons:{ T:11.5, rho:0.3, fc:0.42, view:1, bank:1, turn:1, aim:[0.6, 0, 0], chaseAim:[0.9, -1.2, 0] },
   skim:{ T:9, rho:0.5, fc:0.5, view:0.4, bank:0.5, turn:1, aim:[0.3, 0, 0], chaseAim:[0.3, 0, 0] },
-  cruise:{ T:0, rho:1, fc:0.5, view:0, bank:0, turn:0, aim:[0, 0, 0], chaseAim:[0, 0, 0] } };   // (a pass with no job)
+  cruise:{ T:0, rho:1, fc:0.5, view:0.6, bank:0.35, turn:1, aim:[0.4, 0, 0], chaseAim:[0.5, -0.8, 0] } };   // (a pass with no job: the cameras still turn toward the body round its closest point)
 const SKIM = new Set(['jupiter', 'sun', 'betelgeuse', 'antares', 'alphacen', 'proxima', 'sirius', 'trappist1']);   // gas giants and stars (Saturn's rings are in the way)
 const SURF_K = { halley:0.62 };   // bodies drawn without a solid radius of their own: the solid share of the bounding sphere
 const CYAN = [0.45, 0.9, 1], WHITE = [1, 1, 1];
@@ -533,7 +533,9 @@ function placeShip(dt){
   ship.parent = r.par; ship.offset = r.p; ship.pos = V.add(r.par.pos, r.p);
   S_.h = h; S_.vel = V.mul(r.h, r.v); S_.speed = r.v;
   // how much it is busy with a job (eased in and out): it banks, and the cameras turn toward the work
-  const A = S_.act, J = ACTS[A ? A.kind : S_.plan.act], want2 = A ? A.env()*J.view : 0;
+  // (on a pass with no job, framed round its closest point like a job: from about a third of the way in until near its end)
+  const A = S_.act, pl = S_.plan, J = ACTS[A ? A.kind : pl.act], cru = !A && S_.phase === 'pass' && pl.act === 'cruise' ? smooth(0.12*pl.T, 0.35*pl.T, S_.t)*(1 - smooth(0.7*pl.T, 0.95*pl.T, S_.t)) : 0;
+  const want2 = A ? A.env()*J.view : cru*J.view;
   S_.viewA += (Math.min(want2, 1) - S_.viewA)*(1 - Math.exp(-dt*0.9));
   const k = smooth(0, 1, S_.viewA), work = S_.phase === 'pass' || S_.phase === 'loop' || S_.phase === 'align';
   // the belly faces the body it visits; while it works it banks, turning its side to the body (eased, so the ship rolls smoothly);
