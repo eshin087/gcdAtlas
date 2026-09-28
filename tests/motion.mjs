@@ -219,12 +219,13 @@ const halo = await page.evaluate(HALO_SEED => {
   const la = -22.4*Math.PI/180, spot = lon => { const n0 = [Math.cos(la)*Math.cos(lon), Math.sin(la), -Math.cos(la)*Math.sin(lon)]; return toWorld(J, [0.9*n0[0], 0.9*n0[1]*(1 - OBL), 0.9*n0[2]]); };
   const inView = p => { const z = p[0]*C.cam.fwd[0] + p[1]*C.cam.fwd[1] + p[2]*C.cam.fwd[2]; if (!(z > 0)) return false; const x = (p[0]*C.cam.right[0] + p[1]*C.cam.right[1] + p[2]*C.cam.right[2])/(z*tx), y = (p[0]*C.cam.up[0] + p[1]*C.cam.up[1] + p[2]*C.cam.up[2])/(z*ty); return Math.abs(x) < 0.85 && Math.abs(y) < 0.85; };
   const scan = { holo:0, ring:0, worst:0, frame:0, lines:0, kind:-1, faceMin:9, brk:-1, turned:false, said:false, sizes:[], noFacts:[] };
+  let dJ = 0;   // (how far Jupiter's clock was turned on, to put it back)
   for (const tau of [1.2, 2.5, 4.3, 6, 8.1, 9.5]){
     // (the ring has reached the far pole at SW0 + SWT: turn the spot toward the camera, where FS_JUPITER has it, glon = lon + t 0.0015 - 1.1 = 0,
     // 22.4 degrees south, at a longitude where it is in the picture and faces the camera; its bracket locks on the next step)
     if (tau === 8.1){ n = 0; while (D.tau < SC.SCAN.SW0 + SC.SCAN.SWT + 0.1 && n++ < 30*60) C.tick(dt);
       const cL = loc([0, 0, 0], J, 1), lonC = Math.atan2(-cL[2], cL[0]);
-      for (let k=0;k<126;k++){ const lon = lonC + (k % 2 ? 1 : -1)*Math.ceil(k/2)*0.05, p = spot(lon); if (inView(p) && faceJ(p) > 0.35){ J.t = (((1.1 - lon) % (2*Math.PI)) + 2*Math.PI)/0.0015; scan.turned = true; break; } } }
+      for (let k=0;k<126;k++){ const lon = lonC + (k % 2 ? 1 : -1)*Math.ceil(k/2)*0.05, p = spot(lon); if (inView(p) && faceJ(p) > 0.35){ const t1 = (((1.1 - lon) % (2*Math.PI)) + 2*Math.PI)/0.0015; dJ = t1 - J.t; J.t = t1; scan.turned = true; break; } } }
     n = 0; while (D.tau < tau && n++ < 30*60) C.tick(dt);
     C.render();
     const A = SC.job, U = A && A.holoU; if (!U) continue;
@@ -240,6 +241,7 @@ const halo = await page.evaluate(HALO_SEED => {
     // (the readout, once the scan is complete, gives every number in the table)
     if (tau === 8.1) scan.said = SC.facts.jupiter.every(f => h.readout().includes(f));
   }
+  J.t -= dJ;
   // the table: numbers for every place the ship visits, and each size the body is drawn at (Saturn is drawn at its mean radius, 3% under its
   // equatorial one, which the table gives; "2.4 million km" is rounded to 1%)
   for (const k of SC.targets) if (!(SC.facts[k] || []).length) scan.noFacts.push(k);
