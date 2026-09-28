@@ -10,7 +10,7 @@ if (SHOWCASE.on){
   const SC = SHOWCASE, D = Math.PI/180, TURN_T = 22, LIGHT = [-0.55, 0.35, 0.6], STAY = 75;   // (LIGHT: the light during the turn, in the ship's frame: above, ahead, starboard)
   // the round: after each stop, where next and how, and the jobs there (anywhere else a button took it, the site's own jobs, and back to Saturn)
   const ROUTE = { saturn:{ next:'jupiter', by:'light', jobs:['scan'] }, jupiter:{ next:'sgra', by:'fold', jobs:['skim', 'probe'] }, sgra:{ next:'saturn', by:'fold', jobs:['probe'] } };
-  const JOB = { scan:tg => 'hologram scan of ' + tg.name + ' · a ring of light sweeps it from pole to pole',
+  const JOB = { scan:tg => 'hologram scan of ' + tg.name + ' · a ring sweeps it pole to pole; the numbers it finds are real',
     probe:() => "Pip, the ship's little drone, comes out to help round the ship",
     weapons:tg => 'weapons test on ' + tg.name + ' (fictional): rail gun, plasma lance, antimatter pulse · nothing is harmed',
     skim:tg => 'skimming ' + tg.name + (tg === sun || tg.group === 'stars' ? "'s surface" : "'s cloud tops") + ' to refuel' };

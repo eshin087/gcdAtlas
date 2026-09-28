@@ -91,6 +91,7 @@ function passR(tg, act, style){
   if (act === 'skim') return s*1.07;   // just above the cloud tops or the photosphere
   const k = (act === 'weapons' ? 1.15 : act === 'scan' ? 1 : 1.08)*(style === 'wide' ? 1.6 : 1);
   if (tg.layer < 3) return tg.rad*1.05*k;   // a galaxy: along its edge
+  if (act === 'scan' && s > 0 && (tg.starR || tg.group === 'stars')) return s*2.6;   // (a star's scan: close enough for its disc to fill much of the view, however far its glow reaches)
   return style === 'low' ? Math.max(s*1.7, tg.rad*1.15)*k : Math.max(s*2.3, tg.rad*1.35)*k;
 }
 
@@ -654,60 +655,10 @@ const env = (tau, T) => smooth(-1.5, 0.3, tau)*(1 - smooth(T - 0.8, T + 1.2, tau
 const ACT = {};
 // (a job still under way that the ship must wait for before it leaves)
 const jobBusy = () => !!(S_.act && S_.act.done && !S_.act.done());
-// -- a sensor scan: fans of beams sweep across the body, each beam ending exactly where it first meets the surface; the rim glows faintly
-ACT.scan = pl => {
-  const tg = pl.tg, T = ACTS.scan.T, SW = 3.2, NB = 7, dirs = [1, -1, 1];
-  const A = { kind:'scan', tau:-9, beams:[] };
-  A.update = (dt, tau) => { A.tau = tau; const on = tau > 0.4 && tau < 0.6 + 3*SW; if (on) S_.em[0] = 0.6 + 0.4*Math.sin(tau*23); if (tau > 0 && tau < 0.5) S_.em[0] = tau*2; };
-  A.env = () => env(A.tau, T);
-  A.line = () => A.tau < 0 ? 'approaching ' + tg.name + ' · sensors warming up' : A.tau < 0.6 ? 'scanning ' + tg.name + ' · ping' : A.tau < 0.6 + 3*SW ? `scanning ${tg.name} · sensor sweep ${Math.min(3, 1 + Math.floor((A.tau - 0.6)/SW))} of 3` : 'scan of ' + tg.name + ' complete';
-  A.draw = () => {
-    A.beams = [];
-    const tau = A.tau; if (tau < 0 || tau > T + 0.5) return;
-    const sp = aimSphere(tg), C = tg.rel, R = sp.r, E = shipPt(HULL.scan);
-    const EC = V.sub(E, C), dEC = V.len(EC); if (!(dEC > R*1.002)) return;
-    const e = V.mul(EC, 1/dEC), thMax = Math.acos(R/dEC);
-    // the ping: a faint ring spreading out from the ship before the sweeps
-    if (tau < 0.8){ const u = tau/0.8; ringCam(E, dEC*0.9*u + ship.rad, CYAN, 0.35*(1 - u)*(1 - u), 48); }
-    const k = Math.floor((tau - 0.6)/SW), u = (tau - 0.6 - k*SW)/SW;
-    if (k < 0 || k > 2) return;
-    // beams only from a ship you can see: with it out of the picture or behind the body they would seem to come from nowhere
-    const showB = camNear() || (onScreen(E) && !behindSphere(E, C, R*0.998));
-    // sweep frame: the fan lies across the ship's track and sweeps along it (like a push-broom scanner), back and forth
-    let a = perpTo(S_.h, e); a = V.len(a) > 1e-6 ? V.norm(a) : anyPerp(e); const b = V.cross(e, a);
-    const amp = Math.pow(Math.sin(Math.PI*clamp(u, 0, 1)), 0.6), th = thMax*0.78, x = (2*u - 1)*th*dirs[k];
-    const pt = (xa, yb, r) => V.add(C, V.mul(V.norm(V.add(e, V.add(V.mul(a, Math.tan(xa)), V.mul(b, Math.tan(yb))))), r));
-    const occ = p => behindSphere(p, C, R*0.998) || behindHull(p);
-    const flick = 0.75 + 0.25*Math.sin(tau*29);
-    for (let i=0;i<NB;i++){
-      const y = (i/(NB - 1)*2 - 1)*th*0.85, P0 = pt(x, y, R), dir = V.norm(V.sub(P0, E)), t = raySphere(E, dir, C, R);
-      if (t < 0) continue;
-      const end = V.add(E, V.mul(dir, t));
-      A.beams.push({ E, end, C, R });
-      const bb = amp*flick*(0.85 + 0.15*Math.sin(i*1.7 + tau*11));
-      if (showB) beamLine(E, end, [0.4, 0.8, 1], 0.55*bb, occ, [0.6, 1, 1], 0.95*bb, 12, ship.rad*0.25);
-      if (sp.solid && !occ(end)) P_(end, [0.75, 1, 1], 1.8*bb, -3);
-      if (sp.cloud && !occ(end)) P_(end, CYAN, 0.5*amp, -4);
-    }
-    // the scan line the fan paints on the surface, and its fading afterglow (a band sweeping across)
-    if (sp.solid){
-      for (let j=0;j<6;j++){
-        const xj = x - dirs[k]*j*th*0.07; if (Math.abs(xj) > th) continue;
-        const br = 0.5*amp*Math.exp(-j*0.55);
-        let prev = null, pv = false;
-        for (let q=0;q<=20;q++){ const p = pt(xj, (q/20*2 - 1)*th*0.9, R*1.003), v = !occ(p); if (prev && pv && v) L_(prev, p, CYAN, br); prev = p; pv = v; }
-      }
-    }
-    // a faint rim of scan light round the body's edge, pulsing at the start of each sweep
-    if (!sp.cloud){ const tt = u*SW, pulse = smooth(0, 0.25, tt)*Math.exp(-Math.max(tt - 0.25, 0)/0.8); if (pulse > 0.01) limbRim(C, R, CYAN, 0.26*pulse, tau); }
-  };
-  return A;
-};
-// -- a probe: Pip, the ship's little drone (07i-drone.js), streams out of the belly bay 0.3 s into the job and potters about the ship for half
-// a minute or so (two or three of its outings: a hull check and polish, engines and repairs, photos and a wave, play), then streams back in.
-// The drone moves and draws itself (drone.ctl after the camera moves, pipDraw from haloDraw) on the job's clock; the job keeps the time, says
-// what is happening, frames the ship for as long as the outing lasts (len, set by Pip's plan) and is done once Pip is back aboard (fin), so
-// the ship never leaves while it is out (a minute past the outing's usual length at most, should anything hold Pip up).
+// -- a sensor scan: the hologram sweep, in its own file (ACT.scan in 07j-scan.js)
+// -- a probe: Pip, the ship's little drone (07i-drone.js), pops out of the belly bay, says hello, flies to the body, hovers there taking
+// pictures while it looks at it, flies home and docks (it launches 0.3 s into the job and is back aboard 11.9 s later). The drone moves and
+// draws itself (drone.ctl after the camera moves, pipDraw from haloDraw); the job only keeps the time and says what is happening.
 ACT.probe = pl => {
   const T = ACTS.probe.T, A = { kind:'probe', tau:-9, tg:pl.tg, pl, fin:false, len:T };
   A.update = (dt, tau) => { A.tau = tau; };
