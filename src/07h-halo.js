@@ -276,7 +276,8 @@ function beginVisit(tg, plan, next, how){
   S_.climbK = 0;   // (every pass starts on the way in)
   ship.labelRange = Math.max(tg.rad*40, ship.rad*1e4);
   S_.act = ACT[plan.act](plan);
-  if (riding() && S_.visits > 1) toast((how === 'fold' ? 'the Halo folds space · ' : '') + 'at ' + tg.name + ': ' + ACT_TOAST[plan.act]);
+  // (not while a showcase's caption says what happens: on a phone the two would sit on top of each other)
+  if (riding() && S_.visits > 1 && !SHOWCAP.txt) toast((how === 'fold' ? 'the Halo folds space · ' : '') + 'at ' + tg.name + ': ' + (plan.act === 'probe' && pipKind(tg) === 'near' ? 'Pip, its little drone, takes pictures from beside the ship' : ACT_TOAST[plan.act]));
 }
 const ACT_TOAST = { scan:'a sensor sweep', probe:'Pip, its little drone, goes out to take pictures', weapons:'a weapons test (fictional, nothing is harmed)', skim:'skimming it to refuel', tractor:'catching a passing rock to drill a sample' };
 function startAlign(){
@@ -328,7 +329,7 @@ function startJump(){
     S_.phase = 'light'; S_.t = 0;
     if (angleOf(e.h, d) > 0.005) S_.hFrom = { h:e.h, t:0, T:0.25 };
     fxLightOut(A, e.p, d);
-    if (riding()){ toast('light speed · to ' + B.name); foldFlash('blink'); music.whoosh(S_.leg.T + 0.5); }
+    if (riding()){ if (!SHOWCAP.txt) toast('light speed · to ' + B.name); foldFlash('blink'); music.whoosh(S_.leg.T + 0.5); }
   } else {
     S_.fold = { A, p:e.p, h:e.h, v:e.v };
     S_.phase = 'fold'; S_.t = 0;

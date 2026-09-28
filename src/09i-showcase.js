@@ -47,11 +47,12 @@ if (SHOWCASE.on){
   const NEXT = { saturn:{ target:'magnetar', travel:'light', act:'probe' }, sgra:{ target:'saturn', travel:'fold', act:'scan' }, magnetar:{ target:'sgra', travel:'fold', act:'scan' } };
   const toPassEnd = () => { S_.t = Math.max(S_.plan.T - LEAD, 0); };
   // At Sgr A* the chase camera shows the ship side-on while it banks toward the hole, so at the closest point the camera rises for a few seconds
-  // to a three-quarter view from above and behind (the hole beyond the ship), where the whole shield and the heart show; then the bridge.
-  // (A pose in the ship's frame, blended from wherever the camera is; Pip keeps its spot by the ship meanwhile instead of following the camera.
+  // to a three-quarter view from above and behind, where the whole shield and the heart show; then the bridge. The hole sits toward the edge
+  // of the picture, beside the ship: behind it, its bright disc hid the heart's beat and the flare on the side facing it.
+  // (A pose in the ship's frame, blended from wherever the camera is; Pip, near a black hole at its spot in the camera's view, moves with it.
   // eye: how far it leans away from the hole, back along the ship and up off the deck, and its distance in ship radii; look: how far toward the
   // hole and ahead it aims; up: the needle points up the screen.)
-  const ABOVE = { eye:[0.6, -0.5, 2.7, 0.6], look:[0.7, 0.05], up:[0, 1, 0] };
+  const ABOVE = { eye:[0.2, -0.5, 2.7, 0.6], look:[0.15, 0.05], up:[0, 1, 0] };
   function toAbove(){
     const R = ship.R0, e = V.mul(M3.applyT(R, shipCam.eye || [0, 0, 0]), 1/ship.rad), f = M3.applyT(R, shipCam.fwd || cam.fwd);
     SC.cam = { t:0, e0:e, l0:V.add(e, V.mul(f, Math.max(V.len(e), 1))), u0:M3.applyT(R, shipCam.up || cam.up) };
@@ -75,6 +76,7 @@ if (SHOWCASE.on){
     S_.onFoldIn = () => { if (SC.on && S_.target === BYKEY.saturn) toPassEnd(); };
   }
   // the looks' names for the captions: 'fold A (ember wind)', 'Pip A (eye-pod)'
+  const PART_WORDS = { chase:'on the way in', above:'closest point', close:'just past the closest point', bridge:'on the way out', leave:'on the way out' };
   const named = s => { const p = s.split(' · '); return p.length > 1 ? `${p[0]} (${p[1]})` : s; };
   const nm = tg => tg.label && tg.label.length < tg.name.length && !/^the /.test(tg.name) ? tg.label : tg.name;
   // the shield's work: what drives it (the pull there is real, the shield made up) and its power, last, so the caption's typing only redoes the
@@ -95,12 +97,13 @@ if (SHOWCASE.on){
       return (S.fk > FLK.SH0 - 0.1 && shieldLook ? 'the shield folds into the heart' : 'the fold drive spools up') + ' · next: ' + fold + ' to ' + nm(nx.tg);
     }
     if (tg === BYKEY.saturn) return 'riding along · chase view · next: ' + fold + ' to ' + nm(nx.tg);
-    const hole = isHoleTarget(tg), r = V.len(ship.offset), close = r < S.plan.Rc*1.06 && S.act && S.act.tau > 0;
+    // (at a black hole: the hole's name first, then where the ship is on its pass, which follows the showcase's part (SC.part, switched a few
+    // times a pass, never back and forth), and the view. setCaption keeps what is typed while the first 8 characters stay the same, so a
+    // change types again only what follows the name)
+    const hole = isHoleTarget(tg);
     const view = shipCam.mode === 'cockpit' ? 'from the bridge' : shipCam.mode === 'turn' ? 'from above' : SC.part === 'close' ? 'chase view, as riders see it' : 'chase view';
-    const where = hole ? (close ? 'closest point to ' + nm(tg) : nm(tg) + ' pass') + ' · ' + view : 'at ' + tg.name + (RS_KM[tg.key] ? ', a magnetar' : '');
-    // (Pip waits over the deck: inside shield B's bubble; A and C are skins on the hull, too thin for it)
-    const pu = PIP.A ? S.t - PIP.A.t0 : 0, pip = PIP.st !== 'out' ? '' : ' · ' + named(DRONE_NAMES[droneLook]) + (PIP.kind !== 'near' ? ' is out' : pu > PT.WK ? ' heads back to the bay'
-      : shieldLook === 2 ? ' stays inside the shield' : ' stays right by the ship');
+    const where = hole ? `${nm(tg)} · ${PART_WORDS[SC.part] || 'the pass'} · ${view}` : 'at ' + tg.name + (RS_KM[tg.key] ? ', a magnetar' : '');
+    const pu = PIP.A ? S.t - PIP.A.t0 : 0, pip = PIP.st !== 'out' ? '' : ' · ' + named(DRONE_NAMES[droneLook]) + (PIP.kind !== 'near' ? ' is out' : pu > PT.WK ? ' heads back to the bay' : ' stays by the ship');
     return where + pip + ' · ' + shieldBit();
   }
 
