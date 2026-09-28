@@ -180,7 +180,7 @@ const music = (() => {
     const motif = rhythm.map(s => ({ s, n:key + 12 + pick(PENTA), d:pick([1, 2, 2, 3, 4]) }));
     T = { style, key, bpm, prog, sections, motif, swing:S.swing ? S.swing() : 0, barsPerChord:S.bpc(prog),
       kickPat:pick([[0, 7, 10], [0, 10], [0, 3, 10], [0, 8, 11]]), hatDensity:0.55 + R()*0.4, lead:R() < 0.8,
-      title:makeTitle(style), label:S.label + ' · ' + bpm + ' bpm' };
+      title:makeTitle(style), label:S.label + ' · ' + bpm + ' bpm', held:[] };
     // (the newer styles draw their own extras after this point, so the older styles keep their exact random sequence)
     if (S.mode){
       T.mode = S.mode;
@@ -260,6 +260,20 @@ const music = (() => {
   }
   // (live counts the notes still sounding: the new styles skip optional notes when too many ring at once)
   const tidy = (src, nodes) => { const on = !offline; if (on) live++; src.onended = () => { if (on) live--; for (const n of nodes) try { n.disconnect(); } catch (e) {} }; };
+  // The notes of the song being dealt that can ring on (chords, pads, the pedal, the choir, bass and low sines): a skip fades
+  // them out, so the last song does not sound on under the next one in its old key. (g: the note's envelope; t, end: its start and stop)
+  function held(g, t, end){
+    if (offline || !T) return;
+    T.held.push({ g, t, end });
+    if (T.held.length > 96){ const now = ctx.currentTime; T.held = T.held.filter(h => h.end > now); }
+  }
+  function release(list, t){
+    for (const h of list){
+      if (h.end <= t) continue;
+      const a = h.g.gain, v = h.t >= t ? 0 : a.value;   // (a note that has not started yet never sounds)
+      a.cancelScheduledValues(t); a.setValueAtTime(v, t); a.setTargetAtTime(0, t, 0.1);
+    }
+  }
   function noise(t, dur, v, type, f, q, out, send = 0){
     v *= vel;
     const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.playbackRate.value = 0.9 + R()*0.2;
@@ -289,7 +303,7 @@ const music = (() => {
     mod.connect(mg).connect(car.frequency); wobble.connect(car.detune);
     lp.type = 'lowpass'; lp.frequency.value = 2400;
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.006); g.gain.exponentialRampToValueAtTime(v*0.45, t + 0.5); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 1.1);
-    p.pan.value = pan; car.connect(lp).connect(g).connect(p).connect(musBus);
+    p.pan.value = pan; car.connect(lp).connect(g).connect(p).connect(musBus); held(g, t, t + dur + 1.2);
     car.start(t); mod.start(t); car.stop(t + dur + 1.2); mod.stop(t + dur + 1.2); const on = !offline; if (on) live++;
     car.onended = () => { if (on) live--; try { wobble.disconnect(car.detune); } catch (e) {} for (const n of [car, mod, mg, g, p, lp]) try { n.disconnect(); } catch (e) {} };
   }
@@ -299,7 +313,7 @@ const music = (() => {
     o.type = 'sine'; o.frequency.value = hz(m); o2.type = 'triangle'; o2.frequency.value = hz(m); lp.type = 'lowpass'; lp.frequency.value = 420;
     const g2 = ctx.createGain(); g2.gain.value = 0.35; o2.connect(g2).connect(lp); o.connect(lp);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.01); g.gain.setValueAtTime(v, t + Math.max(dur - 0.06, 0.02)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.08);
-    lp.connect(g).connect(duck); o.start(t); o2.start(t); o.stop(t + dur + 0.1); o2.stop(t + dur + 0.1); tidy(o, [o, o2, g2, lp, g]);
+    lp.connect(g).connect(duck); o.start(t); o2.start(t); o.stop(t + dur + 0.1); o2.stop(t + dur + 0.1); tidy(o, [o, o2, g2, lp, g]); held(g, t, t + dur + 0.1);
   }
   function pad(t, notes, dur, v, cutoff = 900){
     v *= vel;
@@ -312,7 +326,7 @@ const music = (() => {
       const att = Math.min(dur*0.3, 3 + R()*3), peak = v*(0.8 + 0.4*R());
       g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + att); g.gain.setValueAtTime(peak, t + Math.max(dur - 1.5, att)); g.gain.linearRampToValueAtTime(0, t + dur + 1.5);
       for (const o of oscs){ o.start(t); o.stop(t + dur + 1.6); }
-      tidy(oscs[0], [...oscs, flt, g, pan]);
+      tidy(oscs[0], [...oscs, flt, g, pan]); held(g, t, t + dur + 1.6);
     });
   }
   function pluck(t, m, v){
@@ -332,7 +346,7 @@ const music = (() => {
     const g2 = ctx.createGain(); g2.gain.value = 0.25; o2.connect(g2).connect(g); o.connect(g);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.04); g.gain.setValueAtTime(v, t + dur*0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.3);
     p.pan.value = 0.25; g.connect(p).connect(musBus); const sg = ctx.createGain(); sg.gain.value = 0.7; p.connect(sg).connect(verbSend);
-    for (const x of [o, o2, vib]){ x.start(t); x.stop(t + dur + 0.35); } tidy(o, [o, o2, vib, vg, g2, g, p, sg]);
+    for (const x of [o, o2, vib]){ x.start(t); x.stop(t + dur + 0.35); } tidy(o, [o, o2, vib, vg, g2, g, p, sg]); held(g, t, t + dur + 0.35);
   }
   function bell(t, m, amp){
     amp *= vel;
@@ -342,7 +356,7 @@ const music = (() => {
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(amp, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + 5.5);
     pan.pan.value = (R()*2 - 1)*0.8; car.connect(g).connect(pan); pan.connect(verbSend);
     const dry = ctx.createGain(); dry.gain.value = 0.25; pan.connect(dry).connect(mixG);
-    car.start(t); mod.start(t); car.stop(t + 6); mod.stop(t + 6); tidy(car, [car, mod, mg, g, pan, dry]);
+    car.start(t); mod.start(t); car.stop(t + 6); mod.stop(t + 6); tidy(car, [car, mod, mg, g, pan, dry]); held(g, t, t + 6);
   }
   // ---------------------------------------------------------------- instruments of the newer styles
   // vibraphone: a sine bar with its tuned fourth partial and a faint tenth, through the motor tremolo
@@ -357,7 +371,7 @@ const music = (() => {
     }
     g.gain.value = v; p.pan.value = pan; sg.gain.value = 0.45; g.connect(p).connect(vibesBus); p.connect(sg).connect(verbSend);
     if (echo){ const eg = ctx.createGain(); eg.gain.value = echo; p.connect(eg).connect(echoIn); nodes.push(eg); }
-    tidy(src, nodes);
+    tidy(src, nodes); held(g, t, t + 2.4 + dur + 0.02);
   }
   // felt piano: slightly stretched partials that fade faster the higher they are, two strings beating slowly on the
   // fundamental, a soft attack and the thump of the felt. The pedal comes up after dur (at the chord change).
@@ -379,7 +393,7 @@ const music = (() => {
     g.gain.setValueAtTime(v*0.45*vel, t); g.gain.setValueAtTime(v*0.45*vel, end); g.gain.exponentialRampToValueAtTime(0.0001, end + 0.35);
     p.pan.value = pan === undefined ? Math.max(-0.6, Math.min(0.6, (m - 62)/28)) : pan; sg.gain.value = 0.55;
     g.connect(lp).connect(p).connect(musBus); p.connect(sg).connect(verbSend);
-    tidy(src, nodes);
+    tidy(src, nodes); held(g, t, end + 0.4);
     noise(t, 0.03, v*0.12, 'lowpass', 420, 0.7, musBus);   // the felt
   }
   // a soft "ooh" choir: two detuned saws and a triangle through the two formants of the vowel
@@ -396,7 +410,7 @@ const music = (() => {
       env.gain.setValueAtTime(0, t); env.gain.linearRampToValueAtTime(v, t + att); env.gain.setValueAtTime(v, t + Math.max(dur - 0.5, att)); env.gain.linearRampToValueAtTime(0, t + dur + 1.6);
       p.pan.value = (R()*2 - 1)*0.5; sg.gain.value = 0.6; env.connect(p).connect(musBus); p.connect(sg).connect(verbSend);
       for (const o of [...oscs, vib]){ o.start(t); o.stop(t + dur + 1.7); }
-      tidy(oscs[0], [...oscs, vib, vg, f1, f2, lo, g1, g2, g3, env, p, sg]);
+      tidy(oscs[0], [...oscs, vib, vg, f1, f2, lo, g1, g2, g3, env, p, sg]); held(env, t, t + dur + 1.7);
     }
   }
   // synthwave: a soft square arpeggio into the echo; downtempo: a sine sub bass that can slide in from the last note
@@ -415,7 +429,7 @@ const music = (() => {
     for (const x of [o, o2]){ if (from){ x.frequency.setValueAtTime(hz(from), t); x.frequency.exponentialRampToValueAtTime(hz(m), t + 0.09); } else x.frequency.value = hz(m); }
     o.connect(lp); o2.connect(g2).connect(lp);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.02); g.gain.setValueAtTime(v, t + Math.max(dur - 0.06, 0.03)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.12);
-    lp.connect(g).connect(duck); o.start(t); o2.start(t); o.stop(t + dur + 0.15); o2.stop(t + dur + 0.15); tidy(o, [o, o2, lp, g2, g]);
+    lp.connect(g).connect(duck); o.start(t); o2.start(t); o.stop(t + dur + 0.15); o2.stop(t + dur + 0.15); tidy(o, [o, o2, lp, g2, g]); held(g, t, t + dur + 0.15);
   }
   // a warm pad: one soft triangle per note, slow in and out
   function warm(t, notes, dur, v, cutoff = 900){
@@ -425,7 +439,7 @@ const music = (() => {
       o.type = 'triangle'; o.frequency.value = hz(m); o.detune.value = (R() - 0.5)*8; lp.type = 'lowpass'; lp.frequency.value = cutoff; p.pan.value = (R()*2 - 1)*0.5;
       const att = Math.min(dur*0.35, 2);
       g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + att); g.gain.setValueAtTime(v, t + Math.max(dur - 0.5, att)); g.gain.linearRampToValueAtTime(0, t + dur + 1.5);
-      o.connect(lp).connect(g).connect(p).connect(musBus); o.start(t); o.stop(t + dur + 1.6); tidy(o, [o, lp, g, p]);
+      o.connect(lp).connect(g).connect(p).connect(musBus); o.start(t); o.stop(t + dur + 1.6); tidy(o, [o, lp, g, p]); held(g, t, t + dur + 1.6);
     }
   }
   // a soft sine under the chord's root (ambient and ambient piano): slow in and out, dry and in the middle, no random draws
@@ -433,7 +447,7 @@ const music = (() => {
     v *= vel;
     const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = hz(m);
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + 2.5); g.gain.setValueAtTime(v, t + Math.max(dur - 2, 2.5)); g.gain.linearRampToValueAtTime(0, t + dur + 1.5);
-    o.connect(g).connect(duck); o.start(t); o.stop(t + dur + 1.6); tidy(o, [o, g]);
+    o.connect(g).connect(duck); o.start(t); o.stop(t + dur + 1.6); tidy(o, [o, g]); held(g, t, t + dur + 1.6);
   }
   // tape hiss for one song (it fades out early if the next song starts sooner)
   let hissNow = null;
@@ -655,8 +669,12 @@ const music = (() => {
     gesture(){ if (!wantOn) return; if (!running) start(); else if (ctx.state === 'suspended'){ ctx.resume(); fadeTo(level(), 0.6); } },
     set(on){ wantOn = on; if (on) start(); else stop(); },
     volume(){ if (running) fadeTo(level(), 0.3); },
-    // move on to a new track now (the current one is cut at the next beat with a short fade)
-    skip(){ if (!ctx || !running){ T = null; return; } const t = ctx.currentTime; musBus.gain.setValueAtTime(musBus.gain.value, t); musBus.gain.linearRampToValueAtTime(0, t + 0.4); musBus.gain.linearRampToValueAtTime(1, t + 1.2); T = null; newTrack(); },
+    // move on to a new song now: the music dips for a moment and the last song's long notes fade out (release)
+    skip(){
+      if (!ctx || !running){ T = null; return; }
+      const t = ctx.currentTime; if (T) release(T.held, t);
+      musBus.gain.cancelScheduledValues(t); musBus.gain.setValueAtTime(musBus.gain.value, t); musBus.gain.linearRampToValueAtTime(0, t + 0.4); musBus.gain.linearRampToValueAtTime(1, t + 1.2); T = null; newTrack();
+    },
     styleChanged(){ if (ctx && running) this.skip(); else T = null; },
     whoosh(dur){
       if (!running || !ctx) return;
