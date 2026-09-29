@@ -1,9 +1,10 @@
 // ================================================================ the lab (/lab, or ?lab): a small stage for trying the Halo's looks quickly, without waiting for the ship
 // to get round to them on the site. The ship is parked by one place (S_.park: its route and every effect run on as usual, only its position is
 // held), the lab runs its own frame loop (slow motion, pause, single steps) and its buttons do things at once: a teleport out and back to the
-// same place, Pip's outing, a scan, a weapons test, the shield's load by hand. It is the same page and engine as the site, so what it shows is
+// same place, Pip's outing, a scan, a weapons test, the shield's load by hand, and Pip held up close in front of the camera with any of its
+// faces (FACES in 07i-drone.js). It is the same page and engine as the site, so what it shows is
 // what the site shows. build.mjs writes it as dist/lab.html (window.__LAB set before the page's script).
-const LAB = { on:!!window.__LAB || new URLSearchParams(location.search).has('lab'), speed:1, paused:false, step:0, last:0, cam:'side', place:'saturn', load:null, panel:null };
+const LAB = { on:!!window.__LAB || new URLSearchParams(location.search).has('lab'), speed:1, paused:false, step:0, last:0, cam:'side', place:'saturn', load:null, face:null, panel:null };
 if (LAB.on){
   window.__freeze = true;   // (the site's own frame loop stands aside)
   const PLACES = [['saturn', 'Saturn'], ['jupiter', 'Jupiter'], ['earth', 'Earth'], ['mars', 'Mars'], ['sgra', 'Sgr A*'], ['crab', 'Crab Nebula']];
@@ -39,7 +40,7 @@ if (LAB.on){
     let h = V.cross(pole, u); h = V.len(h) > 1e-6 ? V.norm(h) : anyPerp(u);
     S_.park = { tg, p:V.mul(u, R), h };
     keep(); LAB.visits = S_.visits;
-    setCam(LAB.cam); sync();
+    setCam(LAB.cam); if (LAB.face) face(LAB.face); sync();
   }
   const act = {
     fold:() => ship.demo.leaveNow(S_.park.tg, 'fold'),
@@ -47,6 +48,12 @@ if (LAB.on){
     scan:() => ship.demo.jobNow('scan', true),
     weapons:() => ship.demo.jobNow('weapons', true),
   };
+  // Pip up close with a face: held a little right of centre, 0.45 ship radii in front of the camera, as ship.dbg.drone.pose holds it for the
+  // tests ('wink': curious with its right eye shut); 'off' puts it back in the bay
+  function face(f){
+    LAB.face = f === 'off' ? null : f;
+    ship.dbg.drone.pose(LAB.face ? { cam:[0.1, 0, 0.45], face:f === 'wink' ? 'curious' : f, wink:f === 'wink' ? 1 : 0 } : null);
+  }
   function press(k){ const ok = act[k] && act[k](); if (!ok) toast('busy · try again when the last one is done'); }
   // ---------------------------------------------------------------- the panel
   function row(name, items, cls){ return `<div class="lab-row"><span>${name}</span><div>${items.map(([v, w]) => `<button type="button" data-${cls}="${v}">${w}</button>`).join('')}</div></div>`; }
@@ -56,6 +63,7 @@ if (LAB.on){
       row('place', PLACES, 'place') + row('camera', CAMS, 'cam') +
       row('speed', [['pause', 'pause'], ...SPEEDS.map(s => [s, s + 'x']), ['step', 'step']], 'speed') +
       row('do', [['fold', 'teleport'], ['probe', 'Pip'], ['scan', 'scan'], ['weapons', 'weapons']], 'act') +
+      row('Pip face', [...Object.keys(FACES), 'wink', 'off'].map(f => [f, f]), 'face') +
       `<div class="lab-row"><span>shield</span><div class="lab-load"><input type="range" min="0" max="100" value="0" aria-label="shield load"><button type="button" data-load="auto">real</button><em></em></div></div>` +
       `<p class="lab-note">space pause · . step · T teleport · P Pip · S scan · W weapons</p>`;
     el.addEventListener('click', e => {
@@ -64,6 +72,7 @@ if (LAB.on){
       else if (b.dataset.cam) setCam(b.dataset.cam);
       else if (b.dataset.speed){ const v = b.dataset.speed; if (v === 'pause') LAB.paused = !LAB.paused; else if (v === 'step'){ LAB.paused = true; LAB.step = 1/30; } else { LAB.speed = +v; LAB.paused = false; } }
       else if (b.dataset.act) press(b.dataset.act);
+      else if (b.dataset.face) face(b.dataset.face);
       else if (b.dataset.load){ LAB.load = null; S_.labLoad = null; el.querySelector('input').value = 0; }
       sync();
     });
@@ -73,7 +82,7 @@ if (LAB.on){
   function sync(){
     const el = LAB.panel; if (!el) return;
     for (const b of el.querySelectorAll('button')){
-      const d = b.dataset, on = d.place ? d.place === LAB.place : d.cam ? d.cam === LAB.cam : d.speed ? (d.speed === 'pause' ? LAB.paused : +d.speed === LAB.speed && !LAB.paused) : d.load ? LAB.load == null : false;
+      const d = b.dataset, on = d.place ? d.place === LAB.place : d.cam ? d.cam === LAB.cam : d.speed ? (d.speed === 'pause' ? LAB.paused : +d.speed === LAB.speed && !LAB.paused) : d.load ? LAB.load == null : d.face ? d.face === (LAB.face || 'off') : false;
       b.classList.toggle('on', !!on);
     }
     el.querySelector('em').textContent = LAB.load == null ? 'as the place asks' : Math.round(LAB.load*100) + '%';
