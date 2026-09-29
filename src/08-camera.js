@@ -382,12 +382,18 @@ function shipPose(mode){
   const q = SHIP_POSE[mode], R = ship.R0, r = ship.rad;
   if (mode === 'turn'){ const T = shipCam.turn, eye = V.mul(M3.apply(R, T.eye), r), look = V.mul(M3.apply(R, T.look || [0, 0, 0]), r);
     return { eye, look, fwd:V.norm(V.sub(look, eye)), up:M3.apply(R, T.up || [-1, 0, 0]) }; }
-  // (ship.S.fz: closer in while the ship folds, and aimed a little more at the ship, so the break-up fills more of the screen; 07h-halo.js)
-  if (mode === 'chase'){ const Rv = ship.viewR || R, o = ship.chaseOff || [0, 0, 0], fz = ship.S.fz || 1;
-    const eye = V.mul(M3.apply(Rv, V.mul(q.eye, shipCam.zoom*fz)), r), look = V.mul(M3.apply(Rv, V.add(V.mul(q.look, fz*fz), o)), r);
-    return { eye, look, fwd:V.norm(V.sub(look, eye)), up:M3.apply(Rv, [-1, 0, 0]) }; }
+  // (riding along, 0.9.6: the camera shows the ship with the place it visits behind it, and moves between shots: ridePose in 08r-ride.js,
+  // which blends into chasePose between places)
+  if (mode === 'chase') return ridePose();
   const Rg = ship.gazeR || R, eye = V.mul(M3.apply(R, q.eye), r), look = V.add(eye, V.mul(M3.apply(Rg, V.sub(q.look, q.eye)), r));
   return { eye, look, fwd:V.norm(V.sub(look, eye)), up:M3.apply(Rg, [-1, 0, 0]) };
+}
+// the chase pose: low behind the ship, looking along its heading (riding along between places, and in the lab)
+// (ship.S.fz: closer in while the ship folds, and aimed a little more at the ship, so the break-up fills more of the screen; 07h-halo.js)
+function chasePose(){
+  const q = SHIP_POSE.chase, R = ship.R0, r = ship.rad, Rv = ship.viewR || R, o = ship.chaseOff || [0, 0, 0], fz = ship.S.fz || 1;
+  const eye = V.mul(M3.apply(Rv, V.mul(q.eye, shipCam.zoom*fz)), r), look = V.mul(M3.apply(Rv, V.add(V.mul(q.look, fz*fz), o)), r);
+  return { eye, look, fwd:V.norm(V.sub(look, eye)), up:M3.apply(Rv, [-1, 0, 0]) };
 }
 function shipCamSnap(p){ shipCam.eye = p.eye; shipCam.fwd = p.fwd; shipCam.up = p.up; }
 function startShipCam(mode){
@@ -396,10 +402,12 @@ function startShipCam(mode){
   shipCam.mode = mode || shipCam.mode; motion.last = 'ship';
   setInfo(ship.index);
   const near = cam.focus === ship.index && orbit.lock === ship.index && V.len(cam.rel) < ship.rad*30 && !flight;
+  rideStart();   // (the first shot, so the flight up to the ship lands on it)
   if (near){ shipCam.on = true; shipCam.eye = cam.rel.slice(); shipCam.fwd = cam.fwd.slice(); shipCam.up = cam.up.slice(); updateModeUI(); return; }
-  // fly in first, landing exactly on the chase pose, then take over (the ship keeps moving and turning: the flight follows its pose as it goes)
-  const p = shipPose('chase'), dl = M3.applyT(camFrameOf(ship), V.norm(V.sub(p.eye, p.look)));
-  const vp = { yaw:Math.atan2(dl[0], dl[2]), pitch:Math.asin(clamp(dl[1], -0.999, 0.999)), dist:V.len(V.sub(p.eye, p.look)), off:p.look, offFn:() => shipPose('chase').look, up:p.up, upFn:() => shipPose('chase').up };
+  // fly in first, landing exactly on the ride pose, then take over (the ship keeps moving and turning: the flight follows its pose as it goes,
+  // the place it visits turning round it too: rideFrame, and the landing direction by track)
+  const p = shipPose('chase'), yp = q => { const d = M3.applyT(camFrameOf(ship), V.norm(V.sub(q.eye, q.look))); return [Math.atan2(d[0], d[2]), Math.asin(clamp(d[1], -0.999, 0.999))]; }, [y0, p0] = yp(p);
+  const vp = { yaw:y0, pitch:p0, dist:V.len(V.sub(p.eye, p.look)), off:p.look, offFn:() => { rideFrame(0); return shipPose('chase').look; }, up:p.up, upFn:() => shipPose('chase').up, track:() => yp(shipPose('chase')) };
   startFlight(ship, vp, () => { shipCam.on = true; shipCam.pending = false; shipCamSnap(shipPose('chase')); updateShipCam(0); updateModeUI(); }, null, true);
   shipCam.pending = true;
   updateModeUI();
@@ -412,9 +420,10 @@ function stopShipCam(){
   syncOrbitFromCam(); updateModeUI();
   return true;
 }
-function setShipCamMode(m){ shipCam.mode = m; if (!shipCam.on) startShipCam(m); updateModeUI(); toast(m === 'cockpit' ? 'cockpit view · on the bridge of the Halo' : 'chase view · behind the Halo'); }
+function setShipCamMode(m){ shipCam.mode = m; if (!shipCam.on) startShipCam(m); updateModeUI(); toast(m === 'cockpit' ? 'cockpit view · on the bridge of the Halo' : rideStill() ? 'outside view · the Halo with the place it visits behind it' : 'outside view · the camera moves round the Halo and the place it visits'); }
 function updateShipCam(dt){
   if (cam.focus !== ship.index){ const D = frel(ship); cam.rel = V.sub(cam.rel, D); cam.focus = ship.index; if (shipCam.eye) shipCam.eye = cam.rel.slice(); }
+  if (shipCam.mode === 'chase') rideStep(dt);
   const p = shipPose(shipCam.mode), k = dt > 0 ? 1 - Math.exp(-dt*SHIP_POSE[shipCam.mode].lag) : 1;
   if (!shipCam.eye) shipCamSnap(p);
   shipCam.eye = V.lerp(shipCam.eye, p.eye, k); shipCam.fwd = V.norm(V.lerp(shipCam.fwd, p.fwd, k)); shipCam.up = V.norm(V.lerp(shipCam.up, p.up, k));
@@ -693,6 +702,7 @@ addEventListener('keydown', e => {
   if (k === 'escape'){ if (!closeOpen()) unlock(); return; }   // (an open panel closes first; with nothing open the camera lets go)
   if (k === ' '){ e.preventDefault(); togglePlay(); return; }
   if (k === '/' || k === 'o'){ e.preventDefault(); focusSearch(); return; }
+  if (k === 'k' && typeof ship !== 'undefined'){ setOpt('rideCam', SET.rideCam === 'still' ? 'moving' : 'still'); return; }   // (riding along: the camera moves, or holds one angle)
   if (k === 'c' && typeof ship !== 'undefined'){ setShipCamMode(shipCam.on && shipCam.mode === 'chase' ? 'cockpit' : 'chase'); return; }
   if (k === 'y'){ setOpt('travel', cycle(['quick', 'warp', 'cinematic'], SET.travel)); return; }
   if (k === 'm'){ toggleSound(); return; }

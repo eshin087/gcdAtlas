@@ -310,12 +310,12 @@ if (pz.scale !== 1) fail('a pinch on the card zoomed the whole page x' + pz.scal
 if (pz.room > 2 && pz.scroll < 2) fail('one finger no longer scrolls the card: ' + JSON.stringify(pz));
 await page.evaluate(() => { __cosmos.setOpt('textSize', 1, true); document.querySelector('#infoMore').click(); });
 
-// the Halo on a phone (0.9.4): the dock's ship button opens a menu over the dock (ride along, cockpit, marker); riding, the button says so
-// and the menu offers chase, cockpit and stop; a tap elsewhere closes it. The what's new button is not in the dock (it is in settings and help).
+// the Halo on a phone (0.9.4): the dock's ship button opens a menu over the dock (ride along, cockpit, marker, and since 0.9.6 the Halo tour);
+// riding, the button says so and the menu offers outside, cockpit and stop, the Halo tour and the camera (moving / still); a tap elsewhere closes it. The what's new button is not in the dock (it is in settings and help).
 await page.evaluate(() => document.querySelector('#btnShip').click());
 const sm = await page.evaluate(() => { const m = document.querySelector('#shipMenu'), d = document.querySelector('.controls').getBoundingClientRect(), r = m.getBoundingClientRect();
   return { open:!m.hidden, bottom:r.bottom, dockTop:d.top, left:r.left, right:r.right, vis:[...m.querySelectorAll('button')].filter(b => !b.hidden).map(b => b.id).join(), exp:document.querySelector('#btnShip').getAttribute('aria-expanded'), notes:getComputedStyle(document.querySelector('#btnNotes')).display }; });
-if (!sm.open || sm.bottom > sm.dockTop + 1 || sm.left < 0 || sm.right > 390 || sm.vis !== 'smChase,smCock,smMark' || sm.exp !== 'true') fail('the ship menu: ' + JSON.stringify(sm));
+if (!sm.open || sm.bottom > sm.dockTop + 1 || sm.left < 0 || sm.right > 390 || sm.vis !== 'smChase,smCock,smMark,smTour' || sm.exp !== 'true') fail('the ship menu: ' + JSON.stringify(sm));
 if (sm.notes !== 'none') fail('the what\'s new button shows in the dock');
 await shot('12-ship-menu');
 await page.evaluate(() => document.querySelector('#smChase').click());
@@ -324,12 +324,20 @@ const rd = await page.evaluate(() => { __cosmos.hud(); const C = __cosmos; retur
 if (rd.menu || !rd.riding || rd.btn !== 'riding') fail('ride along from the ship menu: ' + JSON.stringify(rd));
 await page.evaluate(() => document.querySelector('#btnShip').click());
 const sm2 = await page.evaluate(() => [...document.querySelectorAll('#shipMenu button')].filter(b => !b.hidden).map(b => b.id + (b.getAttribute('aria-checked') === 'true' ? '*' : '')).join());
-if (sm2 !== 'smChase*,smCock,smStop') fail('the ship menu while riding: ' + sm2);
+if (sm2 !== 'smChase*,smCock,smStop,smTour,smStill') fail('the ship menu while riding: ' + sm2);
 await page.mouse.click(195, 200);   // (a tap on the sky closes it)
 if (await page.evaluate(() => !document.querySelector('#shipMenu').hidden)) fail('a tap elsewhere does not close the ship menu');
 await page.evaluate(() => { document.querySelector('#btnShip').click(); document.querySelector('#smStop').click(); __cosmos.hud(); });
 const sm3 = await page.evaluate(() => ({ riding:__cosmos.shipCam.on, btn:document.querySelector('#btnShip').textContent }));
 if (sm3.riding || sm3.btn !== 'ship') fail('stop riding from the ship menu: ' + JSON.stringify(sm3));
+// (0.9.6) the Halo tour from the menu rides along; the camera switch holds it still and back; stop riding ends the tour too
+await page.evaluate(() => { document.querySelector('#btnShip').click(); document.querySelector('#smTour').click(); });
+await page.waitForTimeout(300);
+const ht = await page.evaluate(() => { const C = __cosmos, r = { tour:C.HT.on, riding:C.shipCam.on || C.shipCam.pending };
+  C.land(0.2); document.querySelector('#btnShip').click(); document.querySelector('#smStill').click(); r.still = C.SET.rideCam;
+  document.querySelector('#btnShip').click(); document.querySelector('#smStill').click(); r.moving = C.SET.rideCam;
+  document.querySelector('#btnShip').click(); document.querySelector('#smStop').click(); r.after = C.HT.on || C.shipCam.on; return r; });
+if (!ht.tour || !ht.riding || ht.still !== 'still' || ht.moving !== 'moving' || ht.after) fail('the Halo tour and the camera switch from the ship menu: ' + JSON.stringify(ht));
 
 // home: from a tour stop far away, the home button flies to Earth and pauses the tour, and the card offers to resume it
 const hmAt = await page.evaluate(() => { const C = __cosmos; C.startTour('grand'); C.land(0.1); C.tourGo(C.BYKEY.crab.index, true); C.tick(1/60); return C.flight ? 'flying' : C.OBJ[C.orbit.lock].key; });
