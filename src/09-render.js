@@ -848,7 +848,16 @@ const DIRW = { kind:['near → far', 'far → near'], distance:['near → far', 
 const dirWord = () => DIRW[ATL.sort][ATL.dir > 0 ? 0 : 1];
 const NBSP = String.fromCharCode(160);
 
-const atlasRows = [], groupHeads = {};
+// catalogue numbers (Messier, NGC, IC) are one word whatever the spaces and case: "M 31", "messier 31" and "m31" are m31, "NGC224" is ngc224.
+// In a search a number finds only the same whole number (m4 never finds m42 or m45); the other words match anywhere, as before.
+// ("m1-67" and "q2237+030" are not catalogue numbers. No lookbehind: older Safari cannot parse it)
+const CAT_RE = /(^|[^\w+\-\/.])(m|messier|ngc|ic)\s*(\d+[a-z]?)(?![\w+\-])/g;
+function catSplit(s){
+  const codes = [], rest = s.toLowerCase().replace(CAT_RE, (m, pre, p, n) => { codes.push((p === 'messier' ? 'm' : p) + n); return pre + ' '; });
+  return { codes, words:rest.split(/\s+/).filter(Boolean) };
+}
+const atlasRows = [], groupHeads = {}, rowOfB = new Map();
+let atlasOrder = [], atlasMoved = false;   // (the list as rendered; a catalogue number can move rows, and the next search puts them back)
 const mkHead = (title, note) => { const h = document.createElement('div'); h.className = 'agroup'; h.innerHTML = '<span class="gt"></span><span class="gnote"></span>'; h.firstChild.textContent = title; h.lastChild.textContent = note; return h; };
 GROUPS.forEach(([g, title]) => { groupHeads[g] = mkHead(title, FROM_SUN.has(g) ? 'from the Sun' : 'from Earth'); });
 // grouped with one kind chosen: one heading, the kind's name ("Galaxies"), and what its numbers measure
@@ -864,7 +873,11 @@ OBJ.filter(o => o.atlas !== false && !o.marker && GROUPS.some(([g]) => g === o.g
   // (a distance written out stays; any other is measured each time the atlas opens: things that move, like the Halo or JWST, are only placed on the first frame)
   const dfix = o.key === 'earth' ? 'home' : (o.atlasDist || (o.distEarth && o.distEarth.length < 14 ? o.distEarth : null));
   // (true size across, short: "93 billion ly"; the results line says "true size, across")
-  atlasRows.push({ b, o, cat:catOf(o), cats:catsOf(o), dfix, around:/^(here|all around)/.test(dfix || ''), stxt:fmtLen(2*atlasSize(o)*LY, 2).replace(/ light-years?$/, ' ly'), text:(o.name + ' ' + (o.label || '') + ' ' + o.type + ' ' + (o.aka || '')).toLowerCase() });
+  // (codes: every catalogue number in its words; own: those in its aka, which come first: M87 before the M87 jet and M87*)
+  const words = o.name + ' ' + (o.label || '') + ' ' + o.type + ' ' + (o.aka || '');
+  const r = { b, o, cat:catOf(o), cats:catsOf(o), dfix, around:/^(here|all around)/.test(dfix || ''), stxt:fmtLen(2*atlasSize(o)*LY, 2).replace(/ light-years?$/, ' ly'), text:words.toLowerCase(),
+    codes:new Set(catSplit(words).codes), own:new Set(catSplit(o.aka || '').codes) };
+  atlasRows.push(r); rowOfB.set(b, r);
 });
 // moons sit under their planet in the Solar System heading ("└ Io"), measured from it
 atlasRows.forEach(r => { const p = typeof r.o.parent === 'string' ? BYKEY[r.o.parent] : r.o.parent;
@@ -1004,6 +1017,7 @@ function renderAtlas(){
   }
   atlasRows.forEach(r => { r.b.querySelector('.ad').textContent = rowNum(r); });
   atlasList.append(atlasEmpty, atlasEnd);
+  atlasOrder = [...atlasList.children]; atlasMoved = false;
   filterAtlas(searchEl.value, true);
   atlasMark(infoObj);
 }
@@ -1018,7 +1032,7 @@ function atlasMark(i){
   atlasRows.forEach(r => { const on = r.o.index === i; r.b.setAttribute('aria-selected', String(on)); if (on) cur = r; });
   if (cur && !atlasEl.hidden && !cur.b.hidden && cur.b.isConnected) keepInView(cur.b);
 }
-function visibleRows(){ return [...atlasList.querySelectorAll('.arow')].filter(b => !b.hidden).map(b => atlasRows.find(r => r.b === b)); }
+function visibleRows(){ return [...atlasList.querySelectorAll('.arow')].filter(b => !b.hidden).map(b => rowOfB.get(b)); }
 // the keyboard's row while a search is typed (arrow keys, Enter); none otherwise, so no row looks chosen but the object in view
 function setKb(k){
   atlasRows.forEach(r => r.b.classList.remove('kb'));
@@ -1059,14 +1073,28 @@ function toggleAtlas(on){
 }
 // show the rows that match (the search, or the kind and "not seen yet"); the headings with none hide. keep: a new render, not a new search
 function filterAtlas(q, keep){
-  q = q.trim().toLowerCase(); const words = q ? q.split(/\s+/) : null;
-  atlasRows.forEach(r => { r.b.hidden = words ? !words.every(w => r.text.includes(w)) : !r.shown; });
+  q = q.trim().toLowerCase(); const t = q ? catSplit(q) : null;
+  if (atlasMoved){ atlasList.append(...atlasOrder); atlasMoved = false; }
+  // (rank 0: every catalogue number searched for is the place's own, in its aka; a search without one ranks every row 0)
+  atlasRows.forEach(r => { r.rank = t && !t.codes.every(c => r.own.has(c)) ? 1 : 0;
+    r.b.hidden = t ? !(t.codes.every(c => r.codes.has(c)) && t.words.every(w => r.text.includes(w))) : !r.shown; });
+  if (t && t.codes.length) rankRows();
   atlasRows.forEach(r => r.b.classList.toggle('child', r.branch && !r.par.b.hidden));
   atlasList.querySelectorAll('.agroup').forEach(h => { let x = h.nextElementSibling, any = false; while (x && !x.classList.contains('agroup')){ if (x.classList.contains('arow') && !x.hidden) any = true; x = x.nextElementSibling; } h.hidden = !any; });
   atlasCountNow(q);
-  setKb(q ? 0 : -1);
+  setKb(q ? Math.max(0, visibleRows().findIndex(r => !r.rank)) : -1);
   // (in .flow a search shows its results at the top, above the keyboard: the controls scroll away)
   if (q && !keep && atlasFlow()) atlasBody.scrollTop = toolsEl.offsetHeight;
+}
+// a catalogue number puts the places whose own number it is first under their heading (M87, then the M87 jet and M87*); the keyboard's row
+// starts on the first of them
+function rankRows(){
+  let head = null, sec = [];
+  const flush = () => { const v = sec.filter(r => !r.b.hidden);
+    if (v.some(r => r.rank) && v.some(r => !r.rank)){ const s = v.filter(r => !r.rank).map(r => r.b); if (head) head.after(...s); else atlasList.prepend(...s); atlasMoved = true; }
+    sec = []; };
+  for (const e of [...atlasList.children]){ if (e.classList.contains('agroup')){ flush(); head = e; } else if (rowOfB.has(e)) sec.push(rowOfB.get(e)); }
+  flush();
 }
 // the count in the results line and the head: the rows that match now (a place just seen stays in the list, with its ✓, until the next change,
 // but no longer counts as not seen yet)
@@ -1526,6 +1554,6 @@ window.__cosmos = { startTour, playFlyby, setMove(o, v, f){ flight = null; tween
   setDetail:i => setOpt('detail', i, true), render, zoomTo, tick, caption:dt => updateCaption(dt), get showcap(){ return SHOWCAP.txt; }, flightDur:() => flight ? flight.dur : 0, hud:() => { roTimer = 0; updateHUD(0.2); },
   simulate:(sec) => { for (let k=0; k<sec*30; k++) tick(1/30); return { obj:tour.obj, view:tour.view, phase:tour.phase, lock:orbit.lock }; },
   view:(i, v) => { if (typeof i === 'string') i = BYKEY[i].index; const o = OBJ[i], vp = viewParams(o, v); flight = null; shipCam.on = false; tween = null; cam.focus = i; leash.x = leash.y = 0; orbit.lock = i; orbit.frame = camFrameOf(o); orbit.yaw = vp.yaw; orbit.pitch = vp.pitch; orbit.dist = orbit.distT = vp.dist; orbit.off = vp.off; orbit.offFn = vp.offFn; orbit.target = V.add(frel(o), vp.off); setInfo(i); applyOrbit(); tick(0); } };
-// (the atlas headings and chips, for tools/catalog.mjs, and the seed the smoke test checks; a line of its own so it stays clear of edits to the hooks above)
-Object.assign(window.__cosmos.dbg, { GROUPS, CATS, catsOf, ATL, seedObjects:SEED_OBJECTS });
+// (the atlas headings and chips, for tools/catalog.mjs, and the seed and the catalogue numbers the smoke test checks; a line of its own so it stays clear of edits to the hooks above)
+Object.assign(window.__cosmos.dbg, { GROUPS, CATS, catsOf, ATL, seedObjects:SEED_OBJECTS, catSplit });
 requestAnimationFrame(frame);

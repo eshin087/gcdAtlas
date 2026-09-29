@@ -57,7 +57,8 @@ Tests need `npm install` once (dev dependencies: playwright, sharp). Headless Ch
 1. Check `docs/CATALOG.md` (generated) and the backlog in `docs/CONTENT.md` so you do not duplicate an object.
 2. Put new objects in a pack file under `src/objects/` (e.g. `p5-exoplanets.js`). Reuse shared shaders where possible; a new shader is fine but keep ray-march loops bounded (`uLod` scales steps).
 3. Give every object: a true one- or two-sentence `fact`, a `readout` with a real number, 2–3 `views` (one close and dramatic), `aka` search words, and a `sortKey`.
-4. Build, screenshot every view, run `npm test`, then `npm run catalog` and commit the updated `docs/CATALOG.md`.
+4. Put its real Messier, NGC and IC numbers in `aka`, written like `m31 ngc 224`: search matches them whole, ignoring spaces and case (`catSplit` in `09-render.js`), and lists first the object whose `aka` has the number. A part (M87*, the Pillars) leaves its parent's number out.
+5. Build, screenshot every view, run `npm test`, then `npm run catalog` and commit the updated `docs/CATALOG.md`.
 
 ## Workflow (see docs/SDLC.md)
 

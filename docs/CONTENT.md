@@ -8,7 +8,7 @@
 
 1. Pick objects from the backlog below and mark them *in progress* here.
 2. Create `src/objects/pN-name.js`. One pack per theme. Reuse helpers (`namedStar`, `addGalaxy`, `addBody`, `addProbe`, `clusterPS`, `orbitLine`) and shared shaders before writing new ones.
-3. Every object: real position (`radec` with catalogue RA/Dec and distance), true size, a sourced fact, a readout with numbers, 2–3 views including one close and dramatic, `aka` search words, a `sortKey`. Big objects: add them to `FLYBY_OBJ` in `src/objects/z8-flybys.js`.
+3. Every object: real position (`radec` with catalogue RA/Dec and distance), true size, a sourced fact, a readout with numbers, 2–3 views including one close and dramatic, `aka` search words (with its Messier, NGC and IC numbers, like `m31 ngc 224`), a `sortKey`. Big objects: add them to `FLYBY_OBJ` in `src/objects/z8-flybys.js`.
    - Atlas place: `group` is its one heading (`GROUPS` in `src/09-render.js`: solar, comets, stars, worlds, nebulae, galaxies, cosmic, travel). `tags` put it in more kinds (`CATS`, the grid of filters in the atlas): `moons` (moons and small worlds), `events` (explosions and collisions), `clusters` (star clusters), `human` (human-made; `addProbe` adds it). Planets of other stars go in `worlds` (`exoPlanet` does this). When an object is not what its heading says, `atlasKind` sets its main kind (the S-stars sit under Galaxies & black holes but are `stars`); do not use `kind`, which is the surface shader's number on planets and moons.
 4. Consider: a tour stop (`src/08t-tours.js`), a ship destination (`SHIP_TARGETS` in `src/07-extras.js`), a ladder rung (`LADDER` in `src/09-render.js`) for iconic scales.
 5. Screenshot every view, `npm test`, `npm run catalog`, changelog line.

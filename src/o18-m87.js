@@ -4,7 +4,7 @@ const M87_POS = radec(hms(12,30,49.4), dms(12,23,28), 53.5e6);
 const m87 = (() => {
   const o = addGalaxy({ key:'m87', name:'M87', label:'M87', type:'giant elliptical galaxy at the heart of the Virgo Cluster', sortKey:53.5e6,
     fact:'One of the most massive galaxies nearby, swarming with some 12,000 globular clusters. From its core a jet of plasma shoots out at nearly the speed of light.',
-    pos:M87_POS, rad:120000, incl:0, stars:9000, g:{ ell:0.12, Rd:0.3, starGain:1.2 }, farLum:1, labelRange:4e8, aka:'virgo a m87 elliptical',
+    pos:M87_POS, rad:120000, incl:0, stars:9000, g:{ ell:0.12, Rd:0.3, starGain:1.2 }, farLum:1, labelRange:4e8, aka:'virgo a m87 ngc 4486 elliptical',
     visFn(rpx){ return smooth(7, 18, rpx)*(0.1 + 0.9*smooth(200, 20000, orbit.dist)); },
     readout:() => '53.5 million light-years · about 2.4 trillion solar masses\nits black hole weighs 6.5 billion Suns' });
   const n = Math.round(4000*QUALITY), gc = makePS(n);
@@ -36,7 +36,7 @@ const m87bh = (() => {
   const M = 6.5e9, rs = schwarzschild(M), RB = 20;
   const o = addObj({ key:'m87bh', name:'M87*', label:'M87*', type:'supermassive black hole · 6.5 billion Suns · first ever imaged (2019)', group:'galaxies', sortKey:53.5e6 + 2,
     fact:'Its event horizon is wider than our entire Solar System: Neptune\'s orbit would fit inside it 60 times over. The Event Horizon Telescope photographed its glowing ring in 2019.',
-    parent:m87, offset:[0, 0, 0], rad:rs*RB, R0:M87_R0, prog:P.blackhole, minZoom:0.053, pxMin:6, noImpostor:true, labelRange:5, labelMin:1e-4, aka:'m87 black hole eht event horizon telescope',
+    parent:m87, offset:[0, 0, 0], rad:rs*RB, R0:M87_R0, prog:P.blackhole, minZoom:0.053, pxMin:6, noImpostor:true, labelRange:5, labelMin:1e-4, aka:'black hole eht event horizon telescope',
     setU(pr){ gl.uniform4f(pr.u.uP0, 3, 12, 0.7, 1.3); gl.uniform4f(pr.u.uP1, 1.2, 0, 0.75, 0); },
     views:[{dirFn:() => V.norm(V.mul(M87_POS, -1)), k:1.6, hold:9, drift:0.01}, {d:[1, 0.12, 0.2], k:1.15, hold:8, drift:0.03}, {d:[0.3, 0.9, 0.35], k:3.2, hold:9, drift:0.02}] });
   o.readout = bhReadout(o, M, 'event horizon 38 billion km across (256 AU)\nlight takes a day and a half to cross it');

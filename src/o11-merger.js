@@ -132,7 +132,7 @@ const merger = (() => {
   const side = V.norm(V.cross(V.norm(hostPos), [0, 0, 1])), offset = V.mul(side, 6500);
   const o = addObj({ key:'gw170817', atlasKind:'stars', tags:['events'], name:'GW170817', label:'GW170817', type:'neutron star merger · first seen in gravitational waves and light', group:'galaxies', sortKey:130e6 + 1,
     fact:'Two neutron stars spiral in, shaking spacetime with gravitational waves, collide, collapse to a black hole and fling out a kilonova that forged gold. Replayed on a loop.',
-    parent:host, offset, rad:353*KM, R0:facingEarth(V.add(hostPos, offset), V.norm([0, 0.5, 1]), 0), prog:program(VS_RECT, FS_NSMERGER), minZoom:0.1, pxMin:6, noImpostor:true, labelRange:3e5, aka:'kilonova gravitational waves neutron star merger',
+    parent:host, offset, rad:353*KM, R0:facingEarth(V.add(hostPos, offset), V.norm([0, 0.5, 1]), 0), prog:program(VS_RECT, FS_NSMERGER), minZoom:0.1, pxMin:6, noImpostor:true, labelRange:3e5, aka:'ngc 4993 kilonova gravitational waves neutron star merger',
     views:[{d:[0,0.5,1],k:1.8,hold:8,drift:0.03},{d:[0.1,0.28,1],k:1.05,hold:8,drift:0.05},{d:[0.05,1,0.1],k:1.7,hold:8,drift:0.02},{d:[1,0.15,0.3],k:1.9,hold:8,drift:-0.03}],
     scaleKm:() => (st.merged ? Math.max(353, 0.2*3e5*Math.max(days(), 0.02)*86400/Math.max(0.75*(1 - Math.exp(-st.tm/7)), 0.05)) : 353)/(353*KM),
     sim:st, tourReset:()=>st.reset(4), update(dt){ st.update(dt); },

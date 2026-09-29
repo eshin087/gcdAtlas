@@ -161,6 +161,39 @@ const planetsLeft = atl.planets[1] ? atl.planets[1].split(',') : [], PL = ['Merc
 if (atl.planets[0] !== planetsLeft.length + ' places not seen yet for planet hopper' || !planetsLeft.length || planetsLeft.some(n => !PL.includes(n)) || atl.planets[2]) errors.push('planet hopper does not show just the planets: ' + JSON.stringify(atl.planets));
 if (atl.escTray.join() !== 'false,true' || atl.escAtlas) errors.push('Esc does not close the badge tray, then the atlas: ' + JSON.stringify([atl.escTray, atl.escAtlas]));
 if (atl.reset[0] || atl.reset[1] !== '{"sort":"kind","dir":1,"cat":"all","unseen":false}') errors.push('reset: ' + JSON.stringify(atl.reset));
+// catalogue numbers: both search boxes find a place by its Messier, NGC or IC number, whatever the spaces and case, and only by the whole
+// number (M4 is not in the atlas: nothing, never M42 or M45; M1 is the Crab, never WR 124's M1-67). The place whose own number it is comes
+// first, with the keyboard on it, in every order of the list (M87 before its jet and M87*, the Eagle Nebula before the Pillars), and clearing
+// the search puts the list back as it was
+const CATQ = [['M31', 'Andromeda Galaxy'], ['NGC 1976', 'Orion Nebula'], ['NGC1952', 'Crab Nebula'], ['m 42', 'Orion Nebula'], ['Messier 42', 'Orion Nebula'],
+  ['NGC 224', 'Andromeda Galaxy'], ['ngc 5194', 'Whirlpool Galaxy'], ['M110', 'Andromeda Galaxy'], ['IC 434', 'Horsehead Nebula'], ['M16', 'Eagle Nebula'], ['m87', 'M87']];
+const cat = await page.evaluate(CATQ => {
+  const $ = s => document.querySelector(s), out = [], names = () => [...document.querySelectorAll('.arow')].filter(b => !b.hidden).map(b => b.querySelector('.an').textContent);
+  const find = (box, q) => { const s = $(box); s.value = q; s.dispatchEvent(new Event('input', { bubbles:true })); const kb = $('.arow.kb'); return { v:names(), kb:kb && kb.querySelector('.an').textContent }; };
+  const codes = q => window.__cosmos.dbg.catSplit(q).codes.join(' ');
+  for (const [q, want] of [['M4', 'm4'], ['m 4', 'm4'], ['Messier 4', 'm4'], ['NGC 6121', 'ngc6121'], ['ngc6121', 'ngc6121'], ['IC 434', 'ic434'], ['m31 ngc 224', 'm31 ngc224'], ['M87*', 'm87'], ['m1-67', ''], ['kic 8462852', ''], ['3c 273', '']])
+    if (codes(q) !== want) out.push(`"${q}" reads as the catalogue numbers "${codes(q)}", not "${want}"`);
+  if ($('#atlas').hidden) $('#btnAtlas').click();
+  const order = () => [...$('#atlasList').children].filter(e => e.matches('.arow, .agroup')).map(e => e.querySelector('.an, .gt').textContent).join('|');
+  for (const box of ['#search', '#atlasSearch']){
+    for (const [q, name] of CATQ){ const r = find(box, q); if (r.v[0] !== name || r.kb !== name) out.push(`${box} "${q}": ${r.v.join(', ') || 'nothing'} (keyboard on ${r.kb})`); }
+    for (const q of ['M4', 'm 4', 'NGC 6121', 'ngc6121']){ const r = find(box, q); if (r.v.length) out.push(`${box} "${q}" finds ${r.v.join(', ')}`); }
+    const m1 = find(box, 'M1').v.join(', '); if (m1 !== 'Crab Nebula') out.push(`${box} "M1" finds ${m1}`);
+    const m16 = find(box, 'm16').v.join(', '); if (m16 !== 'Eagle Nebula, Pillars of Creation') out.push(`${box} "m16" finds ${m16}`);
+  }
+  let moved = 0;
+  for (const s of ['distance', 'size', 'name', 'kind']) for (const d of [0, 1]){
+    $(`#atlasSort [data-sort="${s}"]`).click(); if (d) $('#atlasDir').click();
+    if ($('#atlasSearch').value) $('#atlasReset').click();   // ("clear": the search only)
+    const was = order(), r = find('#atlasSearch', 'M87'), now = order(), how = `sorted by ${s}${d ? ', reversed' : ''}`;
+    if (r.v[0] !== 'M87' || r.kb !== 'M87' || r.v.length !== 3) out.push(`"M87" ${how}: ${r.v.join(', ')} (keyboard on ${r.kb})`);
+    if (now !== was) moved++;
+    $('#atlasReset').click(); if (order() !== was) out.push(`the list is not back in its order after "M87" ${how}`);
+  }
+  if (!moved) out.push('"M87" never had to move a row: the order check tested nothing');
+  $('#atlasReset').click(); $('#atlasClose').click();
+  return out; }, CATQ);
+errors.push(...cat);
 // saved choices keep working: 'travel' (the old spacecraft chip) opens human-made; the old "not seen yet" chip becomes all with the box ticked
 // (sorted as it was); the old default ("distance, nearest first" over the headings) stays grouped; a saved flat list stays flat.
 // With every black hole seen, "not seen yet" says so and its button shows them all again.
