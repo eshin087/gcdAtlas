@@ -4,6 +4,19 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.9.5 · 2026-09-29
+
+**SpaceX launches and Starman's Roadster**
+- Starman and the Tesla Roadster, where they really are right now: the cherry-red car with Starman at the wheel, still fixed to the Falcon Heavy upper stage that carried it in 2018. The position comes from NASA JPL's own tracking (JPL Horizons, solution 11). The readout gives its distance from Earth and from the Sun, its speed, the laps of the Sun it has made, how far it has flown, and its next predicted close pass (Mars, 22 April 2035, 2.4 million km). One angle pulls back until its whole orbit round the Sun is in view.
+- Four SpaceX rockets stand on their real pads, in the atlas under human-made: Starship on the launch mount beside its tower at Starbase, Texas (Pad 2); Falcon 9 at Cape Canaveral; Falcon Heavy at Kennedy; Crew Dragon docked at the International Space Station.
+- Pick one and it launches. The camera flies to the pad, a 10-second countdown runs, and the whole flight plays with a moving camera: liftoff in a cloud of exhaust and steam, a tracking camera miles away, max Q, stage separation up close, the boosters turning back, and the landings.
+- Starship: 33 engines, hot staging, the booster flying back to Texas and caught by the tower's chopstick arms, the ship burning on toward orbit. Falcon 9: the booster lands on a droneship at sea. Falcon Heavy: both side boosters land back at Cape Canaveral seconds apart, as on its first flight in 2018, and the centre core on a droneship. Crew Dragon: launch, separation from the second stage, then, about a day later, the approach to the space station, holding about 220 m and 20 m out, and docking.
+- Real SpaceX launches play at their real time from their real pad, from the same launch schedule the atlas already shows. A caption with a watch button appears 20 minutes before liftoff, on any page, and you can join a flight already on its way.
+- Now and then, while you look at Earth, an illustrative replay lifts off from a pad on the side you can see: a glowing trail from orbit, and a caption with a watch button.
+- Near the ground there is a horizon now: land, sea with sun glint, haze, a blue or twilight sky, the pads floodlit at night. The camera's clock runs in real time there, so the Sun stays put.
+- A link to a rocket (for example gcdatlas.vercel.app/#o=starship) starts its countdown when it opens.
+- The small illustrative ascents that used to rise from the launch pads are gone.
+
 ## 0.9.3 · 2026-09-28
 
 **Search by catalogue number**

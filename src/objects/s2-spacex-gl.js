@@ -233,10 +233,10 @@ float site(vec3 p, out float m){
     vec3 tq = q - vec3(0., 0., -4.3); float tl = uSt.w; tq.yz = mat2(cos(tl), sin(tl), -sin(tl), cos(tl))*tq.yz;
     float te = lattice(tq - vec3(0., 0., -1.3), 1.25, 57., 3.2, 0.2); if(te < d){ d = te; m = 11.; }
     if(k > 2.5){
-      // the crew tower (80 m) with the crew access arm
+      // the tower (80 m), with the crew access arm where crews board (kind 3: SLC-40; 39A, kind 2.75, lost its arm in 2026)
       vec3 cq = q - vec3(0., 0., -20.);
       float tw = lattice(cq, 5., 80., 8., 0.45); if(tw < d){ d = tw; m = 11.; }
-      float arm = sdBox(q - vec3(0., 66., -9.5), vec3(1.4, 1.6, 7.5)); if(arm < d){ d = arm; m = 11.; }
+      if(k > 2.9){ float arm = sdBox(q - vec3(0., 66., -9.5), vec3(1.4, 1.6, 7.5)); if(arm < d){ d = arm; m = 11.; } }
     }
     float gr = sdCylY(q, 60., -1., 0.); if(gr < d){ d = gr; m = 10.; }
   } else if(k < 4.5){

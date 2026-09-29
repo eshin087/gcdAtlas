@@ -1334,6 +1334,7 @@ function setCaption(txt, btn){
 function updateCaption(dt){
   let txt = '', btn = '';
   if (cmp) { txt = cmpText(); btn = 'end compare'; }
+  else if (LCAP.live){ txt = LCAP.txt; btn = LCAP.btn; }   // (a real launch happening now, even on a tour)
   else if (tour.on && tour.phase !== 'fly' && TOUR_CAP[tour.obj]) txt = TOUR_CAP[tour.obj];
   else if (SHOWCAP.txt) txt = SHOWCAP.txt;
   else if (LCAP.txt){ txt = LCAP.txt; btn = LCAP.btn; }

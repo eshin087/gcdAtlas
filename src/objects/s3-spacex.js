@@ -17,8 +17,8 @@ const llUnit = (la, lo) => [Math.cos(la*DEG)*Math.cos(lo*DEG), Math.sin(la*DEG),
 function enuOf(up){ const e = V.norm(V.cross([0, 1, 0], up)), n = V.cross(up, e); return { up, e, n, M:[...e, ...up, ...V.mul(n, -1)] }; }
 // ---------------------------------------------------------------- the sites (coast: the direction toward the sea in the site's x-z plane and the distance to the beach, m)
 const SXS = {
-  starbase:{ name:'Starbase, Texas', short:'Starbase', la:25.99668, lo:-97.15397, kind:1, coast:[1, 0, 900] },
-  lc39a:{ name:'Launch Complex 39A, Kennedy Space Center, Florida', short:'Kennedy Space Center', la:28.60822, lo:-80.60428, kind:3, coast:[0.93, 0.36, 1250] },
+  starbase:{ name:'Starbase, Texas', short:'Starbase', la:25.99677, lo:-97.15799, kind:1, coast:[1, 0, 1300] },   // (Pad 2, where Starship now flies from)
+  lc39a:{ name:'Launch Complex 39A, Kennedy Space Center, Florida', short:'Kennedy Space Center', la:28.60822, lo:-80.60428, kind:2.75, coast:[0.93, 0.36, 1250] },   // (its crew access arm came off in February 2026)
   slc40:{ name:'Space Launch Complex 40, Cape Canaveral, Florida', short:'Cape Canaveral', la:28.56194, lo:-80.57735, kind:3, coast:[0.95, 0.3, 700] },
   slc4e:{ name:'Space Launch Complex 4E, Vandenberg, California', short:'Vandenberg', la:34.63208, lo:-120.61074, kind:2, coast:[-0.98, -0.2, 700] },
   lz:{ name:'Landing Zones 1 and 2, Cape Canaveral', short:'the Cape\'s landing zones', la:28.48575, lo:-80.54385, kind:5, coast:[0.95, 0.3, 1100] },
@@ -137,7 +137,7 @@ const MIS = {
       sideB:{ sep:152, dy:0, dz:-4.1, path:null, thr:null, legs:[[457.5,0],[461.5,1]], fins:[[155,0],[163,1]] },
       s2:{ sep:188, dy:44.8, path:Kp([[185,118,0,75,63],[188,124,0,78,64],[200,150,0,86,67],[240,245,0,112,73],[300,430,0,150,80],[380,740,0,183,86],[460,1110,0,203,90],[546,1560,0,212,92],[585,1860,0,213,93]]),
         thr:[[193,0],[195,1],[546,1],[547,0]], pay:[[219,0],[220,2]] } },
-    events:[[-10,'final countdown'],[-3,'27 Merlin engines start'],[0,'liftoff'],[72,'max Q: the hardest push of the air'],[150,'the side boosters cut off'],[152,'the side boosters separate'],[168,'the side boosters turn back to Florida'],[185,'centre core cutoff'],[188,'the centre core separates'],[195,'second stage engine start'],[220,'the fairing halves fall away'],[355,'side boosters: entry burns'],[440,'side boosters: landing burns'],[462,'both side boosters landed at Cape Canaveral'],[540,'centre core: landing burn'],[547,'second stage engine cutoff'],[554,'the centre core landed on the droneship']],
+    events:[[-10,'final countdown'],[-3,'27 Merlin engines start'],[0,'liftoff'],[72,'max Q: the hardest push of the air'],[150,'the side boosters cut off'],[152,'the side boosters separate'],[168,'the side boosters turn back to Florida'],[185,'centre core cutoff'],[188,'the centre core separates'],[195,'second stage engine start'],[220,'the fairing halves fall away'],[355,'side boosters: entry burns'],[440,'side boosters: landing burns'],[462,'both side boosters landed at Cape Canaveral, as on the first flight in 2018'],[540,'centre core: landing burn'],[547,'second stage engine cutoff'],[554,'the centre core landed on the droneship']],
     rate:[[-12,1],[18,2.5],[65,3.5],[145,1],[160,3],[215,10],[345,2],[430,1],[470,4],[535,1],[560,3],[585,1]],
     shots:[
       { t:-60, eye:['site', 'lc39a', [-330, 3, 450]], look:['part', 'core', 36], lens:['fit', 72, 0.62] },
@@ -157,7 +157,7 @@ const MIS = {
   dragon:{ fam:'f9', name:'Crew Dragon', site:'slc40', az:44, end:1175, realEnd:760, h0:0.004, pay:1, dsS:465, jump:[760, 1000],
     stack:null, parts:{ core:null, s2:null,
       dragon:{ sep:720, dy:57.4 } },
-    events:[[-10,'final countdown'],[-3,'nine Merlin engines start'],[0,'liftoff'],[72,'max Q: the hardest push of the air'],[148,'main engine cutoff'],[151,'stage separation'],[157,'second stage engine start'],[400,'the booster\'s entry burn'],[512,'the booster\'s landing burn'],[522,'second stage engine cutoff: in orbit'],[534,'the booster landed on the droneship'],[720,'Dragon separates from the second stage'],[1000,'about a day later: Dragon closes in on the space station'],[1045,'holding 200 m out'],[1085,'holding 20 m out'],[1150,'soft capture: docked']],
+    events:[[-10,'final countdown'],[-3,'nine Merlin engines start'],[0,'liftoff'],[72,'max Q: the hardest push of the air'],[148,'main engine cutoff'],[151,'stage separation'],[157,'second stage engine start'],[400,'the booster\'s entry burn'],[512,'the booster\'s landing burn'],[522,'second stage engine cutoff: in orbit'],[534,'the booster landed on the droneship'],[720,'Dragon separates from the second stage'],[1000,'about a day later: Dragon closes in on the space station'],[1045,'holding about 220 m out'],[1085,'holding about 20 m out'],[1150,'soft capture: docked']],
     rate:[[-12,1],[18,2.5],[65,3.5],[140,1],[175,3],[230,10],[390,2],[505,1],[545,5],[700,1],[760,1],[1000,1.5],[1030,4],[1045,2],[1060,4],[1085,1.5],[1100,3],[1130,1],[1175,1]],
     shots:[
       { t:-60, eye:['site', 'SITE', [-300, 3, 420]], look:['part', 'core', 36], lens:['fit', 72, 0.62] },
@@ -189,9 +189,9 @@ const MIS = {
 const SX = { runs:[], parts:{}, sites:{}, clusters:[], pend:null, nextReplay:25, trail:null, real:new Set(), dismissed:new Set() };
 const LCAP = { txt:'', btn:'', go:null };   // the caption (and its button) while a launch is on (read by updateCaption in 09-render.js)
 const SX_FACTS = {
-  superheavy:'Starship\'s first stage, 71 m tall, lifts off on 33 methane-fuelled Raptor engines. On 13 October 2024 the arms of its launch tower caught one in mid-air as it came back, seven minutes after launch.',
-  starship:'The largest rocket ever flown: 121 m tall with its Super Heavy booster, lifting off on 33 Raptor engines. Both stages are built to be reused. Here it stands on the launch mount at Starbase, Texas, beside the tower whose arms catch the booster.',
-  falcon9:'The rocket that made reuse routine: a 70 m two-stage rocket whose first stage lands itself on a ship at sea or back near the pad, then flies again. Some boosters have flown more than 25 times.',
+  superheavy:'Starship\'s first stage, about 71 m tall, lifts off on 33 methane-fuelled Raptor engines. On 13 October 2024 the arms of its launch tower caught one in mid-air as it came back, seven minutes after launch.',
+  starship:'The largest rocket ever flown: about 120 m tall with its Super Heavy booster (124 m in its newest version), lifting off on 33 Raptor engines. Both stages are built to be reused. Here it stands on the launch mount at Starbase, Texas, beside the tower whose arms catch the booster.',
+  falcon9:'The rocket that made reuse routine: a 70 m two-stage rocket whose first stage lands itself on a ship at sea or back near the pad, then flies again. Some boosters have flown more than 30 times.',
   f9s2:'Falcon 9\'s upper stage carries the payload the rest of the way to orbit on a single Merlin Vacuum engine. It is not recovered.',
   dragon:'SpaceX\'s capsule for crew and cargo, 8.1 m tall with its trunk. Since May 2020 Crew Dragon has carried astronauts to and from the International Space Station; it docks by itself.',
   falconheavy:'Three Falcon 9 cores side by side, 27 engines at liftoff. On its first flight, on 6 February 2018, it sent a Tesla Roadster into orbit round the Sun, and both side boosters landed back at Cape Canaveral, seconds apart.',
@@ -212,10 +212,13 @@ for (const fk in FAM) for (const d of FAM[fk].parts){
   const inAtlas = ATLAS_SX.has(d.key);
   const o = addObj({ key:d.key, name:d.name, label:d.name.replace(/ second stage$/, ' stage 2').replace(/Falcon Heavy side booster/, 'side booster'), labelClass:'ship', type:SX_TYPE[d.key] || 'rocket stage', group:'travel', tags:['human'],
     fact:SX_FACTS[d.key], aka:SX_AKA[d.key] || 'spacex rocket', parent:earth, offset:[0, 0, 0], selfPos:false, rad:d.len*0.5*MET, layer:3, noImpostor:true, noTour:true, noWaypoint:true,
-    minZoom:0.25, pxMin:1, visFn:() => 1, labelRange:4e-10, sortKey:1e-9, atlasDist:'on Earth', atlas:inAtlas, noPick:false,
+    minZoom:0.25, pxMin:1, visFn:() => 1, labelRange:4e-10, sortKey:1e-9, atlasDist:d.key === 'dragon' ? 'at the ISS' : 'on Earth', atlas:inAtlas, noPick:false,
     views:[{ d:[0.8, 0.22, 0.56], k:4.2, hold:9, drift:0.03 }, { d:[-0.6, 0.1, 0.8], k:2.6, hold:9, drift:-0.03 }],
     readout:() => sxReadout(o) });
   o.sx = { fam:fk, def:d, st:null };
+  // (sorted by distance, the rockets on their pads come straight after Earth, in a fixed order, and Dragon with the station it docks at)
+  const rank = ['starship', 'falcon9', 'falconheavy'].indexOf(d.key);
+  if (inAtlas) o.distNow = d.key === 'dragon' ? () => V.len(BYKEY.iss.offset) : () => RE_KM*KM*(1 + (rank + 1)*1e-9);
   // (the line under the name: where it is now)
   Object.defineProperty(o, 'distEarth', { get(){ const st = o.sx.st; if (!st) return 'here on Earth';
     if (st.atISS) return 'in orbit around Earth, at the ISS'; if (st.alt > 0.3) return (st.alt < 10 ? st.alt.toFixed(1) : Math.round(st.alt)) + ' km up from the ground'; return 'here on Earth'; } });
@@ -246,11 +249,14 @@ const siteOf = (key, run) => key === 'SITE' ? SXS[run.site] : key === 'DS' ? SX_
 // 'replay' (starts at T-10 s wherever the camera is). Ended runs keep their last frame until the camera has left them.
 function newRun(key, mode, opt = {}){
   const mis = MIS[key]; if (!mis) return null;
+  const pend = SX.pend;
   for (const r of SX.runs.filter(r => r.mis.fam === mis.fam)) endRun(r);
+  SX.pend = pend;
   const run = { key, mis, mode, site:opt.site || mis.site, az:opt.az ?? mis.az, mt:opt.mt ?? (mode === 'real' ? -90 : -10.5), t0:opt.t0 || 0, label:opt.label || '', hold:mode === 'click', ended:false, born:GT, idleT:0, seen:false };
   if (mis.dsS) placeDS(SX_DS[mis.fam === 'fh' ? 'fh' : 'f9'], SXS[run.site], run.az, mis.dsS);
   run.A = azFrame(SXS[run.site], run.az);
   SX.runs.push(run);
+  if (SX.pend && !SX.runs.includes(SX.pend.run) && SX.pend.run.mis.fam === mis.fam) SX.pend.run = run;   // (the camera on its way to this rocket watches the new flight)
   sxEval(run);
   return run;
 }
@@ -318,7 +324,7 @@ function dockAt(o, dist, lat){
   placePart(o, st);
 }
 function dockDragon(o){ if (BYKEY.iss) dockAt(o, 0, [0, 0]); }
-function dragonAtISS(o, mt){ const d = lin([[1000, 400], [1030, 215], [1045, 200], [1060, 200], [1080, 20], [1100, 20], [1140, 0.6], [1150, 0]], mt), l = lin([[1000, 25], [1045, 6], [1080, 1], [1150, 0]], mt); dockAt(o, d, [l, -l*0.6]); }
+function dragonAtISS(o, mt){ const d = lin([[1000, 400], [1030, 235], [1045, 220], [1060, 220], [1080, 20], [1100, 20], [1140, 0.6], [1150, 0]], mt), l = lin([[1000, 25], [1045, 6], [1080, 1], [1150, 0]], mt); dockAt(o, d, [l, -l*0.6]); }
 
 // ---------------------------------------------------------------- clusters: what is drawn together, in one ray march
 // Parts within 300 m of a site (and below 600 m) are drawn with it; the rest group with any part within 160 m.

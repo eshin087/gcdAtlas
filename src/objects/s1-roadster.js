@@ -147,7 +147,7 @@ const roadster = (() => {
     ring.upload('ac'); ringJD = jd;
   }
   const o = addObj({ key:'roadster', name:'Starman and the Tesla Roadster', label:'Roadster', labelClass:'ship', type:'a car in orbit round the Sun · launched on the first Falcon Heavy', group:'travel', tags:['human'],
-    fact:'On 6 February 2018 the first Falcon Heavy carried a cherry-red Tesla Roadster, with a mannequin in a spacesuit called Starman at the wheel, as its test payload. The car is still fixed to the rocket\'s upper stage, coasting round the Sun on an orbit that crosses the path of Mars. Its dashboard screen read DON\'T PANIC.',
+    fact:'On 6 February 2018 the first Falcon Heavy carried a cherry-red Tesla Roadster, with a mannequin in a spacesuit called Starman at the wheel, as its test payload. The car is still fixed to the rocket\'s upper stage, coasting round the Sun on an orbit that crosses the paths of both Earth and Mars. Its dashboard screen read DON\'T PANIC!',
     aka:'tesla roadster starman spacex falcon heavy car elon musk dont panic 2018-017a',
     parent:sun, offset:roadsterAt(JD_NOW), rad:RADM*1e-3*KM, R0:ECL, prog:P.roadster, layer:3, minZoom:0.35, pxMin:4, noImpostor:false,
     farColor:[1, 0.55, 0.5], farLum:0.35, labelRange:3*AU_LY, sortKey:1.5,
@@ -182,7 +182,7 @@ const roadster = (() => {
       const next = RD_PASSES.find(p => p[0] > jd), date = j => new Date((j - 2440587.5)*86400000).toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
       return `${kmS(dE)} from Earth · ${dS.toFixed(2)} AU from the Sun · ${v.toFixed(1)} km/s\n` +
         `about ${laps.toFixed(1)} laps of the Sun (one every ${Math.round(P)} days) · ${kmS(roadsterOdo(jd))} flown since 8 February 2018\n` +
-        (next ? `next close pass: ${next[1]}, ${date(next[0])}, ${(next[2]*149.6).toFixed(1)} million km` : 'no close pass left in the JPL list') +
+        (next ? `next close pass (predicted): ${next[1]}, ${date(next[0])}, ${(next[2]*149.6).toFixed(1)} million km` : 'no close pass left in the JPL list') +
         `\nposition from JPL Horizons · the slow spin is illustrative`;
     } });
   return o;

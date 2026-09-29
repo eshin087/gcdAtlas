@@ -144,7 +144,7 @@ function startFlight(o, vp, onDone, via, glide){
   if (glide) for (const k in durs) if (k !== 'warp') durs[k] += 2.5;
   const dur = durs[SET.travel] || durs.quick;
   shipCam.on = shipCam.pending = false;   // any flight takes the camera off the ship (riding along starts again when its own flight lands)
-  if (LCAM.on) stopLaunchCam(true);         // (and off a launch it was following)
+  if (LCAM.on) stopLaunchCam(true, true);   // (and off a launch it was following)
   // start compiling the destination's shaders now, so it is ready to draw on arrival
   if (o.prog) progReady(o.prog); for (const sp of o.particles || []) if (P[sp.prog]) progReady(P[sp.prog]);
   music.whoosh(dur);

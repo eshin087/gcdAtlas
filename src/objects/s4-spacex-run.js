@@ -23,9 +23,12 @@ function startLaunchCam(run){
   if (run.mode === 'real') ssDays = realJD() - JD_NOW;   // (a live launch is lit by the real Sun: the atlas clock goes to now)
   updateLaunchCam(0); updateModeUI();
 }
-function stopLaunchCam(quiet){
+// (flying off elsewhere only switches it off: the flight has already set the camera, the lock and the info panel)
+function stopLaunchCam(quiet, flying){
   if (!LCAM.on) return false;
-  LCAM.on = false; const F = LCAM.focus; motion.last = 'launch';
+  LCAM.on = false; LENS.want = 1;
+  if (flying){ updateModeUI(); return true; }
+  const F = LCAM.focus; motion.last = 'launch';
   if (F && !F.hidden){ orbit.lock = F.index; orbit.frame = camFrameOf(F); orbit.target = [0, 0, 0]; orbit.off = [0, 0, 0]; orbit.offFn = null; cam.focus = F.index; syncOrbitFromCam(); setInfo(F.index); }
   LENS.want = 1; updateModeUI();
   return true;
@@ -67,6 +70,7 @@ function updateLaunchCam(dt){
   }
   const t = watchPart(run) || o;
   SX.pend = { run, part:t, at:GT };
+  for (const pr of [P.sxStar, P.sxFal, P.sxEnv]) progReady(pr);   // (start compiling now, in the background, so the pad is ready when the camera lands)
   prev(t.index, 0, false);
   motion.last = 'launch';
 }; }
@@ -153,7 +157,7 @@ function sxTick(dt){
   }
   if (!atEarth && SX.nextReplay < SX_T + 20) SX.nextReplay = SX_T + 20;
   // the caption: what is flying, with a button to watch it
-  LCAP.txt = ''; LCAP.btn = ''; LCAP.go = null;
+  LCAP.txt = ''; LCAP.btn = ''; LCAP.go = null; LCAP.live = false;
   if (LCAM.on){ const r = LCAM.run; LCAP.txt = `${r.mis.name} · ${r.mode === 'real' ? 'live' : 'replay'}${eventNow(r) ? ' · ' + eventNow(r) : ''} · ${clk(r.mt)}`; }
   else {
     const live = SX.runs.find(r => r.mode === 'real' && !r.ended) || null, rep = SX.runs.find(r => r.mode === 'replay' && !r.ended && r.mt > -8 && atEarth);
@@ -161,7 +165,7 @@ function sxTick(dt){
     if (r && !(SX.pend && SX.pend.run === r)){
       const where = SXS[r.site].short;
       LCAP.txt = r.mode === 'real' ? `live · ${r.mis.name}${r.label ? ' · ' + r.label : ''} from ${where} · ${clk(r.mt)}` : `illustrative replay · ${r.mis.name} from ${where}${eventNow(r) ? ' · ' + eventNow(r) : ''} · ${clk(r.mt)}`;
-      LCAP.btn = 'watch'; LCAP.go = () => sxWatch(r);
+      LCAP.btn = 'watch'; LCAP.go = () => sxWatch(r); LCAP.live = r.mode === 'real' && r.mt > -600;
     }
   }
   // near the ground (or watching) the Solar System clock runs in real time, so the Sun stays put and the pad does not spin round
@@ -170,10 +174,11 @@ function sxTick(dt){
   else if (!want && sxRatePrev != null){ if (ssRate === 1/86400) ssRate = sxRatePrev; sxRatePrev = null; }
   const lk = 1 - Math.exp(-dt*(LCAM.on ? 3 : 2)); LENS.k = Math.exp(Math.log(LENS.k) + (Math.log(LCAM.on ? LENS.want : 1) - Math.log(LENS.k))*lk);
   buildClusters(); updateTrail();
+  for (const k in SX.parts) SX.parts[k].noLabel = LCAM.on;   // (a clean picture while the launch camera plays)
   // locked on a rocket or a pad, the camera turns with the Earth under it (their frames turn with it)
   if (!LCAM.on && !flight && OBJ[orbit.lock] && (OBJ[orbit.lock].sx || OBJ[orbit.lock].sxSite)) orbit.frame = camFrameOf(OBJ[orbit.lock]);
   // a shared link straight to a rocket starts its countdown
-  if (!SX.hashDone && GT > 0.3){ SX.hashDone = true; const o = OBJ[orbit.lock]; if (o && o.sx && /[#&]o=/.test(location.hash) && ATLAS_SX.has(o.key) && !famRun(o.sx.fam)) lockOn(o.index); }
+  if (!SX.hashDone && GT > 0.3){ SX.hashDone = true; const o = OBJ[orbit.lock]; if (o && o.sx && /[#&]o=/.test(location.hash) && !famRun(o.sx.fam)) lockOn(o.index); }
 }
 // Dragon docks "about a day later": the Solar System clock moves on a day, then on to a moment when the station is in sunlight for the
 // next few minutes, so the docking can be seen (it is dark for about 35 of every 93 minutes)
@@ -194,7 +199,7 @@ function stepRate(R, t){ let v = R[0][1]; for (const [a, b] of R) if (t >= a) v 
 function eventNow(run){ let e = ''; for (const [t, s] of run.mis.events) if (run.mt >= t && run.mt - t < (run.mode === 'real' ? 40 : 30)) e = s; return e; }
 // ---------------------------------------------------------------- the numbers in the info panel
 const SX_IDLE = {
-  star:'standing on the launch mount at Starbase, Texas · 121 m tall with Super Heavy\npick it to launch: the countdown starts when the camera arrives',
+  star:'standing on the launch mount at Starbase, Texas · about 120 m tall with Super Heavy\npick it to launch: the countdown starts when the camera arrives',
   f9:'standing on its pad at Cape Canaveral · 70 m tall\npick it to launch: the countdown starts when the camera arrives',
   fh:'standing on Launch Complex 39A at Kennedy · 70 m tall, 12 m wide\npick it to launch: the countdown starts when the camera arrives',
 };
@@ -210,7 +215,7 @@ function sxReadout(o){
   const altS = alt < 1 ? Math.round(alt*1000) + ' m' : (alt < 10 ? alt.toFixed(1) : Math.round(alt)) + ' km';
   return `${clk(mt)}${ev ? ' · ' + ev : ''}\naltitude ${altS} · ${Math.round(sp).toLocaleString('en-US')} km/h · ${Math.round(Math.max(st.s || 0, 0)).toLocaleString('en-US')} km downrange\n${hon}`;
 }
-const SXDBG = { SX, MIS, LCAM, LENS, famRun, newRun, endRun, sxEval, buildClusters, watch:sxWatch,
+const SXDBG = { SX, MIS, LCAM, LENS, famRun, newRun, endRun, sxEval, buildClusters, watch:sxWatch, rd:roadsterEq,
   // (tests: move the Solar System clock until the Sun stands at elevation el degrees over a site, rising (am) or setting)
   sunAt(site, el, am = true){ const S = SXS[site] || SX_DS[site]; let best = 0, bd = 1e9; for (let h=0;h<24*4;h++){ ssDays = realJD() - JD_NOW + h/96; earth.update(0); const e = Math.asin(V.dot(sunFixed(), S.up))/DEG, e2 = (ssDays += 0.01, earth.update(0), Math.asin(V.dot(sunFixed(), S.up))/DEG); ssDays -= 0.01; const d = Math.abs(e - el) + ((e2 > e) === am ? 0 : 100); if (d < bd){ bd = d; best = ssDays; } } ssDays = best; earth.update(0); return +(Math.asin(V.dot(sunFixed(), S.up))/DEG).toFixed(1); },
   start(key, mode = 'replay', mt = 0, opt = {}){ const r = newRun(key, mode, Object.assign({ mt }, opt)); r.hold = false; buildClusters(); return r; },
