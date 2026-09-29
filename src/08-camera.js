@@ -681,7 +681,7 @@ addEventListener('keydown', e => {
   if (e.target.closest && ((e.target.closest('input') && e.key !== 'Escape') || (e.target.closest('button') && (e.key === ' ' || e.key === 'Enter')))) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   const k = e.key.toLowerCase();
-  if (!$('#help').hidden){ if (k === 'escape' || k === '?') toggleHelp(false); return; }
+  if (modalOpen()){ if (k === 'escape' || k === '?') closeModals(); return; }   // (help or what's new)
   if (k === 'escape'){ if (!closeOpen()) unlock(); return; }   // (an open panel closes first; with nothing open the camera lets go)
   if (k === ' '){ e.preventDefault(); togglePlay(); return; }
   if (k === '/' || k === 'o'){ e.preventDefault(); focusSearch(); return; }
@@ -692,7 +692,7 @@ addEventListener('keydown', e => {
   if (k === '+' || k === '='){ beginManual(); zoomBy(0.6); return; }
   if (k === '-' || k === '_'){ beginManual(); zoomBy(1.7); return; }
   if (k === 't'){ setOpt('time', cycle([1, 3, 10, 0, 0.25], timeScale)); return; }
-  if (k === 'v'){ setOpt('detail', (detailIdx + 1) % DETAIL.length); return; }
+  if (k === 'v'){ setOpt('detail', SET.detailAuto ? 0 : detailIdx >= DETAIL.length - 1 ? 'auto' : detailIdx + 1); return; }   // (auto, ultra, fine, normal, bold, auto…)
   if (k === 'g'){ setOpt('glow', !SET.glow); return; }
   if (k === 'l'){ setOpt('labels', !SET.labels); return; }
   if (k === 'h' || k === 'home'){ e.preventDefault(); goHome(); return; }

@@ -10,8 +10,10 @@ const COMPACT_MQ = matchMedia('(max-width:680px), (max-height:520px) and (max-wi
 const isCompact = () => COMPACT_MQ.matches;
 // user settings, remembered between visits when the browser allows it
 const SET = (() => {
-  const d = { detail:1, travel:reduceMotion ? 'quick' : 'cinematic', glow:true, labels:true, twinkle:true, haloMark:false, menuSize:1.15, sound:true, volume:0.55, dwell:'normal', textSize:1, musicStyle:'mix', saverIdle:0, fadeUI:'quick', infoD:'full', infoM:'compact' };
-  try { const s = JSON.parse(localStorage.getItem('gcdatlas.settings') || '{}'); for (const k in d) if (k in s && typeof s[k] === typeof d[k]) d[k] = s[k]; } catch (e) {}
+  const d = { detail:1, detailAuto:true, travel:reduceMotion ? 'quick' : 'cinematic', glow:true, labels:true, twinkle:true, haloMark:false, menuSize:1.15, sound:true, volume:0.55, dwell:'normal', textSize:1, musicStyle:'mix', saverIdle:0, fadeUI:'quick', infoD:'full', infoM:'compact' };
+  try { const s = JSON.parse(localStorage.getItem('gcdatlas.settings') || '{}'); for (const k in d) if (k in s && typeof s[k] === typeof d[k]) d[k] = s[k];
+    // (auto detail since 0.9.4: someone who picked a detail other than the old default fine keeps it)
+    if (!('detailAuto' in s) && 'detail' in s && s.detail !== 1) d.detailAuto = false; } catch (e) {}
   // music moods since 0.9.2: a style saved before then becomes the mood that plays it
   d.musicStyle = { lofi:'beats', house:'groove', ambient:'calm' }[d.musicStyle] || (['mix', 'calm', 'beats', 'groove'].includes(d.musicStyle) ? d.musicStyle : 'mix');
   return d;

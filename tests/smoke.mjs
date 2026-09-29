@@ -45,6 +45,23 @@ bad.push(...await page.evaluate(() => { const c = window.__cosmos; c.setTour(fal
   return c.BYKEY.lmc.onScreen ? ['the Large Magellanic Cloud is drawn in the Sun view, out of sight'] : []; }));
 for (const id of ['#btnAtlas', '#btnTours', '#btnTime', '#btnSettings']){ await page.click(id); await page.waitForTimeout(150); await page.click(id); }
 const ui = await page.evaluate(() => ({ rows:document.querySelectorAll('.arow').length, readout:document.querySelector('#readout').textContent.length }));
+// help and what's new: ? opens help and fits a 1280 x 800 screen without scrolling; the newest patch notes match package.json and are open;
+// Esc closes each; seeing the notes clears the button's dot
+{ const pkg = JSON.parse((await import('node:fs')).readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  await page.keyboard.press('?');
+  const h = await page.evaluate(() => { const c = document.querySelector('.help-card'); return { open:!document.querySelector('#help').hidden, over:c.scrollHeight - c.clientHeight }; });
+  if (!h.open) bad.push('? does not open help'); else if (h.over > 2) bad.push(`help scrolls on a 1280 x 800 screen (${h.over} px more than fits)`);
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => localStorage.removeItem('gcdatlas.notesSeen'));
+  await page.click('#btnNotes');
+  const n = await page.evaluate(() => { const d = [...document.querySelectorAll('#notesList details')]; return { open:!document.querySelector('#notes').hidden, n:d.length, v:d[0] && d[0].dataset.v, first:d[0] && d[0].open, rest:d.slice(1).some(x => x.open), items:d.every(x => x.querySelectorAll('li').length > 0), dot:document.querySelector('#btnNotes').classList.contains('unseen'), seen:localStorage.getItem('gcdatlas.notesSeen') }; });
+  if (!n.open) bad.push("the new button does not open what's new");
+  if (n.v !== pkg.version) bad.push(`the newest patch notes are ${n.v}, package.json says ${pkg.version} (docs/PATCHNOTES.md)`);
+  if (!n.first || n.rest || !n.items || n.n < 20) bad.push('patch notes: ' + JSON.stringify(n));
+  if (n.dot || n.seen !== pkg.version) bad.push("seeing what's new does not clear its dot");
+  await page.keyboard.press('Escape');
+  if (await page.evaluate(() => !document.querySelector('#notes').hidden)) bad.push("Esc does not close what's new");
+}
 if (ui.rows < 50) bad.push('atlas has only ' + ui.rows + ' rows');
 // atlas categories: every chip has places; the made-up Halo is not human-made, every real craft is
 bad.push(...await page.evaluate(() => { const c = window.__cosmos, d = c.dbg, out = [];
