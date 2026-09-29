@@ -6,6 +6,9 @@ All notable changes, newest first. Dates are UTC.
 
 ## 0.9.3 · 2026-09-28
 
+**Music**
+- The song "Lullaby for Proxima b" is gone (owner's choice), so the radio has 15 songs.
+
 **The Halo roams, folds more slowly, and its shield is subtler** (the ship is made up)
 - It stays at each place for about two minutes and roams round it: three or so slow passes from different sides (low, wide, over a pole, over the day side, along the line between day and night), with a wide U-turn out and back between them. Every turn is gentle, at most its usual rate.
 - One or two jobs at each place, a loop apart, never the same kind twice in a row, and none on the first pass: the ship arrives and looks round first. On plain passes the cameras turn toward the body too, so it stays in view.
