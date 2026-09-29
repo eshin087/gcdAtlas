@@ -12,6 +12,18 @@ All notable changes, newest first. Dates are UTC.
 **Riding the Halo on a phone**
 - The ship button in the dock opens a small menu over the dock: ride along, cockpit, and show or hide the marker. While you ride, the button says "riding" and the menu offers the chase view, the cockpit and stop riding. A tap anywhere else closes it. On a desk nothing changes: ship shows the marker, ride rides along.
 
+**Planets up close**
+- Planets and moons are easier to make out close up: their markings sit at their real places, the light stays even across the lit side, and there is a clear line between day and night. The contrast is stronger than in reality, so the markings read as characters (docs/ACCURACY.md says so).
+- Mars shows Syrtis Major and its other dark markings, bright Hellas and Argyre, Olympus Mons, the Tharsis volcanoes, Valles Marineris and both polar caps.
+- Mercury shows its craters, bright ray craters such as Hokusai and Debussy, and the 1,550 km Caloris basin.
+- The Moon shows its seas where they really are, rayed craters such as Tycho and Copernicus, and the rings of the Orientale basin.
+- Jupiter's belts are darker and redder, and the Great Red Spot is drawn about 16,000 km wide, close to its size today.
+- Saturn's bands follow Cassini's pictures, and its first view looks at the side of the rings the Sun lights (in 2026, from the south), so the rings are bright.
+- Venus shows the dark Y and cloud chevrons seen in ultraviolet photos; its readout says the eye sees a plain planet.
+- Uranus and Pluto, tipped on their sides, now show their sunlit pole; Uranus's view back at the Sun works again.
+- Neptune's dark spot and white clouds, Pluto's heart and its thin blue haze, and the big moons (Io, Europa, Ganymede, Callisto, Titan, Enceladus, Ceres) are clearer.
+- Each kind of body now has a shader of its own, which compiles in 0.06 to 0.32 s instead of one shared shader that would have taken 11 s with the new surfaces.
+
 **Auto detail**
 - Detail has a new first choice, auto, and it is the default. It starts on fine and steps up to ultra after about 5 smooth seconds where ultra's characters are still at least 6 pixels wide (a sharp, high-density screen). On an ordinary screen ultra's characters are 4 x 7 pixels, too small to read as letters, so auto stays on fine there. After 3 slow seconds it steps back to fine; after two steps back it stops trying and remembers that on this device for 14 days.
 - Ultra draws about 1.6 times the characters of fine, and every one of them is ray-marched, so a frame costs about 60% more on the graphics card. That is why fine was the default.
