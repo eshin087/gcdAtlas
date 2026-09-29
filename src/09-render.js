@@ -1283,7 +1283,7 @@ function toggleHelp(on){ $('#help').hidden = !on; if (on){ $('#notes').hidden = 
 // version's notes; someone here for the first time has nothing to catch up on, so their first visit counts as seen.
 const NOTES_V = ($('#notesList').querySelector('details') || { dataset:{} }).dataset.v || '';
 const notesSeen = () => { try { return localStorage.getItem('gcdatlas.notesSeen'); } catch (e) { return NOTES_V; } };
-const notesDot = on => { for (const b of [$('#btnNotes'), $('#settingsNotes')]) b.classList.toggle('unseen', on); document.body.classList.toggle('notes-unseen', on); };
+const notesDot = on => { for (const b of [$('#btnNotes'), $('#settingsNotes')]) b.classList.toggle('has-new', on); document.body.classList.toggle('notes-unseen', on); };
 const markNotesSeen = () => { try { localStorage.setItem('gcdatlas.notesSeen', NOTES_V); } catch (e) {} notesDot(false); };
 try { if (!localStorage.getItem('gcdatlas.settings') && !notesSeen()) markNotesSeen(); } catch (e) {}
 notesDot(!!NOTES_V && notesSeen() !== NOTES_V);

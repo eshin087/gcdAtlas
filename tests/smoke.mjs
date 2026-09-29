@@ -54,7 +54,7 @@ const ui = await page.evaluate(() => ({ rows:document.querySelectorAll('.arow').
   await page.keyboard.press('Escape');
   await page.evaluate(() => localStorage.removeItem('gcdatlas.notesSeen'));
   await page.click('#btnNotes');
-  const n = await page.evaluate(() => { const d = [...document.querySelectorAll('#notesList details')]; return { open:!document.querySelector('#notes').hidden, n:d.length, v:d[0] && d[0].dataset.v, first:d[0] && d[0].open, rest:d.slice(1).some(x => x.open), items:d.every(x => x.querySelectorAll('li').length > 0), dot:document.querySelector('#btnNotes').classList.contains('unseen'), seen:localStorage.getItem('gcdatlas.notesSeen') }; });
+  const n = await page.evaluate(() => { const d = [...document.querySelectorAll('#notesList details')]; return { open:!document.querySelector('#notes').hidden, n:d.length, v:d[0] && d[0].dataset.v, first:d[0] && d[0].open, rest:d.slice(1).some(x => x.open), items:d.every(x => x.querySelectorAll('li').length > 0), dot:document.querySelector('#btnNotes').classList.contains('has-new'), seen:localStorage.getItem('gcdatlas.notesSeen') }; });
   if (!n.open) bad.push("the new button does not open what's new");
   if (n.v !== pkg.version) bad.push(`the newest patch notes are ${n.v}, package.json says ${pkg.version} (docs/PATCHNOTES.md)`);
   if (!n.first || n.rest || !n.items || n.n < 20) bad.push('patch notes: ' + JSON.stringify(n));
