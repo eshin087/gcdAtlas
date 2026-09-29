@@ -86,8 +86,8 @@ const ride = await page.evaluate(seed => {
   r.fold = { wind:+wind.toFixed(2), eased:+(vMin/v0).toFixed(2), burstOut, burstIn:D.FX.some(e => e.kind === 'fold-in') };
   for (let j=0;j<60;j++){ C.tick(1/60); shieldOff(); far = Math.max(far, Math.hypot(...h.rel)/h.rad); }
   r.folded = h.S.target.key !== k0; r.farAfterFold = +far.toFixed(4); r.stillRiding = C.shipCam.on;
-  // (the chase camera moves in during a fold, and must ease all the way back out once the hull has formed: 6 s more, still in the pass)
-  for (let j=0;j<60*6;j++){ C.tick(1/60); shieldOff(); }
+  // (the chase camera moves in during a fold, and must ease all the way back out once the hull has formed: 7 s more, still in the pass)
+  for (let j=0;j<60*7;j++){ C.tick(1/60); shieldOff(); }
   Object.assign(r.fold, { shield, zipBig, zipped:!!h.S.zipped });
   r.backOut = { fz:h.S.fz, dist:+(Math.hypot(...h.rel)/h.rad).toFixed(4), phase:h.S.phase };
   i = 0; while (h.S.phase !== 'pass' && i++ < 60*30) C.tick(1/60);
