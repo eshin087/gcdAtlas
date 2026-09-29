@@ -289,12 +289,12 @@ const music = (() => {
   // The catalogue: every song the radio plays, as its style, its seed and its name. A seed deals the same song every time
   // (music._render(style, sec, { seed }) renders it, music._info says what it plays), so a new song is a seed that sounds
   // good: render a few, listen, and add the ones to keep. (the name is the one its seed deals; tests/music.mjs checks it)
-  // The owner kept these 16 of 24 on 2026-09-28.
+  // The owner kept these 16 of 24 on 2026-09-28, and took out Lullaby for Proxima b the same day (15).
   const SONGS = [
     ['lofi', 20, 'Slow Orbit of Halley'],
     ['downtempo', 24, 'Soft Focus on Mars'], ['downtempo', 4, 'Low Tide on Orion'],
     ['ambient', 1, 'Slowly past Io'], ['ambient', 18, 'Slowly past Mars'], ['ambient', 14, 'Silence over Halley'], ['ambient', 6, 'Dust over Mars'],
-    ['piano', 1, 'Lullaby for Io'], ['piano', 64, 'Lullaby for Proxima b'],
+    ['piano', 1, 'Lullaby for Io'],
     ['house', 1, 'Night Bus to Io'], ['house', 25, 'Warm Signal from Hale-Bopp'], ['house', 74, 'Sunrise over Halley'], ['house', 33, 'Golden Hour on Antares'],
     ['synthwave', 1, 'Tapes from Io'], ['synthwave', 40, 'Tapes from Rigel'], ['synthwave', 12, 'City Lights of Mars'],
   ].map(([style, seed, title]) => ({ id:style + '-' + seed, style, seed, title }));

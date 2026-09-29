@@ -1,19 +1,19 @@
 // ================================================================ the Halo showcase (?showcase=halo): a scripted look at the ship, for reviewing its design.
-// The camera circles the ship once (it holds still for that, which it never does on the site), then rides along through one visit of each
-// kind: a scan at Saturn, light speed to Jupiter (seen from the bridge) and a skim, light speed to the Moon and a weapons test, light speed
-// to Mars and a probe (Pip, the drone), a fold to the Pillars of Creation and a tractor beam and drill, then a fold back to Saturn and round again.
-// A caption names each part. Taking the camera (a drag, the pause button, picking something) ends it and the site carries on as usual.
-const SHOWCASE = { on:new URLSearchParams(location.search).get('showcase') === 'halo', t:0, turn:-1, fade:-1, fadeIn:false, visits:-1, wait:-1, loops:0 };
+// The camera circles the ship once (it holds still for that, which it never does on the site), then rides along while it roams: at Saturn a
+// scan, light speed to Jupiter (seen from the bridge), a skim and an outing by Pip, a fold to Sgr A* (the shield under the strongest pull) and
+// Pip there, then a fold back to Saturn and round again. Its stays are shorter than on the site (STAY, against about two minutes).
+// Buttons (keys 1 to 7) do any of it now, or as soon as the ship can (a queue of one: the last one pressed, lit while it waits): teleport,
+// light speed, black hole, scan, Pip, weapons, skim (ship.demo in 07h-halo.js). A caption names each part. Taking the camera (a drag, the
+// pause button, picking something) ends it and the site carries on as usual.
+const SHOWCASE = { on:new URLSearchParams(location.search).get('showcase') === 'halo', t:0, turn:-1, fade:-1, fadeIn:false, visits:-1, wait:-1, loops:0, queue:null, bar:null };
 if (SHOWCASE.on){
-  const SC = SHOWCASE, D = Math.PI/180, TURN_T = 22, LIGHT = [-0.55, 0.35, 0.6];   // (the light during the turn, in the ship's frame: above, ahead, starboard)
-  const PLAN = [{ key:'saturn', act:'scan', by:'fold' }, { key:'jupiter', act:'skim', by:'light' }, { key:'moon', act:'weapons', by:'light' },
-    { key:'mars', act:'probe', by:'light' }, { key:'pillars', act:'tractor', by:'fold' }];
-  const JOB = { scan:tg => 'sensor scan of ' + tg.name + ' · every beam ends where it meets the surface',
-    probe:tg => "Pip, the ship's little drone, pops out, says hello, takes pictures of " + tg.name + ' and docks again',
+  const SC = SHOWCASE, D = Math.PI/180, TURN_T = 22, LIGHT = [-0.55, 0.35, 0.6], STAY = 75;   // (LIGHT: the light during the turn, in the ship's frame: above, ahead, starboard)
+  // the round: after each stop, where next and how, and the jobs there (anywhere else a button took it, the site's own jobs, and back to Saturn)
+  const ROUTE = { saturn:{ next:'jupiter', by:'light', jobs:['scan'] }, jupiter:{ next:'sgra', by:'fold', jobs:['skim', 'probe'] }, sgra:{ next:'saturn', by:'fold', jobs:['probe'] } };
+  const JOB = { scan:tg => 'hologram scan of ' + tg.name + ' · a ring sweeps it pole to pole; the numbers it finds are real',
+    probe:() => "Pip, the ship's little drone, comes out to help round the ship",
     weapons:tg => 'weapons test on ' + tg.name + ' (fictional): rail gun, plasma lance, antimatter pulse · nothing is harmed',
-    skim:tg => 'skimming ' + tg.name + "'s cloud tops to refuel", tractor:() => 'tractor beam and drill · a passing rock is held, cored and let go' };
-  // what the ship should do at the stop after next (the ship picks its next stop and job ahead of time)
-  const forceFrom = i => { const n = PLAN.length, a = PLAN[(i + 1) % n], b = PLAN[(i + 2) % n]; S_.force = { target:b.key, travel:b.by, act:a.act }; };
+    skim:tg => 'skimming ' + tg.name + (tg === sun || tg.group === 'stars' ? "'s surface" : "'s cloud tops") + ' to refuel' };
   // the turn, in the ship's frame (ship radii): from straight above with the needle pointing right (like the concept art) down to the
   // starboard side, then once round (the front, the port side from below, the stern) and up into the chase camera's place.
   // On a tall, narrow screen it stands further back so the whole ship fits across.
@@ -32,31 +32,84 @@ if (SHOWCASE.on){
   // with its chase view / cockpit view button. Not saved: the visitor's own choice stays.)
   function startTurn(){ S_.hold = true; SC.turn = 0; SC.fadeIn = true; SC.fade = 0; shipCam.turn = turnPose(0); shipCam.mode = 'turn'; document.body.classList.add('info-compact'); syncLayout(); updateModeUI(); }
   function endTurn(){ S_.hold = false; SC.turn = -1; SC.fadeIn = false; SC.fade = 0; if (shipCam.mode === 'turn') shipCam.mode = 'chase'; applyInfoState(); updateModeUI(); }
+  // a new stop: the round's jobs there and where next (a shorter stay than on the site)
+  function onStay(){
+    const r = ROUTE[S_.target.key], st = S_.stay; if (!st) return;
+    st.dur = STAY;
+    if (r){ st.jobs = r.jobs.slice(); st.jobAt = 1; S_.next = { tg:BYKEY[r.next], mode:r.by }; }
+    else S_.next = { tg:BYKEY.saturn, mode:'fold' };
+  }
   function begin(){
     document.body.classList.add('showcase'); hideHint();
     stopTour(false); pauseShow(); tween = null; flyMove = null; flight = null;
-    forceFrom(-1); foldVisit(BYKEY.saturn); forceFrom(0); S_.t = 1; SC.visits = S_.visits;
+    foldVisit(BYKEY.saturn); onStay(); S_.t = 1; SC.visits = S_.visits;
     shipCam.on = true; shipCam.pending = false; shipCam.eye = null; shipCam.zoom = 1; motion.last = 'ship';
     startTurn(); SC.fade = -1; S_.light = LIGHT.slice();   // (the first time, the showcase light is on from the start)
     setInfo(ship.index); updateModeUI();
+    makeBar();
   }
   function end(){
-    SC.on = false; S_.hold = false; S_.light = null; SHOWCAP.txt = ''; document.body.classList.remove('showcase');
+    SC.on = false; S_.hold = false; S_.light = null; SHOWCAP.txt = ''; SC.queue = null; document.body.classList.remove('showcase');
+    if (SC.bar) SC.bar.hidden = true;
     // (the camera circling the ship is not left behind for when the visitor rides along again)
     if (shipCam.mode === 'turn') shipCam.mode = 'chase'; SC.turn = -1;
     updateModeUI(); applyInfoState();
     toast('showcase over · the camera is yours');
   }
+  // ---------------------------------------------------------------- the buttons
+  const BTN = [['fold', 'teleport'], ['light', 'light speed'], ['hole', 'black hole'], ['scan', 'scan'], ['probe', 'Pip'], ['weapons', 'weapons'], ['skim', 'skim']];
+  const WORD = Object.assign(Object.fromEntries(BTN), { back:'a fold back to Saturn' });
+  // (a teleport goes on round the showcase's stops when the next is a fold, otherwise somewhere far; light speed to the nearest stop in reach)
+  const FAR = ['pillars', 'crab', 'andromeda', 'catseye', 'omegacen', 'etacar'];
+  function foldTarget(){ const r = ROUTE[S_.target.key]; if (r && r.by === 'fold') return BYKEY[r.next]; const k = FAR.filter(k => BYKEY[k] && BYKEY[k] !== S_.target); return BYKEY[k[Math.floor(Math.random()*k.length)]]; }
+  function lightTarget(){
+    const A = S_.target, h = S_.h, r = ROUTE[A.key];
+    if (r && r.by === 'light') return BYKEY[r.next];
+    let best = null, bs = -9;
+    for (const k of SHIP_TARGETS){ const B = BYKEY[k]; if (!B || B === A) continue; const d = V.sub(B.pos, A.pos), L = V.len(d); if (!(L > 0) || !(L < HALO.LS_NEAR)) continue; const s = V.dot(h, V.mul(d, 1/L)) - 0.3*Math.log10(Math.max(L/AU_LY, 1e-3)); if (s > bs){ bs = s; best = B; } }
+    return best;
+  }
+  function tryAct(kind){
+    const S = S_;
+    if (S.hold || S.asm < FLK.A1 + 0.3 || (S.phase !== 'pass' && S.phase !== 'loop' && S.phase !== 'align')) return false;   // (on the move, or the hull still forming)
+    if (kind === 'fold') return ship.demo.leaveNow(foldTarget(), 'fold');
+    if (kind === 'back') return ship.demo.leaveNow(BYKEY.saturn, 'fold');
+    if (kind === 'hole') return ship.demo.leaveNow(S.target === BYKEY.sgra ? BYKEY.m87bh : BYKEY.sgra, 'fold');
+    if (kind === 'light'){ const B = lightTarget(); return B ? ship.demo.leaveNow(B, 'light') : ship.demo.leaveNow(BYKEY.saturn, 'fold'); }
+    if (S.phase === 'align') return false;   // (a job waits for the next stop)
+    return ship.demo.jobNow(kind);
+  }
+  function press(kind){
+    if (!SC.on) return;
+    if (kind === 'skim' && !SKIM.has(S_.target.key)){ toast('nothing to skim here · skims happen at Jupiter, the Sun and other stars'); return; }
+    // (nothing the ship visits is within light speed's reach of some places, such as Sgr A*: it folds back to Saturn instead, and says so)
+    if (kind === 'light' && !lightTarget()){ toast('no stop close enough for light speed here · a fold back to Saturn instead'); if (SC.turn >= 0) endTurn(); SC.queue = ship.demo.leaveNow(BYKEY.saturn, 'fold') ? null : { kind:'back', t:0 }; syncBar(); return; }
+    if (SC.turn >= 0) endTurn();
+    const done = tryAct(kind);
+    SC.queue = done ? null : { kind, t:0 };
+    toast(WORD[kind] + (done ? ' · now' : ' · as soon as the ship can'));
+    syncBar();
+  }
+  function makeBar(){
+    if (SC.bar){ SC.bar.hidden = false; return; }
+    const bar = document.createElement('div'); bar.className = 'demo-bar'; bar.setAttribute('role', 'group'); bar.setAttribute('aria-label', 'Showcase: do it now');
+    bar.innerHTML = '<b>now</b>' + BTN.map(([v, w], i) => `<button type="button" data-v="${v}"><span class="k">${i + 1}</span>${w}</button>`).join('');
+    bar.addEventListener('click', e => { const b = e.target.closest('button'); if (b) press(b.dataset.v); });
+    document.body.appendChild(bar); SC.bar = bar;
+    addEventListener('keydown', e => { if (!SC.on || e.ctrlKey || e.metaKey || e.altKey || (e.target.closest && e.target.closest('input'))) return; const i = '1234567'.indexOf(e.key); if (i >= 0) press(BTN[i][0]); });
+  }
+  const syncBar = () => { if (!SC.bar) return; const q = SC.queue; for (const b of SC.bar.querySelectorAll('button')) b.classList.toggle('on', !!q && q.kind === b.dataset.v); };
+  // ---------------------------------------------------------------- the caption
   function caption(){
-    if (SC.turn >= 0) return SC.turn < 4 ? 'the new Halo · seen from above, like the concept art' : 'the new Halo · all angles (it holds still while the camera circles it; on the site it never stops)';
-    const S = S_, tg = S.target, A = S.act, nx = S.next, bridge = shipCam.mode === 'cockpit' ? 'from the bridge · ' : '', fl = foldLine();
-    if (fl) return fl;   // (a fold: the hull burning away, or forming again)
-    if (S.phase === 'light') return bridge + 'light speed · to ' + S.leg.B.name;
+    if (SC.turn >= 0) return SC.turn < 4 ? 'the Halo · seen from above, like the concept art' : 'the Halo · all angles (it holds still while the camera circles it; on the site it never stops)';
+    const S = S_, tg = S.target, A = S.act, nx = S.next, bridge = shipCam.mode === 'cockpit' ? 'from the bridge · ' : '', fl = foldLine(), wait = SC.queue ? ' · ' + WORD[SC.queue.kind] + ' next' : '';
+    if (fl) return fl + wait;
+    if (S.phase === 'light') return bridge + 'light speed · to ' + S.leg.B.name + wait;
     if (S.phase === 'fold') return 'folding space · to ' + nx.tg.name;
-    if (S.phase === 'align') return nx.mode === 'fold' ? (S.spool > 0.05 ? 'the fold drive spools up · next stop: ' : 'setting course for ') + nx.tg.name : bridge + 'turning toward ' + nx.tg.name + ' · light speed next';
-    if (!A || A.tau < -0.8) return (bridge || 'riding along · chase view · ') + 'heading for ' + tg.name;
-    if (A.tau > ACTS[A.kind].T + 0.5) return (bridge || 'riding along · chase view · ') + 'leaving ' + tg.name;
-    return JOB[A.kind](tg);
+    if (A && A.kind === 'probe' && A.tau > -0.8) return A.line() + wait;   // (Pip says what it is doing)
+    if (A && A.tau > -0.8 && A.tau < ACTS[A.kind].T + 0.5) return JOB[A.kind](tg) + wait;
+    if (S.phase === 'align') return (nx.mode === 'fold' ? (S.spool > 0.05 ? 'the heart powers up for the fold · next stop: ' : 'setting course for ') + nx.tg.name : bridge + 'turning toward ' + nx.tg.name + ' · light speed next') + wait;
+    return (bridge || 'riding along · ') + roamLine() + wait;
   }
   TICKS.push(dt => {
     if (!SC.on) return;
@@ -72,16 +125,18 @@ if (SHOWCASE.on){
       S_.light = SC.fadeIn ? V.lerp(sunL, LIGHT, k) : V.lerp(LIGHT, sunL, k);
       if (k >= 1){ if (!SC.fadeIn) S_.light = null; SC.fade = -1; }
     }
-    // a new visit: line up the stop after next; back at Saturn, circle the ship again (once it has come out of the fold)
+    // a new stop: its jobs and the next; back at Saturn by the round, circle the ship again (once the hull has formed)
     if (S_.visits !== SC.visits){
-      SC.visits = S_.visits;
-      const i = PLAN.findIndex(p => p.key === S_.target.key); forceFrom(i);
-      if (i === 0){ SC.loops++; SC.wait = 0.8; }
+      SC.visits = S_.visits; onStay();
+      if (S_.target === BYKEY.saturn && !SC.queue){ SC.loops++; SC.wait = FLK_END + 0.3; }
       if (shipCam.mode === 'cockpit'){ shipCam.mode = 'chase'; updateModeUI(); }
     }
-    if (SC.wait >= 0 && (SC.wait -= dt) < 0){ SC.wait = -1; startTurn(); }
-    // from the bridge for the first light-speed jump: after the scan at Saturn, until the ship drops out at Jupiter
-    if (SC.turn < 0 && S_.target === BYKEY.saturn && (S_.phase === 'align' || (S_.act && S_.act.kind === 'scan' && S_.act.tau > ACTS.scan.T + 0.3)) && shipCam.mode === 'chase'){ shipCam.mode = 'cockpit'; updateModeUI(); }
+    if (SC.wait >= 0 && (SC.wait -= dt) < 0){ SC.wait = -1; if (!SC.queue) startTurn(); }
+    // a button waiting for the ship (given up after 30 s)
+    if (SC.queue){ SC.queue.t += dt; if (tryAct(SC.queue.kind) || SC.queue.t > 30) SC.queue = null; }
+    syncBar();
+    // from the bridge for the light-speed jump from Saturn to Jupiter, until the ship drops out there
+    if (SC.turn < 0 && S_.target === BYKEY.saturn && S_.phase === 'align' && S_.next.mode === 'light' && shipCam.mode === 'chase'){ shipCam.mode = 'cockpit'; updateModeUI(); }
     SHOWCAP.txt = caption();
   });
 }

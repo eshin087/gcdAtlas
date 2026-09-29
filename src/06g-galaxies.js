@@ -241,11 +241,11 @@ const lmc = addGalaxy({ key:'lmc', name:'Large Magellanic Cloud', label:'LMC', t
 const smc = addGalaxy({ key:'smc', name:'Small Magellanic Cloud', label:'SMC', type:'dwarf irregular galaxy · satellite of the Milky Way', sortKey:200000,
   fact:'A dwarf galaxy being torn apart by the Large Magellanic Cloud and the Milky Way, trailing a bridge of gas and young stars behind it.',
   pos:radec(hms(0,52,44.8), dms(-72,49,43), 200000), rad:9000, incl:65, pa:45, g:{ arms:0, bulge:0.2, dust:0.4, bar:0.3, H:0.05, sf:1.2, irr:1, seed:13, Rd:0.3, barAng:40 },
-  farLum:0.7, aka:'magellanic', readout:() => '200,000 light-years away · a few hundred million stars' });
+  farLum:0.7, aka:'magellanic ngc 292', readout:() => '200,000 light-years away · a few hundred million stars' });
 const m33 = addGalaxy({ key:'m33', name:'Triangulum Galaxy', label:'M33', type:'spiral galaxy · third-largest in the Local Group', sortKey:2.73e6,
   fact:'A loose, flocculent spiral full of giant star-forming regions. On a dark night it is the most distant thing some people can see with the naked eye.',
   pos:radec(hms(1,33,50.9), dms(30,39,37), 2.73e6), rad:32000, incl:55, pa:23, g:{ arms:2, pitch:24, bulge:0.2, dust:0.6, H:0.012, sf:1.6, irr:0.35, seed:21, Rd:0.3 },
-  aka:'m33 triangulum', readout:() => '2.73 million light-years · ~40 billion stars\nmay be a satellite of Andromeda' });
+  aka:'m33 ngc 598 triangulum', readout:() => '2.73 million light-years · ~40 billion stars\nmay be a satellite of Andromeda' });
 [['sgrdsph', 'Sagittarius Dwarf', hms(18,55,19.5), dms(-30,32,43), 70000, 8000], ['fornaxd', 'Fornax Dwarf', hms(2,39,59.3), dms(-34,26,57), 460000, 3000],
  ['sculptord', 'Sculptor Dwarf', hms(1,0,9.4), dms(-33,42,33), 290000, 1500], ['leoi', 'Leo I', hms(10,8,28.1), dms(12,18,23), 820000, 1300],
  ['dracod', 'Draco Dwarf', hms(17,20,12.4), dms(57,54,55), 260000, 1000], ['ngc6822', "Barnard's Galaxy", hms(19,44,56.6), dms(-14,47,21), 1.6e6, 4500],
@@ -254,19 +254,19 @@ const m33 = addGalaxy({ key:'m33', name:'Triangulum Galaxy', label:'M33', type:'
     fact:'One of dozens of small galaxies orbiting the Milky Way or Andromeda.', readout:() => fmtDist(dist) + ' away' });
 });
 // ---------------------------------------------------------------- notable galaxies beyond the Local Group
-addGalaxy({ key:'m81', name:"Bode's Galaxy", label:'M81', type:'grand-design spiral', sortKey:11.8e6, aka:'m81',
+addGalaxy({ key:'m81', name:"Bode's Galaxy", label:'M81', type:'grand-design spiral', sortKey:11.8e6, aka:'m81 ngc 3031',
   fact:'A textbook spiral whose arms were stirred up by a close pass with its neighbour M82 about 300 million years ago.',
   pos:radec(hms(9,55,33.2), dms(69,3,55), 11.8e6), rad:48000, incl:59, pa:157, g:{ arms:2, pitch:14, bulge:1, dust:1, H:0.01, sf:0.7, Rd:0.24, seed:31 },
   readout:() => '11.8 million light-years · 250 billion stars' });
-addGalaxy({ key:'m82', name:'Cigar Galaxy', label:'M82', type:'starburst galaxy', sortKey:11.4e6, aka:'m82',
+addGalaxy({ key:'m82', name:'Cigar Galaxy', label:'M82', type:'starburst galaxy', sortKey:11.4e6, aka:'m82 ngc 3034',
   fact:'Forming stars ten times faster than the Milky Way. Supernova-driven winds blast red filaments of hydrogen out of both faces of the disk.',
   pos:radec(hms(9,55,52.4), dms(69,40,47), 11.4e6), rad:22000, incl:81, pa:65, g:{ arms:0, bulge:0.4, dust:2.2, H:0.02, sf:2.5, irr:0.8, Rd:0.22, seed:37 },
   readout:() => '11.4 million light-years · a starburst triggered by M81' });
-addGalaxy({ key:'m101', name:'Pinwheel Galaxy', label:'M101', type:'face-on spiral', sortKey:20.9e6, aka:'m101',
+addGalaxy({ key:'m101', name:'Pinwheel Galaxy', label:'M101', type:'face-on spiral', sortKey:20.9e6, aka:'m101 ngc 5457',
   fact:'Nearly twice the width of the Milky Way, seen almost face-on, its lopsided arms studded with more than 3,000 star-forming regions.',
   pos:radec(hms(14,3,12.6), dms(54,20,57), 20.9e6), rad:85000, incl:18, pa:39, g:{ arms:3, pitch:22, bulge:0.35, dust:0.8, H:0.01, sf:1.4, irr:0.3, Rd:0.3, seed:41 },
   readout:() => '20.9 million light-years · 170,000 light-years across' });
-addGalaxy({ key:'m104', name:'Sombrero Galaxy', label:'M104', type:'spiral seen nearly edge-on', sortKey:31.1e6, aka:'m104',
+addGalaxy({ key:'m104', name:'Sombrero Galaxy', label:'M104', type:'spiral seen nearly edge-on', sortKey:31.1e6, aka:'m104 ngc 4594',
   fact:'A huge glowing bulge ringed by a dark lane of dust. It hosts about 2,000 globular clusters and a billion-solar-mass black hole.',
   pos:radec(hms(12,39,59.4), dms(-11,37,23), 31.1e6), rad:30000, incl:84, pa:90, g:{ arms:0, bulge:3, dust:2.4, H:0.012, sf:0.1, Rd:0.3, ring:0.52, seed:43 },
   readout:() => '31 million light-years · 50,000 light-years across' });

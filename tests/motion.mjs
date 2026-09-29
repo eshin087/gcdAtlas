@@ -1,6 +1,6 @@
 // Camera motion regression: the angle loop after picking an object, play / pause (button and space), flights that land
 // exactly on a moving destination (no jump on arrival), ladder picks that keep moving, riding along with the Halo, tour trips without zoom dips,
-// the Halo at work (always travelling, light speed and folds, its jobs, scan beams on the surface, Pip the drone), and the controls that say where they go
+// the Halo at work (always travelling, light speed and folds, its jobs, a scan's hologram on the surface, Pip the drone), and the controls that say where they go
 // (next stop, angle arrows that count every tap, Esc closing panels first, the tour's angles at Earth), and the random tour. Deterministic: the page's clock is fixed and
 // its own animation loop frozen, so only __cosmos.tick moves the simulation, and the Halo flies a route of its own (dbg.reset): every run is the same.
 // Usage: node tests/motion.mjs
@@ -75,12 +75,20 @@ const ride = await page.evaluate(seed => {
   // the next hop is a fold, the one after it a light-speed jump; the camera must stay on the ship all the way
   let i = 0; while (h.S.phase !== 'pass' && i++ < 60*30) C.tick(1/60);
   D.force({ travel:'fold' }); D.replan();
-  const k0 = h.S.target.key; let far = 0, farLs = 0, legs = 0; i = 0;
-  while (h.S.target.key === k0 && i < 60*60){ C.tick(1/60); i++; }
-  for (let j=0;j<60;j++){ C.tick(1/60); far = Math.max(far, Math.hypot(...h.rel)/h.rad); }
+  // (the fold winds up for about 7 s, the ship easing off, and a starburst marks the jump and the arrival)
+  // (0.9.3, owner: no shield anywhere in the teleport: out within a second of the wind-up starting, back only after the hull has formed; the
+  // heart streaks in on arrival, the ship a point until it arrives)
+  const k0 = h.S.target.key, F = D.FLK; let far = 0, farLs = 0, legs = 0, wind = 0, v0 = 0, vMin = 1e300, burstOut = false, shield = 0, zipBig = 0; i = 0;
+  const shieldOff = () => { if (h.S.asm < F.A1 + 0.25) shield = Math.max(shield, h.S.shK); if (h.S.asm < F.ZIP - 0.05) zipBig = Math.max(zipBig, h.S.scale); };
+  while (h.S.target.key === k0 && i < 60*60){ C.tick(1/60); i++;
+    if (h.S.phase === 'align' && h.S.next.mode === 'fold'){ if (!wind) v0 = h.S.speed; wind += 1/60; vMin = Math.min(vMin, h.S.speed); if (wind > 1) shield = Math.max(shield, h.S.shK); }
+    if (h.S.phase === 'fold'){ shield = Math.max(shield, h.S.shK); if (D.FX.some(e => e.kind === 'fold-out')) burstOut = true; } }
+  r.fold = { wind:+wind.toFixed(2), eased:+(vMin/v0).toFixed(2), burstOut, burstIn:D.FX.some(e => e.kind === 'fold-in') };
+  for (let j=0;j<60;j++){ C.tick(1/60); shieldOff(); far = Math.max(far, Math.hypot(...h.rel)/h.rad); }
   r.folded = h.S.target.key !== k0; r.farAfterFold = +far.toFixed(4); r.stillRiding = C.shipCam.on;
-  // (the chase camera moves in during a fold, and must ease all the way back out once the hull has formed: 4 s more, still in the pass)
-  for (let j=0;j<60*4;j++) C.tick(1/60);
+  // (the chase camera moves in during a fold, and must ease all the way back out once the hull has formed: 7 s more, still in the pass)
+  for (let j=0;j<60*7;j++){ C.tick(1/60); shieldOff(); }
+  Object.assign(r.fold, { shield, zipBig, zipped:!!h.S.zipped });
   r.backOut = { fz:h.S.fz, dist:+(Math.hypot(...h.rel)/h.rad).toFixed(4), phase:h.S.phase };
   i = 0; while (h.S.phase !== 'pass' && i++ < 60*30) C.tick(1/60);
   D.force({ travel:'light' }); D.replan();
@@ -97,6 +105,8 @@ if (!ride.markOn) fail('the ship button did not switch the Halo indicator on');
 const offRig = d => d > ride.rig*(1 + 1e-6);
 if (!ride.riding || offRig(ride.dist)) fail('riding along did not land behind the ship: ' + JSON.stringify(ride));
 if (!ride.folded || !ride.stillRiding || offRig(ride.farAfterFold)) fail('the camera lost the ship when it folded space: ' + JSON.stringify(ride));
+if (!(ride.fold.wind >= 6.5) || !(ride.fold.eased < 0.6) || !ride.fold.burstOut || !ride.fold.burstIn) fail('the fold did not wind up slowly (about 7 s, the ship easing off) with a starburst as it went and as it arrived: ' + JSON.stringify(ride.fold));
+if (ride.fold.shield > 0 || !(ride.fold.zipBig < 0.05) || !ride.fold.zipped) fail('the shield showed in the teleport, or the heart did not streak in before the hull formed: ' + JSON.stringify(ride.fold));
 if (ride.backOut.phase !== 'pass' || ride.backOut.fz !== 1 || !(ride.backOut.dist >= 0.95*ride.rig)) fail('the chase camera did not ease back out after a fold: ' + JSON.stringify({ backOut:ride.backOut, rig:ride.rig }));
 if (!ride.jumped || !ride.ridingAfterJump || offRig(ride.farInLightSpeed)) fail('the camera lost the ship at light speed: ' + JSON.stringify(ride));
 if (!ride.cockpit) fail('the cockpit view is not on the ship');
@@ -176,14 +186,15 @@ if (trips.bad.length) fail('tour trips that dip or fly through something: ' + tr
 
 // 8. the Halo at work: it is always travelling (never stopped, never turning on the spot, never circling, never turning faster than its
 // tightest turn, three times its usual rate: a corner in its path would), it travels both by light speed and by folds, it does different
-// jobs, scan beams end exactly where they first meet the surface, and a weapons test leaves nothing behind
+// jobs, a scan's hologram lies on the drawn surface (and never in a black hole's shadow), and a weapons test leaves nothing behind
 const halo = await page.evaluate(HALO_SEED => {
   const C = __cosmos, h = C.BYKEY.halo, D = h.dbg, S = h.S, dt = 1/30;
   C.setTour(false); if (C.shipCam.on) C.stopShipCam(); C.setDays(0); C.view('earth', 0); D.reset(HALO_SEED);   // (the same route every run, as in 5)
   C.tick(0);   // (the ship takes its place on the new route before anything is measured: otherwise the first step turns it from where it was)
   const r = { modes:{}, acts:{}, minTurnRadius:1e9, maxTurn20s:0, maxRate:0, stopped:0, steps:0 };
   const head = () => [h.R0[3], h.R0[4], h.R0[5]];
-  let H0 = head(), P0 = h.pos.slice(), ph0 = S.phase, win = [];
+  let H0 = head(), P0 = h.pos.slice(), ph0 = S.phase, win = [], vis0 = S.visits, cur = { at:S.target.key, t:0, passes:1 };
+  r.stays = [];
   D.force({ travel:'light' });   // (hops by light speed until one really is, and a later one by a fold, whatever the dice say)
   for (let i=0;i<30*420;i++){
     if (i < 30*150 && !r.modes.light && !S.force.travel) D.force({ travel:'light' });   // (a hop the ship cannot fly by light speed without a corner folds)
@@ -191,32 +202,73 @@ const halo = await page.evaluate(HALO_SEED => {
     C.tick(dt);
     const H = head(), ph = S.phase, same = ph === ph0 && !(ph0 === 'fold' || ph === 'fold');
     r.modes[ph] = 1; if (D.act) r.acts[D.act] = 1;
+    // (each stay: how long the ship roams round a place, from its arrival to the jump away, and how many passes it flies there)
+    if (S.visits !== vis0){ vis0 = S.visits; r.stays.push(cur); cur = { at:S.target.key, t:0, passes:1 }; }
+    else { if (ph === 'pass' || ph === 'loop' || ph === 'align') cur.t += dt; if (ph === 'pass' && ph0 !== 'pass') cur.passes++; }
     const ang = Math.acos(Math.min(1, Math.max(-1, H[0]*H0[0] + H[1]*H0[1] + H[2]*H0[2]))), mv = Math.hypot(h.pos[0] - P0[0], h.pos[1] - P0[1], h.pos[2] - P0[2])/h.rad;
     if (same){ r.steps++; if (!(mv > 0)) r.stopped++; if (ang > 1e-4) r.minTurnRadius = Math.min(r.minTurnRadius, mv/ang); r.maxRate = Math.max(r.maxRate, ang/dt*57.3); }
     win.push(same ? ang : 0); if (win.length > 20*30) win.shift();
     r.maxTurn20s = Math.max(r.maxTurn20s, win.reduce((a, b) => a + b, 0)*57.3);
     H0 = H; P0 = h.pos.slice(); ph0 = ph;
   }
+  r.stays = r.stays.map(s => ({ at:s.at, t:+s.t.toFixed(0), passes:s.passes }));
   r.minTurnRadius = +r.minTurnRadius.toFixed(0); r.maxTurn20s = +r.maxTurn20s.toFixed(0); r.maxRate = +r.maxRate.toFixed(1); r.rateLimit = +(3*D.HALO.TURN*57.3*1.05).toFixed(1);
-  // scan beams on Jupiter, seen from a camera locked on the ship: every beam ends on the drawn surface, at the first point its line meets it
+  // the scan (a hologram sweep) on Jupiter, seen from a camera locked on the ship. Its hologram lies on the drawn surface: its centre and frame
+  // are the planet's, and points of its ring, from what the job hands the shader, lie on Jupiter's surface as FS_JUPITER draws it (a sphere of
+  // 0.9 bounding radii, flattened by 0.0649) within 1e-3 of its radius. It is a solid surface's hologram (the shader draws only where the ray
+  // first meets it: nothing on the hidden side) and the brackets face the camera. The Great Red Spot's bracket sits on the spot where the
+  // shader draws it (once the sweep is done the spot is turned toward the camera, so the check never depends on where it happened to be).
+  // The readout's numbers are the table's, and the table's sizes those the bodies are drawn at; the job draws at most 1,500 line ends a frame.
+  // (The same steps and pictures as before the scan was a hologram, so the route after it is unchanged)
   let n = 0; while (S.phase !== 'pass' && n++ < 30*40) C.tick(dt);
   if (S.target.key === 'jupiter'){ D.force({ target:'saturn', act:'scan', travel:'fold' }); D.replan(); D.skip(); n = 0; while (!(S.phase === 'pass' && S.target.key === 'saturn') && n++ < 30*60) C.tick(dt); }
   D.force({ target:'jupiter', act:'scan', travel:'fold' }); D.replan(); D.skip();
   n = 0; while (!(S.phase === 'pass' && S.target.key === 'jupiter') && n++ < 30*60) C.tick(dt);
   C.view('halo', 0);
-  let beams = 0, worst = 0;
+  const J = C.BYKEY.jupiter, SC = D.scan, OBL = 0.0649, LYKM = 9.4607e12, [tx, ty] = C.dbg.tan;
+  // (a camera-relative point in a body's own frame, in units of s; and back)
+  const loc = (p, o, s) => { const d = [0, 1, 2].map(k => p[k] - o.rel[k]), R = o.rot; return [0, 1, 2].map(k => (R[k*3]*d[0] + R[k*3 + 1]*d[1] + R[k*3 + 2]*d[2])/s); };
+  const toWorld = (o, l) => [0, 1, 2].map(k => o.rel[k] + (o.rot[k]*l[0] + o.rot[3 + k]*l[1] + o.rot[6 + k]*l[2])*o.rad);
+  // (how squarely a point on Jupiter faces the camera: its surface normal, in world axes, against the line of sight)
+  const faceJ = p => { const l = loc(p, J, 1), nl = [l[0], l[1]/((1 - OBL)*(1 - OBL)), l[2]], nw = [0, 1, 2].map(k => J.rot[k]*nl[0] + J.rot[3 + k]*nl[1] + J.rot[6 + k]*nl[2]); return -(nw[0]*p[0] + nw[1]*p[1] + nw[2]*p[2])/(Math.hypot(...nw)*Math.hypot(...p)); };
+  const la = -22.4*Math.PI/180, spot = lon => { const n0 = [Math.cos(la)*Math.cos(lon), Math.sin(la), -Math.cos(la)*Math.sin(lon)]; return toWorld(J, [0.9*n0[0], 0.9*n0[1]*(1 - OBL), 0.9*n0[2]]); };
+  const scr = p => { const z = p[0]*C.cam.fwd[0] + p[1]*C.cam.fwd[1] + p[2]*C.cam.fwd[2]; return z > 0 ? [(p[0]*C.cam.right[0] + p[1]*C.cam.right[1] + p[2]*C.cam.right[2])/(z*tx), (p[0]*C.cam.up[0] + p[1]*C.cam.up[1] + p[2]*C.cam.up[2])/(z*ty), z] : null; };
+  // (in the picture, and clear of the ship, which the camera locked on it has in front of the planet: the hull hides what is behind it)
+  const inView = p => { const q = scr(p), s = scr(h.rel); if (!q || !(Math.abs(q[0]) < 0.85 && Math.abs(q[1]) < 0.85)) return false; return !s || Math.hypot((q[0] - s[0])*tx/ty, q[1] - s[1]) > 1.3*h.rad/(s[2]*ty); };
+  const scan = { holo:0, ring:0, worst:0, frame:0, lines:0, kind:-1, faceMin:9, brk:-1, turned:false, said:false, sizes:[], noFacts:[] };
+  let dJ = 0;   // (how far Jupiter's clock was turned on, to put it back)
   for (const tau of [1.2, 2.5, 4.3, 6, 8.1, 9.5]){
-    n = 0; while (D.tau < tau && n++ < 30*60) C.tick(dt);
+    // (the ring has reached the far pole at SW0 + SWT: turn the spot toward the camera, where FS_JUPITER has it, glon = lon + t 0.0015 - 1.1 = 0,
+    // 22.4 degrees south, at a longitude where it is in the picture and faces the camera; its bracket locks on the next step)
+    if (tau === 8.1){ n = 0; while (D.tau < SC.SCAN.SW0 + SC.SCAN.SWT + 0.1 && n++ < 30*60) C.tick(dt);
+      const cL = loc([0, 0, 0], J, 1), lonC = Math.atan2(-cL[2], cL[0]);
+      for (let k=0;k<126;k++){ const lon = lonC + (k % 2 ? 1 : -1)*Math.ceil(k/2)*0.05, p = spot(lon); if (inView(p) && faceJ(p) > 0.35){ const t1 = (((1.1 - lon) % (2*Math.PI)) + 2*Math.PI)/0.0015; dJ = t1 - J.t; J.t = t1; scan.turned = true; break; } } }
+    // (from the turn on, every frame is drawn: the bracket is measured in each frame it is shown, as the ship's own flight past Jupiter can
+    // carry the hull in front of the spot within the second before 8.1 s)
+    n = 0; while (D.tau < tau && n++ < 30*60){ C.tick(dt);
+      if (tau === 8.1 && scan.turned){ C.render(); const A1 = SC.job, g1 = A1 && A1.shown.find(s => s.name === 'Great Red Spot');
+        if (g1) scan.brk = Math.max(scan.brk, Math.hypot(...g1.p.map((x, k) => x - spot(1.1 - J.t*0.0015)[k]))/J.rad); } }
     C.render();
-    for (const b of D.beams){
-      beams++;
-      const d = b.end.map((x, k) => x - b.E[k]), L = Math.hypot(...d), u = d.map(x => x/L), oc = b.E.map((x, k) => x - b.C[k]);
-      const bb = oc[0]*u[0] + oc[1]*u[1] + oc[2]*u[2], hh = bb*bb - (oc[0]*oc[0] + oc[1]*oc[1] + oc[2]*oc[2]) + b.R*b.R, t = -bb - Math.sqrt(Math.max(hh, 0));
-      const onSurface = Math.abs(Math.hypot(...b.end.map((x, k) => x - b.C[k]))/b.R - 1), firstHit = hh >= 0 ? Math.abs(t - L)/b.R : 1;
-      worst = Math.max(worst, onSurface, firstHit);
+    const A = SC.job, U = A && A.holoU; if (!U) continue;
+    scan.holo++; scan.lines = Math.max(scan.lines, A.nl); scan.kind = U.p2[1];
+    scan.frame = Math.max(scan.frame, ...U.R.map((x, k) => Math.abs(x - J.rot[k])), Math.hypot(...U.C.map((x, k) => x - J.rel[k]))/J.rad);
+    for (const s of A.shown) scan.faceMin = Math.min(scan.faceMin, faceJ(s.p));
+    const g = A.shown.find(s => s.name === 'Great Red Spot'); if (g && tau === 8.1) scan.brk = Math.max(scan.brk, Math.hypot(...g.p.map((x, k) => x - spot(1.1 - J.t*0.0015)[k]))/J.rad);
+    if (U.p3[3] > 0) for (let k=0;k<48;k++){
+      const lr = Math.asin(U.p0[2]), lo = k/48*2*Math.PI, a = U.p0[0]*U.B, b = U.p0[1]*U.B;
+      const q = [a*Math.cos(lr)*Math.cos(lo), b*Math.sin(lr), -a*Math.cos(lr)*Math.sin(lo)], w = [0, 1, 2].map(i => U.C[i] + U.R[i]*q[0] + U.R[3 + i]*q[1] + U.R[6 + i]*q[2]);
+      const l = loc(w, J, J.rad); scan.ring++; scan.worst = Math.max(scan.worst, Math.abs(Math.hypot(l[0], l[1]/(1 - OBL), l[2])/0.9 - 1));
     }
+    // (the readout, once the scan is complete, gives every number in the table)
+    if (tau === 8.1) scan.said = SC.facts.jupiter.every(f => h.readout().includes(f));
   }
-  r.beams = beams; r.beamWorst = worst;
+  J.t -= dJ;
+  // the table: numbers for every place the ship visits, and each size the body is drawn at (Saturn is drawn at its mean radius, 3% under its
+  // equatorial one, which the table gives; "2.4 million km" is rounded to 1%)
+  for (const k of SC.targets) if (!(SC.facts[k] || []).length) scan.noFacts.push(k);
+  for (const [k, f] of Object.entries(SC.facts)){ const m = /^([\d,.]+)( million)? km wide/.exec(f[0]), o = C.BYKEY[k]; if (!m || !o || !o.solid) continue;
+    scan.sizes.push([k, +Math.abs(2*o.rad*o.solid*LYKM/(+m[1].replace(/,/g, '')*(m[2] ? 1e6 : 1)) - 1).toFixed(4)]); }
+  r.scan = scan;
   // a weapons test: blasts happen, and some seconds after the job every trace of them is gone
   // (only what the job made counts: the streak the ship leaves when it jumps away from the Moon later is also tied to the Moon)
   D.force({ target:'moon', act:'weapons', travel:'light' }); D.replan(); D.skip();
@@ -224,19 +276,64 @@ const halo = await page.evaluate(HALO_SEED => {
   const made = new Set(); let blasts = 0; n = 0; while (D.act === 'weapons' && n++ < 30*40){ C.tick(dt); const b = D.FX.filter(e => e.anc === C.BYKEY.moon); b.forEach(e => made.add(e)); blasts = Math.max(blasts, b.length); }
   for (let i=0;i<30*6;i++) C.tick(dt);
   r.blasts = blasts; r.leftAfter = D.FX.filter(e => made.has(e)).length;
-  // a probe at Mars: Pip, the drone, is out during the job and in the picture of the camera locked on the ship for part of it, its whole body
-  // stays above the drawn surface (measured here from where the engine puts it and the body, less its own radius), it has gone back into the
-  // bay before it is stowed (broken up into embers, every one of them arrived: pres 0, embIn 1), and stowed after
+  // probes at Mars and then Jupiter: Pip, the drone, goes out and potters about the ship for its whole outing, in the picture of the camera
+  // locked on the ship for most of it; it never goes more than a few ship radii from the ship's centre (far), its body never touches the hull
+  // (clr: the hull's distance from its centre, as the ship's shader draws it, less its radius) nor dips below the drawn surface (measured here
+  // from where the engine puts it and the body, less its own radius); the ship never jumps while it is out (the job waits for it: done()); it
+  // goes back into the bay as embers (every one of them arrived: pres 0, embIn 1) and is stowed after; the readout says what it does, in
+  // several lines; its face changes with what it does (three faces or more, happy among them), and called home early it looks sad; and the
+  // two outings differ (another mix, or another order)
   D.force({ target:'mars', act:'probe', travel:'fold' }); D.replan(); D.skip();
   n = 0; while (!(S.phase === 'pass' && S.target.key === 'mars') && n++ < 30*60) C.tick(dt);
-  const pip = D.drone, dr = C.BYKEY['halo-drone']; let outN = 0, lastOut = null, said = false, low = 9, shown = 0; n = 0;
-  while (D.act === 'probe' && n++ < 30*40){
-    C.tick(dt); const s = pip.state;
-    if (s.st === 'out'){ outN++; lastOut = s; if (s.shows) shown++;
-      const tg = S.target, R = D.surfDrawn(tg); low = Math.min(low, (Math.hypot(...dr.rel.map((x, k) => x - tg.rel[k])) - R - dr.rad*s.scale)/R); }
-    if (/Pip/.test(h.readout())) said = true;
-  }
-  r.pip = { at:S.target.key, out:outN, shown, pres:lastOut ? +lastOut.pres.toFixed(3) : -1, embIn:lastOut ? +lastOut.embIn.toFixed(3) : -1, low:+low.toFixed(4), after:pip.state.st, said };
+  D.force({ target:'jupiter', act:'probe', travel:'light' }); D.replan();   // (the next stop, a probe too)
+  const pip = D.drone, dr = C.BYKEY['halo-drone'];
+  const outing = (hurryAt = -1) => {
+    let outN = 0, lastOut = null, low = 9, shown = 0, clr = 9, far = 0, left = false, plan = null, hurried = null, back = null, sad = null; const lines = new Set(), faces = new Set(); n = 0;
+    while (D.act === 'probe' && n++ < 30*90){
+      C.tick(dt); const s = pip.state;
+      if (s.st === 'out'){ outN++; lastOut = s; plan = plan || pip.plan; if (s.shows) shown++; clr = Math.min(clr, s.clr); far = Math.max(far, s.far); if (S.phase === 'light' || S.phase === 'fold') left = true;
+        faces.add(s.face); if (hurried != null && sad == null) sad = s.face === 'sad';
+        const tg = S.target, R = D.surfDrawn(tg); low = Math.min(low, (Math.hypot(...dr.rel.map((x, k) => x - tg.rel[k])) - R - dr.rad*s.scale)/R);
+        if (hurryAt >= 0 && hurried == null && D.tau >= hurryAt){ pip.hurry(); hurried = D.tau; } }
+      else if (hurried != null && back == null) back = +(D.tau - hurried).toFixed(2);
+      const L = h.readout().split('\n')[0]; if (/Pip/.test(L)) lines.add(L);
+    }
+    return { at:S.target.key, acts:plan ? plan.acts.join(' ') : '', out:outN, shown, clr:+clr.toFixed(4), far:+far.toFixed(2), left, pres:lastOut ? +lastOut.pres.toFixed(3) : -1,
+      embIn:lastOut ? +lastOut.embIn.toFixed(3) : -1, low:+low.toFixed(4), after:pip.state.st, lines:lines.size, back, faces:[...faces].join(' '), sad };
+  };
+  r.pip = outing();
+  n = 0; while (!(S.phase === 'pass' && S.target.key === 'jupiter') && n++ < 30*60) C.tick(dt);
+  // (at Jupiter, 14 s into the outing, it is called home early: drone.hurry, for a ship that has to leave now)
+  r.pip2 = outing(14);
+  // its dice: 40 outings in a row, as a visitor would see them, never the same twice running and all four kinds, launches and ways home used
+  const mixes = []; let last = '', lastActs = ''; for (let s = 1; s <= 40; s++){ const m = pip.mix(s*7919 + 17, false, last, lastActs); mixes.push(m); last = m.sig; lastActs = m.acts.join(); }
+  r.mix = { distinct:new Set(mixes.map(m => m.acts.join())).size, repeats:mixes.filter((m, i) => i && m.acts.join() === mixes[i - 1].acts.join()).length,
+    acts:new Set(mixes.flatMap(m => m.acts)).size, launch:new Set(mixes.map(m => m.launch)).size, ret:new Set(mixes.map(m => m.ret)).size };
+  // a scan at a black hole (Sgr A*): nothing of it is ever drawn inside the shadow (there the picture is the same with the hologram as without it,
+  // pixel for pixel, while just outside it the hologram shows); and when the job is over nothing of it is left (the hole's own draw hook back,
+  // no labels, no lines, no hologram). (A route of its own from Saturn, so the scan is sure to be there, whatever the ship was doing)
+  D.reset(HALO_SEED); C.tick(0);
+  D.force({ target:'sgra', act:'scan', travel:'fold' }); D.replan(); D.skip();
+  n = 0; while (!(S.phase === 'pass' && S.target.key === 'sgra') && n++ < 30*60) C.tick(dt);
+  C.view('halo', 0);
+  n = 0; while (D.tau < 4 && n++ < 30*60) C.tick(dt);
+  const cv = document.querySelector('#view'), gl = cv.getContext('webgl2'), sg = C.BYKEY.sgra, kp = cv.width/cv.clientWidth, pr = C.proj('sgra');
+  const rs = pr ? sg.holeR/(pr.z*ty)*(cv.clientHeight/2) : 0;   // (the shadow's radius on screen, CSS pixels)
+  // (the brightness of the drawn pixels r0 to r1 CSS pixels from the hole's centre, those on the canvas)
+  const grab = (r0, r1) => { C.render(); const x0 = clamp_(Math.floor((pr.x - r1)*kp), 0, cv.width), x1 = clamp_(Math.ceil((pr.x + r1)*kp), 0, cv.width), y0 = clamp_(Math.floor(cv.height - (pr.y + r1)*kp), 0, cv.height), y1 = clamp_(Math.ceil(cv.height - (pr.y - r1)*kp), 0, cv.height);
+    const w = x1 - x0, hh = y1 - y0, px = new Uint8Array(Math.max(w*hh, 1)*4), out = []; if (w > 0 && hh > 0) gl.readPixels(x0, y0, w, hh, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    for (let j=0;j<hh;j++) for (let i=0;i<w;i++){ const d = Math.hypot((x0 + i + 0.5)/kp - pr.x, (cv.height - (y0 + j + 0.5))/kp - pr.y); if (d >= r0 && d < r1) out.push(px[(j*w + i)*4] + px[(j*w + i)*4 + 1] + px[(j*w + i)*4 + 2]); } return out; };
+  const clamp_ = (x, a, b) => Math.min(b, Math.max(a, x));
+  let inside = -1, outside = -1;
+  // (with the screen's glow off: it blurs every bright thing a little, over the shadow's edge too)
+  if (rs > 12 && D.act === 'scan'){ const glow = C.SET.glow; C.setOpt('glow', false, true);
+    SC.dbg.noHolo = true; const offIn = grab(0, 0.8*rs), offOut = grab(1.1*rs, 1.9*rs); SC.dbg.noHolo = false; const onIn = grab(0, 0.8*rs), onOut = grab(1.1*rs, 1.9*rs);
+    inside = onIn.length > 50 ? Math.max(0, ...onIn.map((v, i) => Math.abs(v - offIn[i]))) : -1; outside = onOut.filter((v, i) => Math.abs(v - offOut[i]) > 30).length;
+    C.setOpt('glow', glow, true); }
+  scan.hole = { at:S.target.key, act:D.act, r:+rs.toFixed(1), inside, outside };
+  n = 0; while (D.act === 'scan' && n++ < 30*40) C.tick(dt);
+  const holo0 = SC.dbg.holo; C.render(); C.hud();
+  scan.left = { hook:Object.prototype.hasOwnProperty.call(sg, 'drawBefore'), labels:SC.labels.length, lines:SC.dbg.lines, holo:SC.dbg.holo - holo0 };
   return r;
 }, HALO_SEED);
 if (halo.stopped) fail('the Halo stood still for ' + halo.stopped + ' steps');
@@ -244,9 +341,24 @@ if (halo.minTurnRadius < 20) fail('the Halo turned on the spot (turn radius ' + 
 if (halo.maxTurn20s > 300) fail('the Halo turned ' + halo.maxTurn20s + ' degrees within 20 s (circling)');
 if (halo.maxRate > halo.rateLimit) fail('the Halo turned at ' + halo.maxRate + ' degrees a second, faster than its tightest turn (a corner in its path)');
 if (!halo.modes.light || !halo.modes.fold) fail('the Halo did not use both light speed and folds: ' + JSON.stringify(halo.modes));
-if (Object.keys(halo.acts).length < 4) fail('the Halo did fewer than 4 kinds of job: ' + JSON.stringify(halo.acts));
-if (halo.beams < 20 || halo.beamWorst > 1e-3) fail('scan beams do not end on the surface: ' + JSON.stringify({ beams:halo.beams, worst:halo.beamWorst }));
-if (halo.pip.at !== 'mars' || halo.pip.out < 30*10 || halo.pip.shown < 30*2 || !(halo.pip.pres === 0 && halo.pip.embIn >= 0.999) || !(halo.pip.low > 0) || halo.pip.after !== 'stowed' || !halo.pip.said) fail('Pip, the drone, did not go out, show, stay above the ground and go back into the bay: ' + JSON.stringify(halo.pip));
+if (Object.keys(halo.acts).length < 3) fail('the Halo did fewer than 3 kinds of job: ' + JSON.stringify(halo.acts));
+if (halo.stays.length < 2 || halo.stays.some(s => s.t < 90 || s.t > 200 || s.passes < 3)) fail('the Halo did not roam round each place for about two minutes (90 to 200 s, three passes or more): ' + JSON.stringify(halo.stays));
+const sc = halo.scan;
+if (sc.holo < 3 || sc.kind !== 0 || sc.frame > 1e-9 || sc.ring < 48 || !(sc.worst < 1e-3)) fail('the scan\'s hologram is not on Jupiter\'s drawn surface: ' + JSON.stringify({ holo:sc.holo, kind:sc.kind, frame:sc.frame, ring:sc.ring, worst:sc.worst }));
+if (sc.faceMin < 0.2) fail('a scan bracket sits on a feature the camera cannot see: ' + sc.faceMin);
+// (on another route, HALO_SEED, the camera may not see Jupiter's southern latitudes at all; on the route every run flies, seed 1, it does)
+if ((sc.turned || HALO_SEED === 1) && !(sc.brk >= 0 && sc.brk < 1e-6)) fail('the Great Red Spot\'s bracket is not on the spot: ' + JSON.stringify({ turned:sc.turned, off:sc.brk }));
+if (!sc.said || sc.noFacts.length || sc.sizes.some(s => s[1] > 0.04)) fail('the scan\'s numbers do not match its table, or the table the drawn sizes: ' + JSON.stringify({ said:sc.said, noFacts:sc.noFacts, sizes:sc.sizes }));
+if (sc.lines > 1500) fail('the scan drew ' + sc.lines + ' line ends in a frame');
+if (sc.left.hook || sc.left.labels || sc.left.lines || sc.left.holo) fail('the scan left something behind: ' + JSON.stringify(sc.left));
+if (!(sc.hole.inside === 0 && sc.hole.outside > 20)) fail('the scan drew inside Sgr A*\'s shadow, or nothing round it: ' + JSON.stringify(sc.hole));
+{ const p = halo.pip, q = halo.pip2, m = halo.mix;
+  if (p.at !== 'mars' || p.out < 30*25 || p.shown < 0.5*p.out || !(p.pres === 0 && p.embIn >= 0.999) || p.after !== 'stowed' || p.lines < 5) fail('Pip, the drone, did not go out, show for most of its outing, say what it does and go back into the bay as embers: ' + JSON.stringify(p));
+  for (const o of [p, q]) if (!(o.far <= 2.2) || !(o.clr >= -0.002) || !(o.low > 0) || o.left) fail('Pip went far from the ship, into its hull or below the surface, or the ship left without it: ' + JSON.stringify(o));
+  if (q.at !== 'jupiter' || !q.acts || q.acts === p.acts) fail('two outings in a row were the same: ' + JSON.stringify({ first:p.acts, second:q.acts }));
+  if (!(q.back > 0 && q.back <= 1.7) || !(q.pres === 0 && q.embIn >= 0.999) || q.after !== 'stowed') fail('Pip called home early (drone.hurry) was not back in the bay within 1.7 s: ' + JSON.stringify(q));
+  if (p.faces.split(' ').length < 3 || !/happy/.test(p.faces) || q.sad !== true) fail("Pip's face did not change with what it does, or it did not look sad called home early: " + JSON.stringify({ faces:p.faces, sad:q.sad }));
+  if (m.repeats || m.distinct < 12 || m.acts !== 4 || m.launch !== 3 || m.ret !== 3) fail('Pip\'s outings do not vary enough: ' + JSON.stringify(m)); }
 if (!halo.blasts || halo.leftAfter) fail('the weapons test did not blast, or left something behind: ' + JSON.stringify({ blasts:halo.blasts, left:halo.leftAfter }));
 
 // 8b. hops that went wrong before 0.8.7, each flown on purpose from a pass that showed it: into a galaxy the ship is inside (it flew out to the
@@ -497,5 +609,5 @@ if (rt.few.b5 > 0.06*rt.few.n || rt.few.b3 > 0.18*rt.few.n || rt.few.unseen < 4*
 if (rt.trips.deals !== 3) fail('playing the random tour did not reach the next deal: ' + JSON.stringify(rt.trips));
 if (rt.trips.bad.length) fail('random tour trips that dip or fly through something: ' + rt.trips.bad.join('; '));
 
-report('motion', errors, `random tour: 12 places, unseen first (${rt.tiers.seen} seen places in 3 deals with 10 unseen, none too early, ${rt.tiers.waited} while the unseen ones were rough trips), with 6 unseen left ${rt.few.unseen}/${8*6} of them dealt in 8 deals and ${rt.few.b3} of ${rt.few.n} trips pull back over 1,000x (${rt.few.b5} over 100,000x), new names on the track, dealt ahead (last stop, paused, list open) and again at the end, ${rt.trips.n} trips played without dips · next stop, start again and back to the tour · three fast angle taps, three angles · Esc closes panels first · Earth on the tour: angles ${say.earth.views.join(', ')} in ${say.earth.t} s · home from the Crab pauses the tour · free camera stays with Earth (${stay.drift.off.toFixed(1)}° off centre after 5 s), back by play and by the pill ("${(stay.pill || '').replace(/^\W/, '› ')}") · Jupiter x${stay.jupiterFree} after letting go, x${stay.overviewFree} in the overview · W A S D within ${stay.reach} view distances · Saturn loops through ${loop.views} angles · pause, play and space work · universe to Earth, largest frame-to-frame change x${fl.worstFrameToFrameScale} · ladder picks keep moving · riding the Halo through a fold and a light-speed jump (camera within ${ride.farAfterFold.toFixed(2)} / ${ride.farInLightSpeed.toFixed(2)} of ${ride.rig.toFixed(2)} ship radii) · the Halo always moving (tightest turn ${halo.minTurnRadius} ship lengths, at most ${halo.maxTurn20s} degrees in 20 s and ${halo.maxRate} of ${halo.rateLimit} degrees a second) · ${hops.out.length} hops that used to go wrong, now at most ${Math.max(...hops.out.map(o => o.rate))} degrees a second (${hops.out.filter(o => o.by === 'fold').map(o => o.hop).join(', ')} fold), ${Object.keys(halo.acts).length} kinds of job, ${halo.beams} scan beams on the surface (error ${halo.beamWorst.toExponential(1)}), Pip out ${(halo.pip.out/30).toFixed(1)} s at Mars, in the picture ${(halo.pip.shown/30).toFixed(1)} s, and back in the bay as embers (${Math.round(halo.pip.embIn*100)}% arrived, its underside at least ${halo.pip.low} surface radii up) · Moon → ${nav.next} → ${nav.next2} · mid-flight speed change ${nav.slow}s → ${nav.fast}s · ${trips.n} tour trips without dips (${trips.passes} pass-bys)`);
+report('motion', errors, `random tour: 12 places, unseen first (${rt.tiers.seen} seen places in 3 deals with 10 unseen, none too early, ${rt.tiers.waited} while the unseen ones were rough trips), with 6 unseen left ${rt.few.unseen}/${8*6} of them dealt in 8 deals and ${rt.few.b3} of ${rt.few.n} trips pull back over 1,000x (${rt.few.b5} over 100,000x), new names on the track, dealt ahead (last stop, paused, list open) and again at the end, ${rt.trips.n} trips played without dips · next stop, start again and back to the tour · three fast angle taps, three angles · Esc closes panels first · Earth on the tour: angles ${say.earth.views.join(', ')} in ${say.earth.t} s · home from the Crab pauses the tour · free camera stays with Earth (${stay.drift.off.toFixed(1)}° off centre after 5 s), back by play and by the pill ("${(stay.pill || '').replace(/^\W/, '› ')}") · Jupiter x${stay.jupiterFree} after letting go, x${stay.overviewFree} in the overview · W A S D within ${stay.reach} view distances · Saturn loops through ${loop.views} angles · pause, play and space work · universe to Earth, largest frame-to-frame change x${fl.worstFrameToFrameScale} · ladder picks keep moving · riding the Halo through a fold (a ${ride.fold.wind} s wind-up, easing to ${ride.fold.eased} of its speed, a starburst each end) and a light-speed jump (camera within ${ride.farAfterFold.toFixed(2)} / ${ride.farInLightSpeed.toFixed(2)} of ${ride.rig.toFixed(2)} ship radii) · the Halo roams round each place (${halo.stays.map(s => s.at + ' ' + s.t + ' s, ' + s.passes + ' passes').join('; ')}), always moving (tightest turn ${halo.minTurnRadius} ship lengths, at most ${halo.maxTurn20s} degrees in 20 s and ${halo.maxRate} of ${halo.rateLimit} degrees a second) · ${hops.out.length} hops that used to go wrong, now at most ${Math.max(...hops.out.map(o => o.rate))} degrees a second (${hops.out.filter(o => o.by === 'fold').map(o => o.hop).join(', ')} fold), ${Object.keys(halo.acts).length} kinds of job, a scan's hologram on Jupiter's surface (error ${halo.scan.worst.toExponential(1)}), its Great Red Spot bracket on the spot, none of it in Sgr A*'s shadow (${halo.scan.hole.outside} pixels round it), Pip out ${(halo.pip.out/30).toFixed(1)} s at Mars (${halo.pip.acts}, ${halo.pip.faces.split(' ').length} faces), in the picture ${(halo.pip.shown/30).toFixed(1)} s, at most ${Math.max(halo.pip.far, halo.pip2.far)} ship radii out and ${Math.min(halo.pip.clr, halo.pip2.clr)} clear of the hull, the ship waiting for it, back in the bay as embers (${Math.round(halo.pip.embIn*100)}% arrived), then ${halo.pip2.acts} at Jupiter, called home in ${halo.pip2.back} s; ${halo.mix.distinct} mixes in 40 outings · Moon → ${nav.next} → ${nav.next2} · mid-flight speed change ${nav.slow}s → ${nav.fast}s · ${trips.n} tour trips without dips (${trips.passes} pass-bys)`);
 await browser.close();

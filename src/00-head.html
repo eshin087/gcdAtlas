@@ -174,7 +174,46 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .fold-flash.blink{background:radial-gradient(ellipse at 50% 50%,rgba(215,240,255,.7) 0%,rgba(143,200,255,.22) 30%,rgba(20,40,70,0) 65%)}
 .fold-flash.go.blink{animation:foldBlink .35s ease-out}
 @keyframes foldBlink{0%{opacity:0}25%{opacity:.45}100%{opacity:0}}
-@media (prefers-reduced-motion:reduce){.fold-flash.go{animation-duration:.4s}}
+/* the fold with the camera on the ship (0.9.3, owner): the whole screen flashes white for a split second as it jumps ('jump'), and a softer
+   flash as its heart arrives at the far end ('arrive') */
+.fold-flash.jump{background:radial-gradient(ellipse at 50% 50%,rgba(250,253,255,.98) 0%,rgba(205,240,255,.9) 45%,rgba(140,200,255,.75) 100%)}
+.fold-flash.go.jump{animation:foldJump .6s ease-out}
+@keyframes foldJump{0%{opacity:0}7%{opacity:.94}22%{opacity:.7}100%{opacity:0}}
+.fold-flash.arrive{background:radial-gradient(ellipse at 50% 50%,rgba(240,250,255,.95) 0%,rgba(170,225,255,.7) 45%,rgba(90,150,230,.45) 100%)}
+.fold-flash.go.arrive{animation:foldArrive .5s ease-out}
+@keyframes foldArrive{0%{opacity:0}10%{opacity:.6}100%{opacity:0}}
+@keyframes foldSoft{0%{opacity:0}20%{opacity:.35}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.fold-flash.go{animation-duration:.4s}.fold-flash.go.jump,.fold-flash.go.arrive{animation-name:foldSoft}}
+/* the Halo showcase's buttons (?showcase=halo), do it now: on a desk at the bottom, under the caption (its toasts go above the caption); on a
+   phone at the top, below the bar (the same breakpoint as COMPACT_MQ). The key for each in a small grey figure (none on a phone) */
+.demo-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:7;display:flex;flex-wrap:wrap;justify-content:center;gap:4px;align-items:center;width:max-content;max-width:calc(100vw - 32px);box-sizing:border-box;font:12px/1 'IBM Plex Mono',ui-monospace,monospace;color:#9bb3c4;background:rgba(4,5,10,.72);border:1px solid rgba(143,230,255,.25);border-radius:6px;padding:4px 4px 4px 8px}
+.demo-bar b{font-weight:400;color:#6f8796;margin-right:4px}
+.demo-bar button{font:inherit;color:inherit;background:none;border:1px solid rgba(143,230,255,.3);border-radius:4px;padding:7px 10px;min-height:30px;cursor:pointer}
+.demo-bar button:hover{background:rgba(143,230,255,.12)}
+.demo-bar button.on{color:#04050a;background:#8fe6ff}
+.demo-bar button:focus-visible{outline:1px solid var(--flare);outline-offset:2px}
+.demo-bar .k{color:#6f8796;margin-right:4px}
+.demo-bar button.on .k{color:#04050a}
+/* the lab (/lab, src/09l-lab.js; body.halo-lab, as .lab is already the labels' class): the stage and its panel, nothing else of the site's interface (the caption says what the ship is doing) */
+body.halo-lab .brand,body.halo-lab .topr,body.halo-lab .info,body.halo-lab .info-pill,body.halo-lab .controls,body.halo-lab .atlas,body.halo-lab .panel,body.halo-lab .ladder,body.halo-lab .daily,body.halo-lab .saver-hud,body.halo-lab .photo-bar,body.halo-lab .help,body.halo-lab .shipmark,body.halo-lab .shiparrow,body.halo-lab .backpill{display:none !important}
+.lab-panel{position:fixed;left:calc(12px + env(safe-area-inset-left,0px));top:calc(12px + env(safe-area-inset-top,0px));z-index:8;width:min(370px,calc(100vw - 24px));box-sizing:border-box;font:12px/1.3 'IBM Plex Mono',ui-monospace,monospace;color:#9bb3c4;background:rgba(4,5,10,.8);border:1px solid rgba(143,230,255,.25);border-radius:6px;padding:8px 10px}
+.lab-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.lab-h b{color:#d9ecf5;font-weight:500;letter-spacing:.08em;text-transform:uppercase;font-size:11px}
+.lab-h a{color:#8fe6ff;text-decoration:none}
+.lab-row{display:flex;gap:6px;align-items:flex-start;margin:4px 0}
+.lab-row>span{flex:0 0 52px;padding-top:7px;color:#6f8796;text-transform:uppercase;font-size:10px;letter-spacing:.08em}
+.lab-row>div{display:flex;flex-wrap:wrap;gap:4px;flex:1}
+.lab-panel button{font:inherit;color:inherit;background:none;border:1px solid rgba(143,230,255,.3);border-radius:4px;padding:5px 8px;min-height:28px;cursor:pointer}
+.lab-panel button:hover{background:rgba(143,230,255,.12)}
+.lab-panel button.on{color:#04050a;background:#8fe6ff}
+.lab-panel button:focus-visible{outline:1px solid var(--flare);outline-offset:2px}
+.lab-load{align-items:center}
+.lab-load input{flex:1;min-width:110px;accent-color:#8fe6ff}
+.lab-load em{font-style:normal;color:#6f8796;flex-basis:100%}
+.lab-note{margin:6px 0 0;color:#6f8796;font-size:10.5px}
+@media (max-width:680px), (max-height:520px) and (max-width:1000px){ .lab-panel{top:auto;bottom:calc(8px + env(safe-area-inset-bottom,0px));left:8px;width:calc(100vw - 16px);max-height:46vh;overflow:auto} .lab-note{display:none}
+  body.halo-lab .caption{bottom:auto;top:calc(8px + env(safe-area-inset-top,0px))} }
+@media (max-width:680px), (max-height:520px) and (max-width:1000px){ .demo-bar{left:calc(8px + env(safe-area-inset-left,0px));transform:none;justify-content:flex-start;bottom:auto;top:calc(52px + env(safe-area-inset-top,0px));max-width:calc(100vw - 16px)} .demo-bar button{min-height:40px;padding:8px 9px} .demo-bar .k{display:none} }
 .btn:focus-visible,.gonext:focus-visible,.tourpick:focus-visible,.brand:focus-visible,.backpill:focus-visible,.lab:focus-visible,.arow:focus-visible,.tick:focus-visible,.nav:focus-visible,.seg button:focus-visible,.tog button:focus-visible,.song:focus-visible,.songs-btn:focus-visible,.ladmark:focus-visible{outline:1px solid var(--flare);outline-offset:2px}
 .search{position:relative;display:flex;align-items:center}
 .search input{width:190px;box-sizing:border-box;font-size:calc(12px*var(--ts));color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:6px 30px 6px 10px;outline:none;
@@ -187,6 +226,7 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 
 .strip{position:fixed;left:0;right:0;bottom:0;padding:0 16px calc(12px + env(safe-area-inset-bottom,0px));
   display:flex;flex-direction:column;gap:8px;pointer-events:none;z-index:3}
+body.showcase .strip{padding-bottom:calc(124px + env(safe-area-inset-bottom,0px))}   /* (the Halo showcase: toasts above its caption and buttons) */
 .toast{align-self:center;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:5px 12px;font-size:calc(11.5px*var(--ts));
   opacity:0;transition:opacity .4s;text-align:center;max-width:100%}
 .toast.on{opacity:1}

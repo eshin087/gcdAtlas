@@ -60,7 +60,7 @@ const orion = (() => {
   const pos = radec(hms(5,35,17.3), dms(-5,23,28), 1344), cl = clusterPS(Math.round(420*QUALITY), [0, 0, 0.25], 0.32, 26000);
   return addObj({ key:'orion', name:'Orion Nebula', label:'Orion Nebula', type:'stellar nursery · M42 · in the sword of Orion', group:'nebulae', sortKey:1344,
     fact:'The nearest big star factory, visible to the naked eye as the fuzzy middle "star" of Orion\'s sword. Four hot young stars at its heart, the Trapezium, light the whole cloud.',
-    pos, rad:14, R0:facingEarth(pos, [0, 0, 1], 0), prog:program(VS_RECT, FS_ORION), minZoom:0.06, pxMin:6, farColor:[0.7, 0.9, 0.8], farLum:0.55, labelRange:2e4, aka:'m42 orion nebula trapezium stellar nursery',
+    pos, rad:14, R0:facingEarth(pos, [0, 0, 1], 0), prog:program(VS_RECT, FS_ORION), minZoom:0.06, pxMin:6, farColor:[0.7, 0.9, 0.8], farLum:0.55, labelRange:2e4, aka:'m42 ngc 1976 m43 ngc 1982 orion nebula trapezium stellar nursery',
     views:nebView(pos, [{ d:[0.55, 0.25, 0.8], k:0.7, off:[0, 0, 0.2], hold:8, drift:0.03 }, { d:[-0.2, 0.15, 1], k:0.28, off:[0.02, 0.02, 0.28], hold:8, drift:0.02 }]),
     particles:[{ ps:cl.ps, prog:'ptBasic', mode:1, sb:1.4, size:1.8 }, { ps:cl.spikes, prog:'spike', lines:true, mode:1, sb:1.4, size:1, len:0.03, q0:() => [1, 0, 0, 0] }],
     readout:() => '1,344 light-years · about 24 light-years across\n~2,000 newborn stars, most under a million years old' });
@@ -112,7 +112,7 @@ const horsehead = (() => {
   const pos = radec(hms(5,40,59), dms(-2,27,30), 1375);
   return addObj({ key:'horsehead', name:'Horsehead Nebula', label:'Horsehead', type:'dark nebula · Barnard 33 · in Orion', group:'nebulae', sortKey:1375,
     fact:'A pillar of cold, dusty gas that happens to look like a horse\'s head, silhouetted against glowing hydrogen lit by the star sigma Orionis.',
-    pos, rad:4, R0:facingEarth(pos, [0, 0, 1], -8), prog:program(VS_RECT, FS_HORSEHEAD), minZoom:0.08, pxMin:6, farColor:[1, 0.45, 0.45], farLum:0.35, labelRange:1.5e4, aka:'barnard 33 b33 ic 434 horse head dark nebula',
+    pos, rad:4, R0:facingEarth(pos, [0, 0, 1], -8), prog:program(VS_RECT, FS_HORSEHEAD), minZoom:0.08, pxMin:6, farColor:[1, 0.45, 0.45], farLum:0.35, labelRange:1.5e4, aka:'barnard 33 b33 ic 434 ngc 2023 horse head dark nebula',
     views:nebView(pos, [{ d:[0.35, 0.1, 0.95], k:0.8, off:[-0.08, 0.15, 0], hold:8, drift:0.02 }, { d:[-0.9, 0.2, 0.35], k:1.1, off:[0, 0.1, 0], hold:8, drift:0.03 }]),
     readout:() => '1,375 light-years · the head is about 3.5 light-years tall\nit is slowly being eroded and will be gone in ~5 million years' });
 })();
@@ -255,7 +255,7 @@ const veil = (() => {
   const pos = radec(hms(20,51,0), dms(30,40,0), 2400);
   return addObj({ key:'veil', tags:['events'], name:'Veil Nebula', label:'Veil Nebula', type:'supernova remnant · the Cygnus Loop', group:'nebulae', sortKey:2400,
     fact:'The expanding wreckage of a star that exploded 10,000 to 20,000 years ago. The blast wave is still ploughing into surrounding gas, lighting it up in long twisted filaments.',
-    pos, rad:65, R0:facingEarth(pos, [0, 0, 1], 0), prog:program(VS_RECT, FS_VEIL), minZoom:0.05, pxMin:6, farColor:[0.55, 0.9, 1], farLum:0.4, labelRange:1.5e5, labelMin:10, aka:'cygnus loop ngc 6960 6992 witch broom supernova remnant',
+    pos, rad:65, R0:facingEarth(pos, [0, 0, 1], 0), prog:program(VS_RECT, FS_VEIL), minZoom:0.05, pxMin:6, farColor:[0.55, 0.9, 1], farLum:0.4, labelRange:1.5e5, labelMin:10, aka:'cygnus loop ngc 6960 ngc 6992 ngc 6995 ngc 6974 ngc 6979 ic 1340 witch broom supernova remnant',
     visFn(rpx){ return smooth(6, 16, rpx)*(0.15 + 0.85*smooth(3, 40, orbit.dist)); },
     views:nebView(pos, [{ d:[0.9, 0.1, 0.4], k:0.45, off:[0.82, 0, 0], hold:8, drift:0.02 }, { d:[0.3, 0.6, 0.7], k:1.5, hold:8, drift:0.03 }]),
     readout:() => '2,400 light-years · about 110 light-years across\nthe shock is still racing outward at ~1.5 million km/h' });

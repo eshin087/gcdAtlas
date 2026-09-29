@@ -162,7 +162,7 @@ let saverT = 0;
 function updateSaver(dt){
   saverT -= dt; if (saverT > 0) return; saverT = 0.5;
   const idleMin = +SET.saverIdle || 0;
-  if (!SAVER.on && idleMin > 0 && performance.now() - SAVER.lastInput > idleMin*60000 && document.visibilityState === 'visible' && !document.body.classList.contains('photo') && !document.body.classList.contains('showcase')) startSaver();
+  if (!SAVER.on && idleMin > 0 && performance.now() - SAVER.lastInput > idleMin*60000 && document.visibilityState === 'visible' && !document.body.classList.contains('photo') && !document.body.classList.contains('showcase') && !document.body.classList.contains('halo-lab')) startSaver();
   if (!SAVER.on) return;
   const d = new Date(); $('#svTime').textContent = d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
   const o = OBJ[tour.obj]; if ($('#svObj').textContent !== o.name){ $('#svObj').textContent = o.name; $('#svFact').textContent = o.fact || o.type; }

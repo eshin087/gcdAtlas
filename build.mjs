@@ -46,5 +46,8 @@ const meta = `<meta charset="utf-8">
 fs.mkdirSync(DIST, { recursive: true });
 fs.writeFileSync(path.join(DIST, 'index.html'), `<!doctype html>\n<html lang="en">\n<head>\n${meta}${head}\n</head>\n<body>\n${body}\n${script}</body>\n</html>\n`);
 fs.writeFileSync(path.join(DIST, 'artifact.html'), `${head}\n${body}\n${script}`);
+// the lab (/lab): the same page, told before its script runs to open as a small stage for trying the Halo's looks (src/09l-lab.js); kept out of search
+const labHead = head.replace(/<title>[^<]*<\/title>/, '<title>gcdatlas lab</title>');
+fs.writeFileSync(path.join(DIST, 'lab.html'), `<!doctype html>\n<html lang="en">\n<head>\n${meta}<meta name="robots" content="noindex">\n${labHead}\n</head>\n<body>\n${body}\n<script>window.__LAB = 1;</script>\n${script}</body>\n</html>\n`);
 const kb = f => (fs.statSync(path.join(DIST, f)).size/1024).toFixed(0) + ' KB';
 console.log(`built ${list.length} scripts -> dist/index.html (${kb('index.html')}), dist/artifact.html (${kb('artifact.html')})`);

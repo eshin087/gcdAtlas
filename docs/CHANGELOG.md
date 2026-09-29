@@ -4,6 +4,40 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.9.3 · 2026-09-28
+
+**Search by catalogue number**
+- Search finds places by their Messier, NGC or IC number: M31, NGC 224, "m 42", "Messier 42" or ngc1952, in any case, with or without spaces. A number finds only that number, so M4 never finds M42 or M45. The place with that number comes first: M87 before its jet and M87*.
+- Every place in the atlas that has one of these numbers now has it, such as M31 and NGC 224 for Andromeda, M42 and NGC 1976 for the Orion Nebula, and M1 and NGC 1952 for the Crab Nebula.
+
+**Music**
+- The song "Lullaby for Proxima b" is gone (owner's choice), so the radio has 15 songs.
+
+**The Halo roams, folds more slowly, and its shield is subtler** (the ship is made up)
+- It stays at each place for about two minutes and roams round it: three or so slow passes from different sides (low, wide, over a pole, over the day side, along the line between day and night), with a wide U-turn out and back between them. Every turn is gentle, at most its usual rate.
+- One or two jobs at each place, a loop apart, never the same kind twice in a row, and none on the first pass: the ship arrives and looks round first. On plain passes the cameras turn toward the body too, so it stays in view.
+- It mostly hops to places nearby at light speed. It folds space only for the long trips, so it teleports every few stops instead of every half minute.
+- The readout says what each pass is, and only when that is true: "passing over Saturn's north pole", "a low pass by Jupiter", "along the line between day and night on Earth", "a wide turn out from Mars", "leaving Saturn · next stop: Earth".
+- The rock it caught with a green tractor beam and drilled is gone.
+- A slower teleport (a fold). The ship eases off to under half its speed while its heart powers up for about 4 seconds, growing brighter and beating faster. Then the hull burns away over about 2.5 seconds, and the heart pulls in the embers over 2 seconds, slowly at first. A starburst marks the jump: a white point, eight thin rays and two rings. With the camera on the ship, the whole screen flashes white for a split second.
+- On arrival the heart comes first. With the camera on the ship it streaks in from beside and behind the camera, flying forward into the view with a fading tail over about 1.4 seconds (seen from elsewhere, it comes from far behind the ship). The screen flashes softly and a starburst marks it taking its place. It glows alone for a moment, then the hull streams out of it, white-hot pieces flying out to their places, and forms from the heart outward over 3 seconds while the ship picks up speed.
+- The shield takes no part in a teleport. It fades out as the heart starts to power up and fades back in slowly, over 4 seconds, well after the hull has formed.
+- A subtler shield. At rest it is barely there, with one faint glint running round it every 9 seconds. In strong gravity, such as near a black hole, its line stays thin but flickers brighter in patches, wobbles and leaves a faint echo a moment behind, as if time and space round it were bent.
+- A new scan, a hologram sweep. A bright ring passes over the body from pole to pole along its real spin axis, and a glowing grid of latitude and longitude lines follows it and fades. Brackets lock onto real features the atlas draws and name them: the Great Red Spot, Olympus Mons, Tycho, the Sahara, the Crab Pulsar, M32 and more. The scan ends with real numbers (size, gravity, how long one turn on its axis takes) in the readout and in a toast. Black holes get rings round their shadow, never inside it; nebulae and clusters a grid shell; galaxies a flattened shell across the disc. The fans of beams are gone.
+- The Halo scans a star from 2.6 of its radii, so the star fills the view.
+- A lab page for trying the Halo's looks quickly (/lab): the ship parked by one of six places (Saturn, Jupiter, Earth, Mars, Sgr A*, the Crab Nebula), fixed cameras, slow motion from 0.1x, pause and single steps, buttons that teleport it out and back or start Pip, a scan or a weapons test at once, Pip up close with any of its faces, and a slider for the shield's load. It is kept out of search engines.
+- The Halo showcase (?showcase=halo) has buttons that act at once: teleport, light speed, black hole, scan, Pip, weapons and skim (keys 1 to 7). A button stays lit until the ship can do it. The showcase's stays last 75 seconds instead of about two minutes, so a round of it is quicker.
+
+**Pip, smaller and busier**
+- Pip is now a bolder cartoon, a little bigger than at first (half its 0.9.2 size): a black pod with a silver outline, a dark visor and two big eyes that stay two eyes even when Pip is only a few characters across.
+- Its eyes show how it feels. It looks happy when it waves or loops, focused when it welds or polishes, and surprised and then dizzy when an engine puffs at it. It is cross as it shakes that off, sleepy resting on the hull, worried near a black hole and sad when called home early. It blinks and sometimes winks.
+- Pip, the Halo's little drone, is half its old size and stays by the ship. It no longer flies down to the planet or star.
+- Each time it comes out it does two or three of four jobs round the Halo, in a new mix and order, never the same outing twice in a row. It checks the hull with its lamp, polishes the bridge window and blinks happily. It checks an engine, peeks into the nozzle, gets pushed back by a puff, shakes it off and welds a panel. It flies out ahead, snaps a photo of the Halo with the planet behind it and comes back to wave at you. Or it plays: it loops round the needle, races along the side with a barrel roll and rests on the hull.
+- It peeks out, zips out or spirals out, and waves goodbye, zips home or spirals home.
+- Coming out and going home take 2.5 s each instead of under a second.
+- The Halo waits for Pip before it leaves. Near a black hole or a magnetar Pip stays closer and moves more gently.
+- With reduced motion, Pip makes no barrel rolls or tumbles and loops only once.
+
 ## 0.9.2 · 2026-09-28
 
 **More music, and 16 songs you can pick from a list**

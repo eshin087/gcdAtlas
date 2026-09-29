@@ -3,28 +3,35 @@
 // Travel: a short hop (around a planet, across the Solar System, to a neighbouring star) is a light-speed cruise: the stars stretch into
 // streaks and the ship shoots off along a straight line. A long hop is a fold through space: the drive spools up, space swirls in, the ship
 // collapses into a point and bursts out at the other end.
-// Visits: each one is a single smooth pass. The ship flies in, does one job on the way past (a sensor scan, a photo trip by Pip, its drone, a weapons test,
-// a skim through a gas giant or a star, a tractor beam and drill on a passing rock), turns toward its next stop while still moving, and goes.
-// It never stops and never turns on the spot.
+// Stays (0.9.3): the ship roams round each place for about two minutes (STAY) before it moves on. It flies slow passes by the body from
+// different sides (low, wide, over a pole, along the day side or the line between day and night), and between them a wide loop out and back
+// (the 'loop' phase: a turn, then a straight run to where the next pass starts). One or two jobs a stay, spread out, never the same kind twice
+// in a row: a sensor scan, an outing by Pip, its drone, a weapons test, a skim through a gas giant or a star. Its last pass bends toward the next
+// stop, and it goes. It never stops and never turns on the spot.
 // Precision: at the scale of a galaxy a float64 offset from the target is only good to ~100 km, so anything that must sit near the 2.5 km
-// ship (beams leaving it, Pip at launch and docking, the rock, sparks) is kept relative to the ship; things near the target (hits,
-// explosions) relative to the target.
-const HALO = { LS_NEAR:100, LS_FAR:3e4, LS_P:0.35, MAXBEND:1.4, TURN:0.42, T_FAST:10, FOLD_SPOOL:2.8, LS_SPOOL:1.7, FOLD_T:0.4, EMERGE:0.5 };
+// ship (beams leaving it, Pip, sparks) is kept relative to the ship; things near the target (hits, explosions) relative to the target.
+// (T_ROAM: a pass's cruising time, drawn for each; LOOP_OM: the loops turn at this share of the usual rate; FOLD_SPOOL: from the drive spooling
+// up to the jump, the fold's wind-up)
+const HALO = { LS_NEAR:100, LS_FAR:3e4, LS_P:0.5, MAXBEND:1.4, TURN:0.42, T_FAST:10, FOLD_SPOOL:9, LS_SPOOL:1.7, FOLD_T:0.4, EMERGE:0.5,
+  STAY:[100, 140], T_ROAM:[15, 22], LOOP_OM:0.9 };
 // per job: how long it lasts (s), how much the ship slows for it, where on the pass it happens (share of the path); and the framing while it
 // works: how much of it applies (view), how far the ship banks (bank), how far the trailing camera turns toward the body (turn), and where
 // the lock-on and chase cameras aim (aim, chaseAim: ship axes in ship radii, x below the belly, y ahead, z to the side it banks toward)
 const ACTS = { scan:{ T:11, rho:0.3, fc:0.47, view:1, bank:1, turn:1, aim:[0.6, 0, 0], chaseAim:[0.9, -1.2, 0] },
-  probe:{ T:12.5, rho:0.28, fc:0.45, view:0.85, bank:1, turn:1, aim:[0.6, 0, 0], chaseAim:[0.9, -1.2, 0] },
+  probe:{ T:36, rho:0.28, fc:0.45, view:0.3, bank:0.5, turn:0, aim:[0, 0, 0], chaseAim:[0, 0, 0] },
   weapons:{ T:11.5, rho:0.3, fc:0.42, view:1, bank:1, turn:1, aim:[0.6, 0, 0], chaseAim:[0.9, -1.2, 0] },
   skim:{ T:9, rho:0.5, fc:0.5, view:0.4, bank:0.5, turn:1, aim:[0.3, 0, 0], chaseAim:[0.3, 0, 0] },
-  tractor:{ T:14, rho:0.25, fc:0.45, view:0.9, bank:0.3, turn:0, aim:[0.2, 0.3, 0.8], chaseAim:[0.3, -0.9, 1.0] } };
+  cruise:{ T:0, rho:1, fc:0.5, view:0.6, bank:0.35, turn:1, aim:[0.4, 0, 0], chaseAim:[0.5, -0.8, 0] } };   // (a pass with no job: the cameras still turn toward the body round its closest point)
 const SKIM = new Set(['jupiter', 'sun', 'betelgeuse', 'antares', 'alphacen', 'proxima', 'sirius', 'trappist1']);   // gas giants and stars (Saturn's rings are in the way)
 const SURF_K = { halley:0.62 };   // bodies drawn without a solid radius of their own: the solid share of the bounding sphere
-const CYAN = [0.45, 0.9, 1], TEAL = [0.45, 1, 0.75], WHITE = [1, 1, 1];
+const CYAN = [0.45, 0.9, 1], WHITE = [1, 1, 1];
 // points on the hull (the ship's own frame, in ship radii: +y forward, -x dorsal, +x the belly), matching FS_SHIP in 07-extras.js:
-// the working gear on the belly pod under the bow, the gun at the needle's tip and a turret under the bow, the heart, the left engine's nozzle
-const HULL = { scan:[0.066, 0.2, 0], tractor:[0.07, -0.02, 0], drill:[0.07, 0.08, 0.02], bay:[0.064, -0.1, 0], dock:[0.06, -0.1, 0],
-  gun:[0, 0.85, 0], turret:[0.04, 0.38, 0], core:[0, -0.3, 0], nozzle:[-0.04, -0.84, 0.287] };
+// the working gear on the belly pod under the bow, the gun at the needle's tip and a turret under the bow, the heart, the right engine's nozzle;
+// for Pip (07i-drone.js): the top of the bridge dome with its windows, and both engines' nozzles (lift(0.29), just behind the end caps; left is
+// -z, as seen from the bridge and from the chase camera behind it)
+const HULL = { scan:[0.066, 0.2, 0], bay:[0.064, -0.1, 0], dock:[0.06, -0.1, 0],
+  gun:[0, 0.85, 0], turret:[0.04, 0.38, 0], core:[0, -0.3, 0], nozzle:[-0.04, -0.84, 0.287],
+  bridge:[-0.074, 0.035, 0], engL:[-0.04, -0.857, -0.287], engR:[-0.04, -0.857, 0.287] };
 
 // ---------------------------------------------------------------- small geometry
 const angleOf = (a, b) => Math.acos(clamp(V.dot(a, b), -1, 1));
@@ -77,12 +84,15 @@ const surfDrawn = tg => tg.holeR || surfOf(tg)*magOf(tg);
 const heartOf = tg => tg.rad*(tg.layer < 3 ? 0.06 : 0.1)*magOf(tg);
 // the sphere to aim at (drawn size), and whether it is a surface
 const aimSphere = tg => { const s = surfDrawn(tg); return s > 0 ? { r:s, solid:!tg.holeR, hole:!!tg.holeR } : { r:heartOf(tg), solid:false, hole:false, cloud:true }; };
-function passR(tg, act){
+// (style, for a pass with no job while it roams: 'low' skims closer, 'wide' stays out; never inside the bounding sphere, so never through
+// Saturn's rings)
+function passR(tg, act, style){
   const s = surfOf(tg);
   if (act === 'skim') return s*1.07;   // just above the cloud tops or the photosphere
-  const k = act === 'weapons' ? 1.15 : act === 'scan' ? 1 : 1.08;
+  const k = (act === 'weapons' ? 1.15 : act === 'scan' ? 1 : 1.08)*(style === 'wide' ? 1.6 : 1);
   if (tg.layer < 3) return tg.rad*1.05*k;   // a galaxy: along its edge
-  return Math.max(s*2.3, tg.rad*1.35)*k;
+  if (act === 'scan' && s > 0 && (tg.starR || tg.group === 'stars')) return s*2.6;   // (a star's scan: close enough for its disc to fill much of the view, however far its glow reaches)
+  return style === 'low' ? Math.max(s*1.7, tg.rad*1.15)*k : Math.max(s*2.3, tg.rad*1.35)*k;
 }
 
 // ---------------------------------------------------------------- where next, and how
@@ -101,19 +111,25 @@ function pickNext(from){
   const c = OBJ[tour.on ? tour.obj : (orbit.lock >= 0 ? orbit.lock : cam.focus)];
   if (c && c !== ship && c !== from && SHIP_TARGETS.includes(c.key) && hrnd() < 0.45) return c;
   const all = SHIP_TARGETS.map(k => BYKEY[k]).filter(o => o && o !== from);
+  // (mostly somewhere nearby, reached by light speed; folds, for the long trips, only now and then)
   const near = all.filter(o => V.len(V.sub(o.pos, from.pos)) < HALO.LS_NEAR);
-  if (near.length && hrnd() < 0.5) return near[Math.floor(hrnd()*near.length)];
+  if (near.length && hrnd() < 0.7) return near[Math.floor(hrnd()*near.length)];
   return all[Math.floor(hrnd()*all.length)];
 }
+// the jobs: a shuffled bag of every kind, so each comes round in turn and none twice in a row (skims only at gas giants and stars, now and then)
 const actBag = [];
 function chooseAct(tg){
-  if (S_.force.act){ const a = S_.force.act; S_.force.act = null; return a; }
-  if (SKIM.has(tg.key) && S_.visits - S_.lastSkim > 2 && hrnd() < 0.6){ S_.lastSkim = S_.visits; return 'skim'; }
-  if (!actBag.length){ const b = ['scan', 'probe', 'weapons', 'tractor']; for (let i=b.length - 1;i>0;i--){ const j = Math.floor(hrnd()*(i + 1)); [b[i], b[j]] = [b[j], b[i]]; } actBag.push(...b); }
-  let a = actBag.shift();
-  if (a === S_.lastAct && actBag.length){ actBag.push(a); a = actBag.shift(); }
-  return a;
+  let a;
+  if (SKIM.has(tg.key) && S_.visits - S_.lastSkim > 2 && S_.lastAct !== 'skim' && hrnd() < 0.6){ S_.lastSkim = S_.visits; a = 'skim'; }
+  else {
+    if (!actBag.length){ const b = ['scan', 'probe', 'weapons']; for (let i=b.length - 1;i>0;i--){ const j = Math.floor(hrnd()*(i + 1)); [b[i], b[j]] = [b[j], b[i]]; } actBag.push(...b); }
+    a = actBag.shift();
+    if (a === S_.lastAct && actBag.length){ actBag.push(a); a = actBag.shift(); }
+  }
+  S_.lastAct = a; return a;
 }
+// the first pass at a new place has no job (the ship arrives and looks round first), unless a test or the showcase asks for one there
+function arrivalAct(){ if (S_.force.act){ const a = S_.force.act; S_.force.act = null; return a; } return 'cruise'; }
 
 // ---------------------------------------------------------------- one pass: a cubic Bezier that comes in along dIn, bends round the target and leaves along dOut,
 // its closest approach exactly Rc from the centre. A bend sharper than MAXBEND is finished after the pass, on a wide arc.
@@ -139,42 +155,70 @@ function bend(di, dout, Rc, L1, L2, mPref){
     m = minR(P); if (Math.abs(m.r - Rc) < Rc*0.002) break;
     Rq = Math.max(Rq + Rc - m.r, Rc*0.2);
   }
-  return { P, dout, phi, clamped };
+  return { P, dout, phi, clamped, cDir:V.norm(bz(P, m.s)) };   // (cDir: where its closest point is, seen from the body)
 }
-function planVisit(tg, arrival, dIn, next, act, seed){
-  const A = ACTS[act], r = lcg(seed);
-  const Rc = passR(tg, act), L1 = act === 'skim' ? Math.max(Rc*3.5, tg.rad*1.2) : Rc*4, L2 = L1*0.55;
+// (opt, for the passes of a stay: style, which side the closest point is on and how close: 'day' over the day side, 'dusk' over the line
+// between day and night, 'pole' over a pole, 'low' closer, 'wide' further out, 'any' anywhere; Tf, the cruising time; L1, how far out it starts;
+// slowIn and slowOut, see timePass)
+function planVisit(tg, arrival, dIn, next, act, seed, opt = {}){
+  const A = ACTS[act], r = lcg(seed), st = opt.style;
+  // (L1: how far out it starts and ends; a pass of a stay starts where the loop before it ends)
+  const Rc = passR(tg, act, st), L1 = opt.L1 || (act === 'skim' ? Math.max(Rc*3.5, tg.rad*1.2) : Rc*4), L2 = L1*0.55;
   // bodies in the Solar System are lit by the Sun: do the job over their day side. Leaving by light speed, the pass should end
   // heading roughly toward the next stop (the rest of the turn is done on a wide arc after it).
   const sunD = tg !== sun && V.len(tg.pos) < 0.01 ? V.norm(V.mul(tg.pos, -1)) : null;
   const dNext = next && next.mode === 'light' ? V.norm(V.sub(next.tg.pos, tg.pos)) : null;
+  const pole = st === 'pole' ? V.mul(poleOf(tg), opt.south ? -1 : 1) : null, dayW = st === 'pole' || st === 'dusk' || st === 'any' ? 0 : 2;
+  const pref = () => pole ? V.norm(V.add(pole, V.mul(rdir(r), 0.2))) : st === 'dusk' && sunD ? V.norm(perpTo(rdir(r), sunD)) : sunD && dayW ? V.norm(V.add(sunD, V.mul(rdir(r), 0.5))) : rdir(r);
   // candidates are built round the point of closest approach m (on the day side when there is one): a pass bending by 2*sg comes in
   // along di = cos(sg) h + sin(sg) m and leaves along dout = cos(sg) h - sin(sg) m, for some h at right angles to m
   let best = null, bs = -1e9;
   for (let k=0;k<20;k++){
-    const sg = 0.25 + 0.4*r(), ss = Math.sin(sg), cs = Math.cos(sg), mPref = sunD ? V.norm(V.add(sunD, V.mul(rdir(r), 0.5))) : rdir(r);
+    const sg = 0.25 + 0.4*r(), ss = Math.sin(sg), cs = Math.cos(sg), mPref = pref();
     const side = a => { const w = perpTo(mPref, a); return V.len(w) > 1e-6 ? V.norm(w) : anyPerp(a); };
     let di, dout;
     if (dIn){ di = dIn; const m = V.add(V.mul(di, ss), V.mul(side(di), cs)); dout = V.sub(di, V.mul(m, 2*ss)); }
     else if (dNext && k % 2 === 0){ dout = dNext; const m = V.add(V.mul(dout, -ss), V.mul(side(dout), cs)); di = V.add(dout, V.mul(m, 2*ss)); }
     else { const h0 = V.norm(perpTo(rdir(r), mPref)); di = V.add(V.mul(h0, cs), V.mul(mPref, ss)); dout = V.sub(V.mul(h0, cs), V.mul(mPref, ss)); }
     const b = bend(di, dout, Rc, L1, L2, mPref);
-    let day = 0; if (sunD) for (let j=0;j<5;j++) day += V.dot(V.norm(bz(b.P, 0.3 + 0.1*j)), sunD)/5;
-    const sc = -Math.abs(b.phi - 0.9) - (b.clamped ? 0.3 : 0) + 2*day - (dNext ? 0.9*angleOf(b.dout, dNext) : 0);
+    let day = 0; if (sunD && dayW) for (let j=0;j<5;j++) day += V.dot(V.norm(bz(b.P, 0.3 + 0.1*j)), sunD)/5;
+    // (a pass over a pole wants its closest point near the pole; one along the line between day and night, square to the Sun)
+    const sty = pole ? 1.5*V.dot(b.cDir, pole) : st === 'dusk' && sunD ? -1.5*Math.abs(V.dot(b.cDir, sunD)) : 0;
+    const sc = -Math.abs(b.phi - 0.9) - (b.clamped ? 0.3 : 0) + dayW*day + sty - (dNext ? 0.9*angleOf(b.dout, dNext) : 0);
     if (sc > bs){ bs = sc; best = Object.assign(b, { di }); }
   }
-  const P = best.P, N = 96, arcL = new Float64Array(N + 1);
+  return timePass(tg, act, arrival, best, Rc, seed, opt);
+}
+// the timing of a pass (g: its curve P, the ways in and out di and dout, where its closest point is, cDir): its length by arc, and its speed:
+// cruising in and out, slowed down for the job (centred on a share fc of the path); out of a fold it starts slow and eases up over 5 s while
+// the hull forms
+function timePass(tg, act, arrival, g, Rc, seed, opt){
+  const A = ACTS[act], st = opt.style, P = g.P, N = 96, arcL = new Float64Array(N + 1);
   let prev = bz(P, 0), acc = 0;
   for (let i=1;i<=N;i++){ const q = bz(P, i/N); acc += V.len(V.sub(q, prev)); arcL[i] = acc; prev = q; }
-  // speed: cruising in and out, slowed down for the job (centred on a share fc of the path), easing up from a fold
-  const Tf = HALO.T_FAST, rho = A.rho, Ta = A.T;
+  const Tf = opt.Tf || HALO.T_FAST, rho = A.rho, Ta = A.T;
   const Tapp = Math.max(A.fc*(Tf + rho*Ta) - rho*Ta/2, 2.5), Tdep = Math.max(Tf - Tapp, 2.5), T = Tapp + Ta + Tdep, tau = 1.3;
-  const shape = t => (1 - (1 - rho)*smooth(Tapp - tau, Tapp + tau, t)*(1 - smooth(Tapp + Ta - tau, Tapp + Ta + tau, t)))*(arrival === 'fold' ? 0.35 + 0.65*smooth(0, 2.5, t) : 1);
+  // (in a stay the ship eases off to about two thirds of its speed as it swings out into a loop, and picks up again coming back in: slowOut, slowIn)
+  const sIn = opt.slowIn ? 0.35 : 0, sOut = opt.slowOut ? 0.35 : 0;
+  const shape = t => (1 - (1 - rho)*smooth(Tapp - tau, Tapp + tau, t)*(1 - smooth(Tapp + Ta - tau, Tapp + Ta + tau, t)))*(arrival === 'fold' ? 0.2 + 0.8*smooth(1, 7, t) : 1)
+    *(1 - sIn*(1 - smooth(0, 5, t)))*(1 - sOut*smooth(T - 5, T, t));
   const M = 200, D = new Float64Array(M + 1);
   for (let i=1;i<=M;i++){ const t0 = (i - 1)/M*T, t1 = i/M*T; D[i] = D[i - 1] + 0.5*(shape(t0) + shape(t1))*(t1 - t0); }
   const vf = acc/D[M];
-  return { tg, act, arrival, P, N, arcL, L:acc, Rc, dIn:best.di, dOut:best.dout, T, tA:Tapp, tB:Tapp + Ta, M, D, vf, shape, v0:vf*shape(0), v1:vf*shape(T), seed };
+  // (whether the pass really is what its style says, so the readout never claims a pole it does not fly over)
+  const cd = g.cDir, ok = styleOk(tg, st, cd, opt.south);
+  return { tg, act, arrival, P, N, arcL, L:acc, Rc, dIn:g.di, dOut:g.dout, T, tA:Tapp, tB:Tapp + Ta, M, D, vf, shape, v0:vf*shape(0), v1:vf*shape(T), seed,
+    style:st || null, south:!!opt.south, last:!!opt.last, cDir:cd, styleOk:ok };
 }
+const sunDirOf = tg => tg !== sun && V.len(tg.pos) < 0.01 ? V.norm(V.mul(tg.pos, -1)) : null;
+function styleOk(tg, st, cd, south){
+  const sunD = sunDirOf(tg);
+  return st === 'pole' ? angleOf(cd, V.mul(poleOf(tg), south ? -1 : 1)) < 0.6 : st === 'dusk' ? !!sunD && Math.abs(V.dot(cd, sunD)) < 0.35 : st === 'day' ? !!sunD && V.dot(cd, sunD) > 0.3 : true;
+}
+// (a body's north pole: the planets and moons carry their real one in R0; anything else, the galactic north)
+const poleOf = tg => tg.R0 ? V.norm(M3.apply(tg.R0, [0, 1, 0])) : [0, 1, 0];
+// (a pass's cruising time, from HALO.T_ROAM)
+const roamTf = () => HALO.T_ROAM[0] + (HALO.T_ROAM[1] - HALO.T_ROAM[0])*hrnd();
 function passAt(pl, t){
   t = clamp(t, 0, pl.T);
   const x = t/pl.T*pl.M, i = Math.min(Math.floor(x), pl.M - 1), f = x - i;
@@ -199,9 +243,16 @@ function makeAlign(p0, h0, v, h1, Rc){
   }
   return al;
 }
+// (a fold's wind-up: straight on, the ship eases off to a share k of its speed between t0 and t1; the distance flown is the speed's integral,
+// smoothstep's being u^3 - u^4/2)
+function slowX(sl, v, t){
+  if (!sl || t <= sl.t0) return { x:v*t, v };
+  const L = sl.t1 - sl.t0, u = Math.min((t - sl.t0)/L, 1), I = L*(u*u*u - u*u*u*u/2) + Math.max(t - sl.t1, 0);
+  return { x:v*t - v*(1 - sl.k)*I, v:v*(1 - (1 - sl.k)*smooth(0, 1, u)) };
+}
 function alignAt(al, t){
   if (al.t0) t -= al.t0;   // (a turn that carries on from an earlier one: its clock starts there)
-  if (!al.nrm) return { p:V.add(al.p0, V.mul(al.h0, al.v*t)), h:al.h0, v:al.v };
+  if (!al.nrm){ const s = slowX(al.slow, al.v, t); return { p:V.add(al.p0, V.mul(al.h0, s.x)), h:al.h0, v:s.v }; }
   const r = al.v/al.om, w = al.om*Math.min(t, al.Tt);
   const p = V.add(al.p0, V.mul(V.add(V.mul(al.h0, Math.sin(w)), V.mul(al.nrm, 1 - Math.cos(w))), r)), h = V.add(V.mul(al.h0, Math.cos(w)), V.mul(al.nrm, Math.sin(w)));
   return t <= al.Tt ? { p, h, v:al.v } : { p:V.add(p, V.mul(h, al.v*(t - al.Tt))), h, v:al.v };
@@ -210,7 +261,8 @@ function alignAt(al, t){
 // until the heading points straight at T (the tangent from the circle to T), then straight on. It turns at its usual rate (HALO.TURN) or
 // wider, to stay clear of the body, on whichever side needs less turning. When that is more than half a circle (T close by, inside the circle
 // on the near side, as Europa is from a pass at Jupiter) a tighter turn, up to three times as fast, does it in less. Null if nothing fits.
-function aimAlign(p0, h0, v, T, Rc){
+// (om0: the rate to try first, lower for the loops of a stay; tight false: no tighter turn, a loop that needs one is planned another way)
+function aimAlign(p0, h0, v, T, Rc, om0 = HALO.TURN, tight = true){
   const w = V.sub(T, p0), L = V.len(w), n0 = perpTo(w, h0), n1 = V.len(n0) > 1e-9*L ? V.norm(n0) : anyPerp(h0);
   const turn = om => {
     const r = v/om; let best = null;
@@ -226,9 +278,9 @@ function aimAlign(p0, h0, v, T, Rc){
     return best;
   };
   let best = null;
-  for (let om = HALO.TURN, k = 0; k < 6 && !best; k++, om *= 0.65) best = turn(om);
+  for (let om = om0, k = 0; k < 6 && !best; k++, om *= 0.65) best = turn(om);
   // (the gentlest tighter turn that stays within half a circle; failing that, whichever turns least)
-  if (!best || best.th > Math.PI) for (const f of [1.5, 2, 3]){ const t = turn(HALO.TURN*f); if (t && (!best || t.th < best.th)) best = t; if (best.th <= Math.PI) break; }
+  if (tight && (!best || best.th > Math.PI)) for (const f of [1.5, 2, 3]){ const t = turn(HALO.TURN*f); if (t && (!best || t.th < best.th)) best = t; if (best && best.th <= Math.PI) break; }
   return best;
 }
 // light speed: the ship leaves at its cruising speed and speeds up exponentially, then slows the same way into the next pass
@@ -256,43 +308,129 @@ function legAt(L, t){
 // ---------------------------------------------------------------- state
 const S_ = ship.S;
 Object.assign(S_, { force:{}, lastSkim:-9, lastAct:null, plan:null, next:null, align:null, leg:null, fold:null, act:null, h:[0, 1, 0], belly:null, vel:[0, 0, 0], speed:0,
-  viewA:0, side:1, hFrom:null, jumpAt:0, stretch:0, lsRun:0, emerge:1, seedN:1, vesc:0, gTg:null, gWant:0, climbK:0, fk:-9, asm:9, csL:false, wz:1, fz:1 });
+  viewA:0, side:1, hFrom:null, jumpAt:0, stretch:0, lsRun:0, emerge:1, seedN:1, vesc:0, gTg:null, gWant:0, climbK:0, fk:-99, asm:99, csL:false, wz:1, fz:1 });
 const riding = () => shipCam.on || (!tour.on && orbit.lock === ship.index && cam.focus === ship.index);
+// (the camera is on the ship, riding or looking at it: the fold's flashes of the whole screen are for then)
+const camOnShip = () => riding() || cam.focus === ship.index;
 const camNear = () => cam.focus === ship.index && V.len(cam.rel) < ship.rad*80;
 // the camera is not riding but was left looking at the ship: keep it where it is (on the body the ship is leaving) rather than dragging it along
 function keepCamera(A){ if (!riding() && cam.focus === ship.index){ const D = frel(A); cam.rel = V.sub(cam.rel, D); orbit.target = V.sub(orbit.target, D); cam.focus = A.index; } }
 const localPt = l => M3.apply(ship.R0, V.mul(l, ship.rad));            // a point on the ship (ship-relative, world axes)
 const shipPt = l => V.add(ship.rel, localPt(l));                         // the same, camera-relative
-// a visit after a fold: where it goes next is chosen now, so the pass can already bend toward it
+// ---------------------------------------------------------------- stays: arriving at a place, roaming round it, leaving
+// arriving by a fold (a light-speed hop that became one keeps the job it had chosen for its first pass there)
 function foldVisit(tg, nx){
-  // (a light-speed hop that became a fold keeps the stop after it and the job it had already chosen)
-  if (nx && nx.after){ beginVisit(tg, planVisit(tg, 'fold', null, nx.after, nx.actK, nx.seed), nx.after, 'fold'); return; }
-  const C = pickNext(tg), after = { tg:C, mode:travelMode(tg, C) };
-  beginVisit(tg, planVisit(tg, 'fold', null, after, chooseAct(tg), S_.seedN++), after, 'fold');
+  const act = nx && nx.actK ? nx.actK : arrivalAct();
+  beginVisit(tg, planVisit(tg, 'fold', null, null, act, nx && nx.seed ? nx.seed : S_.seedN++, { Tf:nx && nx.Tf ? nx.Tf : roamTf(), slowOut:true }), 'fold');
 }
-function beginVisit(tg, plan, next, how){
-  S_.plan = plan; S_.next = next;
-  S_.target = tg; S_.phase = 'pass'; S_.t = 0; S_.visits++; S_.lastAct = plan.act; S_.side = hrnd() < 0.5 ? -1 : 1;
-  S_.climbK = 0;   // (every pass starts on the way in)
-  ship.labelRange = Math.max(tg.rad*40, ship.rad*1e4);
-  S_.act = ACT[plan.act](plan);
+// a new place: how long the ship stays (STAY), the jobs it will do there (one or two, from the second pass on, a loop apart), and where it
+// goes after (its last pass bends toward that)
+function beginVisit(tg, plan, how){
+  S_.visits++;
+  const forced = plan.act !== 'cruise', C = pickNext(tg), jobs = [];
+  for (let i = 0, n = forced ? (hrnd() < 0.5 ? 1 : 0) : (hrnd() < 0.55 ? 1 : 2); i < n; i++) jobs.push(chooseAct(tg));
+  S_.stay = { tg, t:0, dur:HALO.STAY[0] + (HALO.STAY[1] - HALO.STAY[0])*hrnd(), n:0, jobs, jobAt:forced ? 2 : 1, leave:false };
+  S_.next = { tg:C, mode:travelMode(tg, C) };
   // (not while a showcase's caption says what happens: on a phone the two would sit on top of each other)
-  if (riding() && S_.visits > 1 && !SHOWCAP.txt) toast((how === 'fold' ? 'the Halo folds space · ' : '') + 'at ' + tg.name + ': ' + (plan.act === 'probe' && pipKind(tg) === 'near' ? 'Pip, its little drone, takes pictures from beside the ship' : ACT_TOAST[plan.act]));
+  if (riding() && S_.visits > 1 && !SHOWCAP.txt) toast((how === 'fold' ? 'the Halo folds space · ' : 'out of light speed · ') + 'at ' + tg.name);
+  beginPass(plan);
 }
-const ACT_TOAST = { scan:'a sensor sweep', probe:'Pip, its little drone, goes out to take pictures', weapons:'a weapons test (fictional, nothing is harmed)', skim:'skimming it to refuel', tractor:'catching a passing rock to drill a sample' };
-function startAlign(){
-  const pl = S_.plan, e = passAt(pl, pl.T), nx = S_.next;
+// one pass by the body, with its job if it has one (a job still under way from before, Pip out, carries on: that pass has none of its own)
+function beginPass(plan){
+  const tg = plan.tg, st = S_.stay;
+  S_.plan = plan; S_.target = tg; S_.phase = 'pass'; S_.t = 0; S_.side = hrnd() < 0.5 ? -1 : 1;
+  S_.climbK = 0;   // (every pass starts on the way in)
+  st.n++;
+  ship.labelRange = Math.max(tg.rad*40, ship.rad*1e4);
+  if (plan.act === 'cruise') return;
   if (S_.act && S_.act.end) S_.act.end();
-  S_.act = null;
+  S_.act = ACT[plan.act](plan); S_.act.pl = plan; S_.jt = S_.t - plan.tA;
+  if (riding() && !SHOWCAP.txt && (st.n > 1 || S_.visits === 1)) toast('at ' + tg.name + ': ' + ACT_TOAST[plan.act]);
+}
+const ACT_TOAST = { scan:'a sensor sweep', probe:'Pip, its little drone, comes out to help', weapons:'a weapons test (fictional, nothing is harmed)', skim:'skimming it to refuel' };
+// the styles of the passes of a stay, by what the place is (never the same twice running: the one chosen is kept in S_.lastStyle)
+function roamStyle(tg){
+  const lit = tg !== sun && V.len(tg.pos) < 0.01, L = lit && tg.R0 ? ['day', 'low', 'wide', 'pole', 'dusk', 'low', 'day'] : isHoleTarget(tg) ? ['wide', 'any', 'wide'] : surfOf(tg) ? ['low', 'wide', 'pole', 'any'] : ['low', 'wide', 'any'];
+  const s = L[Math.floor(hrnd()*L.length)]; return s === S_.lastStyle ? L[(L.indexOf(s) + 1) % L.length] : s;
+}
+// the loop from the end of one pass to the start of the next: one cubic curve that leaves the way the ship heads and arrives the way the next
+// pass starts (so the heading never jumps), its speed going evenly from this pass's to the next's (the glide of legAt, by arc length as in
+// passAt). Its handles are two thirds of the gap, which makes a U-turn close to a half circle
+function loopCurve(e, plan){
+  const P0 = plan.P[0], gap = V.len(V.sub(P0, e.p)), a = Math.max(0.667*gap, 1e-300), B = [e.p, V.add(e.p, V.mul(e.h, a)), V.sub(P0, V.mul(plan.dIn, a)), P0];
+  const N = 64, arcL = new Float64Array(N + 1); let prev = B[0], acc = 0, rate = 0, low = 1e300;
+  const vmax = Math.max(e.v, plan.v0);
+  for (let i=1;i<=N;i++){
+    const s = i/N, q = bz(B, s); acc += V.len(V.sub(q, prev)); arcL[i] = acc; prev = q; low = Math.min(low, V.len(q));
+    // (how fast the heading turns there at the faster of the two speeds: the curvature |B' x B''|/|B'|^3 times the speed)
+    const d1 = bzd(B, s), u = 1 - s, d2 = V.add(V.add(V.mul(B[0], 6*u), V.mul(B[1], -12*u + 6*s)), V.add(V.mul(B[2], 6*u - 12*s), V.mul(B[3], 6*s))), l1 = V.len(d1);
+    if (l1 > 0) rate = Math.max(rate, V.len(V.cross(d1, d2))/(l1*l1*l1)*vmax);
+  }
+  const T = 2*acc/(e.v + plan.v0);
+  return { B, N, arcL, L:acc, T, v0:e.v, v1:plan.v0, rate, low, plan };
+}
+function loopAt(L, t){
+  const u = clamp(t/L.T, 0, 1), h10 = u*u*u - 2*u*u + u, h01 = -2*u*u*u + 3*u*u, h11 = u*u*u - u*u;
+  const d = clamp(h10*L.T*L.v0 + h01*L.L + h11*L.T*L.v1, 0, L.L), v = Math.max(((3*u*u - 4*u + 1)*L.T*L.v0 + (6*u - 6*u*u)*L.L + (3*u*u - 2*u)*L.T*L.v1)/L.T, 0), A = L.arcL;
+  let lo = 0, hi = L.N; while (hi - lo > 1){ const m = (lo + hi) >> 1; if (A[m] < d) lo = m; else hi = m; }
+  const s = clamp((lo + (d - A[lo])/Math.max(A[hi] - A[lo], 1e-300))/L.N, 0, 1);
+  return { p:bz(L.B, s), h:V.norm(bzd(L.B, s)), v };
+}
+// the next pass of a stay and the loop to it, from the end of this one (e: where the ship is, relative to the body, its heading and speed).
+// The loop is a U-turn: a turn to one side (any side round its heading) wide enough for its speed at a gentle rate (LOOP_OM), coming back in
+// toward the body; the next pass (planVisit, aimed at the body from where the turn ends and starting that far out, bending round the side its
+// style asks for) starts near there, and loopCurve joins the two. Of 16 candidates the one whose loop turns most gently, is short, and whose
+// pass is what its style says wins
+function roamPlan(e, Rc0, tg, act, last){
+  let best = null, bc = 1e300;
+  const lim = HALO.TURN*HALO.LOOP_OM, r = e.v/lim;
+  // (a second round of wider turns when none of the first turns gently enough)
+  for (let k=0;k<32;k++){
+    if (k === 16 && best && best.rate <= HALO.TURN) break;
+    const style = act === 'skim' ? null : roamStyle(tg), south = hrnd() < 0.5, wk = k < 16 ? 1 : 1.6;
+    const sd = V.norm(perpTo(rdir(hrnd), e.h)), w = 2*r*wk*(1 + 0.35*hrnd()), T = V.add(V.add(e.p, V.mul(sd, w)), V.mul(e.h, (hrnd() - 0.5)*0.6*w)), LT = V.len(T);
+    const plan = planVisit(tg, 'roam', V.mul(T, -1/LT), null, act, S_.seedN++, { style, south, Tf:roamTf(), last, slowIn:true, slowOut:!last, L1:LT }), L = loopCurve(e, plan);
+    if (L.low < Math.min(Rc0, plan.Rc)*0.85) continue;
+    const cost = Math.max(L.rate/lim, 0.7) + 0.02*L.L/Rc0 + (plan.styleOk ? 0 : 0.8) + (L.rate > HALO.TURN ? 5 : 0) + 0.3*hrnd();
+    if (cost < bc){ bc = cost; best = L; }
+  }
+  if (best) S_.lastStyle = best.plan.style;
+  return best;
+}
+// at the end of a pass that is not the last: the next job when its turn has come (not while Pip is still out), and the loop to the next pass.
+// That pass is the last when no job is left and there is no time for another round after it
+function startLoop(){
+  const pl = S_.plan, e = passAt(pl, pl.T), tg = S_.target, st = S_.stay;
+  if (S_.act && !jobBusy()){ if (S_.act.end) S_.act.end(); S_.act = null; }
+  let act = 'cruise';
+  if (!jobBusy() && st.jobs.length && st.n >= st.jobAt){ act = st.jobs.shift(); st.jobAt = st.n + 1; }
+  // (a round, a loop and a pass, as long as the rounds so far, about 45 s before there are any: the stay ends within half a round of its length)
+  if (st.n === 1) st.t1 = st.t;
+  const R = st.n >= 2 ? (st.t - st.t1)/(st.n - 1) : 45, last = !st.jobs.length && st.t + 1.5*R > st.dur;
+  let L = roamPlan(e, pl.Rc, tg, act, last);
+  // (a job whose pass cannot be reached by a gentle loop, a skim that must graze the surface most often, waits for the next one, or is left)
+  if (act !== 'cruise' && (!L || L.rate > 1.25*HALO.TURN)){ st.jobs.unshift(act); act = 'cruise'; L = roamPlan(e, pl.Rc, tg, act, last); }
+  // (no loop fits: it moves on from here)
+  if (!L){ if (act !== 'cruise') st.jobs.unshift(act); startAlign(); return; }
+  S_.loop = L; S_.phase = 'loop'; S_.t = 0;
+}
+function endLoop(){ const L = S_.loop; S_.loop = null; beginPass(L.plan); }
+// leaving: the next stop (chosen on arrival, or since), from where the ship is now (e: the end of its last pass, or anywhere on a loop when it
+// is sent on early)
+function startAlign(e0){
+  const pl = S_.plan, e = e0 || passAt(pl, pl.T), nx = S_.next;
+  S_.loop = null;
+  // (a job that says when it is done, Pip's outing, may carry on past the pass: the ship waits for it before it jumps; any other ends here)
+  if (S_.act && !jobBusy()){ if (S_.act.end) S_.act.end(); S_.act = null; }
   let al = null;
   if (nx.mode === 'light'){
-    // plan the next visit now, so the ship can already turn toward where it will drop out of light speed: aimAlign works out the turn after
-    // which it points straight at where that pass starts (on a short hop the turn itself carries it a good part of the way there)
-    const C = pickNext(nx.tg); nx.after = { tg:C, mode:travelMode(nx.tg, C) }; nx.actK = chooseAct(nx.tg); nx.seed = S_.seedN++;
+    // plan the first pass there now, so the ship can already turn toward where it will drop out of light speed: aimAlign works out the turn
+    // after which it points straight at where that pass starts (on a short hop the turn itself carries it a good part of the way there)
+    nx.actK = arrivalAct(); nx.seed = S_.seedN++; nx.Tf = roamTf();
     const A = S_.target; let d = V.norm(V.sub(nx.tg.pos, V.add(A.pos, e.p)));
     // (where that pass starts depends on the way the ship comes in, and the way in on where the turn ends: a few rounds settle both)
     for (let k=0;k<4;k++){
-      nx.plan = planVisit(nx.tg, 'light', d, nx.after, nx.actK, nx.seed);
+      nx.plan = planVisit(nx.tg, 'light', d, null, nx.actK, nx.seed, { Tf:nx.Tf, slowOut:true });
       al = aimAlign(e.p, e.h, e.v, V.sub(V.add(nx.tg.pos, nx.plan.P[0]), A.pos), pl.Rc);
       if (!al) break;
       d = al.h1;
@@ -306,6 +444,7 @@ function startAlign(){
   S_.phase = 'align'; S_.t = 0;
 }
 function startJump(){
+  if (S_.act){ if (S_.act.end) S_.act.end(); S_.act = null; }
   const nx = S_.next, A = S_.target, e = alignAt(S_.align, S_.t);
   // the stop has moved on while the ship turned (Europa round Jupiter): a little more turning puts it back on the nose (twice at most, less
   // than a radian each, or the ship would chase it round and round); if it is still off by more than a few degrees, it folds there instead
@@ -320,7 +459,7 @@ function startJump(){
     const B = nx.tg, from = V.add(A.pos, e.p); let pl = nx.plan;
     // and the pass there is planned again for the way the ship really comes in, so the leg runs straight into it
     let dd = V.norm(V.sub(V.add(B.pos, pl.P[0]), from));
-    for (let k=0;k<2;k++){ pl = nx.plan = planVisit(B, 'light', dd, nx.after, nx.actK, nx.seed); dd = V.norm(V.sub(V.add(B.pos, pl.P[0]), from)); }
+    for (let k=0;k<2;k++){ pl = nx.plan = planVisit(B, 'light', dd, null, nx.actK, nx.seed, { Tf:nx.Tf, slowOut:true }); dd = V.norm(V.sub(V.add(B.pos, pl.P[0]), from)); }
     const to = V.add(B.pos, pl.P[0]), D = Math.max(V.len(V.sub(to, from)), 1e-30), d = V.mul(V.sub(to, from), 1/D);
     const T = clamp(2.8 + 0.45*Math.log10(Math.max(D/pl.Rc, 1)), 3.2, 5.5), ex = solveLeg(D, e.v, pl.v0, T);
     // (too close for a proper jump: a glide whose speed runs evenly from one pass's to the next's, which takes 2D/(v0 + v1); a fixed time
@@ -333,45 +472,82 @@ function startJump(){
   } else {
     S_.fold = { A, p:e.p, h:e.h, v:e.v };
     S_.phase = 'fold'; S_.t = 0;
-    fxFoldOut(A, e.p, e.h);
+    fxFoldOut();
+    if (camOnShip()) foldFlash('jump');   // (the whole screen flashes for a split second: 0.9.3, owner)
   }
 }
 function endLight(){
   const L = S_.leg, nx = S_.next, pl = nx.plan;
   S_.leg = null; S_.load = Math.min(S_.load, 0.15);   // (the shield does not bring the last stop's load along)
   const hIn = passAt(pl, 0).h;
-  beginVisit(L.B, pl, nx.after);
+  beginVisit(L.B, pl, 'light');
   if (angleOf(L.d, hIn) > 0.005) S_.hFrom = { h:L.d, t:0, T:1.6 };
   fxLightIn();
 }
 function endFold(){
   const B = S_.next.tg;
   S_.belly = null; S_.viewA = 0; S_.fold = null; S_.load = Math.min(S_.load, 0.15);   // (the shield does not bring the last stop's load along)
-  if (riding()){ foldFlash('blink'); music.whoosh(1.2); }
+  if (riding()) music.whoosh(1.2);
   // (riding along, the camera folds with the ship: it keeps its place behind it, rather than swinging round to where the ship now heads)
   if (shipCam.on && shipCam.eye){ const R = ship.R0; S_.reseat = [M3.applyT(R, shipCam.eye), M3.applyT(R, shipCam.fwd), M3.applyT(R, shipCam.up)]; }
   foldVisit(B, S_.next);
   // (the hull forms again, cell by cell, at its full size: foldUpdate. It no longer grows from a point as well: the embers, the flash and the
   // shield are placed on the full-size ship, and a hull still growing left them up to a third of a ship radius off the heart it drew)
-  S_.emerge = 1; S_.asm = 0; S_.csL = false;
+  S_.emerge = 1; S_.asm = 0; S_.csL = false; S_.zipped = false;
   fxFoldIn();
 }
+
+// ---------------------------------------------------------------- the showcase's buttons (09i-showcase.js): leave now, or do a job now
+// leave for tg ('light' or 'fold') from wherever the ship is at this place, as the end of a stay does (a turn toward it for light speed, or
+// straight on while the drive spools up for a fold). False while it cannot yet: on its way somewhere, or Pip still coming home (hurried)
+function leaveNow(tg, mode){
+  if (S_.phase !== 'pass' && S_.phase !== 'loop' && S_.phase !== 'align') return false;
+  if (S_.phase === 'align' && S_.next.tg === tg) return true;   // (on its way there already)
+  if (jobBusy()){ if (typeof drone.hurry === 'function') drone.hurry(1/60); return false; }
+  if (S_.act){ if (S_.act.end) S_.act.end(); S_.act = null; }
+  const e = S_.phase === 'pass' ? passAt(S_.plan, S_.t) : S_.phase === 'loop' ? loopAt(S_.loop, S_.t) : alignAt(S_.align, S_.t);
+  S_.next = { tg, mode }; S_.stay.leave = true;
+  startAlign(e);
+  return true;
+}
+// a job now: Pip's outing wherever the ship is; the jobs that work on the body now if the ship is still on its way in on a pass, otherwise on
+// the next pass (a skim only where there is something to skim, and always on a pass of its own). False when it cannot: a job under way, or
+// nothing to skim here. A job started this way runs on its own clock (own), and the ship does not leave before it is done
+// (now: at once whatever the pass, for the lab, where the ship is parked)
+function jobNow(kind, now){
+  if ((S_.phase !== 'pass' && S_.phase !== 'loop') || S_.act) return false;
+  if (kind === 'skim' && !SKIM.has(S_.target.key)) return false;
+  if (kind === 'probe' || now || (kind !== 'skim' && S_.phase === 'pass' && S_.t < S_.plan.T*0.45)){
+    const A = ACT[kind](S_.plan); A.pl = S_.plan; A.own = true; S_.jt = 0; S_.lastAct = kind;
+    if (!A.done){ const T = ACTS[kind].T; A.done = () => S_.jt > T + 1.5; }
+    S_.act = A; return true;
+  }
+  S_.stay.jobs.unshift(kind); S_.stay.jobAt = 0; return true;
+}
+ship.demo = { leaveNow, jobNow };
 
 // ---------------------------------------------------------------- the ship's own motion, each tick
 function placeShip(dt){
   let r;
   if (S_.phase === 'pass'){ r = passAt(S_.plan, S_.t); r.par = S_.target; }
+  else if (S_.phase === 'loop'){ r = loopAt(S_.loop, S_.t); r.par = S_.target; }
   else if (S_.phase === 'align'){ r = alignAt(S_.align, S_.t); r.par = S_.target; }
   else if (S_.phase === 'light'){ r = legAt(S_.leg, S_.t); S_.target = r.par; }
-  else { const f = S_.fold; r = { par:f.A, p:V.add(f.p, V.mul(f.h, f.v*S_.t)), h:f.h, v:f.v }; }
+  // (in the fold itself the heart comes to a stop where it winks out, within about 0.2 s: at a fifth of light speed it would otherwise leave the
+  // starburst that marks the jump thousands of ship lengths behind)
+  else { const f = S_.fold, k = 0.08; r = { par:f.A, p:V.add(f.p, V.mul(f.h, f.v*k*(1 - Math.exp(-S_.t/k)))), h:f.h, v:f.v*Math.exp(-S_.t/k) }; }
+  // (the lab, /lab: the ship parked at one spot by its place, S_.park, while its route and all its effects run on as usual)
+  if (S_.park){ const k = S_.park; r = { par:k.tg, p:k.p, h:k.h, v:1e-30 }; }
   let h = r.h;
   if (S_.hFrom){ S_.hFrom.t += dt; const u = smooth(0, S_.hFrom.T, S_.hFrom.t); h = slerpDir(S_.hFrom.h, r.h, u); if (u >= 1) S_.hFrom = null; }
   ship.parent = r.par; ship.offset = r.p; ship.pos = V.add(r.par.pos, r.p);
   S_.h = h; S_.vel = V.mul(r.h, r.v); S_.speed = r.v;
   // how much it is busy with a job (eased in and out): it banks, and the cameras turn toward the work
-  const A = S_.act, J = ACTS[A ? A.kind : S_.plan.act], want2 = A ? A.env()*J.view : 0;
+  // (on a pass with no job, framed round its closest point like a job: from about a third of the way in until near its end)
+  const A = S_.act, pl = S_.plan, J = ACTS[A ? A.kind : pl.act], cru = !A && S_.phase === 'pass' && pl.act === 'cruise' ? smooth(0.12*pl.T, 0.35*pl.T, S_.t)*(1 - smooth(0.7*pl.T, 0.95*pl.T, S_.t)) : 0;
+  const want2 = A ? A.env()*J.view : cru*J.view;
   S_.viewA += (Math.min(want2, 1) - S_.viewA)*(1 - Math.exp(-dt*0.9));
-  const k = smooth(0, 1, S_.viewA), work = S_.phase === 'pass' || S_.phase === 'align';
+  const k = smooth(0, 1, S_.viewA), work = S_.phase === 'pass' || S_.phase === 'loop' || S_.phase === 'align';
   // the belly faces the body it visits; while it works it banks, turning its side to the body (eased, so the ship rolls smoothly);
   // between stars it keeps its roll
   const u = work ? V.norm(V.mul(r.p, -1)) : null;
@@ -424,13 +600,13 @@ function shieldUpdate(dt){
   // the load it needs here (gWant; the readout never shows more than this, so a load still fading from the last stop is never put down to
   // this one), and the load it has, eased toward it. At light speed it lets go at once: the stop it left is far behind, and a slow fade kept
   // the ship glowing there (a white haze round a small ship on a phone)
-  const want = !light && v > 0 ? Math.min(1, loadOf(Math.log10(v))*(0.85 + 0.15*S_.climbK)) : 0;
+  const want = S_.labLoad != null ? S_.labLoad : !light && v > 0 ? Math.min(1, loadOf(Math.log10(v))*(0.85 + 0.15*S_.climbK)) : 0;   // (labLoad: the lab's slider)
   S_.gWant = want;
   S_.load += (want - S_.load)*(1 - Math.exp(-dt*(want > S_.load ? 1.5 : light ? 4 : 0.7)));
   // the rings turn faster as the fold drive spools up and as the shield works (their phase is kept here: 20 pi brings both dotted rings back
   // to the same pattern), and the heart beats faster, at most 0.6 beats a second with reduced motion
   S_.ringPh = (S_.ringPh + dt*(0.1 + 1.2*S_.spool + 0.9*S_.load)) % (20*Math.PI);
-  S_.beat = (S_.beat + dt*Math.min(0.3 + 1.7*S_.load, reduceMotion ? 0.6 : 9)) % 1;
+  S_.beat = (S_.beat + dt*Math.min(0.3 + 1.7*S_.load + 1.4*S_.spool, reduceMotion ? 0.6 : 9)) % 1;
 }
 ship.update = function(dt){
   if (!S_.plan){ S_.visits = 0; foldVisit(BYKEY.saturn); S_.t = 3; }
@@ -438,8 +614,16 @@ ship.update = function(dt){
   // (a camera flying up to the ship: the ship carries on, but it will not jump until the camera has landed)
   const flying = !!(flight && flight.obj === ship);
   S_.t += dt;
-  if (S_.phase === 'pass' && S_.t >= S_.plan.T){ const over = S_.t - S_.plan.T; startAlign(); S_.t = over; }
-  if (S_.phase === 'align'){ if (flying) S_.jumpAt = Math.max(S_.jumpAt, S_.t + (S_.next.mode === 'fold' ? HALO.FOLD_SPOOL : HALO.LS_SPOOL)); if (S_.t >= S_.jumpAt) startJump(); }
+  if (S_.stay && S_.phase !== 'light' && S_.phase !== 'fold') S_.stay.t += dt;
+  // (a pass ends in a loop to the next one, or, the stay over, in the turn toward the next stop)
+  if (S_.phase === 'pass' && S_.t >= S_.plan.T){ const over = S_.t - S_.plan.T; if (S_.plan.last || S_.stay.leave) startAlign(); else startLoop(); S_.t = over; }
+  if (S_.phase === 'loop' && S_.t >= S_.loop.T){ const over = S_.t - S_.loop.T; endLoop(); S_.t = over; }
+  // (nor while a job it is doing is still under way: Pip out of the bay). A fold's wind-up: the ship eases off as the drive spools up
+  if (S_.phase === 'align'){
+    if (flying || jobBusy()) S_.jumpAt = Math.max(S_.jumpAt, S_.t + (S_.next.mode === 'fold' ? HALO.FOLD_SPOOL : HALO.LS_SPOOL));
+    else if (S_.next.mode === 'fold' && !S_.align.slow && S_.t >= S_.jumpAt - HALO.FOLD_SPOOL){ const t0 = S_.t - (S_.align.t0 || 0); S_.align.slow = { t0, t1:t0 + 3.5, k:0.45 }; }
+    if (S_.t >= S_.jumpAt) startJump();
+  }
   if (S_.phase === 'light' && S_.t >= S_.leg.T) endLight();
   if (S_.phase === 'fold' && S_.t >= HALO.FOLD_T) endFold();
   placeShip(dt);
@@ -447,11 +631,13 @@ ship.update = function(dt){
   shieldUpdate(dt);
   foldUpdate(dt);
   // the look of the drive: spool (reactor surge before a fold), light-speed sheen, scale (collapse and emergence)
-  const al = S_.phase === 'align', sp = al ? smooth(S_.jumpAt - (S_.next.mode === 'fold' ? HALO.FOLD_SPOOL : HALO.LS_SPOOL), S_.jumpAt, S_.t) : 0;
+  // (a fold's spool is full as the hull starts to burn away)
+  const al = S_.phase === 'align', fd = al && S_.next.mode === 'fold', sp = al ? smooth(S_.jumpAt - (fd ? HALO.FOLD_SPOOL : HALO.LS_SPOOL), S_.jumpAt + (fd ? FLK.D0 + 0.5 : 0), S_.t) : 0;
   S_.spool = al && S_.next.mode === 'fold' ? sp : Math.max(0, S_.spool - dt*2);
   S_.emerge = Math.min(1, S_.emerge + dt/HALO.EMERGE);
   if (S_.phase === 'fold'){ const u = smooth(0, HALO.FOLD_T, S_.t); S_.scale = 1 - u*u*0.99; }
-  else S_.scale = 0.02 + 0.98*smooth(0, 1, S_.emerge);
+  // (arriving by a fold, the ship is only its heart streaking in until it arrives, ZIP s after: fxFoldIn)
+  else S_.scale = S_.asm < FLK.ZIP ? 0.02 : 0.02 + 0.98*smooth(FLK.ZIP, FLK.ZIP + 0.15, S_.asm)*smooth(0, 1, S_.emerge);
   // the light-speed sheen on the hull's edges: it rises as the ship jumps, settles during the leg, peaks again as it drops out and fades over
   // 0.4 s after (a fold has its own look: foldUpdate)
   const lsg = S_.phase === 'light' ? Math.max(1 - 0.4*smooth(0, 0.6, S_.t), 0.6 + 0.4*smooth(S_.leg.T - 0.5, S_.leg.T, S_.t)) : (al && S_.next.mode === 'light' ? smooth(S_.jumpAt - 0.6, S_.jumpAt, S_.t) : 0);
@@ -460,74 +646,34 @@ ship.update = function(dt){
   S_.stretch = S_.phase === 'light' ? (S_.t < 0.3 ? 0.55 + 0.45*smooth(0, 0.3, S_.t) : 1 - smooth(S_.leg.T - 0.45, S_.leg.T, S_.t)) : (al && S_.next.mode === 'light' ? 0.55*smooth(S_.jumpAt - 0.7, S_.jumpAt, S_.t) : Math.max(0, S_.stretch - dt*3));
   S_.lsRun = S_.phase === 'light' ? S_.lsRun + dt*(0.5 + 1.6*S_.stretch) : S_.lsRun;
   S_.em = [0, 0, 0, 0]; S_.scoop = 0;
-  if (S_.act) S_.act.update(dt, S_.t - S_.plan.tA);
+  // the job's clock (jt, seconds since it began): the pass's own clock while the pass it belongs to is flown, then on by dt, so a job can carry on
+  // past its pass. It is let go once it is done: a job that says so (done()) as soon as it is, any other when its pass is over
+  if (S_.act && (S_.act.done ? S_.act.done() : S_.phase !== 'pass' || S_.plan !== S_.act.pl)){ if (S_.act.end) S_.act.end(); S_.act = null; }
+  if (S_.act){ S_.jt = S_.phase === 'pass' && S_.plan === S_.act.pl && !S_.act.own ? S_.t - S_.plan.tA : S_.jt + dt; S_.act.update(dt, S_.jt); }
   // (Pip, the drone, moves after the camera has: drone.ctl in 07i-drone.js)
   fxUpdate(dt);
 };
 
 // ================================================================ the jobs. Each one: update(dt, tau) with tau the time since the job started (negative before),
 // draw(), line() for the readout, env() (how busy it is now, 0 to 1: the ship banks and the cameras turn toward the work), end().
+// A job may also say when it is done (done(): Pip's outing, which can outlast its pass); update's tau is its own clock (S_.jt), which runs on
+// through the turn after the pass, so a job never depends on the pass's clock or shape.
 const env = (tau, T) => smooth(-1.5, 0.3, tau)*(1 - smooth(T - 0.8, T + 1.2, tau));
 const ACT = {};
-// -- a sensor scan: fans of beams sweep across the body, each beam ending exactly where it first meets the surface; the rim glows faintly
-ACT.scan = pl => {
-  const tg = pl.tg, T = ACTS.scan.T, SW = 3.2, NB = 7, dirs = [1, -1, 1];
-  const A = { kind:'scan', tau:-9, beams:[] };
-  A.update = (dt, tau) => { A.tau = tau; const on = tau > 0.4 && tau < 0.6 + 3*SW; if (on) S_.em[0] = 0.6 + 0.4*Math.sin(tau*23); if (tau > 0 && tau < 0.5) S_.em[0] = tau*2; };
-  A.env = () => env(A.tau, T);
-  A.line = () => A.tau < 0 ? 'approaching ' + tg.name + ' · sensors warming up' : A.tau < 0.6 ? 'scanning ' + tg.name + ' · ping' : A.tau < 0.6 + 3*SW ? `scanning ${tg.name} · sensor sweep ${Math.min(3, 1 + Math.floor((A.tau - 0.6)/SW))} of 3` : 'scan of ' + tg.name + ' complete';
-  A.draw = () => {
-    A.beams = [];
-    const tau = A.tau; if (tau < 0 || tau > T + 0.5) return;
-    const sp = aimSphere(tg), C = tg.rel, R = sp.r, E = shipPt(HULL.scan);
-    const EC = V.sub(E, C), dEC = V.len(EC); if (!(dEC > R*1.002)) return;
-    const e = V.mul(EC, 1/dEC), thMax = Math.acos(R/dEC);
-    // the ping: a faint ring spreading out from the ship before the sweeps
-    if (tau < 0.8){ const u = tau/0.8; ringCam(E, dEC*0.9*u + ship.rad, CYAN, 0.35*(1 - u)*(1 - u), 48); }
-    const k = Math.floor((tau - 0.6)/SW), u = (tau - 0.6 - k*SW)/SW;
-    if (k < 0 || k > 2) return;
-    // beams only from a ship you can see: with it out of the picture or behind the body they would seem to come from nowhere
-    const showB = camNear() || (onScreen(E) && !behindSphere(E, C, R*0.998));
-    // sweep frame: the fan lies across the ship's track and sweeps along it (like a push-broom scanner), back and forth
-    let a = perpTo(S_.h, e); a = V.len(a) > 1e-6 ? V.norm(a) : anyPerp(e); const b = V.cross(e, a);
-    const amp = Math.pow(Math.sin(Math.PI*clamp(u, 0, 1)), 0.6), th = thMax*0.78, x = (2*u - 1)*th*dirs[k];
-    const pt = (xa, yb, r) => V.add(C, V.mul(V.norm(V.add(e, V.add(V.mul(a, Math.tan(xa)), V.mul(b, Math.tan(yb))))), r));
-    const occ = p => behindSphere(p, C, R*0.998) || behindHull(p);
-    const flick = 0.75 + 0.25*Math.sin(tau*29);
-    for (let i=0;i<NB;i++){
-      const y = (i/(NB - 1)*2 - 1)*th*0.85, P0 = pt(x, y, R), dir = V.norm(V.sub(P0, E)), t = raySphere(E, dir, C, R);
-      if (t < 0) continue;
-      const end = V.add(E, V.mul(dir, t));
-      A.beams.push({ E, end, C, R });
-      const bb = amp*flick*(0.85 + 0.15*Math.sin(i*1.7 + tau*11));
-      if (showB) beamLine(E, end, [0.4, 0.8, 1], 0.55*bb, occ, [0.6, 1, 1], 0.95*bb, 12, ship.rad*0.25);
-      if (sp.solid && !occ(end)) P_(end, [0.75, 1, 1], 1.8*bb, -3);
-      if (sp.cloud && !occ(end)) P_(end, CYAN, 0.5*amp, -4);
-    }
-    // the scan line the fan paints on the surface, and its fading afterglow (a band sweeping across)
-    if (sp.solid){
-      for (let j=0;j<6;j++){
-        const xj = x - dirs[k]*j*th*0.07; if (Math.abs(xj) > th) continue;
-        const br = 0.5*amp*Math.exp(-j*0.55);
-        let prev = null, pv = false;
-        for (let q=0;q<=20;q++){ const p = pt(xj, (q/20*2 - 1)*th*0.9, R*1.003), v = !occ(p); if (prev && pv && v) L_(prev, p, CYAN, br); prev = p; pv = v; }
-      }
-    }
-    // a faint rim of scan light round the body's edge, pulsing at the start of each sweep
-    if (!sp.cloud){ const tt = u*SW, pulse = smooth(0, 0.25, tt)*Math.exp(-Math.max(tt - 0.25, 0)/0.8); if (pulse > 0.01) limbRim(C, R, CYAN, 0.26*pulse, tau); }
-  };
-  return A;
-};
+// (a job still under way that the ship must wait for before it leaves)
+const jobBusy = () => !!(S_.act && S_.act.done && !S_.act.done());
+// -- a sensor scan: the hologram sweep, in its own file (ACT.scan in 07j-scan.js)
 // -- a probe: Pip, the ship's little drone (07i-drone.js), pops out of the belly bay, says hello, flies to the body, hovers there taking
 // pictures while it looks at it, flies home and docks (it launches 0.3 s into the job and is back aboard 11.9 s later). The drone moves and
 // draws itself (drone.ctl after the camera moves, pipDraw from haloDraw); the job only keeps the time and says what is happening.
 ACT.probe = pl => {
-  const T = ACTS.probe.T, A = { kind:'probe', tau:-9, tg:pl.tg, pl, t0:pl.tA + 0.3 };
+  const T = ACTS.probe.T, A = { kind:'probe', tau:-9, tg:pl.tg, pl, fin:false, len:T };
   A.update = (dt, tau) => { A.tau = tau; };
-  A.env = () => env(A.tau, T);
+  A.env = () => env(A.tau, Math.max(T, A.len));
   A.line = () => pipLine(A);
+  A.done = () => A.fin || A.tau > T + 60;
   A.draw = () => {};
-  A.end = () => {};
+  A.end = () => pipEnd(A);
   return A;
 };
 // -- a weapons test (fictional): three shots at the body, one of each kind in turn; blasts that swell, cool from white to orange to dark and fade
@@ -627,70 +773,6 @@ ACT.skim = pl => {
       const l = [k*0.9 + Math.cos(a)*k*0.5, HULL.gun[1] + 0.01 + k*5.5, Math.sin(a)*k*0.6], p = shipPt(l); if (!occ(p)) P_(p, col, A.low*0.5*u, -2); }
   };
   A.end = () => {};
-  return A;
-};
-// -- a tractor beam and drill: a passing rock is caught and pulled in beside the ship, a core is drilled out (sparks), the sample is stowed, the rock let go
-let rockShape = 0;
-const haloRock = addObj({ key:'halo-rock', name:'a passing rock', label:'', type:'', group:'travel', layer:3, parent:ship, offset:[0, 0, 0], pos:[0, 0, 0], rad:0.42*ship.rad,
-  prog:P.rock, selfPos:true, hidden:true, noPick:true, noLabel:true, noImpostor:true, atlas:false, noWaypoint:true, pxMin:2, visFn:rpx => smooth(1, 4, rpx),
-  // (lit partly by the nearest star and mostly by the ship's own floodlights, so it never turns into a black hole in the picture)
-  setU(pr){ const lt = S_.target && (S_.target.group === 'stars' || S_.target === sun) ? S_.target : sun, L = V.norm(V.add(V.add(V.mul(V.norm(V.sub(lt.rel, this.rel)), 0.45), V.mul(V.norm(V.mul(this.rel, -1)), 0.6)), V.mul(V.norm(V.sub(ship.rel, this.rel)), 0.35)));
-    gl.uniform4f(pr.u.uP0, this.shape || 0, 0, 0, 0); gl.uniform4f(pr.u.uP1, L[0], L[1], L[2], 0); } });
-ACT.tractor = pl => {
-  const tg = pl.tg, T = ACTS.tractor.T, rk = haloRock, rr = rk.rad;
-  const A = { kind:'tractor', tau:-9, sparks:[], spin:0.5, ang:0, rel0:null, vrel:null };
-  rk.shape = rockShape++ % 3; rk.R0 = R0of(rnd()*6, rnd()*6, rnd()*6);
-  const sd = S_.side, H = [0.55, 0.45, 1.75*sd];   // where the beam holds it: off the side it banks toward, a little below and ahead (ship radii, ship axes)
-  const approach = tau => { const a = smooth(-2.5, 3.5, tau), k = 1 - a; return [0.55 + 0.9*k, 0.45 + 17*k*k, (1.75 + 1.2*k)*sd]; };
-  A.pos = tau => {
-    if (tau < 3.5) return localPt(approach(tau));
-    if (tau < 11){ const u = smooth(3.5, 5.6, tau); return localPt(V.lerp(approach(3.5), H, u)); }
-    return V.add(A.rel0, V.mul(A.vrel, tau - 11));
-  };
-  A.update = (dt, tau) => {
-    A.tau = tau;
-    const vis = tau > -2.5 && tau < T + 4;
-    if (tau >= 11 && !A.rel0){ A.rel0 = localPt(H); A.vrel = V.add(V.mul(S_.h, -ship.rad*1.4), V.mul(S_.belly, ship.rad*0.5)); }
-    A.spin = tau < 3.5 ? 0.5 : tau < 11 ? 0.5 - 0.42*smooth(3.5, 5.5, tau) : 0.3;
-    A.ang += A.spin*dt;
-    rk.hidden = !vis || !!(A.rel0 && V.len(A.pos(tau)) > ship.rad*40);
-    if (!rk.hidden){ rk.offset = A.pos(tau); rk.pos = V.add(ship.pos, rk.offset); rk.rot = M3.mul(rk.R0, M3.mul(M3.rotY(A.ang), M3.rotX(A.ang*0.37))); }
-    const beam = smooth(2.2, 2.8, tau)*(1 - smooth(10.8, 11.4, tau));
-    S_.em[1] = beam*(0.8 + 0.2*Math.sin(tau*9));
-    const drill = smooth(5.8, 6.1, tau)*(1 - smooth(9.8, 10, tau));
-    if (drill > 0.05) S_.em[2] = Math.max(S_.em[2], drill*(0.7 + 0.3*Math.sin(tau*37)));
-    // sparks from the drill head (kept relative to the ship: the rock is held right beside it)
-    for (const s of A.sparks){ s.age += dt; s.r = V.add(s.r, V.mul(s.v, dt)); s.v = V.mul(s.v, 1 - dt*1.5); }
-    while (A.sparks.length && A.sparks[0].age > A.sparks[0].life) A.sparks.shift();
-    if (drill > 0.3 && !rk.hidden){ const c = A.contact(), n = V.norm(V.sub(localPt(HULL.drill), rk.offset));
-      for (let k=0;k<3;k++){ const v = V.mul(V.norm(V.add(V.mul(n, 0.4), V.mul(randDir(), 1))), ship.rad*(0.8 + 1.6*rnd())); A.sparks.push({ r:c.slice(), v, age:0, life:0.35 + 0.5*rnd() }); } }
-  };
-  A.contact = () => { const d = V.norm(V.sub(localPt(HULL.drill), rk.offset)); return V.add(rk.offset, V.mul(d, rr*0.62)); };
-  A.env = () => env(A.tau, T + 1);
-  A.line = () => { const t = A.tau; if (t < 2.2) return 'a passing rock ahead · locking the tractor beam'; if (t < 5.8) return 'tractor beam holding a ~1 km rock'; if (t < 10) return 'drilling a core sample from the rock';
-    if (t < 11) return 'core sample stowed'; return 'rock released · it drifts on toward ' + tg.name; };
-  A.draw = () => {
-    if (rk.hidden) return;
-    const tau = A.tau, R = rk.rel, occR = p => behindSphere(p, R, rr*0.55), occ = p => occR(p) || behindHull(p) || behindSphere(p, tg.rel, aimSphere(tg).r*0.998);
-    const beam = smooth(2.2, 2.8, tau)*(1 - smooth(10.8, 11.4, tau));
-    if (beam > 0.01){
-      // the beam: a faint cone from the emitter to the rock's outline, with rings of light running up it
-      const E = shipPt(HULL.tractor), ax = V.sub(R, E), L = V.len(ax), u = V.mul(ax, 1/L), p1 = anyPerp(u), p2 = V.cross(u, p1);
-      for (let k=0;k<8;k++){ const a = k/8*6.2832 + tau*0.4, rim = V.add(R, V.mul(V.add(V.mul(p1, Math.cos(a)), V.mul(p2, Math.sin(a))), rr*1.05)); beamLine(E, rim, TEAL, 0.2*beam, occ, TEAL, 0.07*beam, 10, ship.rad*0.1); }
-      for (let j=0;j<3;j++){ const f = 1 - ((tau*0.6 + j/3) % 1), c = V.add(E, V.mul(ax, f)), rad = rr*(0.12 + 0.95*f);
-        let prev = null, pv = false; for (let k=0;k<=16;k++){ const a = k/16*6.2832, p = V.add(c, V.mul(V.add(V.mul(p1, Math.cos(a)), V.mul(p2, Math.sin(a))), rad)), v = !occ(p); if (prev && pv && v) L_(prev, p, TEAL, 0.3*beam*Math.sin(Math.PI*f)); prev = p; pv = v; } }
-    }
-    const drill = smooth(5.8, 6.1, tau)*(1 - smooth(9.8, 10, tau));
-    if (drill > 0.01){
-      const D0 = shipPt(HULL.drill), c = V.add(ship.rel, A.contact());
-      beamLine(D0, c, [1, 0.85, 0.6], 1.1*drill, p => behindHull(p), [1, 0.95, 0.85], 1.3*drill);
-      if (!occR(c)){ P_(c, [1, 0.6, 0.25], drill*(1.6 + 0.6*Math.sin(tau*43)), -6); P_(c, [1, 0.45, 0.15], drill*0.6, rr*0.35); }
-    }
-    for (const s of A.sparks){ const p = V.add(ship.rel, s.r), f = 1 - s.age/s.life, q = V.sub(p, V.mul(s.v, 0.05)); if (!occ(p)) L_(q, p, [1, 0.5, 0.15], 0.2*f, [1, 0.85, 0.5], 0.9*f); }
-    // the sample: a small bright core rising into the belly bay
-    if (tau > 10 && tau < 10.9){ const u = smooth(10, 10.9, tau), p = V.lerp(V.add(ship.rel, A.contact()), shipPt(HULL.dock), u); if (!behindHull(p)) P_(p, [0.8, 1, 0.85], 1.5, -4); }
-  };
-  A.end = () => { rk.hidden = true; };
   return A;
 };
 
@@ -832,25 +914,71 @@ function fxLightIn(){
   fxAdd({ T:0.45, draw(e){ const u = e.t/e.T, f = 1 - u, tip = shipPt(HULL.gun);
     P_(tip, [0.85, 0.95, 1], 1.6*f*f, -6); ringIn(tip, V.norm(localPt([1, 0, 0])), ship.rad*(0.3 + 3.7*(1 - Math.exp(-u*3))), [0.6, 0.85, 1], 0.3*f*f, 48); } });
 }
-// fold: the moment it goes (the hull is gone by then: the look of the fold itself is foldDraw and the ship's shader) and the moment it arrives.
-// Going, the heart winks out with a small flash and a thin ring; arriving, a small flash as the heart opens.
-function fxFoldOut(A, q, h){
-  fxAdd({ T:0.9, anc:A, q, h, draw(e){ const O = V.add(e.anc.rel, e.q), t = e.t;
-    if (t < 0.4) P_(O, [0.85, 0.95, 1], 1.4*Math.exp(-t/0.1), -12);
-    const u = t/0.9; if (u < 1) ringIn(O, e.h, ship.rad*(0.3 + 2.2*(1 - Math.exp(-t*3.5))), [0.55, 0.85, 1], 0.3*(1 - u)*(1 - u), 64); } });
+// fold: the moment it goes (the hull is gone by then: the look of the fold itself is foldDraw and the ship's shader) and the moment it arrives,
+// each marked by a starburst, so the jump reads as one: a white-hot point, eight thin rays in the plane of the screen (four long, four short)
+// that shoot out and fade, and two thin rings spreading after them. Crisp lines, gone within a second: never a white ball (owner). Its size
+// follows the ship, but never under about 24 characters across, so it reads from afar too.
+function starburst(O, t, k){
+  const d = V.len(O), px = d*tanY/Math.max(sceneH*0.5, 1), R = Math.max(ship.rad, 18*px);
+  if (!(d > 0)) return;
+  P_(O, WHITE, 3*k*Math.exp(-t/0.08), -10); P_(O, ICE_, 0.8*k*Math.exp(-t/0.15), -14);
+  const x = cam.right, y = cam.up, grow = 1 - Math.exp(-t*12), fade = Math.exp(-t/0.2);
+  for (let i=0;i<8;i++){
+    const a = i*Math.PI/4 + 0.15, long = i % 2 === 0, len = R*(long ? 1.5 : 0.75)*grow*k, u = V.add(V.mul(x, Math.cos(a)), V.mul(y, Math.sin(a)));
+    L_(V.add(O, V.mul(u, len*0.06)), V.add(O, V.mul(u, len)), WHITE, 0.8*k*fade*(long ? 1 : 0.7), ICE_, 0);
+  }
+  for (let j=0;j<2;j++){ const tj = t - j*0.1, u = tj/0.7; if (u <= 0 || u >= 1) continue; ringCam(O, R*k*(0.3 + 1.9*(1 - Math.exp(-tj*3.5))), ICE_, 0.35*(1 - u)*(1 - u)*(j ? 0.6 : 1), 64); }
 }
+// (on the ship's heart, like the embers: the one as it goes lasts the fold, 0.4 s, and the one as it arrives takes over)
+function fxFoldOut(){
+  fxAdd({ kind:'fold-out', T:HALO.FOLD_T, draw(e){ if (S_.phase === 'fold') starburst(shipPt(HULL.core), e.t, 1); } });
+}
+// the arrival (0.9.3, owner: it has to look as if the ship came from somewhere, and fly forward into the view, never back toward the camera):
+// the heart streaks in from behind the camera and to one side, into the view and away from it, slowing as it comes, a bright head (bigger
+// while it is near) and a fading tail, for ZIP s; then a starburst as it takes its place, and the hull streams out of it (emberAt). With the
+// camera elsewhere it comes from far behind the ship instead, along its heading. Worked out afresh each frame from the camera, so it keeps its
+// place on the screen while a chase camera settles; its dice are lcg
 function fxFoldIn(){
-  fxAdd({ T:0.9, draw(e){ const t = e.t, O = shipPt(HULL.core);
-    P_(O, [0.85, 0.95, 1], 1.2*Math.exp(-t/0.12), -10); } });
+  const r = lcg(S_.visits*131 + 7), sd = r() < 0.5 ? -1 : 1, up = 0.1 + 0.1*r(), core = HULL.core, onCam = camOnShip();
+  const P0 = [-0.2, -40, sd*14], P1 = [-0.3, -12, sd*7], S0 = [0, 0, 0], C1 = [0, 0, 0], H = [0, 0, 0];
+  const ease = t => 1 - Math.pow(1 - clamp(t/FLK.ZIP, 0, 1), 1.7);
+  // (the path's three points, camera-relative: behind and beside the camera, ahead of it and still to the side, the heart; a narrow screen
+  // brings the side in, so the head is on it for as long)
+  const frame = () => {
+    const h = shipPt(core); H[0] = h[0]; H[1] = h[1]; H[2] = h[2];
+    if (onCam){
+      const D = V.len(H), f = cam.fwd, rt = cam.right, u = cam.up, k = clamp(tanX/0.9, 0.35, 1)*sd*D;
+      for (let i=0;i<3;i++){ S0[i] = rt[i]*0.45*k + u[i]*up*D - f[i]*0.2*D; C1[i] = rt[i]*0.35*k + u[i]*0.6*up*D + f[i]*0.35*D; }
+    } else { toShip(S0, core[0] + P0[0], core[1] + P0[1], core[2] + P0[2]); toShip(C1, core[0] + P1[0], core[1] + P1[1], core[2] + P1[2]); }
+  };
+  const at = (v, out) => { const m = 1 - v; for (let i=0;i<3;i++) out[i] = m*m*S0[i] + 2*m*v*C1[i] + v*v*H[i]; return out; };
+  fxAdd({ kind:'fold-in', T:FLK.ZIP + 0.9, draw(e){
+    const t = e.t;
+    if (t < FLK.ZIP){
+      frame();
+      const v = ease(t), on = smooth(0, 0.15, t), D = Math.max(V.len(H), 1e-30); at(v, EP);
+      const near = clamp(D/Math.max(V.len(EP), 1e-30), 1, 3.5);
+      P_(EP, WHITE, 2.8*on, -8*near); P_(EP, ICE_, 1.1*on, -15*near);
+      // (the tail: where the head was over the last 0.6 s, fading)
+      let pv = v; for (let k=1;k<=24;k++){ const q = ease(Math.max(t - k*0.025, 0)); at(pv, EP); at(q, EQ); const f = 1 - k/25; L_(EQ, EP, DEEP_, 0.3*f*f*on, ICE_, 0.7*f*on); pv = q; if (q <= 0) break; }
+    } else starburst(shipPt(core), t - FLK.ZIP, 1.15);
+  } });
 }
 
 // ================================================================ the fold's look (made up, like the ship; foldF and foldCellThr in 07-extras.js)
 // Ember wind: the hull burns away cell by cell from the needle's tip, its embers and ash blow off to one side in a stream, then the heart pulls
-// them back in and winks out; on arrival the stream flows back and the hull forms from the heart outward, the needle last.
+// them back in and winks out; on arrival the heart comes first and the hull streams back out of it, forming from the heart outward, the needle last.
 // Its own clocks, so the route's timing is untouched: fk counts to the jump (negative before it, 0 to FOLD_T in the fold; it runs back, and
 // the hull forms again, if the jump is put off), asm from the arrival. The shield folds into the heart first and forms again last.
-const FLK = { SH0:-2.6, SH1:-2.1, D0:-2.1, D1:-0.5, P:1, A0:0.15, A1:1.7, SHR:0.7, RIMW:0.1 };
-const FLK_END = FLK.A1 + FLK.SHR + 0.1;
+// (0.9.3, on the owner's word: slower, no shield in it, the heart powering up first, a flash): the shield goes out quietly as the drive starts to
+// spool up (SHO s) and the heart powers up for 9 s (HALO.FOLD_SPOOL) while the ship eases off; the hull burns away from 4.8 s to 2.2 s before the
+// jump, the heart draws the embers in over the next 1.95 s (PULL), flares and winks out, and a starburst and a flash of the whole screen mark
+// the jump. Arriving (owner, round 4: the orb first, the ship out of it, and flying forward into the view, never back toward the camera), the
+// heart streaks in from behind the camera (ZIP s), a starburst and a softer flash as it takes its place, it glows alone for HOLD s, then its
+// embers stream out to their cells (EO0 to EO1 s each, never before ZIP + HOLD) and the hull forms from A0 to A1, and the shield fades back in
+// slowly from SHIN (SHR s): it never folds into the heart or pops out. WS slows the embers' wind to match.
+const FLK = { D0:-4.8, D1:-2.2, PULL:1.95, P:1, SHO:0.6, ZIP:1.4, HOLD:0.3, EO0:0.6, EO1:1.05, A0:2.45, A1:5.45, SHIN:6.45, SHR:4, RIMW:0.1, WS:0.55 };
+const FLK_END = FLK.SHIN + FLK.SHR + 0.1;
 // the ship's outline in its plane (y, w = |z|): the same shapes as bowPlan, armPlan and the nacelles in the shader
 const KS_ = [-0.041, 0.108], KN_ = [-0.187, 0], N1_ = [0.1225, 0.9925], N2_ = [-0.5947, 0.8039];
 const bowPlanJS = (y, w) => Math.max((y - KS_[0])*N1_[0] + (w - KS_[1])*N1_[1], (y - KN_[0])*N2_[0] + (w - KN_[1])*N2_[1]);
@@ -920,90 +1048,91 @@ function emberHidden(ox, oy, oz, qx, qy, qz){
   const u = clamp(((0 - ox)*dx + (cy - oy)*dy + (0 - oz)*dz)/L2, 0, 1), ex = ox + dx*u, ey = oy + dy*u - cy, ez = oz + dz*u;
   return u > 0 && u < 0.985 && ex*ex + ey*ey + ez*ez < rh*rh;
 }
-// the shield's outline in the ship's plane, as segments (y, z, y, z), a little outside the hull. It folds into the heart as the fold begins and
-// grows back out of it at the end.
-const SHOL = (() => {
-  const seg = [], h = 0.02, f = (y, z) => planD(y, Math.abs(z)) - 0.05;
-  for (let y=-0.98;y<0.94;y+=h) for (let z=-0.5;z<0.5;z+=h){
-    const v = [f(y, z), f(y + h, z), f(y + h, z + h), f(y, z + h)], P4 = [[y, z], [y + h, z], [y + h, z + h], [y, z + h]], pts = [];
-    for (let e=0;e<4;e++){ const a = v[e], b = v[(e + 1) % 4]; if ((a < 0) !== (b < 0)){ const t = a/(a - b), p = P4[e], q = P4[(e + 1) % 4]; pts.push(p[0] + (q[0] - p[0])*t, p[1] + (q[1] - p[1])*t); } }
-    if (pts.length >= 4) seg.push(pts[0], pts[1], pts[2], pts[3]);
-    if (pts.length === 8) seg.push(pts[4], pts[5], pts[6], pts[7]);
-  }
-  return new Float32Array(seg);
-})();
 // each tick: the clocks, and what the shader and the embers need from them
 function foldUpdate(dt){
   const S = S_, leaving = (S.phase === 'align' && S.next && S.next.mode === 'fold') || S.phase === 'fold';
-  if (leaving){ const want = S.phase === 'fold' ? S.t : S.t - S.jumpAt; S.fk = S.fk < -8 ? want : want >= S.fk ? want : Math.max(want, S.fk - dt*1.5); }
-  else S.fk = -9;
+  if (leaving){ const want = S.phase === 'fold' ? S.t : S.t - S.jumpAt; S.fk = S.fk < -90 ? want : want >= S.fk ? want : Math.max(want, S.fk - dt*1.5); }
+  else S.fk = -99;
   let g = 0, dm = 0, hfl = 0, shK = 1, cc = 0;
-  if (S.fk > -8){
+  if (S.fk > -90){
     const fk = S.fk;
     if (!S.csL && fk > FLK.D0 - 0.6){ S.csL = true; S.cs = foldCs(); buildCells(S.cs); S.wz = lcg(S.visits*977 + 13)() < 0.5 ? -1 : 1; }
-    shK = 1 - smooth(FLK.SH0, FLK.SH1, fk);
-    hfl = 0.55*Math.exp(-(((fk - FLK.SH1 - 0.05)/0.14)**2));   // (a flash as the shield reaches the heart)
+    // (the shield goes out quietly as the drive starts to spool up, and stays out)
+    shK = 1 - smooth(-HALO.FOLD_SPOOL, -HALO.FOLD_SPOOL + FLK.SHO, fk);
     if (S.csL && fk > FLK.D0 - 0.05){ dm = 1; g = CEL.gLo[0] + (CEL.gHi[0] - CEL.gLo[0])*Math.pow(clamp((fk - FLK.D0)/(FLK.D1 - FLK.D0), 0, 1), FLK.P); }
     cc = Math.max(fk - FLK.D1, 0);
-    hfl += 1.1*smooth(0, 0.3, cc)*(1 - smooth(0.55, 0.9, cc));
+    // (the heart flares as it draws the embers in, and winks out just before the jump)
+    hfl = 1.2*smooth(0, 1, cc)*(1 - smooth(FLK.PULL, FLK.PULL + 0.2, cc));
   } else if (S.asm < FLK_END){
     const a = S.asm += dt;
     if (!S.csL){ S.csL = true; S.cs = foldCs(); buildCells(S.cs); S.wz = lcg(S.visits*977 + 29)() < 0.5 ? -1 : 1; }
     if (a < FLK.A1 + 0.25){ dm = -1; g = CEL.gHi[1] - (CEL.gHi[1] - CEL.gLo[1])*clamp((a - FLK.A0)/(FLK.A1 - FLK.A0), 0, 1); }
-    shK = smooth(FLK.A1 + 0.3, FLK.A1 + FLK.SHR, a);
-    hfl = 0.9*(1 - smooth(0, 0.5, a));
+    // (the shield comes back only once the hull has formed, and slowly)
+    shK = smooth(FLK.SHIN, FLK.SHIN + FLK.SHR, a);
+    // (the heart flares as it takes its place, at the end of its streak in, and the screen flashes softly; it glows on while the hull streams
+    // out of it, and settles as the hull closes round it)
+    hfl = 1.3*smooth(FLK.ZIP - 0.12, FLK.ZIP, a)*(1 - 0.55*smooth(FLK.ZIP + 0.1, FLK.ZIP + 0.7, a))*(1 - smooth(FLK.A0 + 0.5, FLK.A1, a));
+    if (!S.zipped && a >= FLK.ZIP){ S.zipped = true; if (camOnShip()) foldFlash('arrive'); }
   } else {
-    // (the clock runs on after the hull has formed, until the chase camera has eased back out: S.fz below. 9, as between folds)
-    S.csL = false; if (S.asm < 9) S.asm = Math.min(9, S.asm + dt);
+    // (the clock runs on after the hull has formed, until the chase camera has eased back out: S.fz below. 99, as between folds)
+    S.csL = false; if (S.asm < 99) S.asm = Math.min(99, S.asm + dt);
   }
   S.dg = g; S.dm = dm; S.hfl = hfl; S.shK = shK; S.cc = cc;
   // (framing only: riding along in the chase view, the camera eases in to 0.6 of its distance while the drive spools up, so the break-up fills
   // about a third of the screen, and back out once the hull has formed again: SHIP_POSE.chase in 08-camera.js)
-  S.fz = S.fk > -8 ? 1 - 0.4*smooth(-HALO.FOLD_SPOOL, FLK.D0 + 0.3, S.fk) : 0.6 + 0.4*smooth(FLK.A1 + 0.3, FLK.A1 + 2, S.asm);
+  S.fz = S.fk > -90 ? 1 - 0.4*smooth(-HALO.FOLD_SPOOL, FLK.D0 + 0.3, S.fk) : 0.6 + 0.4*smooth(FLK.A1 + 0.3, FLK.A1 + 2, S.asm);
   // (from afar the engine glint goes with the hull)
   ship.farLum = 0.7*(dm > 0 ? 1 - smooth(FLK.D0, FLK.D1, S.fk) : dm < 0 ? smooth(FLK.A0, FLK.A1, S.asm) : 1);
 }
-// the embers, and the shield folding into the heart and out of it. Drawn relative to the ship (they ride with it), one point or short streak each,
+// the embers, and the heart powering up before them. Drawn relative to the ship (they ride with it), one point or short streak each,
 // only as many as about one per character of the ship on screen (fewer on a small screen, never a white blob)
-const EP = [0, 0, 0], EQ = [0, 0, 0], ECOL = [0, 0, 0], ICE_ = [0.55, 0.85, 1], DEEP_ = [0.42, 0.55, 1], ASH_ = [0.62, 0.64, 0.7], SHC_ = [0.55, 0.8, 1];
+const EP = [0, 0, 0], EQ = [0, 0, 0], ECOL = [0, 0, 0], ICE_ = [0.55, 0.85, 1], DEEP_ = [0.42, 0.55, 1], ASH_ = [0.62, 0.64, 0.7];
 function toShip(out, lx, ly, lz){ const R = ship.R0, s = ship.rad, r = ship.rel; out[0] = r[0] + (R[0]*lx + R[3]*ly + R[6]*lz)*s; out[1] = r[1] + (R[1]*lx + R[4]*ly + R[7]*lz)*s; out[2] = r[2] + (R[2]*lx + R[5]*ly + R[8]*lz)*s; return out; }
 function mix3(out, a, b, t){ out[0] = a[0] + (b[0] - a[0])*t; out[1] = a[1] + (b[1] - a[1])*t; out[2] = a[2] + (b[2] - a[2])*t; return out; }
 // where ember c (its offset in CEL.a) is, in ship radii and ship axes, at fold clock fk (leaving) or arrival clock t (arriving); false if not out
 function emberAt(out, c, fk, t, leaving, sd){
   const A = CEL.a, y0 = A[c], z0 = A[c + 1], xs = A[c + 2] + sd*A[c + 3], k0 = A[c + 8], k1 = A[c + 9], k2 = A[c + 10], k3 = A[c + 11], cy = -0.3*S_.scale;
   const still = reduceMotion ? 0 : 1;
+  // arriving, it streams out of the heart to its own spot, fast at first and settling as it lands, swirling the other way from the pull
+  // (the heart glows alone for HOLD s first): each grain leaves EO0 to EO1 s before its cell forms
+  if (!leaving){
+    const a = A[c + 7] - t, T = clamp(FLK.EO0 + (FLK.EO1 - FLK.EO0)*k3, 0.3, A[c + 7] - FLK.ZIP - FLK.HOLD);
+    if (a > T || t > A[c + 7] + 0.1) return false;
+    const u = Math.max(a, 0)/T, w = u*u, ang = still*2.4*w*S_.wz, ca = Math.cos(ang), sa = Math.sin(ang), vy = y0 - cy;
+    out[0] = xs*(1 - w); out[1] = cy + (vy*ca - z0*sa)*(1 - w); out[2] = (vy*sa + z0*ca)*(1 - w); out[3] = a; out[4] = w; return true;
+  }
   // a wind carries it off to one side (S_.wz, new for each fold), lifting it toward the camera's side of the plate and a little aft, with
-  // eddies; arriving, the same stream runs backwards and settles each grain on its own spot
-  const a = leaving ? fk - A[c + 6] : A[c + 7] - t; if (a < 0 && (leaving || t > A[c + 7] + 0.1)) return false;
+  // eddies, until the heart draws it back in
+  const a = fk - A[c + 6]; if (a < 0) return false;
   // (it rises off the plate as it drifts: dust lifting away, not rain; each grain turns in a small eddy of its own, so the stream curls)
-  const aa = Math.max(a, 0), e0 = 1 - Math.exp(-aa/0.2), wz = leaving ? S_.wz : -S_.wz, gust = 0.6 + 0.8*k0;
-  let x = xs + sd*(0.05*e0 + (0.12 + 0.3*k1)*aa*aa), y = y0 - (0.12*aa + 0.3*aa*aa)*(0.5 + k2), z = z0 + wz*(0.3*aa + 0.75*aa*aa)*gust;
-  const er = still*(0.05 + 0.12*k3)*Math.min(aa*2.2, 1)*(1 + aa), ea = aa*(3.2 + 3*k2)*(k0 < 0.5 ? 1 : -1) + 6.283*k3;
+  const aa = a, e0 = 1 - Math.exp(-aa/0.2), wz = S_.wz, gust = 0.6 + 0.8*k0, aw = aa*FLK.WS;
+  let x = xs + sd*(0.05*e0 + (0.12 + 0.3*k1)*aw*aw), y = y0 - (0.12*aw + 0.3*aw*aw)*(0.5 + k2), z = z0 + wz*(0.3*aw + 0.75*aw*aw)*gust;
+  const er = still*(0.05 + 0.12*k3)*Math.min(aa*2.2, 1)*(1 + aw), ea = aw*(3.2 + 3*k2)*(k0 < 0.5 ? 1 : -1) + 6.283*k3;
   x += sd*er*(Math.cos(ea) - Math.cos(6.283*k3)); z += er*(Math.sin(ea) - Math.sin(6.283*k3));
-  let w = 0;
-  if (leaving){
-    // (in the last half second the heart pulls it all back in)
-    const cc = fk - FLK.D1; w = cc > 0 ? smooth(0.05*k3, 0.3 + 0.3*k3, cc)**2 : 0;
-    if (w > 0.995) return false;
-    if (w > 0){ const ang = still*1.5*w*wz, ca = Math.cos(ang), sa = Math.sin(ang), vy = y - cy, vz = z; y = cy + (vy*ca - vz*sa)*(1 - w); z = (vy*sa + vz*ca)*(1 - w); x *= 1 - w; }
-  } else if (aa > 1.4) return false;
+  // (in the last two seconds the heart draws it all back in, over PULL s, each grain on its own schedule, swirling in: slow enough to watch)
+  const cc = fk - FLK.D1, w = cc > 0 ? Math.pow(smooth(0.12*k3*FLK.PULL, (0.5 + 0.4*k3)*FLK.PULL, cc), 1.6) : 0;
+  if (w > 0.995) return false;
+  if (w > 0){ const ang = still*2.8*w*wz, ca = Math.cos(ang), sa = Math.sin(ang), vy = y - cy, vz = z; y = cy + (vy*ca - vz*sa)*(1 - w); z = (vy*sa + vz*ca)*(1 - w); x *= 1 - w; }
   out[0] = x; out[1] = y; out[2] = z; out[3] = aa; out[4] = w; return true;
 }
 function foldDraw(){
-  const S = S_, leaving = S.fk > -8, arriving = !leaving && S.asm < FLK_END;
+  const S = S_, leaving = S.fk > -90, arriving = !leaving && S.asm < FLK_END;
   if ((!leaving && !arriving) || !(ship.dist < ship.labelRange) || !(ship.rpx > 6) || V.dot(ship.rel, cam.fwd) < -ship.rad*3) return;
   const R = ship.R0, rel = ship.rel, dist = Math.max(V.len(rel), 1e-30);
   // (the side of the plate the camera sees, and how many cells make one character there: a plate seen edge-on packs more into each)
   const sd = -(R[0]*rel[0] + R[1]*rel[1] + R[2]*rel[2]) > 0 ? 1 : -1, fsh = Math.max(Math.abs(R[0]*rel[0] + R[1]*rel[1] + R[2]*rel[2])/dist, 0.2);
   const cw = CEL.cs*ship.rpx/2, keep = clamp(cw*cw*0.55*fsh*5, 0.05, 1)*(reduceMotion ? 0.5 : 1), ir = 1/ship.rad;
   const ox = -(R[0]*rel[0] + R[1]*rel[1] + R[2]*rel[2])*ir, oy = -(R[3]*rel[0] + R[4]*rel[1] + R[5]*rel[2])*ir, oz = -(R[6]*rel[0] + R[7]*rel[1] + R[8]*rel[2])*ir;
-  // the shield folding into the heart (leaving) or growing out of it (arriving)
-  let s = -1, b = 0; const ol = SHOL;
-  if (leaving && S.fk > FLK.SH0 && S.fk < FLK.SH1 + 0.05){ s = 1 - smooth(FLK.SH0, FLK.SH1, S.fk); b = 0.9*Math.sqrt(1 - s)*smooth(0.02, 0.12, s); }
-  if (arriving && S.asm > FLK.A1 && S.asm < FLK.A1 + FLK.SHR){ s = 0.04 + 0.96*smooth(FLK.A1, FLK.A1 + 0.5, S.asm); b = (0.3 + 0.8*(1 - s))*(1 - smooth(FLK.A1 + 0.35, FLK.A1 + FLK.SHR, S.asm))*smooth(0, 0.08, S.asm - FLK.A1); }
-  if (s > 0 && b > 0.01) for (let i=0;i<ol.length;i+=4){
-    const y1 = -0.3 + (ol[i] + 0.3)*s, z1 = ol[i + 1]*s, y2 = -0.3 + (ol[i + 2] + 0.3)*s, z2 = ol[i + 3]*s;
-    L_(toShip(EP, (liftJS(Math.abs(ol[i + 1])) + sd*0.06)*s, y1, z1), toShip(EQ, (liftJS(Math.abs(ol[i + 3])) + sd*0.06)*s, y2, z2), SHC_, b*1.3);
+  // the heart powering up while the drive spools (0.9.3): motes of light spiralling in to it from round the hull, faster and brighter as the
+  // spool fills, until the hull starts to burn
+  if (leaving && S.spool > 0.02 && S.fk < FLK.D0 + 0.6){
+    const k = S.spool*(1 - smooth(FLK.D0 - 0.2, FLK.D0 + 0.6, S.fk)), n = reduceMotion ? 12 : 26, core = HULL.core;
+    for (let i=0;i<n;i++){
+      const ph = (GT*(0.3 + 0.8*S.spool) + i*0.618) % 1, rr = 0.03 + 0.6*(1 - ph)*(1 - ph), a = i*2.399 + ph*5*(i % 2 ? 1 : -1);
+      const x = sd*0.05*(1 - ph), y = core[1] + rr*Math.cos(a), z = rr*Math.sin(a);
+      if (emberHidden(ox, oy, oz, x, y, z)) continue;
+      toShip(EP, x, y, z); P_(EP, ph > 0.75 ? WHITE : ICE_, k*(0.3 + 0.9*ph*ph), -2);
+    }
   }
   if (!CEL.n || !S.csL) return;
   const fk = S.fk, t = S.asm, A = CEL.a, E = [0, 0, 0, 0, 0], E2 = [0, 0, 0, 0, 0]; let nE = 0;
@@ -1024,10 +1153,10 @@ function foldDraw(){
       P_(EP, ECOL, b, ash || a < 0.4 ? -3 : -2);
       if (!ash && !reduceMotion && emberAt(E2, c, fk - (w > 0.1 ? 0.025 : 0.03), t, true, sd)){ toShip(EQ, E2[0], E2[1], E2[2]); L_(EQ, EP, DEEP_, b*0.05, ECOL, b*0.3); }
     } else {
-      // (arriving: a grain drifting back in, warming as it nears its spot, a spark as it lands)
-      const a = E[3];
+      // (arriving: a grain thrown out of the heart white-hot, cooling to ice blue on its way, a spark as it lands)
+      const a = E[3], w = E[4];
       if (a <= 0){ P_(EP, WHITE, 1.8*(1 - (t - A[c + 7])/0.1), -2); continue; }
-      const b = (0.75 + 1.6*Math.exp(-a/0.22))*smooth(1.4, 0.95, a); mix3(ECOL, DEEP_, WHITE, Math.exp(-a/0.3));
+      const b = (0.9 + 1.3*w)*smooth(0, 0.08, 1 - w); mix3(ECOL, ICE_, WHITE, w);
       P_(EP, ECOL, b, k1 < 0.22 ? -3 : -2);
       if (!reduceMotion && emberAt(E2, c, fk, t - 0.03, false, sd)){ toShip(EQ, E2[0], E2[1], E2[2]); L_(EQ, EP, DEEP_, b*0.05, ECOL, b*0.3); }
     }
@@ -1044,7 +1173,7 @@ function haloDraw(){
   const near = ship.dist < ship.labelRange, inFront = V.dot(ship.rel, cam.fwd) > 0;
   // the ship's beacon when it is too small to see
   if (near && inFront && ship.rpx < 3 && S.scale > 0.3) P_(ship.rel, [0.6, 0.95, 1], (0.7 + 0.3*Math.sin(ship.t*5))*ship.farLum/0.7, -2.4);
-  if (near && S.act && S.phase === 'pass') S.act.draw();
+  if (near && S.act && (S.phase === 'pass' || S.phase === 'loop' || S.phase === 'align')) S.act.draw();
   for (const e of FX) if (!e.anc || e.anc.dist < Math.max(e.anc.rad*60, ship.labelRange)) e.draw(e);
   if (near) pipDraw();   // (Pip, the drone: its glint far away, its trail, the spot its lamp lights)
   const hx = localPt([1, 0, 0]), hz = localPt([0, 0, 1]), bx = V.mul(hx, 1/ship.rad), bz_ = V.mul(hz, 1/ship.rad), h = S.h, R = ship.rad;
@@ -1078,14 +1207,29 @@ EXTRAS.push(() => { FXB.np = FXB.nl = FXB.ns = 0; haloDraw(); });
 function foldLine(){
   const S = S_;
   if (S.phase === 'align' && S.next.mode === 'fold' && S.fk >= FLK.D0 - 0.1) return 'the hull burns away for the fold · next stop: ' + S.next.tg.name;
-  if (S.phase === 'pass' && S.visits > 1 && S.asm < FLK.A1 + 0.3) return 'out of the fold at ' + S.target.name + ' · the hull forms again';
+  if (S.phase === 'pass' && S.visits > 1 && S.asm < FLK.A1 + 0.3) return S.asm < FLK.ZIP ? 'out of the fold · the heart streaks in to ' + S.target.name : 'out of the fold at ' + S.target.name + ' · the hull streams out of the heart';
   return null;
+}
+// (while it roams with no job: what this pass or loop is, said only when it is so: over a pole only when its closest point is near it)
+function roamLine(){
+  const S = S_, pl = S.plan, tg = S.target, nm = tg.name, s = pl.style, lit = tg !== sun && V.len(tg.pos) < 0.01;
+  if (S.phase === 'loop') return S.t < S.loop.T*0.5 ? 'a wide turn out from ' + nm : 'heading back in toward ' + nm;
+  if (pl.last && S.t > pl.T*0.55) return 'leaving ' + nm + ' · next stop: ' + S.next.tg.name;
+  if (pl.styleOk){
+    if (s === 'pole' && tg.R0 && surfOf(tg)) return 'passing over ' + nm + (pl.south ? "'s south pole" : "'s north pole");
+    if (s === 'dusk' && lit) return 'along the line between day and night on ' + nm;
+    if (s === 'low') return 'a low pass by ' + nm;
+    if (s === 'wide') return 'a wide pass round ' + nm;
+    if (s === 'day' && lit) return 'over ' + nm + "'s day side";
+  }
+  return 'roaming round ' + nm;
 }
 function haloReadout(){
   const S = S_, tg = S.target; if (!tg) return 'between the stars';
   let l = foldLine();   // (a fold in progress says what it looks like)
-  if (!l){ if (S.phase === 'pass') l = S.act ? S.act.line() : 'flying past ' + tg.name;
-  else if (S.phase === 'align') l = S.next.mode === 'fold' ? (S.spool > 0.05 ? 'fold drive spooling up · next stop: ' + S.next.tg.name : 'setting course for ' + S.next.tg.name) : (S.stretch > 0.05 ? 'jumping to light speed' : 'setting course for ' + S.next.tg.name + ' · light speed');
+  if (!l){ if (S.phase === 'pass' || S.phase === 'loop') l = S.act ? S.act.line() : roamLine();
+  else if (S.phase === 'align' && S.act) l = S.act.line();
+  else if (S.phase === 'align') l = S.next.mode === 'fold' ? (S.spool > 0.05 ? 'the heart powers up for the fold · next stop: ' + S.next.tg.name : 'setting course for ' + S.next.tg.name) : (S.stretch > 0.05 ? 'jumping to light speed' : 'setting course for ' + S.next.tg.name + ' · light speed');
   else if (S.phase === 'light') l = 'light speed · to ' + S.leg.B.name + (S.t > S.leg.T - 0.6 ? ' · dropping out' : '');
   else l = 'folding space · to ' + S.next.tg.name; }
   // at most three lines. Under a strong pull the shield's power and the pull take the second line (the shield is made up, the pull is real);
@@ -1114,19 +1258,24 @@ ship.dbg = {
   // with the same seed, clock and camera the ship flies the same route every time
   reset(seed, key = 'saturn'){
     if (S_.act && S_.act.end) S_.act.end();
-    hrnd = lcg(seed); actBag.length = 0; FX.length = 0; weapK = 0; rockShape = 0; drone.reset();
+    hrnd = lcg(seed); actBag.length = 0; FX.length = 0; weapK = 0; drone.reset();
     Object.assign(S_, { phase:'pass', t:0, target:null, spool:0, ls:0, scale:1, scoop:0, em:[0, 0, 0, 0], visits:0, force:{}, lastSkim:-9, lastAct:null, plan:null, next:null,
       align:null, leg:null, fold:null, act:null, h:[0, 1, 0], belly:null, vel:[0, 0, 0], speed:0, viewA:0, side:1, hFrom:null, jumpAt:0, stretch:0, lsRun:0, emerge:1, seedN:1, reaim:0,
-      ringPh:0, beat:0, load:0, gWant:0, gDir:[0, 1, 0], vesc:0, gTg:null, climbK:0, fk:-9, asm:9, csL:false, wz:1, reseat:null, dg:0, dm:0, hfl:0, shK:1, cc:0, fz:1, embN:0 });
+      ringPh:0, beat:0, load:0, gWant:0, gDir:[0, 1, 0], vesc:0, gTg:null, climbK:0, fk:-99, asm:99, csL:false, wz:1, reseat:null, dg:0, dm:0, hfl:0, shK:1, cc:0, fz:1, embN:0, zipped:true, jt:0, stay:null, loop:null, lastStyle:null });
     foldVisit(BYKEY[key]); S_.t = 3;
   },
   force(o){ Object.assign(S_.force, o); },
-  escapeAt, isHoleTarget, surfDrawn, shieldPower,
-  replan(){ if (S_.phase !== 'pass') return; const C = pickNext(S_.target); S_.next = { tg:C, mode:travelMode(S_.target, C) }; },
-  skip(){ if (S_.phase === 'pass') S_.t = S_.plan.T; else if (S_.phase === 'align') S_.t = S_.jumpAt; },
+  escapeAt, isHoleTarget, surfDrawn, shieldPower, FLK,
+  // (a new next stop, and the stay ends: with this pass, or at once from a loop or a turn toward the old stop)
+  replan(){
+    if (S_.phase !== 'pass' && S_.phase !== 'loop' && S_.phase !== 'align') return;
+    const C = pickNext(S_.target); S_.next = { tg:C, mode:travelMode(S_.target, C) }; S_.stay.leave = true;
+    if (S_.phase === 'loop') startAlign(loopAt(S_.loop, S_.t)); else if (S_.phase === 'align') startAlign(alignAt(S_.align, S_.t));
+  },
+  skip(){ if (S_.phase === 'pass') S_.t = S_.plan.T; else if (S_.phase === 'loop') S_.t = S_.loop.T; else if (S_.phase === 'align') S_.t = S_.jumpAt; },
   get beams(){ return S_.act && S_.act.beams ? S_.act.beams : []; },
   get act(){ return S_.act ? S_.act.kind : null; }, get tau(){ return S_.act ? S_.act.tau : null; }, HALO,
-  FX, get plan(){ return S_.plan; }, get next(){ return S_.next; },
+  FX, get plan(){ return S_.plan; }, get next(){ return S_.next; }, get stay(){ return S_.stay; }, get loop(){ return S_.loop; },
   // (the fold's look: its cells, and one draw of its embers and outlines, returning how many points and line ends it made)
   fold:{ get cells(){ return CEL; }, draw(){ FXB.np = FXB.nl = FXB.ns = 0; foldDraw(); return [FXB.np, FXB.nl]; } },
 };

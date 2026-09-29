@@ -125,16 +125,19 @@ void main(){
   // (px0: a scene pixel at the ship, in ship radii. At light speed the lights that flare up (the star on the needle's tip, the engines, the
   // heart) are toned down on a small ship: one bright pixel spreads into a wide glow, a white haze over the whole ship on a phone)
   float px0 = uPix*length(o), lsK = ls*(1. - 0.7*smoothstep(0.012, 0.045, px0));
-  float power = 1. + spool*1.6 + S*2. + 0.6*lsK + load*(0.5 + 1.5*beat), hp = min(power, 2.2), rp = min(power, 4.5);
+  // (0.9.3: as the fold drive spools up the heart powers up past its usual cap, brighter, its glow beating faster: the owner asked to see it
+  // charge before the hull goes. A glow wider than about a tenth of the ship read as a white ball. hp stays capped at 2.2 at any other time)
+  float power = 1. + spool*2.6 + S*2. + 0.6*lsK + load*(0.5 + 1.5*beat), hp = min(power, 2.2 + 1.3*spool), rp = min(power, 4.5);
   vec3 L = normalize(uP1.xyz*uRot), G = uP4.xyz*uRot; G /= max(length(G), 1e-6);
   vec3 ice = vec3(0.6, 0.83, 1.), silver = vec3(0.85, 0.9, 1.), white = vec3(1.), shc = vec3(0.55, 0.8, 1.);
-  // the shield: faint at rest, charging with the fold drive, about nine times brighter at the closest point of a black-hole pass, flickering
-  // there (damped with reduced motion). Its fine detail only shows where the ship is big enough on screen (sv); the line that flares under
-  // load shows at any size. From the bridge the camera is inside it: each part fades out only right beside the camera (by how far along the
-  // ray it is), so the rest flares there as it does outside. None of it at light speed.
+  // the shield: barely there at rest (0.9.3, owner: subtle, not an easy-to-see border), a slow glint running round it now and then (in the
+  // outline below), charging a little with the fold drive, and bright only under a strong pull: at the closest point of a black-hole pass,
+  // flickering there (damped with reduced motion). Its fine detail only shows where the ship is big enough on screen (sv); the line that flares
+  // under load shows at any size. From the bridge the camera is inside it: each part fades out only right beside the camera (by how far along
+  // the ray it is), so the rest flares there as it does outside. None of it at light speed.
   float sv = smoothstep(0.07, 0.05, px0);
   float fl = RM > 0 ? 0.3*(noise(vec3(tm*1.5, 3.1, 7.7)) - 0.5) : noise(vec3(tm*8., 3.1, 7.7)) - 0.5;
-  float sh = sv*(0.25 + 1.6*load + 0.9*spool)*(1. + 0.8*load*load*fl), flare = load*(0.35 + 0.65*beat);
+  float sh = sv*(0.06 + 0.9*load)*(1. + 0.8*load*load*fl), flare = load*(0.35 + 0.65*beat);
   // (in a fold the shield folds into the heart before the hull breaks up, and forms again after it has come back together)
   float shk = uM0[1].x; sh *= shk; flare *= shk;
   float t = max(hb.x, 0.), id = 0.; bool hit = false;
@@ -255,7 +258,7 @@ void main(){
     }
     col += acc*max(dt, 0.)*7.*hp;
   }
-  col += vec3(0.92, 0.96, 1.)*(blob(o, d, CORE, 0.05)*1.6 + blob(o, d, CORE, 0.13)*0.08)*hp*(1. - alpha*0.5);
+  col += vec3(0.92, 0.96, 1.)*(blob(o, d, CORE, 0.05)*1.6 + blob(o, d, CORE, 0.1 + 0.03*spool)*(0.08 + spool*spool*(0.16 + 0.12*sin(tm*(5. + 9.*spool)))))*hp*(1. - alpha*0.5);
   // the heart's flare in a fold (a flash as the shield folds into it, as it winks out and opens again)
   col += vec3(0.9, 0.96, 1.)*blob(o, d, CORE, 0.022 + 0.03*uM0[0].z)*uM0[0].z*6.;
   // surges: sparks leap from the heart to its rings (more often while the shield works hard)
@@ -303,9 +306,12 @@ void main(){
   if(uP1.w > 0.01) col += uP3.rgb*(blob(o, d, vec3(0., 0.74, 0.), 0.1)*5. + pblob(o, d, vec3(0., 0.85, 0.), 0.02)*30.)*uP1.w;
   // the shield. Under load a line hugs the hull's outline, one pixel out and about one wide, at any size: on a phone the fine detail is too small to show,
   // and this is what flares there (a crisp line, not a glow: a glow spread into a haze over a small ship)
-  if(!hit && flare > 0.){ float w0 = max(0.6*px0, 0.003); col += shc*flare*exp(-sq((am0 - 0.7*px0)/w0))*(1. - 0.85*sv)*2.*smoothstep(0.1, 0.4, amT0); }
-  // the outline: a fine silver-blue line just outside the hull (about one character out: DL), with a faint shimmer and two glints running
-  // round it. Under load it brightens most on the side facing the pull, and waves of light run out from the heart along it on each beat.
+  // (0.9.3: thinner and in patches that come and go, as the outline below; the owner found the steady line too thick)
+  if(!hit && flare > 0.){ vec3 pa = o + d*amT0; float w0 = max(0.45*px0, 0.0025), sp0 = smoothstep(0.42, 0.72, noise(vec3(atan(pa.z, pa.y + 0.05)*2.6, tm*1.4, 3.1)));
+    col += shc*flare*exp(-sq((am0 - 0.7*px0)/w0))*(1. - 0.85*sv)*(0.35 + 0.9*sp0)*smoothstep(0.1, 0.4, amT0); }
+  // the outline: a fine silver-blue line just outside the hull (about one character out: DL), barely there with a faint shimmer, and a glint
+  // that runs once round it every 9 s (14 s with reduced motion), taking about 3 s. Under load it shows in patches, brightest on the side facing
+  // the pull, wobbling, with a faint echo further out, and waves of light run out from the heart along it on each beat.
   // It is where the ray's closest pass by the hull, over its whole length, is DL: so it runs round the ship's silhouette, and where two parts
   // are closer on screen than 2 DL it goes round the gap between them instead of filling it (the ray passes nearer than DL to one of them).
   // Rays that hit the hull draw none of it, so it never lies over the hull. (Folded away, shk 0, none of this is worked out.)
@@ -314,9 +320,15 @@ void main(){
   if(doL){
     float lw = max(uPix*amT*0.8, 1e-5), lnV = exp(-sq((am - DL)/lw))*smoothstep(0.12, 0.5, amT);
     vec3 pm = o + d*amT, nout = normalize(gL.yzw - gL.x + 1e-7);
-    float ang = atan(pm.z, pm.y + 0.05), cg = cos(ang - (RM > 0 ? 0.3 : 0.9)*tm), glint = pow(cg*cg, 7.);
+    float cyc = fract(tm/(RM > 0 ? 14. : 9.)), run = smoothstep(0., 0.04, cyc)*(1. - smoothstep(0.3, 0.36, cyc));
+    float ang = atan(pm.z, pm.y + 0.05), cg = max(cos(ang - cyc/0.36*6.2832 + 1.6), 0.), glint = pow(cg, 40.)*run;
     float wave = exp(-sq((length(pm - CORE) - 1.3*bf)/0.08));
-    float v = lnV*(sh*(0.55 + 0.45*noise(pm*30. + vec3(0., tm*0.7, 0.)))*(1. + 1.2*glint) + 2.5*wave*load*sv*shk)*(1. + 1.5*load*max(dot(nout, G), 0.));
+    // (under load, 0.9.3: the line breaks into patches that flare and fade at random (spor), wobbles as if space were bent round it (wob), and a
+    // faint echo of it trails a little further out, a moment behind (echo): gravity and time a little wrong round the shield, subtly)
+    float spor = smoothstep(0.42, 0.72, noise(vec3(ang*2.6, tm*1.4, 3.1))), wob = load*DL*0.45*(noise(pm*7. + vec3(tm*0.9, 0., -tm*0.6)) - 0.5);
+    float lnW = exp(-sq((am - DL - wob)/lw))*smoothstep(0.12, 0.5, amT), lnL = mix(lnV, lnW*(0.3 + 1.1*spor), min(load*1.5, 1.));
+    float echo = load > 0.01 ? exp(-sq((am - 1.9*DL - 1.6*wob)/lw))*smoothstep(0.12, 0.5, amT)*smoothstep(0.5, 0.8, noise(vec3(ang*2.6, (tm - 0.7)*1.4, 3.1)))*load*0.45*sv*shk : 0.;
+    float v = lnL*(sh*(0.55 + 0.45*noise(pm*30. + vec3(0., tm*0.7, 0.))) + 0.45*glint*sv*shk*(1. - load) + 1.2*wave*load*sv*shk*spor)*(1. + 1.2*load*max(dot(nout, G), 0.)) + echo;
     v *= 1. - smoothstep(0.95, 0.99, length(pm));
     col += mix(shc, uP3.rgb*1.4, uP1.w*smoothstep(0.25, 0.45, pm.y))*v;
   }
@@ -350,7 +362,7 @@ const ship = (() => {
     dg:0, dm:0, hfl:0, shK:1, cc:0, cs:0.03 };
   const M0 = new Float32Array(9);
   const o = addObj({ key:'halo', name:'the Halo', label:'Halo', labelClass:'ship', type:'long-range cruiser · a wandering starship that folds space', group:'travel', sortKey:0, layer:3,
-    fact:'A long-range cruiser from a civilisation that learned to fold space. Seen from above it is a trident: a needle-shaped bow and two crescent arms sweeping back to the engines at their tips. Between the arms floats its heart, a captured ball of star plasma inside two rings of light. It hops between the wonders of the universe: light speed for short hops, a fold through space for long ones. On each visit it does one job: a sensor scan, a photo trip by Pip, its little drone, a weapons test, a skim through a gas giant or a star, or drilling a passing rock. (The Halo and Pip are the only made-up things in this atlas.)',
+    fact:'A long-range cruiser from a civilisation that learned to fold space. Seen from above it is a trident: a needle-shaped bow and two crescent arms sweeping back to the engines at their tips. Between the arms floats its heart, a captured ball of star plasma inside two rings of light. It roams round the wonders of the universe, a couple of minutes at each, then moves on: light speed for short hops, a fold through space for long ones. At each place it does a job or two: a sensor scan, a weapons test, a skim through a gas giant or a star, or an outing by Pip, its little drone. (The Halo and Pip are the only made-up things in this atlas.)',
     // (seen from afar it is an engine glint; its hull fades in over a wide range of sizes, so flying up to it never pops it into view)
     pos:[0, 0, 0], rad:RAD, prog:P.ship, minZoom:1.2, pxMin:3, visFn:rpx => smooth(1.5, 12, rpx), noImpostor:false, farColor:[0.55, 0.8, 1], farLum:0.7, labelRange:1, selfPos:true, aka:'ship starship spaceship ring halo follow trident crescent',
     // locked on, the camera always trails the ship (its frame turns with the ship: see the lock-follow in tick): from behind and a little above (low enough that it reads as flying straight on), lower and to one side, then wide from one side and above

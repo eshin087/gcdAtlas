@@ -42,7 +42,7 @@ const quintet = (() => {
   ps.upload('ac');
   const o = addObj({ key:'quintet', tags:['events'], name:"Stephan's Quintet", label:"Stephan's Quintet", type:'compact galaxy group · four colliding galaxies (and one impostor)', group:'galaxies', sortKey:D, layer:2,
     fact:'Four galaxies caught in a slow-motion pile-up 290 million light-years away. One of them is ramming through the group so fast it has lit a shock wave bigger than the Milky Way. The fifth galaxy is a foreground impostor.',
-    pos:c, rad:150000, R0:facingEarth(c, [0, 0, 1], 0), minZoom:0.1, pxMin:4, noImpostor:true, labelRange:4e9, labelMin:5e4, aka:'hickson compact group 92 ngc 7317 7318 7319 7320 shock',
+    pos:c, rad:150000, R0:facingEarth(c, [0, 0, 1], 0), minZoom:0.1, pxMin:4, noImpostor:true, labelRange:4e9, labelMin:5e4, aka:'hickson compact group 92 ngc 7317 ngc 7318 ngc 7318a ngc 7318b ngc 7319 ngc 7320 shock',
     particleVis:rpx => smooth(3, 10, rpx),
     views:[{ dirFn:() => V.norm(V.mul(c, -1)), k:1.6, hold:10, drift:0.02 }, { d:[0.7, 0.4, 0.6], k:1.4, hold:8, drift:0.03 }, { d:[0, 0.9, 0.4], k:2, hold:8, drift:0.02 }],
     particles:[{ ps, prog:'ptBasic', mode:3, sb:0.35, size:1.4, rad:1, rot:() => I3 }],
@@ -67,7 +67,7 @@ const ngc1275 = (() => {
   ps.count = k*2; ps.upload('ac');
   return addGalaxy({ key:'ngc1275', name:'NGC 1275', label:'NGC 1275', type:'giant galaxy at the heart of the Perseus Cluster · Perseus A', sortKey:237*MLY,
     fact:'A monster galaxy at the centre of the Perseus Cluster. Its black hole blows bubbles in the surrounding hot gas, and long red filaments of cooling gas, some wider than the Milky Way, hang around it like seaweed.',
-    pos, rad:120000, incl:20, stars:6000, aka:'perseus a 3c 84 perseus cluster filaments', g:{ ell:0.1, Rd:0.22, seed:83 }, farLum:0.9, labelRange:3e9,
+    pos, rad:120000, incl:20, stars:6000, aka:'ngc 1275 perseus a 3c 84 perseus cluster filaments', g:{ ell:0.1, Rd:0.22, seed:83 }, farLum:0.9, labelRange:3e9,
     particles:[{ ps, prog:'lnBasic', lines:true, mode:3, sb:0.5, size:1, show:() => true }],
     readout:() => '237 million light-years · filaments up to 200,000 light-years long\nthe black hole in its core sings the lowest note known: a B flat 57 octaves below middle C' });
 })();
