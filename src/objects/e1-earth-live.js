@@ -92,32 +92,7 @@ const earthLive = (() => {
     for (const o of PADS){ if (labelEls[o.index]) continue; const b = document.createElement('button'); b.className = 'lab launch'; b.tabIndex = -1; $('#labels').appendChild(b); labelEls[o.index] = b; }
     labelLaunches(); setInterval(labelLaunches, 1000);
   }
-  // ---- an illustrative ascent now and then, from the pad of a real upcoming launch
-  const ASC = 90, asc = makePS(ASC), st = { t:99, site:null };
-  asc.upload('ac');
-  function ascentPoint(site, s){   // a gravity turn toward the east, 0 -> 210 km up and ~1,500 km downrange over s = 0..1
-    const la = site.lat*DEG, lo = site.lon*DEG, up = [Math.cos(la)*Math.cos(lo), Math.sin(la), -Math.cos(la)*Math.sin(lo)];
-    const east = V.norm(V.cross([0, 1, 0], up)), alt = 210*Math.pow(s, 0.8), down = 1500*s*s;
-    const pos = V.add(V.mul(up, EARTH_R + alt), V.mul(east, -down));
-    return V.mul(V.norm(pos), (EARTH_R + alt)/EARTH_B);
-  }
-  earth.particles.push({ ps:asc, prog:'ptBasic', mode:3, sb:1.2, size:2.2, rot:() => earth.rot, rad:EARTH_B*KM, show:() => st.t < 14 && inWindow(),
-    vis:() => 1 - smooth(4e-9, 2e-8, orbit.dist) });
-  function updateAscent(dt){
-    st.t += dt;
-    const near = (orbit.lock === earth.index || cam.focus === earth.index) && orbit.dist < 2e-8;
-    if (st.t > 45 && near && L.launches.length){ st.t = 0; st.site = L.launches[Math.floor(Math.random()*Math.min(L.launches.length, 6))];
-      toast(`illustrative ascent · ${st.site.rocket || 'rocket'} from ${st.site.site || st.site.pad}`); }
-    if (st.t >= 14 || !st.site) return;
-    const s = st.t/12;
-    for (let i=0;i<ASC;i++){
-      const f = i/(ASC - 1), si = Math.max(0, s - (1 - f)*0.35);   // a trail behind the head
-      const p = ascentPoint(st.site, Math.min(si, 1)), head = i === ASC - 1, b = head ? 3 : 0.9*f*f*Math.max(0, 1 - (st.t - 12)/2);
-      asc.a.set([p[0], p[1], p[2], s > 1 && head ? 0 : b], i*4);
-      const c = head ? [1, 0.95, 0.85] : V.lerp([0.6, 0.6, 0.7], [1, 0.7, 0.35], f); asc.c.set([c[0], c[1], c[2], 0], i*4);
-    }
-    asc.upload('ac');
-  }
+  // (the illustrative ascents that used to rise from these pads now and then are replaced by the SpaceX flights of s3-spacex.js / s4-spacex-run.js)
   // ---- air traffic: illustrative flights on real busy routes (positions are simulated; free live flight feeds are too limited)
   const AIRPORTS = { ATL:[33.64, -84.43], LAX:[33.94, -118.41], ORD:[41.98, -87.9], DFW:[32.9, -97.04], DEN:[39.86, -104.67], JFK:[40.64, -73.78], SFO:[37.62, -122.38], SEA:[47.45, -122.31], MIA:[25.79, -80.29],
     YYZ:[43.68, -79.63], MEX:[19.44, -99.07], GRU:[-23.43, -46.47], BOG:[4.7, -74.15], SCL:[-33.39, -70.79], LHR:[51.47, -0.45], CDG:[49.01, 2.55], FRA:[50.04, 8.56], AMS:[52.31, 4.77], MAD:[40.47, -3.56],
@@ -143,7 +118,7 @@ const earthLive = (() => {
   }
   // ---- wire into Earth's update and readout
   const prevUpdate = earth.update;
-  earth.update = function(dt){ prevUpdate.call(this, dt); if (orbit.dist < 6e-9 && (cam.focus === earth.index || orbit.lock === earth.index)) updatePlanes(); updateAscent(dt); };
+  earth.update = function(dt){ prevUpdate.call(this, dt); if (orbit.dist < 6e-9 && (cam.focus === earth.index || orbit.lock === earth.index)) updatePlanes(); };
   const prevRead = earth.readout;
   earth.readout = () => {
     const d = orbit.dist/earth.rad, next = L.launches.find(l => Date.parse(l.net) > (jdNow() - 2440587.5)*86400000);

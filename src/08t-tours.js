@@ -171,7 +171,8 @@ const rrnd = () => { let t = RSEED = (RSEED + 0x6D2B79F5) >>> 0; t = Math.imul(t
 // not the Halo or anything that belongs to it (its drone), nor anything marked fiction:true. (One rule for the random tour, the
 // screensaver and today's discovery.)
 const isFiction = o => !!(o.fiction || o.key === 'halo' || (o.parent && isFiction(o.parent)));
-const tourable = o => !!(o && o.views && o.views.length) && !o.hidden && !o.marker && (o.atlas !== false || !o.noPick) && !isFiction(o);
+// (noTour: rockets on their pads launch when you visit them, so tours, the screensaver and today's discovery leave them out)
+const tourable = o => !!(o && o.views && o.views.length) && !o.hidden && !o.marker && !o.noTour && (o.atlas !== false || !o.noPick) && !isFiction(o);
 // two stops are the same place when one sits at the other's centre (the Crab and its pulsar, M87 and its black hole, the Sun and the Oort
 // cloud), or when one belongs to the other or both belong to the same body (Earth, the Moon and the ISS; Jupiter and Io; a star and its
 // planet). The Sun's family is too big for that: its planets and comets are places of their own, unless one sits on or just above the Sun

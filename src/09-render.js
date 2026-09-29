@@ -4,6 +4,7 @@ const DETAIL = [{name:'ultra', w:4}, {name:'fine', w:5}, {name:'normal', w:6.5},
 let detailIdx = clamp(SET.detail | 0, 0, DETAIL.length - 1), glowOn = SET.glow, labelsOn = SET.labels;
 let dpr = 1, cellW = 6, cellH = 11, cols = 1, rows = 1, sceneW = 2, sceneH = 2;
 let tanY = Math.tan(cam.fovY/2), tanX = tanY, viewWcss = 1, viewHcss = 1, canvasHcss = 1;
+let tanY0 = tanY, tanX0 = tanX;   // (the field of view without the launch camera's telephoto lens, LENS in s4-spacex-run.js)
 let RT = null, viewFit = 1, LODK = 1, afterFrame = null;   // afterFrame: run once right after the next frame is drawn   // LODK: ray-march step budget, lowered automatically on slow devices
 function freeRT(){ if (!RT) return; for (const k of ['sceneTex','cellTex','glowA','glowB']) gl.deleteTexture(RT[k]); for (const k of ['sceneFBO','cellFBO','glowFA','glowFB']) gl.deleteFramebuffer(RT[k]); }
 function resize(){
@@ -25,7 +26,7 @@ function resize(){
   const aspect = (cols*cellW)/(rows*cellH);
   cam.fovY = Math.max(55*DEG, 2*Math.atan(Math.tan(25*DEG)/aspect));
   viewFit = aspect < 0.8 ? 1.2 : 1;
-  tanY = Math.tan(cam.fovY/2); tanX = tanY*aspect;
+  tanY0 = tanY = Math.tan(cam.fovY/2); tanX0 = tanX = tanY*aspect;
   const di = $('#detailInfo'); if (di) di.textContent = `${cols} x ${rows} characters`;
 }
 
@@ -1335,13 +1336,14 @@ function updateCaption(dt){
   if (cmp) { txt = cmpText(); btn = 'end compare'; }
   else if (tour.on && tour.phase !== 'fly' && TOUR_CAP[tour.obj]) txt = TOUR_CAP[tour.obj];
   else if (SHOWCAP.txt) txt = SHOWCAP.txt;
+  else if (LCAP.txt){ txt = LCAP.txt; btn = LCAP.btn; }
   setCaption(txt, btn);
   if (capFull && capShown < capFull.length){
     capT += dt*(reduceMotion ? 1e4 : 55); const k = Math.min(capFull.length, Math.floor(capT));
     if (k !== capShown){ capShown = k; capText.textContent = capFull.slice(0, k); if (k >= capFull.length) capEl.classList.add('done'); }
   }
 }
-capBtn.addEventListener('click', () => { if (cmp) endCompare(true); });
+capBtn.addEventListener('click', () => { if (cmp) endCompare(true); else if (LCAP.go) LCAP.go(); });
 
 // ---------------------------------------------------------------- size compare: put a second object beside this one, at true scale
 let cmp = null, cmpPick = false, cmpA = -1;
@@ -1480,6 +1482,7 @@ function tick(dt){
   updateLeash(dt);
   if (flight) updateFlight(dt);
   else if (shipCam.on) updateShipCam(dt);
+  else if (LCAM.on) updateLaunchCam(dt);
   else {
     if (tween) updateTween(dt);
     if (tour.on) updateTour(dt);
@@ -1496,6 +1499,7 @@ function tick(dt){
     refocus(dt);
   }
   for (const f of AFTER_CAM) f(dt);
+  tanY = tanY0/LENS.k; tanX = tanX0/LENS.k;
   for (const o of OBJ){ o.rel = V.sub(frel(o), cam.rel); o.dist = V.len(o.rel); }
   updateSysMag(dt); updateSunOcc();
   if (cmp) placeCompare(dt);
@@ -1558,4 +1562,5 @@ window.__cosmos = { startTour, playFlyby, setMove(o, v, f){ flight = null; tween
   view:(i, v) => { if (typeof i === 'string') i = BYKEY[i].index; const o = OBJ[i], vp = viewParams(o, v); flight = null; shipCam.on = false; tween = null; cam.focus = i; leash.x = leash.y = 0; orbit.lock = i; orbit.frame = camFrameOf(o); orbit.yaw = vp.yaw; orbit.pitch = vp.pitch; orbit.dist = orbit.distT = vp.dist; orbit.off = vp.off; orbit.offFn = vp.offFn; orbit.target = V.add(frel(o), vp.off); setInfo(i); applyOrbit(); tick(0); } };
 // (the atlas headings and chips, for tools/catalog.mjs, and the seed and the catalogue numbers the smoke test checks; a line of its own so it stays clear of edits to the hooks above)
 Object.assign(window.__cosmos.dbg, { GROUPS, CATS, catsOf, ATL, seedObjects:SEED_OBJECTS, catSplit });
+window.__cosmos.sx = SXDBG;   // (SpaceX launches: runs, missions, the launch camera; s4-spacex-run.js)
 requestAnimationFrame(frame);
