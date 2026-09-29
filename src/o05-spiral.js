@@ -95,7 +95,7 @@ const spiral = (() => {
   const pos = radec(hms(13,29,52.7), dms(47,11,43), 31e6);
   const o = addObj({ key:'m51', name:'Whirlpool Galaxy', label:'M51', type:'grand-design spiral with a companion · M51', group:'galaxies', sortKey:31e6,
     fact:'The arms are a density wave that stars drift through, lighting up pink star-forming nebulae. The small galaxy NGC 5195 tugs on the end of one arm.',
-    pos, rad:42000, R0:facingEarth(pos, [Math.sin(20*DEG), Math.cos(20*DEG), 0], 0), prog:program(VS_RECT, FS_GALAXY), minZoom:0.1, pxMin:7, farColor:[0.85, 0.85, 1], farLum:0.8, labelRange:1.2e8, layer:2, aka:'m51 whirlpool ngc 5194',
+    pos, rad:42000, R0:facingEarth(pos, [Math.sin(20*DEG), Math.cos(20*DEG), 0], 0), prog:program(VS_RECT, FS_GALAXY), minZoom:0.1, pxMin:7, farColor:[0.85, 0.85, 1], farLum:0.8, labelRange:1.2e8, layer:2, aka:'m51 whirlpool ngc 5194 ngc 5195',
     views:[{d:[0,0.9,0.5],k:1.65,hold:9,drift:0.025},{d:[0.45,0.3,0.62],k:0.62,hold:8,drift:0.05},{d:[1,0.06,0.15],k:1.8,hold:7,drift:0.02},{d:[-0.2,0.95,0.3],k:0.28,hold:6,drift:0.06}],
     update(dt){
       snT -= dt;

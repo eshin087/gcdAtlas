@@ -2,7 +2,7 @@
 // ================================================================ Andromeda (M31) and its satellites M32 and M110
 const andromeda = addGalaxy({ key:'andromeda', name:'Andromeda Galaxy', label:'Andromeda', type:'giant spiral · our nearest big neighbour · M31', sortKey:2.537e6,
   fact:'A trillion stars 2.5 million light-years away, the most distant thing most people can see without a telescope. It is falling toward us at 110 km/s and will merge with the Milky Way in about 4.5 billion years.',
-  pos:radec(hms(0,42,44.3), dms(41,16,9), 2.537e6), rad:110000, incl:77, pa:38, stars:16000, aka:'m31 andromeda nebula',
+  pos:radec(hms(0,42,44.3), dms(41,16,9), 2.537e6), rad:110000, incl:77, pa:38, stars:16000, aka:'m31 ngc 224 andromeda nebula m32 ngc 221 m110 ngc 205',
   g:{ arms:2, pitch:7, bulge:1.4, dust:2.1, H:0.009, sf:1.2, Rd:0.2, ring:0.3, irr:0.25, seed:71, armRef:0.3, starGain:0.9, gain:1.3 },
   farLum:1.2, labelRange:3e8, views:[{dirFn:() => V.norm(V.mul(andromeda.pos, -1)), k:1.5, hold:9, drift:0.02}, {d:[0.2, 0.9, 0.35], k:1.25, hold:9, drift:0.02}, {d:[1, 0.08, 0.2], k:1.1, hold:8, drift:0.02}],
   readout:() => '2.5 million light-years: you see it as it was when our ancestors first made stone tools\n~220,000 light-years across, about twice the Milky Way' });

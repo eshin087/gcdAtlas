@@ -94,7 +94,7 @@ const nebula = (() => {
   const pos = radec(hms(18,18,48), dms(-13,49,0), 6500);
   return addObj({ key:'pillars', name:'Pillars of Creation', label:'Pillars of Creation', type:'star-forming columns in the Eagle Nebula · M16', group:'nebulae', sortKey:6500,
     fact:'Towers of cold gas and dust are eroded by ultraviolet light from the young cluster NGC 6611. Stars forming inside their tips fire jets out of the dust.',
-    pos, rad:3, R0:facingEarth(pos, [0, 0.05, 1], 0), prog:program(VS_RECT, FS_NEBULA), minZoom:0.08, pxMin:6, farColor:[0.6, 0.9, 0.7], farLum:0.45, labelRange:3e4, aka:'eagle nebula m16 pillars',
+    pos, rad:3, R0:facingEarth(pos, [0, 0.05, 1], 0), prog:program(VS_RECT, FS_NEBULA), minZoom:0.08, pxMin:6, farColor:[0.6, 0.9, 0.7], farLum:0.45, labelRange:3e4, aka:'eagle nebula pillars',
     views:[{d:[0,0.05,1],k:1.4,hold:9,drift:0.025},{d:[0.6,0.3,0.75],k:0.42,off:[-0.3,0.42,0],hold:8,drift:0.05},{d:[-0.35,0.45,0.8],k:1.1,hold:7,drift:-0.03},{d:[0.1,-0.35,1],k:0.55,off:[0.2,0.75,0.3],hold:6,drift:0.04}],
     particles:[
       {ps, prog:'ptBasic', mode:1, sb:2.2, size:2},
