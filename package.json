@@ -12,6 +12,7 @@
     "test:motion": "node build.mjs && node tests/motion.mjs",
     "test:music": "node build.mjs && node tests/music.mjs",
     "shots": "node tests/shots.mjs",
+    "lab": "node build.mjs && node tools/lab-shots.mjs",
     "catalog": "node build.mjs && node tools/catalog.mjs",
     "lights": "node tools/earth-lights.mjs",
     "dev": "npx vercel dev",

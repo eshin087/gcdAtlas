@@ -6,6 +6,10 @@ All notable changes, newest first. Dates are UTC.
 
 ## 0.9.3 · 2026-09-28
 
+**Search by catalogue number**
+- Search finds places by their Messier, NGC or IC number: M31, NGC 224, "m 42", "Messier 42" or ngc1952, in any case, with or without spaces. A number finds only that number, so M4 never finds M42 or M45. The place with that number comes first: M87 before its jet and M87*.
+- Every place in the atlas that has one of these numbers now has it, such as M31 and NGC 224 for Andromeda, M42 and NGC 1976 for the Orion Nebula, and M1 and NGC 1952 for the Crab Nebula.
+
 **Music**
 - The song "Lullaby for Proxima b" is gone (owner's choice), so the radio has 15 songs.
 
@@ -15,10 +19,13 @@ All notable changes, newest first. Dates are UTC.
 - It mostly hops to places nearby at light speed. It folds space only for the long trips, so it teleports every few stops instead of every half minute.
 - The readout says what each pass is, and only when that is true: "passing over Saturn's north pole", "a low pass by Jupiter", "along the line between day and night on Earth", "a wide turn out from Mars", "leaving Saturn · next stop: Earth".
 - The rock it caught with a green tractor beam and drilled is gone.
-- A slower fold. The drive spools up for about 7 seconds while the ship eases off to under half its speed and its heart beats faster. The shield folds into the heart, the hull burns away over about 2.5 seconds, and the heart pulls in the embers. A starburst marks the jump: a white point, eight thin rays and two rings, gone within a second. It arrives with another starburst. The hull then forms over 3 seconds while the ship picks up speed over 5 seconds, and the shield unfolds last.
-- A subtler shield. At rest it is barely there, with one faint glint running round it every 9 seconds. It still shows clearly in strong gravity, such as near a black hole.
+- A slower teleport (a fold). The ship eases off to under half its speed while its heart powers up for about 4 seconds, growing brighter and beating faster. Then the hull burns away over about 2.5 seconds, and the heart pulls in the embers over 2 seconds, slowly at first. A starburst marks the jump: a white point, eight thin rays and two rings. With the camera on the ship, the whole screen flashes white for a split second.
+- On arrival the heart streaks in from far off, sweeping in from one side with a fading tail over about 1.4 seconds. The screen flashes softly and a starburst marks it taking its place. The hull then forms over 3 seconds while the ship picks up speed.
+- The shield takes no part in a teleport. It fades out as the heart starts to power up and fades back in slowly, over 4 seconds, well after the hull has formed.
+- A subtler shield. At rest it is barely there, with one faint glint running round it every 9 seconds. In strong gravity, such as near a black hole, its line stays thin but flickers brighter in patches, wobbles and leaves a faint echo a moment behind, as if time and space round it were bent.
 - A new scan, a hologram sweep. A bright ring passes over the body from pole to pole along its real spin axis, and a glowing grid of latitude and longitude lines follows it and fades. Brackets lock onto real features the atlas draws and name them: the Great Red Spot, Olympus Mons, Tycho, the Sahara, the Crab Pulsar, M32 and more. The scan ends with real numbers (size, gravity, how long one turn on its axis takes) in the readout and in a toast. Black holes get rings round their shadow, never inside it; nebulae and clusters a grid shell; galaxies a flattened shell across the disc. The fans of beams are gone.
 - The Halo scans a star from 2.6 of its radii, so the star fills the view.
+- A lab page for trying the Halo's looks quickly (/lab): the ship parked by one of six places (Saturn, Jupiter, Earth, Mars, Sgr A*, the Crab Nebula), fixed cameras, slow motion from 0.1x, pause and single steps, buttons that teleport it out and back or start Pip, a scan or a weapons test at once, and a slider for the shield's load. It is kept out of search engines.
 - The Halo showcase (?showcase=halo) has buttons that act at once: teleport, light speed, black hole, scan, Pip, weapons and skim (keys 1 to 7). A button stays lit until the ship can do it. The showcase's stays last 75 seconds instead of about two minutes, so a round of it is quicker.
 
 **Pip, smaller and busier**

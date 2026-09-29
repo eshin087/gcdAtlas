@@ -71,7 +71,7 @@ if (SHOWCASE.on){
   }
   function tryAct(kind){
     const S = S_;
-    if (S.hold || S.asm < FLK_END || (S.phase !== 'pass' && S.phase !== 'loop' && S.phase !== 'align')) return false;   // (on the move, or the hull still forming)
+    if (S.hold || S.asm < FLK.A1 + 0.3 || (S.phase !== 'pass' && S.phase !== 'loop' && S.phase !== 'align')) return false;   // (on the move, or the hull still forming)
     if (kind === 'fold') return ship.demo.leaveNow(foldTarget(), 'fold');
     if (kind === 'back') return ship.demo.leaveNow(BYKEY.saturn, 'fold');
     if (kind === 'hole') return ship.demo.leaveNow(S.target === BYKEY.sgra ? BYKEY.m87bh : BYKEY.sgra, 'fold');
@@ -108,7 +108,7 @@ if (SHOWCASE.on){
     if (S.phase === 'fold') return 'folding space · to ' + nx.tg.name;
     if (A && A.kind === 'probe' && A.tau > -0.8) return A.line() + wait;   // (Pip says what it is doing)
     if (A && A.tau > -0.8 && A.tau < ACTS[A.kind].T + 0.5) return JOB[A.kind](tg) + wait;
-    if (S.phase === 'align') return (nx.mode === 'fold' ? (S.spool > 0.05 ? 'the fold drive spools up and the ship eases off · next stop: ' : 'setting course for ') + nx.tg.name : bridge + 'turning toward ' + nx.tg.name + ' · light speed next') + wait;
+    if (S.phase === 'align') return (nx.mode === 'fold' ? (S.spool > 0.05 ? 'the heart powers up for the fold · next stop: ' : 'setting course for ') + nx.tg.name : bridge + 'turning toward ' + nx.tg.name + ' · light speed next') + wait;
     return (bridge || 'riding along · ') + roamLine() + wait;
   }
   TICKS.push(dt => {

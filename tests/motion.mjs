@@ -76,15 +76,19 @@ const ride = await page.evaluate(seed => {
   let i = 0; while (h.S.phase !== 'pass' && i++ < 60*30) C.tick(1/60);
   D.force({ travel:'fold' }); D.replan();
   // (the fold winds up for about 7 s, the ship easing off, and a starburst marks the jump and the arrival)
-  const k0 = h.S.target.key; let far = 0, farLs = 0, legs = 0, wind = 0, v0 = 0, vMin = 1e300, burstOut = false; i = 0;
+  // (0.9.3, owner: no shield anywhere in the teleport: out within a second of the wind-up starting, back only after the hull has formed; the
+  // heart streaks in on arrival, the ship a point until it arrives)
+  const k0 = h.S.target.key, F = D.FLK; let far = 0, farLs = 0, legs = 0, wind = 0, v0 = 0, vMin = 1e300, burstOut = false, shield = 0, zipBig = 0; i = 0;
+  const shieldOff = () => { if (h.S.asm < F.A1 + 0.25) shield = Math.max(shield, h.S.shK); if (h.S.asm < F.ZIP - 0.05) zipBig = Math.max(zipBig, h.S.scale); };
   while (h.S.target.key === k0 && i < 60*60){ C.tick(1/60); i++;
-    if (h.S.phase === 'align' && h.S.next.mode === 'fold'){ if (!wind) v0 = h.S.speed; wind += 1/60; vMin = Math.min(vMin, h.S.speed); }
-    if (h.S.phase === 'fold' && D.FX.some(e => e.kind === 'fold-out')) burstOut = true; }
+    if (h.S.phase === 'align' && h.S.next.mode === 'fold'){ if (!wind) v0 = h.S.speed; wind += 1/60; vMin = Math.min(vMin, h.S.speed); if (wind > 1) shield = Math.max(shield, h.S.shK); }
+    if (h.S.phase === 'fold'){ shield = Math.max(shield, h.S.shK); if (D.FX.some(e => e.kind === 'fold-out')) burstOut = true; } }
   r.fold = { wind:+wind.toFixed(2), eased:+(vMin/v0).toFixed(2), burstOut, burstIn:D.FX.some(e => e.kind === 'fold-in') };
-  for (let j=0;j<60;j++){ C.tick(1/60); far = Math.max(far, Math.hypot(...h.rel)/h.rad); }
+  for (let j=0;j<60;j++){ C.tick(1/60); shieldOff(); far = Math.max(far, Math.hypot(...h.rel)/h.rad); }
   r.folded = h.S.target.key !== k0; r.farAfterFold = +far.toFixed(4); r.stillRiding = C.shipCam.on;
   // (the chase camera moves in during a fold, and must ease all the way back out once the hull has formed: 6 s more, still in the pass)
-  for (let j=0;j<60*6;j++) C.tick(1/60);
+  for (let j=0;j<60*6;j++){ C.tick(1/60); shieldOff(); }
+  Object.assign(r.fold, { shield, zipBig, zipped:!!h.S.zipped });
   r.backOut = { fz:h.S.fz, dist:+(Math.hypot(...h.rel)/h.rad).toFixed(4), phase:h.S.phase };
   i = 0; while (h.S.phase !== 'pass' && i++ < 60*30) C.tick(1/60);
   D.force({ travel:'light' }); D.replan();
@@ -102,6 +106,7 @@ const offRig = d => d > ride.rig*(1 + 1e-6);
 if (!ride.riding || offRig(ride.dist)) fail('riding along did not land behind the ship: ' + JSON.stringify(ride));
 if (!ride.folded || !ride.stillRiding || offRig(ride.farAfterFold)) fail('the camera lost the ship when it folded space: ' + JSON.stringify(ride));
 if (!(ride.fold.wind >= 6.5) || !(ride.fold.eased < 0.6) || !ride.fold.burstOut || !ride.fold.burstIn) fail('the fold did not wind up slowly (about 7 s, the ship easing off) with a starburst as it went and as it arrived: ' + JSON.stringify(ride.fold));
+if (ride.fold.shield > 0 || !(ride.fold.zipBig < 0.05) || !ride.fold.zipped) fail('the shield showed in the teleport, or the heart did not streak in before the hull formed: ' + JSON.stringify(ride.fold));
 if (ride.backOut.phase !== 'pass' || ride.backOut.fz !== 1 || !(ride.backOut.dist >= 0.95*ride.rig)) fail('the chase camera did not ease back out after a fold: ' + JSON.stringify({ backOut:ride.backOut, rig:ride.rig }));
 if (!ride.jumped || !ride.ridingAfterJump || offRig(ride.farInLightSpeed)) fail('the camera lost the ship at light speed: ' + JSON.stringify(ride));
 if (!ride.cockpit) fail('the cockpit view is not on the ship');

@@ -730,8 +730,10 @@ backPillEl.addEventListener('click', () => { backPillEl.hidden = true; goBack();
 // ride along with the Halo (chase camera); the flash when it folds space with you aboard
 const followShip = () => { if (typeof ship === 'undefined') return; hideHint(); if (shipCam.on) return; startShipCam('chase'); toast('riding along with the Halo · chase view (C switches to the cockpit)'); };
 const foldEl = $('#foldFlash');
-// (kind 'ls': the quicker, whiter flash of a jump to light speed)
-function foldFlash(kind){ foldEl.classList.remove('go', 'ls', 'blink'); void foldEl.offsetWidth; foldEl.classList.add('go'); if (kind === 'ls' || kind === 'blink') foldEl.classList.add(kind); }
+// (kinds: 'ls' the quicker, whiter flash of a jump to light speed; 'blink' a soft one; 'jump' / 'arrive' the fold's split second of white
+// over the whole screen as it jumps, and the softer one as its heart arrives)
+const FLASHES = ['ls', 'blink', 'jump', 'arrive'];
+function foldFlash(kind){ foldEl.classList.remove('go', ...FLASHES); void foldEl.offsetWidth; foldEl.classList.add('go'); if (FLASHES.includes(kind)) foldEl.classList.add(kind); }
 shipMarkEl.addEventListener('click', followShip);
 shipArrowEl.addEventListener('click', followShip);
 
