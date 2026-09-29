@@ -4,6 +4,17 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.9.4 · 2026-09-29
+
+**A softer bass, and songs to review**
+- The music's bass is much softer. The bass line and the kick drum sit under the music instead of booming over it (bass lines 6 to 11 dB softer against the rest, kicks 6 to 10 dB softer, their click kept so the beat still punches), and the tunes are 2 to 4 dB louder.
+- Ambient piano no longer holds a low hum under every chord; its left hand gives the low end, and its busier right hands are a little softer so the tune stands out. Ambient keeps only a faint low note that fades in over up to 4 s.
+- Every song now has at most 11.5 dB more energy below 160 Hz than in the middle of the sound (400 to 2,500 Hz); it was 11 to 21 dB. The calm songs are at 5 dB or less. Lullaby for Io went from 21 dB to 3.5 dB.
+- Songs keep their notes: only the balance changed, so every song is still the same song.
+- On speakers the music is about as loud as before (1.4 dB louder above 200 Hz); on headphones it is about 4 dB quieter overall, because the boom is gone.
+- For the owner: a review page, /songs, with the radio's 15 songs (rebalanced) and 16 new ones picked by measurement (clear, repeating tunes; mostly lofi and downtempo). Play one, jump anywhere in it, mark keep, drop or not sure, and copy the picks as text. The radio keeps playing its 15 songs until the picks are in. The page is kept out of search.
+- The music test now matches loudness above 200 Hz (what every speaker plays), lets calm songs have a lighter low end, and checks every song's bass balance.
+
 **What's new, and a shorter help**
 - A "new" button beside ? opens the patch notes: every version, newest first, each with a short title and a few lines. The newest is open; tap any other to open it. A small dot on the button means there is a version you have not seen yet (on your first visit there is nothing to catch up on). The full changelog is one link away.
 - On a phone, what's new is in settings and in help, and a dot on the dock's settings button shows when there is something new.

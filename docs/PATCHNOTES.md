@@ -6,7 +6,7 @@
      Every detail stays in docs/CHANGELOG.md, which the panel links to. -->
 
 ## 0.9.4 · 29 Sep 2026 · Softer music, sharper planets, a fold cannon
-- The music's bass is much softer, above all in the calm songs, and every song was rebalanced so the melody leads.
+- The music's bass is much softer, above all in the calm songs, and the tunes are a little louder.
 - The planets look sharper up close: real features at their real places, richer colour and a clear line between day and night.
 - The Halo's weapons test has a new gun that builds itself from embers, with three new shots, all made up.
 - The Halo's engines leave a trail you can see from afar, so you can tell it is moving.
