@@ -51,8 +51,8 @@ The sync check always shows the live state; this table says what each branch is 
 
 | Date | Branch (PR) | What | Main files |
 | --- | --- | --- | --- |
-| 2026-09-29 | `release/v0.9.6` (stacked on `release/v0.9.4`) | The Halo: riding along from far away no longer loses the ship; a ride camera that keeps the place being visited in view and moves between shots (with a still option); a Halo tour that flies the chosen tour's stops; the angle bar under the name in the screensaver | `src/08-camera.js`, `src/07h-halo.js`, `src/08t-tours.js`, `src/09-render.js`, `src/09h-ui.js`, `src/09f-features.js`, `src/00-head.html`, `src/01-body.html`, `tests/motion.mjs`, docs |
-| 2026-09-29 | `docs/two-machine-sync` | This file, the session-start check (`tools/sync-check.mjs`, `.claude/settings.json`) and a pointer at the top of `CLAUDE.md` | docs only |
+| 2026-09-29 | `release/v0.9.6` (PR #32, stacked on `release/v0.9.4` / PR #30) | The Halo: riding along from far away no longer loses the ship; a ride camera that keeps the place being visited in view and moves between shots (with a still option, K); the Halo tour (a button beside play) that flies the chosen tour's stops; the angle line under the name in the screensaver | new: `src/08r-ride.js`, `src/09t-halotour.js`; changed: `src/08-camera.js`, `src/09-render.js`, `src/09f-features.js`, `src/04-world.js`, `src/00-head.html`, `src/01-body.html`, `tests/motion.mjs`, `tests/mobile.mjs`, `package.json`, `CLAUDE.md`, `docs/CHANGELOG.md`, `docs/PATCHNOTES.md`, `docs/HANDOFF.md`, `docs/ACCURACY.md`, `docs/TESTING.md` |
+| 2026-09-29 | `docs/two-machine-sync` (PR #31) | This file, the session-start check (`tools/sync-check.mjs`, `.claude/settings.json`) and a pointer at the top of `CLAUDE.md` | docs only |
 
 ## When the desktop comes back
 
