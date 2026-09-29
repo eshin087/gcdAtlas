@@ -12,6 +12,15 @@ All notable changes, newest first. Dates are UTC.
 **Riding the Halo on a phone**
 - The ship button in the dock opens a small menu over the dock: ride along, cockpit, and show or hide the marker. While you ride, the button says "riding" and the menu offers the chase view, the cockpit and stop riding. A tap anywhere else closes it. On a desk nothing changes: ship shows the marker, ride rides along.
 
+**The Halo: a visible thrust and a fold cannon** (the ship is made up)
+- The Halo's engines leave a glowing trail behind the ship: white at the nozzle, then ice blue, then deep blue, flickering a little and bending into turns. It is a few characters long even from far away, so you can tell the ship is moving, longer and brighter the faster it flies, and a long streak at light speed. It hides behind the hull and the body, and goes with the engines in a fold.
+- A new weapons test: a fold cannon. Three rings build themselves from embers in front of the needle, white-hot pieces streaming off the bow and locking into place, then spin up while space ripples round them. Before each shot the rings glow and light spirals into the muzzle; it kicks back as it fires.
+- It fires three shots. A fold lance: a jagged white-blue crack tears through space to the target, light bleeding from its bends, then seals from the gun end. A singularity round: a black ball in a violet ring flies in, pulls light and debris inward while the ground darkens, then blooms out in violet petals. A time echo: a gold bolt leaves ghost echoes along its path, the blast plays, stutters and runs backward until the surface heals, and the bolt flies back into the gun.
+- Then the cannon breaks up and streams back into the bow. The job still lasts 11.5 s and the route is unchanged. The rail gun, plasma lance and antimatter pulse are gone.
+- Blasts are made of embers about one character each, never a white ball. Round each hit space darkens a little, so the effects read over a bright planet or a black hole's disc. No shot ever shows inside a black hole's shadow.
+- The readout stays honest: "weapons test (fictional) · time echo on Saturn", then "nothing real is harmed: the blast runs backward and the surface heals".
+- The lab (/lab) has an aim camera that looks over the cannon at where it fires, and the showcase (?showcase=halo) now includes a weapons test at Saturn.
+
 **Planets up close**
 - Planets and moons are easier to make out close up: their markings sit at their real places, the light stays even across the lit side, and there is a clear line between day and night. The contrast is stronger than in reality, so the markings read as characters (docs/ACCURACY.md says so).
 - Mars shows Syrtis Major and its other dark markings, bright Hellas and Argyre, Olympus Mons, the Tharsis volcanoes, Valles Marineris and both polar caps.
