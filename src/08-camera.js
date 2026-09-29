@@ -80,11 +80,14 @@ function trackYP(o, v){ const d = M3.applyT(o.R0, V.norm(v.track())); return [Ma
 // van Wijk & Nuij optimal zoom-and-pan path (numerically stable forms)
 function vwPath(u1, w0, w1, rho){
   // (peak: where along the path the view is widest; w rises to it and falls after it)
-  if (u1 < 1e-7*Math.min(w0, w1)){ const k = Math.log(w1/w0); return { S:Math.abs(k)/rho + 1e-6, u:() => 0, w:s => w0*Math.exp(Math.sign(k)*rho*s), peak:k > 0 ? Infinity : -Infinity }; }
+  // (rem: the distance still to go, u1 - u(s), worked out without that subtraction: near the end of a trip of millions of light-years it is
+  // a few kilometres, far below what the difference of two such numbers can hold)
+  if (u1 < 1e-7*Math.min(w0, w1)){ const k = Math.log(w1/w0); return { S:Math.abs(k)/rho + 1e-6, u:() => 0, rem:() => u1, w:s => w0*Math.exp(Math.sign(k)*rho*s), peak:k > 0 ? Infinity : -Infinity }; }
   const r4 = rho*rho*rho*rho;
   const b0 = (w1*w1 - w0*w0 + r4*u1*u1)/(2*w0*rho*rho*u1), b1 = (w1*w1 - w0*w0 - r4*u1*u1)/(2*w1*rho*rho*u1);
-  const r0 = -Math.asinh(b0), r1 = -Math.asinh(b1);
-  return { S:(r1 - r0)/rho, u:s => w0*Math.sinh(rho*s)/(rho*rho*Math.cosh(rho*s + r0)), w:s => w0*Math.cosh(r0)/Math.cosh(rho*s + r0), peak:-r0/rho };
+  const r0 = -Math.asinh(b0), r1 = -Math.asinh(b1), S = (r1 - r0)/rho, c0 = w0*Math.cosh(r0)/(rho*rho);
+  return { S, u:s => w0*Math.sinh(rho*s)/(rho*rho*Math.cosh(rho*s + r0)), rem:s => c0*Math.sinh(rho*(S - s))/(Math.cosh(r1)*Math.cosh(rho*s + r0)),
+    w:s => w0*Math.cosh(r0)/Math.cosh(rho*s + r0), peak:-r0/rho };
 }
 // the widest view on a trip's path, among 25 evenly spaced points (as isScenic has always measured it). The view widens up to the peak and
 // narrows after it, so the widest of those points is one of the two around the peak: two evaluations instead of 25.
@@ -248,21 +251,26 @@ function updateFlight(dt){
   const f = flight; f.t += dt;
   const x = clamp(f.t/f.dur, 0, 1);
   const e = flightE(f.prog, x), s = f.path.S*e;
+  // (the share of the trip still to go, by distance, as the path measures it: exact however long the trip)
+  const g = f.L0 > 0 ? clamp(f.path.rem(s)/f.L0, 0, 1) : 0, w = x >= 1 ? f.vp.dist : f.path.w(s);
+  // positions switch to being relative to the destination halfway by time, or sooner, halfway by distance, when the place it set off from
+  // is too far away to put the destination within a thousandth of the view's width (a float64 holds about 16 digits: from the observable
+  // universe that is thousands of kilometres, and the 2.5 km Halo was lost off the screen until the last frame, 0.9.6)
+  if (!f.switched){
+    const D = x > 0.5 || g < 0.5 ? frel(f.obj) : null;
+    if (D && (x > 0.5 || V.len(D)*2.3e-16 > 1e-3*w)){ f.A = V.sub(f.A, D); cam.focus = f.obj.index; f.switched = true; }
+  }
   // aim at where the destination is now, not where it was at take-off: planets and moons keep moving during the flight,
   // and aiming at a stale point meant closing in on empty space and then jumping to the real object in the last frame
   const Bnow = V.add(frel(f.obj), f.vp.offFn ? f.vp.offFn() : (f.vp.off || [0, 0, 0]));
-  const tgt = V.add(f.A, V.mul(V.sub(Bnow, f.A), f.L0 > 0 ? clamp(f.path.u(s)/f.L0, 0, 1) : 1));
+  // (measured from the nearer end: from where it set off in the first half of the way, back from the destination in the second, so rounding
+  // never moves it by more than a sliver of what is left to go)
+  const dAB = V.sub(Bnow, f.A), tgt = g > 0.5 ? V.add(f.A, V.mul(dAB, 1 - g)) : V.sub(Bnow, V.mul(dAB, g));
   if (f.pass){ const b = passBump(f.pass, e); tgt[0] += f.pass.bend[0]*b; tgt[1] += f.pass.bend[1]*b; tgt[2] += f.pass.bend[2]*b; }
-  const w = x >= 1 ? f.vp.dist : f.path.w(s);
   // flying up to the Halo: it turns as it goes, so the final framing follows its frame (no swing on landing)
   if (f.obj.camFrame){ f.dir1 = M3.apply(camFrameOf(f.obj), sphL(f.vp.yaw, f.vp.pitch)); f.up1 = f.vp.upFn ? f.vp.upFn() : M3.apply(camFrameOf(f.obj), [0, 1, 0]); }
   // flying to an angle that follows something moving (a planet's day side as it circles its star): the landing direction follows it too
   if (f.vp.track){ [f.vp.yaw, f.vp.pitch] = f.vp.track(); f.dir1 = M3.apply(camFrameOf(f.obj), sphL(f.vp.yaw, f.vp.pitch)); }
-  if (!f.switched && x > 0.5){
-    const D = frel(f.obj);
-    f.A = V.sub(f.A, D); tgt[0] -= D[0]; tgt[1] -= D[1]; tgt[2] -= D[2];
-    cam.focus = f.obj.index; f.switched = true;
-  }
   const [dir, up] = flightDir(f, x);
   orbit.target = tgt; orbit.dist = orbit.distT = w;
   cam.rel = V.add(tgt, V.mul(dir, w));
