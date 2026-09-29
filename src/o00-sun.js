@@ -407,9 +407,9 @@ vec3 solSurf(vec3 n){
   }
 #elif KIND == 9
   { // Ganymede: dark ancient terrain (Galileo Regio the largest piece), bright grooved terrain, frosty poles, bright ray craters
-    vec2 w = ll + (vec2(fbm3(n*3. + 2.), fbm3(n*3. + 6.)) - 0.5)*vec2(14., 18.);
+    vec2 w = ll + (vec2(fbm3(n*3. + 2.), fbm3(n*3. + 6.)) - 0.5)*vec2(24., 30.);
     float dk = area(w, 35., -145., 22., 30.) + 0.9*area(w, -10., 170., 25., 35.) + 0.8*area(w, -20., 0., 15., 22.) + 0.7*area(w, 40., 30., 14., 20.);
-    dk = smoothstep(0.4, 0.7, max(dk, smoothstep(0.5, 0.62, fbm(n*2.6 + 7.))*0.8) + (fbm(n*3. + 7.) - 0.5)*0.5);   // (and smaller pieces all round)
+    dk = smoothstep(0.35, 0.75, max(dk, smoothstep(0.5, 0.62, fbm(n*2.6 + 7.))*0.8) + (fbm(n*4. + 7.) - 0.5)*0.9);   // (and smaller pieces all round)
     float a = crf(n, 5., 0.5, 0.06, 2.);
     vec3 c = mix(vec3(0.62, 0.6, 0.56)*(0.9 + 0.2*pow(noise(n*vec3(24., 4., 24.)), 2.)), vec3(0.34, 0.31, 0.27), dk)*(1. + a);
     c = mix(c, vec3(0.8, 0.82, 0.84), smoothstep(40., 60., abs(ll.x))*0.6);
