@@ -19,7 +19,7 @@ const HALO = { LS_NEAR:100, LS_FAR:3e4, LS_P:0.5, MAXBEND:1.4, TURN:0.42, T_FAST
 // the lock-on and chase cameras aim (aim, chaseAim: ship axes in ship radii, x below the belly, y ahead, z to the side it banks toward)
 const ACTS = { scan:{ T:11, rho:0.3, fc:0.47, view:1, bank:1, turn:1, aim:[0.6, 0, 0], chaseAim:[0.9, -1.2, 0] },
   probe:{ T:36, rho:0.28, fc:0.45, view:0.3, bank:0.5, turn:0, aim:[0, 0, 0], chaseAim:[0, 0, 0] },
-  weapons:{ T:11.5, rho:0.3, fc:0.42, view:1, bank:1, turn:1, aim:[0.6, 0, 0], chaseAim:[0.9, -1.2, 0] },
+  weapons:{ T:11.5, rho:0.3, fc:0.42, view:1, bank:0.6, turn:1, aim:[0.5, 0.55, 0], chaseAim:[0.8, -0.5, 0] },   // (0.9.4: framed further forward, so the gun ahead of the needle is in the picture)
   skim:{ T:9, rho:0.5, fc:0.5, view:0.4, bank:0.5, turn:1, aim:[0.3, 0, 0], chaseAim:[0.3, 0, 0] },
   cruise:{ T:0, rho:1, fc:0.5, view:0.6, bank:0.35, turn:1, aim:[0.4, 0, 0], chaseAim:[0.5, -0.8, 0] } };   // (a pass with no job: the cameras still turn toward the body round its closest point)
 const SKIM = new Set(['jupiter', 'sun', 'betelgeuse', 'antares', 'alphacen', 'proxima', 'sirius', 'trappist1']);   // gas giants and stars (Saturn's rings are in the way)
@@ -308,7 +308,8 @@ function legAt(L, t){
 // ---------------------------------------------------------------- state
 const S_ = ship.S;
 Object.assign(S_, { force:{}, lastSkim:-9, lastAct:null, plan:null, next:null, align:null, leg:null, fold:null, act:null, h:[0, 1, 0], belly:null, vel:[0, 0, 0], speed:0,
-  viewA:0, side:1, hFrom:null, jumpAt:0, stretch:0, lsRun:0, emerge:1, seedN:1, vesc:0, gTg:null, gWant:0, climbK:0, fk:-99, asm:99, csL:false, wz:1, fz:1 });
+  viewA:0, side:1, hFrom:null, jumpAt:0, stretch:0, lsRun:0, emerge:1, seedN:1, vesc:0, gTg:null, gWant:0, climbK:0, fk:-99, asm:99, csL:false, wz:1, fz:1,
+  thr:0, thrW:0, turnL:[0, 0, 0], hPrev:null });
 const riding = () => shipCam.on || (!tour.on && orbit.lock === ship.index && cam.focus === ship.index);
 // (the camera is on the ship, riding or looking at it: the fold's flashes of the whole screen are for then)
 const camOnShip = () => riding() || cam.focus === ship.index;
@@ -347,7 +348,7 @@ function beginPass(plan){
   S_.act = ACT[plan.act](plan); S_.act.pl = plan; S_.jt = S_.t - plan.tA;
   if (riding() && !SHOWCAP.txt && (st.n > 1 || S_.visits === 1)) toast('at ' + tg.name + ': ' + ACT_TOAST[plan.act]);
 }
-const ACT_TOAST = { scan:'a sensor sweep', probe:'Pip, its little drone, comes out to help', weapons:'a weapons test (fictional, nothing is harmed)', skim:'skimming it to refuel' };
+const ACT_TOAST = { scan:'a sensor sweep', probe:'Pip, its little drone, comes out to help', weapons:'a weapons test with the fold cannon (fictional, nothing is harmed)', skim:'skimming it to refuel' };
 // the styles of the passes of a stay, by what the place is (never the same twice running: the one chosen is kept in S_.lastStyle)
 function roamStyle(tg){
   const lit = tg !== sun && V.len(tg.pos) < 0.01, L = lit && tg.R0 ? ['day', 'low', 'wide', 'pole', 'dusk', 'low', 'day'] : isHoleTarget(tg) ? ['wide', 'any', 'wide'] : surfOf(tg) ? ['low', 'wide', 'pole', 'any'] : ['low', 'wide', 'any'];
@@ -536,6 +537,9 @@ function placeShip(dt){
   // (in the fold itself the heart comes to a stop where it winks out, within about 0.2 s: at a fifth of light speed it would otherwise leave the
   // starburst that marks the jump thousands of ship lengths behind)
   else { const f = S_.fold, k = 0.08; r = { par:f.A, p:V.add(f.p, V.mul(f.h, f.v*k*(1 - Math.exp(-S_.t/k)))), h:f.h, v:f.v*Math.exp(-S_.t/k) }; }
+  // (how hard the engines work, for their exhaust (thrustDraw): the speed against the pass's cruising speed, flat out at light speed. Worked
+  // out before the lab parks the ship, so its engines burn there as they would on the site)
+  S_.thrW = S_.phase === 'light' ? 1.3 : S_.phase === 'fold' ? 0 : clamp(r.v/Math.max(S_.plan ? S_.plan.vf : r.v, 1e-300), 0, 1.3);
   // (the lab, /lab: the ship parked at one spot by its place, S_.park, while its route and all its effects run on as usual)
   if (S_.park){ const k = S_.park; r = { par:k.tg, p:k.p, h:k.h, v:1e-30 }; }
   let h = r.h;
@@ -627,6 +631,12 @@ ship.update = function(dt){
   if (S_.phase === 'light' && S_.t >= S_.leg.T) endLight();
   if (S_.phase === 'fold' && S_.t >= HALO.FOLD_T) endFold();
   placeShip(dt);
+  // (the engines' work, eased, and how the heading turns in the ship's own axes, for the exhaust's bend: thrustDraw. A jump of the heading,
+  // as a fold arrives, is not a turn)
+  S_.thr += (S_.thrW - S_.thr)*(1 - Math.exp(-dt*3));
+  if (S_.hPrev && dt > 0){ const dh = M3.applyT(ship.R0, V.mul(V.sub(S_.h, S_.hPrev), 1/dt)), m = Math.hypot(dh[0], dh[2]), k = (m > 1.3 ? 1.3/m : 1)*(m < 3 ? 1 : 0), e = 1 - Math.exp(-dt*3);
+    S_.turnL[0] += (dh[0]*k - S_.turnL[0])*e; S_.turnL[2] += (dh[2]*k - S_.turnL[2])*e; }
+  S_.hPrev = S_.h.slice();
   if (S_.reseat){ const R = ship.R0, q = S_.reseat; S_.reseat = null; if (shipCam.on && shipCam.eye){ shipCam.eye = M3.apply(R, q[0]); shipCam.fwd = M3.apply(R, q[1]); shipCam.up = M3.apply(R, q[2]); } }
   shieldUpdate(dt);
   foldUpdate(dt);
@@ -676,76 +686,7 @@ ACT.probe = pl => {
   A.end = () => pipEnd(A);
   return A;
 };
-// -- a weapons test (fictional): three shots at the body, one of each kind in turn; blasts that swell, cool from white to orange to dark and fade
-const WEAPONS = ['rail', 'plasma', 'antimatter'];
-let weapK = 0;
-ACT.weapons = pl => {
-  const tg = pl.tg, T = ACTS.weapons.T, r = lcg(pl.seed*31 + 7), kinds = [0, 1, 2].map(i => WEAPONS[(weapK + i) % 3]), at = [0.6, 4.2, 8.0];
-  weapK++;
-  const A = { kind:'weapons', tau:-9, n:0, shots:[], cur:null };
-  const NAME = { rail:'rail gun', plasma:'plasma lance', antimatter:'antimatter pulse' };
-  function fire(kind){
-    const sp = aimSphere(tg), R = sp.hole ? tg.holeR*1.6 : sp.r;
-    // aim somewhere on the part of the body the gun can see, then find where the shot really lands (first hit of the line of fire)
-    const fwd = V.dot(V.norm(V.mul(ship.offset, -1)), S_.h) > 0.25;   // (the bow gun when the body is ahead, the belly turret otherwise)
-    const ml = fwd ? HULL.gun : HULL.turret, m = localPt(ml), M0 = V.add(ship.offset, m);   // (target-relative muzzle, for aiming only)
-    const e = V.norm(V.mul(M0, -1)), th = Math.acos(clamp(R/Math.max(V.len(M0), R*1.0001), 0, 1))*(0.2 + 0.3*r());
-    // (toward the part of the body ahead of the ship, which is the part the trailing cameras see best)
-    let a = perpTo(S_.h, e); a = V.len(a) > 1e-6 ? V.norm(a) : anyPerp(e); const ra = (r() - 0.5)*1.4; a = V.norm(V.add(V.mul(a, Math.cos(ra)), V.mul(V.cross(e, a), Math.sin(ra))));
-    const aimP = V.mul(V.norm(V.add(V.mul(V.mul(e, -1), Math.cos(th)), V.mul(a, Math.sin(th)))), R);   // (point on the near side, target-relative)
-    const dir = V.norm(V.sub(aimP, M0)); let t = raySphere(M0, dir, [0, 0, 0], R); if (t < 0) t = V.len(V.sub(aimP, M0));
-    const hitT = V.add(M0, V.mul(dir, t)), nrm = sp.cloud ? V.norm(V.sub(M0, hitT)) : V.norm(hitT);
-    const E = (sp.cloud ? tg.rad*0.5*magOf(tg) : sp.hole ? tg.holeR*1.2 : sp.r)*(kind === 'antimatter' ? 0.18 : kind === 'rail' ? 0.1 : 0.09);
-    const s = { kind, t:0, ml, base:m, hitT, nrm, E, drift:[0, 0, 0], dirW:dir, T:kind === 'rail' ? 0.34 : kind === 'plasma' ? 1.4 : 1.2, done:false };
-    s.i0 = V.sub(hitT, ship.offset);   // the impact point relative to the ship at the moment of firing
-    A.shots.push(s); A.cur = s;
-    fxMuzzle(ml, kind);
-  }
-  A.update = (dt, tau) => {
-    A.tau = tau;
-    while (A.n < 3 && tau >= at[A.n]){ fire(kinds[A.n]); A.n++; }
-    for (const s of A.shots){
-      if (s.done) continue;
-      s.t += dt; s.drift = V.add(s.drift, V.mul(S_.vel, dt));
-      if (s.kind === 'plasma'){ S_.em[2] = Math.max(S_.em[2], 0.8 + 0.2*Math.sin(s.t*40)); if (r() < dt*30) fxSparks(tg, s.hitT, s.nrm, s.E*0.5, 3, [1, 0.6, 0.9]); }
-      if (s.t >= s.T){ s.done = true; fxBoom(tg, s.hitT, s.nrm, s.E, s.kind, aimSphere(tg).cloud); }
-    }
-    if (A.cur && A.cur.t < 0.12) S_.em[2] = Math.max(S_.em[2], 1 - A.cur.t/0.12);
-  };
-  A.env = () => env(A.tau, T);
-  A.line = () => A.tau < 0 ? 'approaching ' + tg.name + ' · weapons test ahead (fictional)' : `weapons test (fictional) · ${NAME[(A.cur || { kind:kinds[0] }).kind]} on ${tg.name}\nnothing real is harmed: the blast fades and leaves no mark`;
-  A.draw = () => {
-    for (const s of A.shots){
-      if (s.done) continue;
-      const muzzleNow = shipPt(s.ml), hitRel = V.add(tg.rel, s.hitT);
-      // (the shot flies from where the muzzle was when it fired; positions relative to the ship, minus how far the ship has moved since)
-      const at = u => V.sub(V.add(ship.rel, V.add(s.base, V.mul(V.sub(s.i0, s.base), u))), s.drift);
-      const occ = p => behindSphere(p, tg.rel, aimSphere(tg).r*0.998) || behindHull(p);
-      if (s.kind === 'rail'){
-        const u = clamp(s.t/s.T, 0, 1), p = at(u), q = at(Math.max(u - 0.28, 0));
-        beamLine(q, p, [1, 0.45, 0.15], 0.05, occ, [1, 0.95, 0.8], 1.4, 10, ship.rad*0.25);
-        if (!occ(p)) P_(p, [1, 0.95, 0.8], 2.4, -4);
-      } else if (s.kind === 'plasma'){
-        const on = smooth(0, 0.08, s.t)*(1 - smooth(s.T - 0.15, s.T, s.t)), L = V.sub(hitRel, muzzleNow), len = V.len(L), ax = V.mul(L, 1/Math.max(len, 1e-300));
-        const p1 = anyPerp(ax), p2 = V.cross(ax, p1);
-        const showB = camNear() || (onScreen(muzzleNow) && !behindSphere(muzzleNow, tg.rel, aimSphere(tg).r*0.998));
-        for (let k=0;k<(showB ? 3 : 0);k++){
-          // a white-hot core and two violet strands twisting round it
-          const at = u => { const w = Math.sin(Math.PI*u)*len*0.006*(k === 0 ? 0.3 : 1), ph = s.t*28 + u*19 + k*2.1; return V.add(V.add(muzzleNow, V.mul(L, u)), V.add(V.mul(p1, w*Math.sin(ph)), V.mul(p2, w*Math.cos(ph*1.3)))); };
-          pathLine(at, len, k === 0 ? [1, 0.85, 1] : [0.85, 0.35, 1], on*(k === 0 ? 1.3 : 0.7), occ, k === 0 ? [1, 0.9, 1] : [0.9, 0.45, 1], on*(k === 0 ? 1.5 : 0.8), 18, ship.rad*0.25);
-        }
-        for (let j=0;j<6;j++){ const u = (s.t*1.6 + j/6) % 1, p = V.add(muzzleNow, V.mul(L, u)); if (!occ(p)) P_(p, [1, 0.7, 1], on*0.8, -3); }
-        if (!occ(hitRel)) { P_(hitRel, [1, 0.85, 1], on*(1.5 + 0.5*Math.sin(s.t*50)), -8); P_(hitRel, [1, 0.5, 0.9], on*0.8, s.E*0.8); }
-      } else {
-        const u = Math.pow(clamp(s.t/s.T, 0, 1), 1.6), p = at(u);
-        for (let j=1;j<10;j++){ const uj = Math.max(u - j*0.018, 0), q = at(uj), sw = V.add(q, V.mul(anyPerp(s.dirW), Math.sin(s.t*20 - j)*s.E*0.02)); if (!occ(sw)) P_(sw, [0.7, 0.5, 1], 0.4*(1 - j/10), -2); }
-        if (!occ(p)){ P_(p, [0.95, 0.9, 1], 2, -5); P_(p, [0.7, 0.5, 1], 0.6, -13); }
-      }
-    }
-  };
-  A.end = () => {};
-  return A;
-};
+// -- a weapons test (fictional): the fold cannon, in its own file (ACT.weapons in 07k-cannon.js)
 // -- a skim: a dive to just above the cloud tops or the photosphere, gas streaming into the bow scoop and a glowing trail behind, then a climb away
 ACT.skim = pl => {
   const tg = pl.tg, T = ACTS.skim.T, fc = tg.farColor || [1, 0.7, 0.4], mx = Math.max(fc[0], fc[1], fc[2], 1e-3), col = [fc[0]/mx, 0.25 + 0.7*fc[1]/mx, 0.1 + 0.6*fc[2]/mx];
@@ -848,61 +789,6 @@ const FX = [];
 function fxAdd(e){ e.t = 0; FX.push(e); return e; }
 function fxUpdate(dt){
   for (let i=FX.length - 1;i>=0;i--){ const e = FX[i]; e.t += dt; if (e.drift) e.drift = V.add(e.drift, V.mul(S_.vel, dt)); if (e.step) e.step(dt); if (e.t > e.T) FX.splice(i, 1); }
-}
-// muzzle flash at the gun
-function fxMuzzle(l, kind){
-  const c = kind === 'plasma' ? [1, 0.6, 1] : kind === 'antimatter' ? [0.8, 0.6, 1] : [1, 0.85, 0.55];
-  fxAdd({ T:0.18, draw(e){ const f = 1 - e.t/e.T, p = shipPt(l); P_(p, c, 2.5*f*f, -10); P_(p, WHITE, 1.2*f, ship.rad*0.25); } });
-}
-// sparks flying off a point on the body (target-relative q, normal n, size E)
-function fxSparks(anc, q, n, E, count, c){
-  const sp = []; for (let i=0;i<count;i++){ const d = V.norm(V.add(V.mul(n, 0.5), V.mul(randDir(), 1))); sp.push({ d:V.dot(d, n) < 0.05 ? V.norm(V.add(d, n)) : d, s:E*(2 + 5*rnd()), life:0.3 + 0.5*rnd() }); }
-  fxAdd({ T:0.9, anc, q, draw(e){ const C = e.anc.rel, R = aimSphere(e.anc).r*0.998; for (const s of sp){ const f = 1 - e.t/s.life; if (f <= 0) continue; const k = 1.4, x = s.s*(1 - Math.exp(-k*e.t))/k, v = s.s*Math.exp(-k*e.t);
-    const p = V.add(V.add(C, e.q), V.mul(s.d, x)), p2 = V.sub(p, V.mul(s.d, v*0.06)); if (!behindSphere(p, C, R)) L_(p2, p, c, 0.2*f, [1, 0.9, 0.7], 0.9*f); } } });
-}
-// fire colour as it cools (f: 0 white-hot, 1 orange, 2 deep red, 3 dark)
-function fireCol(f){
-  if (f < 0.35) return V.lerp([1, 0.98, 0.9], [1, 0.85, 0.45], f/0.35);
-  if (f < 1) return V.lerp([1, 0.85, 0.45], [1, 0.45, 0.12], (f - 0.35)/0.65);
-  if (f < 2) return V.lerp([1, 0.45, 0.12], [0.55, 0.12, 0.04], f - 1);
-  return V.lerp([0.55, 0.12, 0.04], [0.12, 0.05, 0.03], Math.min(f - 2, 1));
-}
-// an explosion on (or in) a body: a flash, a fireball that swells and cools, sparks and debris flying out, a quick shock ring, a little smoke.
-// Purely visual: nothing about the body changes, and it all fades.
-function fxBoom(anc, q, n, E, kind, cloud){
-  const am = kind === 'antimatter', N = am ? 190 : 140, balls = [], sparks = [], smoke = [];
-  const out = d => cloud ? d : (V.dot(d, n) < 0.1 ? V.norm(V.add(d, V.mul(n, 1.2))) : d);
-  for (let i=0;i<N;i++){ const d = out(V.norm(V.add(V.mul(n, cloud ? 0 : 0.7), randDir()))); balls.push({ d, r:Math.pow(rnd(), 0.6), heat:rnd(), s:0.6 + 0.8*rnd(), rise:rnd() }); }
-  for (let i=0;i<(am ? 110 : 70);i++){ const d = out(V.norm(V.add(V.mul(n, cloud ? 0 : 0.45), randDir()))); sparks.push({ d, s:E*(3 + 7*rnd())*(am ? 1.4 : 1), life:0.7 + 1.1*rnd(), hot:rnd() }); }
-  for (let i=0;i<(am ? 26 : 18);i++){ const d = out(V.norm(V.add(V.mul(n, cloud ? 0 : 1), V.mul(randDir(), 0.8)))); smoke.push({ d, r:0.3 + 0.7*rnd(), at:0.5 + 0.6*rnd() }); }
-  const shell = am ? Array.from({ length:160 }, () => out(randDir())) : null;
-  fxAdd({ T:am ? 4.5 : 3.6, anc, q, draw(e){
-    const t = e.t, C = e.anc.rel, R = aimSphere(e.anc).r*0.998, O = V.add(C, e.q), hid = p => !cloud && behindSphere(p, C, R);
-    // flash
-    const fl = Math.exp(-t/0.07); if (fl > 0.01 && !hid(O)){ P_(O, WHITE, (am ? 6 : 4.5)*fl, am ? -60 : -40); P_(O, [1, 0.95, 0.85], 2*Math.exp(-t/0.3), E*(am ? 2.2 : 1.6)); }
-    // fireball: points swell out fast then slow, rise off the surface a little, and cool from white to orange to red to dark
-    const grow = 1 - Math.exp(-t*(am ? 4.5 : 5.5));
-    for (const b of balls){
-      const f = t/(0.35 + 0.8*b.heat)*(am ? 0.8 : 1), col = fireCol(f*1.1), br = (f < 2.6 ? (1 - smooth(1.6, 2.6, f)) : 0)*(1.3 - 0.35*Math.min(f, 2));
-      if (br < 0.01) continue;
-      const p = V.add(V.add(O, V.mul(b.d, E*(0.12 + 0.95*b.r)*grow*(am ? 1.3 : 1))), V.mul(n, E*0.5*b.rise*t*(cloud ? 0 : 1)));
-      if (!hid(p)) P_(p, col, br*2, E*(0.16 + 0.22*grow)*b.s);
-    }
-    // debris and sparks: fast streaks that slow, cool and fade
-    for (const s of sparks){ const f = 1 - t/s.life; if (f <= 0) continue; const k = 1.6, x = s.s*(1 - Math.exp(-k*t))/k, v = s.s*Math.exp(-k*t);
-      const p = V.add(O, V.mul(s.d, x)), p2 = V.sub(p, V.mul(s.d, v*0.07)); if (!hid(p)) L_(p2, p, fireCol(1.4 + (1 - f)), 0.25*f, fireCol(0.5 + (1 - f)*1.5), (0.7 + 0.5*s.hot)*f); }
-    // antimatter: a bright shell of debris racing out in every direction
-    if (shell){ const r = E*(0.3 + 3.2*(1 - Math.exp(-t*2.2))), f = Math.exp(-t/0.9); for (const d of shell){ const p = V.add(O, V.mul(d, r)); if (!hid(p)) P_(p, t < 0.4 ? [0.95, 0.9, 1] : [0.8, 0.6, 1], 0.9*f, -2); } }
-    // the shock ring: brief, spreading along the surface
-    for (let k=0;k<(am ? 2 : 1);k++){ const tk = t - k*0.12, u = tk/0.75; if (u <= 0 || u >= 1) continue; const r = E*(0.5 + (am ? 5 : 3.6)*(1 - Math.exp(-tk*3.5)));
-      if (cloud) ringCam(O, r, [0.75, 0.85, 1], 0.7*(1 - u)*(1 - u), 64); else { const x = anyPerp(n), y = V.cross(n, x); let prev = null, pv = false;
-        for (let j=0;j<=64;j++){ const a = j/64*6.2832, p = V.add(O, V.mul(V.add(V.mul(x, Math.cos(a)), V.mul(y, Math.sin(a))), r)), v = !hid(p); if (prev && pv && v) L_(prev, p, [0.75, 0.85, 1], 0.75*(1 - u)*(1 - u)); prev = p; pv = v; } } }
-    // smoke: dark puffs rising and spreading, then thinning out
-    for (const m of smoke){ const tt = t - m.at; if (tt <= 0) continue; const f = Math.min(tt/0.6, 1)*(1 - smooth(1.2, 3, tt)); if (f <= 0) continue;
-      const p = V.add(O, V.mul(m.d, E*(0.5 + 0.9*m.r)*(1 + tt*0.35))); if (!hid(p)) SM_(p, 0.6*f, E*(0.35 + 0.25*tt)); }
-    // the glow left on the ground fades completely: nothing permanent
-    const ember = smooth(0.2, 0.6, t)*(1 - smooth(1.5, e.T, t)); if (ember > 0.01 && !hid(O)) P_(O, [1, 0.35, 0.1], 0.5*ember, E*0.6);
-  } });
 }
 // light speed, seen from outside: the ship stretches into a streak of light shooting off toward its next stop, with a flash where it was
 function fxLightOut(A, q, d){
@@ -1164,6 +1050,49 @@ function foldDraw(){
   S.embN = nE;
 }
 
+// ---------------------------------------------------------------- the engines' exhaust (0.9.4, owner: from the distances people watch it from, the ship looked as if it was
+// not moving: the plume in its shader is a few pixels long there). Two streams of glowing points flow aft from the engines, about a character
+// and a half apart on screen, drawn relative to the ship: never shorter than a few characters on screen (a ship a few characters across still
+// leaves a short wake), longer and brighter the faster it goes against its pass's cruising speed (S_.thr), a long streak at light speed, and
+// bending a little toward the inside of a turn (S_.turnL). Hidden behind the hull and the body, gone with the engines' cells in a fold and
+// faded with the ship's glint far away. At most 2 x TH_N points and 2 lines.
+const TH_N = 22, THP = [0, 0, 0], THQ = [0, 0, 0], THR = [0, 0, 0];
+function thrustDraw(){
+  const S = S_, rpx = ship.rpx || 0, thr = Math.min(S.thr, 1.3), ls = S.phase === 'light';
+  if (S.phase === 'fold' || S.scale < 0.5 || !(rpx > 0.6) || !(thr > 0.03)) return;
+  const rel = ship.rel, dist = V.len(rel); if (!(dist > 0) || V.dot(rel, cam.fwd) < -ship.rad*2) return;
+  const R = ship.R0, tg = ship.parent, sR = tg ? surfDrawn(tg) : 0, tl = S.turnL, vis = ship.farLum/0.7;
+  const occ = p => behindHull(p) || (sR > 0 && behindSphere(p, tg.rel, sR*0.998));
+  for (let e=0;e<2;e++){
+    const sd = e ? 1 : -1, nx = -0.04, ny = -0.86, nz = 0.287*sd;
+    if (S.dm !== 0 && !liveCell(ny, nz)) continue;   // (in a fold the exhaust goes and comes back with its engine)
+    toShip(THP, nx, ny, nz);
+    // (one character on screen at the nozzle, and how much of the trail's length the camera sees: none end-on)
+    const d0 = V.len(THP), cw = d0*4*tanY/Math.max(sceneH, 2), ca = -(R[3]*THP[0] + R[4]*THP[1] + R[5]*THP[2])/d0, fs = Math.max(Math.sqrt(Math.max(1 - ca*ca, 0)), 0.3);
+    // its length (ship radii): a share of the ship at the least, and never under Lc characters on screen; the points about 1.5 characters apart
+    const Lc = ls ? 16 : 3.5 + 6*thr, L0 = ls ? 1.6 : 0.3 + 0.45*thr, Ls = Math.min(Math.max(L0, Lc*cw/fs/ship.rad), 40);
+    const N = clamp(Math.round(Ls*ship.rad*fs/cw/1.5), 3, TH_N), fr = GT*(reduceMotion ? 0.8 : 4 + 6*thr)/1.5, ph = (fr % 1 + 1) % 1, id0 = Math.floor(fr);
+    const B = (1.1 + 1.0*thr)*vis*(ls ? 1.3 : 1), bx = tl[0]*0.35*Ls, bz = tl[2]*0.35*Ls;
+    let pv = false;
+    for (let j=0;j<N;j++){
+      const s = (j + ph)/N, s2 = s*s;
+      // (the plume spreads as it goes: each grain drifts a little to one side, the same grain the same way as it flows aft)
+      const id = id0 - j, sx = (foldHash(id, e*7 + 1) - 0.5)*0.16*Ls*s, sz = (foldHash(id, e*7 + 2) - 0.5)*0.16*Ls*s;
+      toShip(THQ, nx + bx*s2 + sx, ny - Ls*s, nz + bz*s2 + sz);
+      const v = !(V.dot(THQ, cam.fwd) < ship.rad*0.2 || occ(THQ));
+      // (each a glowing point, white at the nozzle, ice blue, then deep blue; in the first half a faint streak joins it to the one before, so
+      // the stream reads as flowing)
+      const fk = reduceMotion ? 1 : 0.8 + 0.2*Math.sin(GT*31 + id*2.3 + sd), b = B*Math.pow(1 - s, 1.2)*fk*smooth(0, 0.06, s);
+      if (s < 0.3) mix3(ECOL, WHITE, ICE_, s/0.3); else mix3(ECOL, ICE_, DEEP_, (s - 0.3)/0.7);
+      if (v){ P_(THQ, ECOL, b, s < 0.35 ? -3 : -2); if (pv && s < 0.55) L_(THR, THQ, ECOL, 0.12*b, DEEP_, 0.04*b); }
+      THR[0] = THQ[0]; THR[1] = THQ[1]; THR[2] = THQ[2]; pv = v;
+    }
+    // the plume's core: a short line out of the nozzle (at light speed, a streak its whole length)
+    const k = ls ? 1 : 0.25; toShip(THR, nx + bx*k*k, ny - Ls*k, nz + bz*k*k);
+    if (!occ(THP) && V.dot(THP, cam.fwd) > ship.rad*0.2 && V.dot(THR, cam.fwd) > ship.rad*0.2) L_(THP, THR, WHITE, B*(ls ? 0.3 : 0.18), ls ? DEEP_ : ICE_, 0);
+  }
+}
+
 // ---------------------------------------------------------------- drawing, after everything else
 const STREAKS = Array.from({ length:IS_SMALL ? 180 : 280 }, () => ({ a:rnd()*6.2832, r:4 + 80*Math.pow(rnd(), 0.8), z:rnd(), len:0.4 + 0.6*rnd(), c:rnd() }));
 const Z3 = [0, 0, 0];
@@ -1192,7 +1121,8 @@ function haloDraw(){
     }
     if (S.phase === 'light') P_(V.add(ship.rel, V.mul(h, 2000*R)), [0.75, 0.88, 1], 0.9*st, -6);   // (where it is heading: a pinpoint, not a glow over the needle)
   }
-  // the fold: embers, the shield folding into the heart (no arcs: the owner found them boring)
+  // the engines' exhaust; the fold: embers, the shield folding into the heart (no arcs: the owner found them boring)
+  if (near) thrustDraw();
   if (near) foldDraw();
   // the upload and three draws: smoke first (it darkens), then glowing points, then lines
   fxUpload(FXB.sm, FXB.ns); fxUpload(FXB.pt, FXB.np); fxUpload(FXB.ln, FXB.nl);
@@ -1258,10 +1188,11 @@ ship.dbg = {
   // with the same seed, clock and camera the ship flies the same route every time
   reset(seed, key = 'saturn'){
     if (S_.act && S_.act.end) S_.act.end();
-    hrnd = lcg(seed); actBag.length = 0; FX.length = 0; weapK = 0; drone.reset();
+    hrnd = lcg(seed); actBag.length = 0; FX.length = 0; drone.reset();
     Object.assign(S_, { phase:'pass', t:0, target:null, spool:0, ls:0, scale:1, scoop:0, em:[0, 0, 0, 0], visits:0, force:{}, lastSkim:-9, lastAct:null, plan:null, next:null,
       align:null, leg:null, fold:null, act:null, h:[0, 1, 0], belly:null, vel:[0, 0, 0], speed:0, viewA:0, side:1, hFrom:null, jumpAt:0, stretch:0, lsRun:0, emerge:1, seedN:1, reaim:0,
-      ringPh:0, beat:0, load:0, gWant:0, gDir:[0, 1, 0], vesc:0, gTg:null, climbK:0, fk:-99, asm:99, csL:false, wz:1, reseat:null, dg:0, dm:0, hfl:0, shK:1, cc:0, fz:1, embN:0, zipped:true, jt:0, stay:null, loop:null, lastStyle:null });
+      ringPh:0, beat:0, load:0, gWant:0, gDir:[0, 1, 0], vesc:0, gTg:null, climbK:0, fk:-99, asm:99, csL:false, wz:1, reseat:null, dg:0, dm:0, hfl:0, shK:1, cc:0, fz:1, embN:0, zipped:true, jt:0, stay:null, loop:null, lastStyle:null,
+      thr:0, thrW:0, turnL:[0, 0, 0], hPrev:null });
     foldVisit(BYKEY[key]); S_.t = 3;
   },
   force(o){ Object.assign(S_.force, o); },
@@ -1278,4 +1209,13 @@ ship.dbg = {
   FX, get plan(){ return S_.plan; }, get next(){ return S_.next; }, get stay(){ return S_.stay; }, get loop(){ return S_.loop; },
   // (the fold's look: its cells, and one draw of its embers and outlines, returning how many points and line ends it made)
   fold:{ get cells(){ return CEL; }, draw(){ FXB.np = FXB.nl = FXB.ns = 0; foldDraw(); return [FXB.np, FXB.nl]; } },
+  // (the engines' exhaust: one draw, returning how many points and line ends it made)
+  thrust(){ FXB.np = FXB.nl = FXB.ns = 0; thrustDraw(); return [FXB.np, FXB.nl]; },
+  // (each effect under way: its kind, its clock, and what one draw of it makes: points, line ends, smoke)
+  fxCount(){ return FX.map(e => { FXB.np = FXB.nl = FXB.ns = 0; e.draw(e); return [e.kind, +e.t.toFixed(2), FXB.np, FXB.nl, FXB.ns]; }); },
+  // (where each effect under way draws its points and line ends, camera-relative: [kind, [x, y, z, ...]])
+  fxPts(){ return FX.map(e => { FXB.np = FXB.nl = FXB.ns = 0; e.draw(e); const q = [];
+    for (let i=0;i<FXB.np;i++) q.push(FXB.pt.a[i*4], FXB.pt.a[i*4 + 1], FXB.pt.a[i*4 + 2]);
+    for (let i=0;i<FXB.nl;i++) q.push(FXB.ln.a[i*4], FXB.ln.a[i*4 + 1], FXB.ln.a[i*4 + 2]);
+    return [e.kind, q]; }); },
 };
