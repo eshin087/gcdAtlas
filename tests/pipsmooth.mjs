@@ -21,7 +21,7 @@ async function install(page){
     const snap = dt => { const s = Q.trk, c = C.cam, p = C.proj('halo-drone'), ps = C.proj('halo');
       return { dt, st:s.st, form:s.form, bit:s.bit, k:s.k, fly:s.fly, idle:s.idle, say:s.say, face:s.face, bk:s.bk, home:s.home, hurry:s.hurry, vis:s.shows,
         anc:v4(s.anc), L:v4(s.L), body:v4(s.body), eye:v4(s.eye), sx:p && p.z > 0 ? r4(p.x) : null, sy:p && p.z > 0 ? r4(p.y) : null, hx:ps && ps.z > 0 ? r4(ps.x) : null, hy:ps && ps.z > 0 ? r4(ps.y) : null,
-        f:v4(c.fwd), u:v4(c.up), shot:C.ride.shot, pk:r4(R.pk), pip:!!R.pip, wc:r4(R.wc), act:D.act, ph:h.S.phase, riding:C.shipCam.on, onShip:C.cam.focus === h.index, W:innerWidth, H:innerHeight,
+        f:v4(c.fwd), u:v4(c.up), shot:C.ride.shot, pk:r4(R.pk), pip:!!R.pip, wc:r4(R.wc), act:D.act, ph:h.S.phase + (h.S.plan && h.S.plan.sig ? ' ' + h.S.plan.sig + ' at ' + h.S.target.key : ''), riding:C.shipCam.on, onShip:C.cam.focus === h.index, W:innerWidth, H:innerHeight,
         launch:s.launch, ret:s.ret, sv:C.show.on ? C.show.view : -1, fl:!!C.flight, cd:r4(Math.hypot(...C.cam.rel)/h.rad), tour:C.tour.on, hh:v4(h.S.h), raw:v4(s.raw), pushed:v4(s.pushed), live:s.live, prepMs:s.prepMs, rt:r4(R.t), rtr:r4(R.tr), rtrT:r4(R.trT), wcV:r4(R.wcV || 0), jmp:r4((h.S.jumpAt || 0) - h.S.t) }; };
     window.__pq = {
       // run for sec seconds at dt a tick, recording each; stop early once until() is true
@@ -77,16 +77,14 @@ const len = v => Math.hypot(...v), sub = (a, b) => a.map((x, i) => x - b[i]), cr
 const ang = (a, b) => Math.acos(Math.max(-1, Math.min(1, (a[0]*b[0] + a[1]*b[1] + a[2]*b[2])/(len(a)*len(b) || 1))))*180/Math.PI;
 const where = r => { const pu = r.raw && r.pushed ? len(sub(r.pushed, r.raw)) : 0;
   return `${r.bit || r.st}${r.fly ? ' (flight)' : ''} · "${r.say}" · shot ${r.shot || '-'}${r.pk > 0 ? ' pk ' + r.pk.toFixed(2) : ''} · ${r.ph}${r.act ? ' ' + r.act : ''}${pu > 0.002 ? ` · pushed off the hull by ${pu.toFixed(3)}` : ''}`; };
-// (Pip's own checks skip its break-ups into embers (tests of their own in tests/motion.mjs) and the weapons test, which turns it into the fold
-// cannon, from the job's start until Pip's first idle stretch after it (wp): that is being rewritten with a test of its own. Its checks by the
+// (Pip's own checks skip its break-ups into embers (tests of their own in tests/motion.mjs). Its checks by the
 // ship skip the moves that ride along with the camera (live): there it moves by the ship as fast as the camera does, and the screen decides)
-const pipOk = r => r.st === 'out' && !r.bk && r.form === 'pod' && !r.wp;
+const pipOk = r => r.st === 'out' && !r.bk && r.form === 'pod';
 const camOk = r => (r.riding || r.onShip) && (r.ph === 'pass' || r.ph === 'loop' || r.ph === 'align');
 function analyse(name, rows){
   const ev = [], stat = { tp:0, v:0, acc:0, jpx:0, body:0, w:0, a:0, js:0, prep:0 }, dt = rows[0] ? rows[0].dt : 1/60, k60 = (1/60)/dt, sc = rows[0] ? 800/rows[0].H : 1;
   const add = (kind, i, msg) => ev.push({ kind, t:+(i*dt).toFixed(2), msg, at:where(rows[i]) });
-  let wp = /weapons/.test(name) ? 2 : 0;
-  for (const r of rows){ if (wp < 2) wp = r.act === 'weapons' ? 1 : wp && !(r.idle && !r.fly) ? 1 : 0; r.wp = !!wp; stat.prep = Math.max(stat.prep, r.prepMs || 0); }
+  for (const r of rows) stat.prep = Math.max(stat.prep, r.prepMs || 0);
   for (let i=1;i<rows.length;i++){
     const a = rows[i - 1], b = rows[i], z = i > 1 ? rows[i - 2] : null;
     // Pip on the screen and by the ship
@@ -161,12 +159,12 @@ async function scenarios(page, tag, phone){
       const A = __pq.run(8, 1/60, rows => rows[rows.length - 1].bit === b && rows.filter(x => x.bit === b).length > at*60); __cosmos.BYKEY.halo.dbg.drone.hurry();
       return A.concat(__pq.run(6, 1/60, rows => rows[rows.length - 1].st === 'stowed')); }, { b, at }));
   }
-  // the jobs Pip helps with (the weapons test: the camera only)
+  // the jobs Pip helps with (the weapons test on the next pass, an attack run, as on the site)
   for (const [job, key] of [['scan', 'jupiter'], ['probe', 'mars'], ['skim', 'jupiter'], ['weapons', 'moon']]){
     for (const cam of ['ride', 'lock']){
       const n = `${tag} ${cam}: job ${job}`; if (!want(n)) continue;
-      push(n, await page.evaluate(({ job, key, cam }) => { __pq.setup(key, 4, cam); __pq.run(12, 1/60, __pq.untilIdle()); const D = __cosmos.BYKEY.halo.dbg; __cosmos.BYKEY.halo.demo.jobNow(job, true);
-        let t = 0; return __pq.run(100, 1/60, rows => { const s = rows[rows.length - 1]; if (!s.act && s.idle) t += s.dt; return t > 2; }); }, { job, key, cam }));
+      push(n, await page.evaluate(({ job, key, cam }) => { __pq.setup(key, 4, cam); __pq.run(12, 1/60, __pq.untilIdle()); const D = __cosmos.BYKEY.halo.dbg; __cosmos.BYKEY.halo.demo.jobNow(job, job !== 'weapons');
+        let t = 0, seen = false; return __pq.run(150, 1/60, rows => { const s = rows[rows.length - 1]; if (s.act === job) seen = true; if (seen && !s.act && s.idle) t += s.dt; return t > 2; }); }, { job, key, cam }));
     }
   }
   // whole stays, as a visitor sees them: riding along at Jupiter and locked on the ship at Saturn, jobs and all, to the jump away

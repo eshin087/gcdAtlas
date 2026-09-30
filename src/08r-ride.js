@@ -86,13 +86,15 @@ function shotP(){
   return m;
 }
 // start a shot (name, or a job's settings); its side is a coin toss, 'far' is worked out now. The glide there takes 4.2 s (3 for a job's), and
-// longer for a long way round the ship: about 35 degrees a second at most on average (0.9.7 review: a swing to the far side in 4.2 s read as a whip)
+// longer for a long way round the ship: about 35 degrees a second at most on average (0.9.7 review: a swing to the far side in 4.2 s read as a whip),
+// and for a big change of distance or tilt (a job's shot or a signature move's taking over from the Halo tour's pull-back rushed in)
 function startShot(name, job){
   const cur = RIDE.shot ? shotP() : null, S = job ? { a:job, z:job, T:[1e9, 1e9] } : SHOTS[name], sd = job ? (S_.side || 1) : name === 'still' ? 1 : rideR() < 0.5 ? -1 : 1, fd = farD();
   const fix = p => ({ ...p, g:p.g*sd, roll:(p.roll || 0)*sd, d:p.d === 'far' ? fd : p.d });
   RIDE.shot = { name:job ? 'job' : name, a:fix(S.a), z:fix(S.z), T:S.T[0] + (S.T[1] - S.T[0])*rideR(), ease:!!S.ease };
   RIDE.dg = cur ? wrapD(RIDE.shot.a.g - cur.g) : 0;
-  RIDE.from = cur; RIDE.t = 0; RIDE.tr = 0; RIDE.trT = cur ? Math.max(job ? 3 : 4.2, Math.abs(RIDE.dg)/35) : 0;
+  const ld = cur ? Math.abs(Math.log(Math.max(cur.d, 1e-9)/Math.max(RIDE.shot.a.d, 1e-9))) : 0, de = cur ? Math.abs((RIDE.shot.a.e || 0) - (cur.e || 0)) : 0;
+  RIDE.from = cur; RIDE.t = 0; RIDE.tr = 0; RIDE.trT = cur ? Math.max(job ? 3 : 4.2, Math.abs(RIDE.dg)/35, 1.3*ld, de/12) : 0;
   RIDE.name = RIDE.shot.name;
   if (!job && name !== 'still'){ RIDE.last.push(name); if (RIDE.last.length > 3) RIDE.last.shift(); }
 }

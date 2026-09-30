@@ -6,7 +6,7 @@
      Every detail stays in docs/CHANGELOG.md, which the panel links to. -->
 
 ## 0.9.7 · 30 Sep 2026 · Pip takes the stage
-- Pip, the Halo's drone, is out for most of every stay: it plays peekaboo, rides beside you, sits on the bow and chases sparks.
+- Pip, the Halo's drone, is out for most of every stay, moving smoothly: it plays peekaboo, rides beside you, sits on the bow and chases sparks.
 - For the weapons test the Halo makes an attack run, nose on the target, and Pip unfolds into a railgun on its needle.
 - The Halo flies a move made for each place: through Saturn's Cassini Division, low over the Great Red Spot, through a star's corona.
 - The engines have a short blue flame that grows with speed.

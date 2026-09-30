@@ -713,7 +713,7 @@ PIPJ.skim = (P, A) => {
 // the weapons test: it flies to the needle and settles on top of it near the tip, facing ahead, and winks at you; then it is the railgun's
 // heart (07k-cannon.js builds the gun round it, plates and rails unfolding from its sides): it stays itself and in place, focused, squints as
 // each slug leaves, looks cross while the big shot charges, kicks back with the gun and is happy as it folds away; then a happy twirl
-const PIP_DOCK = [(hullTop(0.64, 0) ?? -0.0135) - PIP_R - 0.003, 0.64, 0];
+const PIP_DOCK = [(hullTop(0.64, 0) ?? -0.0135) - PIP_R - 0.012, 0.64, 0];   // (0.012 up: hullD runs short over the plates, and closer it was eased off them)
 PIPJ.weapons = (P, A) => {
   const D = PIP_DOCK, U = [D[0] - 0.07, D[1] - 0.08, 0];
   fly(P, { sp:0.6, thr:0.7, say:'Pip flies to the needle' });
