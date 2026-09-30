@@ -346,9 +346,10 @@ function beginPass(plan){
   if (plan.act === 'cruise') return;
   if (S_.act && S_.act.end) S_.act.end();
   S_.act = ACT[plan.act](plan); S_.act.pl = plan; S_.jt = S_.t - plan.tA;
+  pipJoin(S_.act);   // (Pip, the drone, comes to help: 07i-drone.js)
   if (riding() && !SHOWCAP.txt && (st.n > 1 || S_.visits === 1)) toast('at ' + tg.name + ': ' + ACT_TOAST[plan.act]);
 }
-const ACT_TOAST = { scan:'a sensor sweep', probe:'Pip, its little drone, comes out to help', weapons:'a weapons test with the fold cannon (fictional, nothing is harmed)', skim:'skimming it to refuel' };
+const ACT_TOAST = { scan:'a sensor sweep, Pip gathering the readings', probe:'Pip, its little drone, shows off', weapons:'a weapons test: Pip becomes the fold cannon (fictional, nothing is harmed)', skim:'skimming it to refuel, Pip at the bow scoop' };
 // the styles of the passes of a stay, by what the place is (never the same twice running: the one chosen is kept in S_.lastStyle)
 function roamStyle(tg){
   const lit = tg !== sun && V.len(tg.pos) < 0.01, L = lit && tg.R0 ? ['day', 'low', 'wide', 'pole', 'dusk', 'low', 'day'] : isHoleTarget(tg) ? ['wide', 'any', 'wide'] : surfOf(tg) ? ['low', 'wide', 'pole', 'any'] : ['low', 'wide', 'any'];
@@ -500,11 +501,12 @@ function endFold(){
 
 // ---------------------------------------------------------------- the showcase's buttons (09i-showcase.js): leave now, or do a job now
 // leave for tg ('light' or 'fold') from wherever the ship is at this place, as the end of a stay does (a turn toward it for light speed, or
-// straight on while the drive spools up for a fold). False while it cannot yet: on its way somewhere, or Pip still coming home (hurried)
+// straight on while the drive spools up for a fold). False while it cannot yet: on its way somewhere, or Pip still coming home (hurried; a
+// weapons test under way is cut short, and the cannon turns back into Pip at once)
 function leaveNow(tg, mode){
   if (S_.phase !== 'pass' && S_.phase !== 'loop' && S_.phase !== 'align') return false;
   if (S_.phase === 'align' && S_.next.tg === tg) return true;   // (on its way there already)
-  if (jobBusy()){ if (typeof drone.hurry === 'function') drone.hurry(1/60); return false; }
+  if (jobBusy() || pipOut()){ if (S_.act && S_.act.cut) S_.act.cut(); drone.hurry(); if (jobBusy() || pipOut()) return false; }
   if (S_.act){ if (S_.act.end) S_.act.end(); S_.act = null; }
   const e = S_.phase === 'pass' ? passAt(S_.plan, S_.t) : S_.phase === 'loop' ? loopAt(S_.loop, S_.t) : alignAt(S_.align, S_.t);
   S_.next = { tg, mode }; S_.stay.leave = true;
@@ -521,7 +523,7 @@ function jobNow(kind, now){
   if (kind === 'probe' || now || (kind !== 'skim' && S_.phase === 'pass' && S_.t < S_.plan.T*0.45)){
     const A = ACT[kind](S_.plan); A.pl = S_.plan; A.own = true; S_.jt = 0; S_.lastAct = kind;
     if (!A.done){ const T = ACTS[kind].T; A.done = () => S_.jt > T + 1.5; }
-    S_.act = A; return true;
+    S_.act = A; pipJoin(A); return true;
   }
   S_.stay.jobs.unshift(kind); S_.stay.jobAt = 0; return true;
 }
@@ -622,9 +624,10 @@ ship.update = function(dt){
   // (a pass ends in a loop to the next one, or, the stay over, in the turn toward the next stop)
   if (S_.phase === 'pass' && S_.t >= S_.plan.T){ const over = S_.t - S_.plan.T; if (S_.plan.last || S_.stay.leave) startAlign(); else startLoop(); S_.t = over; }
   if (S_.phase === 'loop' && S_.t >= S_.loop.T){ const over = S_.t - S_.loop.T; endLoop(); S_.t = over; }
-  // (nor while a job it is doing is still under way: Pip out of the bay). A fold's wind-up: the ship eases off as the drive spools up
+  // (nor while a job it is doing is still under way, nor while Pip is out of the bay: it heads home as the stay ends, pipWant). A fold's
+  // wind-up: the ship eases off as the drive spools up
   if (S_.phase === 'align'){
-    if (flying || jobBusy()) S_.jumpAt = Math.max(S_.jumpAt, S_.t + (S_.next.mode === 'fold' ? HALO.FOLD_SPOOL : HALO.LS_SPOOL));
+    if (flying || jobBusy() || pipOut()) S_.jumpAt = Math.max(S_.jumpAt, S_.t + (S_.next.mode === 'fold' ? HALO.FOLD_SPOOL : HALO.LS_SPOOL));
     else if (S_.next.mode === 'fold' && !S_.align.slow && S_.t >= S_.jumpAt - HALO.FOLD_SPOOL){ const t0 = S_.t - (S_.align.t0 || 0); S_.align.slow = { t0, t1:t0 + 3.5, k:0.45 }; }
     if (S_.t >= S_.jumpAt) startJump();
   }
@@ -673,17 +676,18 @@ const ACT = {};
 // (a job still under way that the ship must wait for before it leaves)
 const jobBusy = () => !!(S_.act && S_.act.done && !S_.act.done());
 // -- a sensor scan: the hologram sweep, in its own file (ACT.scan in 07j-scan.js)
-// -- a probe: Pip, the ship's little drone (07i-drone.js), pops out of the belly bay, says hello, flies to the body, hovers there taking
-// pictures while it looks at it, flies home and docks (it launches 0.3 s into the job and is back aboard 11.9 s later). The drone moves and
-// draws itself (drone.ctl after the camera moves, pipDraw from haloDraw); the job only keeps the time and says what is happening.
+// -- Pip's show: since 0.9.7 Pip, the ship's little drone (07i-drone.js), is out for most of every stay anyway; this job has it do two or three
+// of its outings in a row (a hull check, the engines, photos and a wave, play) while the cameras turn to it. It comes out for it if it is
+// not out yet. The drone moves and draws itself (drone.ctl after the camera moves, pipDraw from haloDraw); the job keeps the time, says what
+// Pip is doing and is done when the show is (or after a minute and a half whatever happens).
 ACT.probe = pl => {
-  const T = ACTS.probe.T, A = { kind:'probe', tau:-9, tg:pl.tg, pl, fin:false, len:T };
+  const T = ACTS.probe.T, A = { kind:'probe', tau:-9, tg:pl.tg, pl, fin:false };
   A.update = (dt, tau) => { A.tau = tau; };
-  A.env = () => env(A.tau, Math.max(T, A.len));
+  A.env = () => A.fin ? Math.max(0, 1 - (A.tau - A.finT)/2) : env(A.tau, T + 60);
   A.line = () => pipLine(A);
-  A.done = () => A.fin || A.tau > T + 60;
+  A.done = () => (A.fin && A.tau - A.finT > 1) || A.tau > T + 90;
   A.draw = () => {};
-  A.end = () => pipEnd(A);
+  A.end = () => {};
   return A;
 };
 // -- a weapons test (fictional): the fold cannon, in its own file (ACT.weapons in 07k-cannon.js)
@@ -1050,46 +1054,62 @@ function foldDraw(){
   S.embN = nE;
 }
 
-// ---------------------------------------------------------------- the engines' exhaust (0.9.4, owner: from the distances people watch it from, the ship looked as if it was
-// not moving: the plume in its shader is a few pixels long there). Two streams of glowing points flow aft from the engines, about a character
-// and a half apart on screen, drawn relative to the ship: never shorter than a few characters on screen (a ship a few characters across still
-// leaves a short wake), longer and brighter the faster it goes against its pass's cruising speed (S_.thr), a long streak at light speed, and
-// bending a little toward the inside of a turn (S_.turnL). Hidden behind the hull and the body, gone with the engines' cells in a fold and
-// faded with the ship's glint far away. At most 2 x TH_N points and 2 lines.
-const TH_N = 22, THP = [0, 0, 0], THQ = [0, 0, 0], THR = [0, 0, 0];
+// ---------------------------------------------------------------- the engines' drive (0.9.7, owner: the 0.9.4 trail of glowing points looked like water; "fold ripples", chosen
+// from three looks). Each engine has a short white-blue core, and small rings of bent space pulse out of its nozzle and slide aft, shrinking
+// and fading: the drive nudges space itself. It stays short (about a tenth of the ship, never under a few characters on screen, so a ship a
+// few characters across still shows it is moving), the rings come quicker and slide further the harder the engines work (S_.thr) and stream
+// at light speed. A bright arc runs round each ring (bent light), and the wake bends a little into turns (S_.turnL). Hidden behind the hull
+// and the body, gone with its engine's cell in a fold and faded with the ship's glint far away. At most 2 x (TH_RN rings + a core).
+const TH_RN = 7, THP = [0, 0, 0], THQ = [0, 0, 0], THR = [0, 0, 0], THC = [0, 0, 0];
 function thrustDraw(){
   const S = S_, rpx = ship.rpx || 0, thr = Math.min(S.thr, 1.3), ls = S.phase === 'light';
   if (S.phase === 'fold' || S.scale < 0.5 || !(rpx > 0.6) || !(thr > 0.03)) return;
   const rel = ship.rel, dist = V.len(rel); if (!(dist > 0) || V.dot(rel, cam.fwd) < -ship.rad*2) return;
-  const R = ship.R0, tg = ship.parent, sR = tg ? surfDrawn(tg) : 0, tl = S.turnL, vis = ship.farLum/0.7;
-  const occ = p => behindHull(p) || (sR > 0 && behindSphere(p, tg.rel, sR*0.998));
+  const R = ship.R0, tg = ship.parent, sR = tg ? surfDrawn(tg) : 0, tl = S.turnL, vis = ship.farLum/0.7, s_ = ship.rad;
+  const occ = p => V.dot(p, cam.fwd) < s_*0.2 || behindHull(p) || (sR > 0 && behindSphere(p, tg.rel, sR*0.998));
+  // (the ring's plane: the ship's x and z axes, world)
+  const ax = [R[0], R[1], R[2]], az = [R[6], R[7], R[8]];
   for (let e=0;e<2;e++){
     const sd = e ? 1 : -1, nx = -0.04, ny = -0.86, nz = 0.287*sd;
-    if (S.dm !== 0 && !liveCell(ny, nz)) continue;   // (in a fold the exhaust goes and comes back with its engine)
+    if (S.dm !== 0 && !liveCell(ny, nz)) continue;   // (in a fold the drive goes and comes back with its engine)
     toShip(THP, nx, ny, nz);
-    // (one character on screen at the nozzle, and how much of the trail's length the camera sees: none end-on)
+    // (one character on screen at the nozzle, and how much of the wake's length the camera sees: none end-on)
     const d0 = V.len(THP), cw = d0*4*tanY/Math.max(sceneH, 2), ca = -(R[3]*THP[0] + R[4]*THP[1] + R[5]*THP[2])/d0, fs = Math.max(Math.sqrt(Math.max(1 - ca*ca, 0)), 0.3);
-    // its length (ship radii): a share of the ship at the least, and never under Lc characters on screen; the points about 1.5 characters apart
-    const Lc = ls ? 16 : 3.5 + 6*thr, L0 = ls ? 1.6 : 0.3 + 0.45*thr, Ls = Math.min(Math.max(L0, Lc*cw/fs/ship.rad), 40);
-    const N = clamp(Math.round(Ls*ship.rad*fs/cw/1.5), 3, TH_N), fr = GT*(reduceMotion ? 0.8 : 4 + 6*thr)/1.5, ph = (fr % 1 + 1) % 1, id0 = Math.floor(fr);
-    const B = (1.1 + 1.0*thr)*vis*(ls ? 1.3 : 1), bx = tl[0]*0.35*Ls, bz = tl[2]*0.35*Ls;
-    let pv = false;
-    for (let j=0;j<N;j++){
-      const s = (j + ph)/N, s2 = s*s;
-      // (the plume spreads as it goes: each grain drifts a little to one side, the same grain the same way as it flows aft)
-      const id = id0 - j, sx = (foldHash(id, e*7 + 1) - 0.5)*0.16*Ls*s, sz = (foldHash(id, e*7 + 2) - 0.5)*0.16*Ls*s;
-      toShip(THQ, nx + bx*s2 + sx, ny - Ls*s, nz + bz*s2 + sz);
-      const v = !(V.dot(THQ, cam.fwd) < ship.rad*0.2 || occ(THQ));
-      // (each a glowing point, white at the nozzle, ice blue, then deep blue; in the first half a faint streak joins it to the one before, so
-      // the stream reads as flowing)
-      const fk = reduceMotion ? 1 : 0.8 + 0.2*Math.sin(GT*31 + id*2.3 + sd), b = B*Math.pow(1 - s, 1.2)*fk*smooth(0, 0.06, s);
-      if (s < 0.3) mix3(ECOL, WHITE, ICE_, s/0.3); else mix3(ECOL, ICE_, DEEP_, (s - 0.3)/0.7);
-      if (v){ P_(THQ, ECOL, b, s < 0.35 ? -3 : -2); if (pv && s < 0.55) L_(THR, THQ, ECOL, 0.12*b, DEEP_, 0.04*b); }
-      THR[0] = THQ[0]; THR[1] = THQ[1]; THR[2] = THQ[2]; pv = v;
+    // the wake's length (ship radii): 0.1 to 0.2 of the ship's radius, never under Lc characters on screen; a ring's radius, never under
+    // about two thirds of a character, so far away each ring is a pulse of light sliding aft
+    const Lc = ls ? 6 : 2.4 + 1.4*thr, L0 = ls ? 0.5 : 0.09 + 0.1*thr, Ls = Math.min(Math.max(L0, Lc*cw/fs/s_), 5);
+    const r0 = Math.max(0.03, 0.7*cw/s_), rc = r0*s_/cw, n = rc < 1.1 ? 6 : rc < 2.5 ? 10 : 16;
+    const B = (0.8 + 0.7*thr)*vis*(ls ? 1.25 : 1), bx = tl[0]*0.35*Ls, bz = tl[2]*0.35*Ls;
+    // (a ring every P s, each living LIFE s: about three at once cruising, a stream of them at light speed)
+    const P = reduceMotion ? 0.7 : ls ? 0.1 : 0.42/(0.55 + 0.6*Math.min(thr, 1)), LIFE = reduceMotion ? 1.4 : ls ? 0.5 : 3*P + 0.1;
+    const cyc = GT/P, id0 = Math.floor(cyc), fr = cyc - id0, m = Math.min(Math.ceil(LIFE/P), TH_RN);
+    for (let k=0;k<m;k++){
+      const age = (fr + k)*P, u = age/LIFE; if (u >= 1) continue;
+      // (pushed off fast, then drifting; growing a little as it leaves, then shrinking away)
+      const s = 1 - Math.pow(1 - u, 1.7), rr = r0*(1 + 0.35*smooth(0, 0.15, u) - 0.8*u), id = id0 - k;
+      const b = B*Math.pow(1 - u, 1.3)*smooth(0, 0.08, u), ph = foldHash(id, e*7 + 3)*6.2832 + (reduceMotion ? 0 : GT*(4 + 3*thr))*(e ? 1 : -1);
+      if (b < 0.01) continue;
+      if (u < 0.3) mix3(ECOL, WHITE, ICE_, u/0.3); else mix3(ECOL, ICE_, DEEP_, (u - 0.3)/0.7);
+      toShip(THC, nx + bx*s*s, ny - Ls*s, nz + bz*s*s);
+      let pv = false;
+      for (let j=0;j<=n;j++){
+        const a = j/n*6.2832, c = Math.cos(a)*rr*s_, sn = Math.sin(a)*rr*s_;
+        THQ[0] = THC[0] + ax[0]*c + az[0]*sn; THQ[1] = THC[1] + ax[1]*c + az[1]*sn; THQ[2] = THC[2] + ax[2]*c + az[2]*sn;
+        const v = !occ(THQ);
+        // (bent light: a bright arc runs round each ring, two on the rings just born)
+        const arc = Math.pow(0.5 + 0.5*Math.cos((u < 0.25 ? 2 : 1)*(a - ph)), 3), bb = b*(0.18 + 0.5*arc);
+        if (v && pv) L_(THR, THQ, ECOL, bb);
+        THR[0] = THQ[0]; THR[1] = THQ[1]; THR[2] = THQ[2]; pv = v;
+      }
+      // (a small ring far away is a pulse: a point at its middle carries it)
+      if (rc < 1.6 && !occ(THC)) P_(THC, ECOL, 0.7*b, u < 0.3 ? -3 : -2);
     }
-    // the plume's core: a short line out of the nozzle (at light speed, a streak its whole length)
-    const k = ls ? 1 : 0.25; toShip(THR, nx + bx*k*k, ny - Ls*k, nz + bz*k*k);
-    if (!occ(THP) && V.dot(THP, cam.fwd) > ship.rad*0.2 && V.dot(THR, cam.fwd) > ship.rad*0.2) L_(THP, THR, WHITE, B*(ls ? 0.3 : 0.18), ls ? DEEP_ : ICE_, 0);
+    // the core: a bright point in the nozzle and a short line out of it (at light speed, a streak half the wake)
+    if (!occ(THP)){
+      P_(THP, WHITE, 1.1*B, -3);
+      const k = ls ? 0.55 : Math.min(0.35, Math.max(0.04/Ls, 1.4*cw/fs/s_/Ls)); toShip(THR, nx + bx*k*k, ny - Ls*k, nz + bz*k*k);
+      if (!occ(THR)) L_(THP, THR, WHITE, B*(ls ? 0.35 : 0.3), ICE_, B*0.05);
+    }
   }
 }
 
@@ -1165,7 +1185,9 @@ function haloReadout(){
   // at most three lines. Under a strong pull the shield's power and the pull take the second line (the shield is made up, the pull is real);
   // the third is the job's own second line when it has one (a weapons test says nothing is harmed), otherwise, with no job line showing,
   // the real escape speed there
-  const L = l.split('\n'), made = `the Halo is made up · ~4.2 km from needle to engines · visit ${S.visits}`, pw = shieldPower();
+  // (Pip out and about, with no job line of its own: what it is doing, on the second line)
+  const L = l.split('\n'), made = `the Halo is made up · ~4.2 km from needle to engines · visit ${S.visits}`, pw = shieldPower(), ps = !S.act || S.act.kind !== 'probe' ? pipSay() : '';
+  if (ps && !L[1]) L[1] = ps;
   if (!(pw > 0.12)) return [L[0], L[1], made].filter(Boolean).join('\n');
   const g = S.gTg, nm = g.label && g.label.length < g.name.length && !/^the /.test(g.name) ? g.label : g.name, job = S.phase === 'pass' && !!S.act;
   // (SGR 1806-20's mass is not measured: its escape speed is for a typical neutron star, so it is not called real)

@@ -9,7 +9,9 @@ if (LAB.on){
   window.__freeze = true;   // (the site's own frame loop stands aside)
   const PLACES = [['saturn', 'Saturn'], ['jupiter', 'Jupiter'], ['earth', 'Earth'], ['mars', 'Mars'], ['sgra', 'Sgr A*'], ['crab', 'Crab Nebula']];
   const SPEEDS = [0.1, 0.25, 0.5, 1, 2];
-  const CAMS = [['side', 'side'], ['top', 'top'], ['aim', 'aim'], ['chase', 'chase'], ['bridge', 'bridge'], ['orbit', 'drag']];
+  const CAMS = [['side', 'side'], ['top', 'top'], ['aim', 'aim'], ['engine', 'engines'], ['pip', 'Pip'], ['chase', 'chase'], ['bridge', 'bridge'], ['orbit', 'drag']];
+  // (Pip's bits, to watch one now: 07i-drone.js)
+  const BITS = [['peek', 'peekaboo'], ['buddy', 'beside you'], ['bow', 'bow'], ['heart', 'heart'], ['mote', 'spark'], ['twirl', 'twirl'], ['photo', 'photo'], ['play', 'play'], ['hull', 'hull'], ['engine', 'engine']];
   // a fixed camera round the parked ship, in its own frame (as the showcase's turn): elevation and bearing in degrees, distance in ship radii
   function pose(el, phi, dist){
     const D = Math.PI/180, e = el*D, f = phi*D, dir = [-Math.sin(e), -Math.cos(e)*Math.cos(f), Math.cos(e)*Math.sin(f)];
@@ -20,10 +22,21 @@ if (LAB.on){
   function aimPose(){
     const g = FX.find(e => e.kind === 'gun'), tg = S_.park ? S_.park.tg : S_.target;
     let a = g ? g.ax : tg ? M3.applyT(ship.R0, V.norm(V.sub(tg.rel, ship.rel))) : [1, 0, 0];
-    const c = g ? gunMid(g) : GUN_C;
+    const c = g ? V.add(GUN_C, V.mul(g.ax, 0.2)) : GUN_C;
     let up = perpTo([-1, 0, 0], a); up = V.len(up) > 0.2 ? V.norm(up) : V.norm(perpTo([0, 1, 0], a));
     const sd = V.cross(a, up), k = Math.max(1, 0.62/tanX);
-    return { eye:V.add(c, V.add(V.mul(a, -2.4*k), V.add(V.mul(up, 0.75*k), V.mul(sd, 0.55*k)))), look:V.add(c, V.mul(a, 2.5)), up };
+    return { eye:V.add(c, V.add(V.mul(a, -1.5*k), V.add(V.mul(up, 0.6*k), V.mul(sd, 1.25*k)))), look:V.add(c, V.add(V.mul(a, 1.0), V.mul(sd, -0.35))), up };
+  }
+  // 'engines': close by the right engine, from behind, above and to the side, so its drive's rings show sliding aft
+  function enginePose(){
+    const k = Math.max(1, 0.62/tanX), look = [-0.04, -0.95, 0.2], eye = V.add(look, V.mul([-0.3, -0.55, 0.55], k)), d = V.norm(V.sub(look, eye));
+    return { eye, look, up:V.norm(perpTo([-1, 0, 0], d)) };
+  }
+  // 'Pip': the ride camera's close-up of Pip (pipShotPose, 07i-drone.js), in the ship's frame, every frame; the chase pose while it is aboard
+  function pipTurn(){
+    if (!PIP.anc || PIP.st !== 'out') return pose(24, 55, 2.1);
+    const R = ship.R0, r = ship.rad, p = pipShotPose(1, rideFrame(0));
+    return { eye:V.mul(M3.applyT(R, p.eye), 1/r), look:V.mul(M3.applyT(R, p.look), 1/r), up:M3.applyT(R, p.up) };
   }
   function setCam(c){
     LAB.cam = c;
@@ -33,7 +46,7 @@ if (LAB.on){
       shipCam.pending = false;
       if (c === 'chase') shipCam.mode = 'chase';
       else if (c === 'bridge') shipCam.mode = 'cockpit';
-      else { shipCam.mode = 'turn'; shipCam.turn = c === 'top' ? pose(89.5, 90, 1.9) : c === 'aim' ? aimPose() : pose(24, 55, 2.1); }
+      else { shipCam.mode = 'turn'; shipCam.turn = c === 'top' ? pose(89.5, 90, 1.9) : c === 'aim' ? aimPose() : c === 'engine' ? enginePose() : c === 'pip' ? pipTurn() : pose(24, 55, 2.1); }
       updateModeUI();
     }
     sync();
@@ -73,6 +86,7 @@ if (LAB.on){
       row('place', PLACES, 'place') + row('camera', CAMS, 'cam') +
       row('speed', [['pause', 'pause'], ...SPEEDS.map(s => [s, s + 'x']), ['step', 'step']], 'speed') +
       row('do', [['fold', 'teleport'], ['probe', 'Pip'], ['scan', 'scan'], ['weapons', 'weapons']], 'act') +
+      row('Pip does', BITS, 'bit') +
       row('Pip face', [...Object.keys(FACES), 'wink', 'off'].map(f => [f, f]), 'face') +
       `<div class="lab-row"><span>shield</span><div class="lab-load"><input type="range" min="0" max="100" value="0" aria-label="shield load"><button type="button" data-load="auto">real</button><em></em></div></div>` +
       `<p class="lab-note">space pause · . step · T teleport · P Pip · S scan · W weapons</p>`;
@@ -83,6 +97,7 @@ if (LAB.on){
       else if (b.dataset.speed){ const v = b.dataset.speed; if (v === 'pause') LAB.paused = !LAB.paused; else if (v === 'step'){ LAB.paused = true; LAB.step = 1/30; } else { LAB.speed = +v; LAB.paused = false; } }
       else if (b.dataset.act) press(b.dataset.act);
       else if (b.dataset.face) face(b.dataset.face);
+      else if (b.dataset.bit){ if (LAB.face) face('off'); ship.dbg.drone.bit(b.dataset.bit); }
       else if (b.dataset.load){ LAB.load = null; S_.labLoad = null; el.querySelector('input').value = 0; }
       sync();
     });
@@ -116,6 +131,7 @@ if (LAB.on){
     do { const d = Math.min(dt, 0.05); tick(d); dt -= d; } while (dt > 1e-9);
     if (S_.visits !== LAB.visits){ LAB.visits = S_.visits; keep(); }
     if (LAB.cam === 'aim' && shipCam.on && shipCam.mode === 'turn') shipCam.turn = aimPose();
+    if (LAB.cam === 'pip' && shipCam.on && shipCam.mode === 'turn') shipCam.turn = pipTurn();
     SHOWCAP.txt = (ship.readout ? ship.readout().split('\n')[0] : '') + (LAB.paused ? ' · paused' : LAB.speed !== 1 ? ` · ${LAB.speed}x` : '');
     render(); updateHUD(dtR); updateCaption(dtR);
   }

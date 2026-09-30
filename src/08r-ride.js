@@ -15,7 +15,7 @@
 // (chasePose in 08-camera.js): there is nothing to show there but the streaks and the fold, which are made for that view.
 // Dice: rideR, its own generator (never hrnd, which steers the Halo's route, nor rnd, which gives every visitor the same numbers).
 const RIDE_LAB = !!window.__LAB || new URLSearchParams(location.search).has('lab');   // (the lab keeps the plain chase camera: its stills must repeat)
-const RIDE = { F:null, par:null, shot:null, from:null, t:0, tr:0, trT:4, wc:1, visits:-1, job:null, last:[], queue:[], epic:false, name:'' };
+const RIDE = { F:null, par:null, shot:null, from:null, t:0, tr:0, trT:4, wc:1, visits:-1, job:null, last:[], queue:[], epic:false, name:'', pip:null, pk:0 };
 let rideR = (() => { let s = (Math.random()*4294967296) >>> 0; return () => { s = (s*1664525 + 1013904223) >>> 0; return s/4294967296; }; })();
 const DEGR = Math.PI/180;
 // a shot: a (where it starts) and z (where it ends, T seconds later). e: how far past the body's edge the camera tips, in degrees (the tilt
@@ -43,7 +43,7 @@ const SHOTS = {
 };
 // a job's own shot, from the side it is done on: the scan's ring and beams across the view, the cannon ahead of the needle and its shots
 // toward the body, the skim low over the surface. (Pip's outing lasts half a minute: the shots go on round it, only the close ones, NEAR)
-const JOB_SHOT = { scan:{ e:8, g:92, d:4.4 }, weapons:{ e:6, g:70, d:4.8 }, skim:{ e:18, g:80, d:3.6 } };
+const JOB_SHOT = { scan:{ e:8, g:92, d:4.4 }, weapons:{ e:6, g:74, d:4.0 }, skim:{ e:18, g:80, d:3.6 } };
 const NEAR = new Set(['shoulder', 'side', 'front', 'low', 'orbit', 'sweep', 'grazing']);
 const MOVING = ['shoulder', 'side', 'front', 'high', 'low', 'wide', 'orbit'], EPIC = ['sweep', 'grazing', 'crane', 'charge', 'reveal', 'wide', 'orbit', 'front', 'low'];
 const rideOn = () => !RIDE_LAB;
@@ -83,12 +83,14 @@ function startShot(name, job){
   RIDE.name = RIDE.shot.name;
   if (!job && name !== 'still'){ RIDE.last.push(name); if (RIDE.last.length > 3) RIDE.last.shift(); }
 }
-// the next shot: the Halo tour's program for a new place first (a pull-back to show it, then back in), then one at random, never one of the last three
+// the next shot: the Halo tour's program for a new place first (a pull-back to show it, then back in), then one at random, never one of the last three.
+// (0.9.7: now and then, while Pip is out, a close-up of Pip over it for 8 to 12 s, most of the time during Pip's show: pipShotPose, 07i-drone.js)
 function nextShot(){
   if (rideStill()) return startShot('still');
   if (RIDE.queue.length) return startShot(RIDE.queue.shift());
   const pip = S_.act && S_.act.kind === 'probe', L = (RIDE.epic ? EPIC : MOVING).filter(n => !RIDE.last.includes(n) && (!pip || NEAR.has(n)));
   startShot(L[Math.floor(rideR()*L.length)]);
+  if (!RIDE.pip && pipShotOk() && rideR() < (pip ? 0.85 : 0.4)){ RIDE.pip = { t:0, T:8 + 4*rideR(), sd:rideR() < 0.5 ? -1 : 1 }; RIDE.shot.T = Math.max(RIDE.shot.T, RIDE.pip.T + 2); }
 }
 // once a tick while riding along, before the pose is read (updateShipCam): the frame, the blend into the chase pose, the shot's clock
 function rideStep(dt){
@@ -102,6 +104,9 @@ function rideStep(dt){
   if (want === 1 && RIDE.wc > 0.985) RIDE.wc = 1; if (want === 0 && RIDE.wc < 0.01) RIDE.wc = 0;
   // a new place: its first shot starts once the chase pose has handed over (the Halo tour's pull-back and push-in first)
   if (S.visits !== RIDE.visits && ph !== 'light' && ph !== 'fold'){ RIDE.visits = S.visits; RIDE.queue = RIDE.epic && !rideStill() ? ['reveal', 'pushin'] : []; RIDE.shot = null; }
+  // (Pip's close-up eases in over about a second and out again when it is over or no longer suits what Pip does)
+  if (RIDE.pip){ RIDE.pip.t += dt; if (RIDE.pip.t > RIDE.pip.T || !pipShotOk() || RIDE.job || rideStill() || RIDE.wc > 0.5) RIDE.pip = null; }
+  RIDE.pk += ((RIDE.pip ? 1 : 0) - RIDE.pk)*(dt > 0 ? 1 - Math.exp(-dt/0.9) : 1); if (!RIDE.pip && RIDE.pk < 0.005) RIDE.pk = 0;
   if (!RIDE.shot){ if (RIDE.wc < 1) nextShot(); return; }
   if (RIDE.wc >= 1) return;   // (the shot waits while the chase pose has the camera)
   RIDE.t += dt; RIDE.tr += dt;
@@ -131,18 +136,22 @@ function shotPose(p){
   const eye = V.mul(o, d*r);
   return { eye, look:V.add(eye, V.mul(fwd, d*r)), fwd, up };
 }
-// the pose riding along: the shot, blended into the chase pose between places
-function ridePose(){
-  const C = chasePose(); if (!rideOn() || RIDE.wc >= 1 || !S_.target) return C;
-  const P = shotPose(shotP()); if (RIDE.wc <= 0) return P;
-  const w = RIDE.wc, dP = V.len(P.eye), dC = V.len(C.eye), dist = Math.exp(Math.log(dP) + (Math.log(dC) - Math.log(dP))*w);
+// the pose riding along: the shot (with Pip's close-up blended over it), blended into the chase pose between places
+function blendPose(P, C, w){
+  const dP = V.len(P.eye), dC = V.len(C.eye), dist = Math.exp(Math.log(dP) + (Math.log(dC) - Math.log(dP))*w);
   const eye = V.mul(slerpDir(V.mul(P.eye, 1/dP), V.mul(C.eye, 1/dC), w), dist), fwd = slerpDir(P.fwd, C.fwd, w), up = V.norm(V.lerp(P.up, C.up, w));
   return { eye, look:V.add(eye, V.mul(fwd, dist)), fwd, up };
+}
+function ridePose(){
+  const C = chasePose(); if (!rideOn() || RIDE.wc >= 1 || !S_.target) return C;
+  let P = shotPose(shotP());
+  if (RIDE.pk > 0 && PIP.anc) P = blendPose(P, pipShotPose(RIDE.pip ? RIDE.pip.sd : 1, RIDE.F || rideFrame(0)), smooth(0, 1, RIDE.pk));
+  return RIDE.wc <= 0 ? P : blendPose(P, C, RIDE.wc);
 }
 // how far the camera may be from the ship right now (tests: a camera that lost the ship would be far beyond this)
 function rideReach(){ const P = RIDE.shot ? Math.max(RIDE.shot.a.d, RIDE.shot.z.d, RIDE.from ? RIDE.from.d : 0) : 0; return Math.max(P*shipCam.zoom*Math.max(1, 0.62/tanX), V.len(SHIP_POSE.chase.eye)*shipCam.zoom)*ship.rad; }
 // riding starts: the first shot is made now, so the flight up to the ship lands on it
-function rideStart(){ RIDE.shot = null; RIDE.from = null; RIDE.job = null; RIDE.last.length = 0; RIDE.queue = []; RIDE.visits = S_.visits; RIDE.F = null; rideFrame(0);
+function rideStart(){ RIDE.shot = null; RIDE.from = null; RIDE.job = null; RIDE.last.length = 0; RIDE.queue = []; RIDE.visits = S_.visits; RIDE.F = null; RIDE.pip = null; RIDE.pk = 0; rideFrame(0);
   const between = S_.phase === 'light' || S_.phase === 'fold' || S_.fk > -90 || S_.asm < FLK.A1 + 0.3; RIDE.wc = between ? 1 : 0;
   if (!between) startShot(rideStill() ? 'still' : 'shoulder');
   // (the Halo tour: a moment after landing, the pull-back that shows the place, and back in)
