@@ -136,9 +136,10 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .caption.done span::after{content:""}
 @keyframes blink{50%{opacity:0}}
 
-/* ---- controls, top right */
+/* ---- controls, top right. The bar leaves 400 px on its left for the logo and the info panel (440 before 0.9.7: the top row sits above the
+   panel, and the Halo tour switch needed the room to keep the top row on one line at 1280 px) */
 .controls{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));top:calc(14px + env(safe-area-inset-top,0px));
-  display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:center;max-width:calc(100vw - 440px);z-index:6}
+  display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:center;max-width:calc(100vw - 400px);z-index:6}
 .btn{font-size:calc(11.5px*var(--ts));color:var(--dim);background:var(--panel);border:1px solid var(--line);border-radius:3px;
   padding:6px 10px;cursor:pointer;letter-spacing:.03em;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);white-space:nowrap}
 .btn:hover{color:var(--ink);border-color:rgba(200,215,245,.45)}
@@ -168,27 +169,36 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .topr > *{pointer-events:auto}
 #btnRide{color:var(--ship)}
 #btnRide.following{color:var(--void);background:var(--ship);border-color:var(--ship)}
-/* the Halo's buttons (ship, ride) sit on the lower row beside play (0.9.7: the halo switch made the top row too wide at 1280 px); riding
+/* the Halo's buttons (ship, ride) sit on the lower row beside play (0.9.7: the Halo tour switch made the top row too wide at 1280 px); riding
    along, the camera switch (moving / still) joins them, on their left so ride stays put */
 .controls #rideCamSeg,.controls #btnShip,.controls #btnRide{order:9;margin-top:-6px}
 #rideCamSeg[hidden],.ht-note[hidden]{display:none}
 #rideCamSeg button[aria-checked="true"]{color:var(--ship)}
-/* tours, split (0.9.7, owner): "▸ tours" opens the list; the halo switch beside it ("☾ halo ○──", on "☾ halo ──●") flies the tour with the
-   Halo. Tinted Halo blue even when off, so it stands apart from tours; lit and glowing while the Halo tour plays */
-.tours-split{display:inline-flex;align-items:stretch;flex:none}
-.tours-split #btnTours{border-top-right-radius:0;border-bottom-right-radius:0}
-.tours-split #btnTours::before{content:attr(data-ico);margin-right:5px}
-.halo-sw{display:inline-flex;align-items:center;gap:6px;margin-left:-1px;padding:6px 8px 6px 9px;border-top-left-radius:0;border-bottom-left-radius:0;
-  color:var(--ship);background:rgba(34,92,114,.55);border-color:rgba(143,230,255,.42);transition:background .25s,box-shadow .25s,color .25s}
-.halo-sw .hs-k{display:inline-block;width:3ch;text-align:center;letter-spacing:-.06em;font-size:1.12em;line-height:1;opacity:.8}
-.halo-sw .hs-k::before{content:"\25CB\2500\2500"}
-.halo-sw[aria-checked="true"] .hs-k::before{content:"\2500\2500\25CF"}
-.halo-sw:hover{color:#dcf8ff;background:rgba(52,128,156,.6);border-color:rgba(143,230,255,.7)}
-.halo-sw[aria-checked="true"]{color:var(--void);background:var(--ship);border-color:var(--ship);box-shadow:0 0 12px rgba(143,230,255,.55),0 0 3px rgba(143,230,255,.8)}
-.halo-sw[aria-checked="true"] .hs-k{opacity:1}
-.halo-sw[aria-checked="true"]:hover{background:#b4efff}
-body.showcase .halo-sw{display:none}   /* (the showcase scripts the ship's route itself) */
-body.showcase .tours-split #btnTours{border-radius:3px}
+/* tours, and right of it the Halo tour switch (0.9.7, owner review: "a typical toggle"): the words "Halo tour" and a pill switch, like a phone
+   setting. Off: a grey track, the knob on the left. On: the track glows Halo blue, the knob on the right. The whole control is one button
+   (role switch: a click, Space or Enter flips it). .hsw-t is the track and its ::before the knob; the ship menu and the list of tours use them too */
+.tours-pair{display:inline-flex;align-items:stretch;gap:4px;flex:none}
+#btnTours::before{content:attr(data-ico);margin-right:5px}
+.hsw{display:inline-flex;align-items:center;gap:7px;padding-top:0;padding-bottom:0;padding-right:6px;padding-left:9px;letter-spacing:0}
+/* (34 x 18 px at the default text size, and it grows with the text; the knob is 12 px, 2 px in from the track's inside edge) */
+.hsw-t{position:relative;flex:none;box-sizing:border-box;width:calc(34px*var(--ts));height:calc(18px*var(--ts));border-radius:999px;background:#343b4e;border:1px solid rgba(195,203,224,.3);
+  transition:background .2s,border-color .2s,box-shadow .2s}
+.hsw-t::before{content:"";position:absolute;top:50%;left:calc(2px*var(--ts));width:calc(12px*var(--ts));height:calc(12px*var(--ts));margin-top:calc(-6px*var(--ts));border-radius:50%;
+  background:#c9d1e2;box-shadow:0 1px 2px rgba(0,0,0,.6);transition:transform .2s cubic-bezier(.3,.7,.4,1),background .2s}
+[aria-checked="true"] > .hsw-t{background:var(--ship);border-color:var(--ship);box-shadow:0 0 9px rgba(143,230,255,.6),0 0 2px rgba(143,230,255,.9)}
+[aria-checked="true"] > .hsw-t::before{transform:translateX(calc(18px*var(--ts) - 2px));background:var(--void);box-shadow:none}
+.hsw[aria-checked="true"]{color:var(--ship);border-color:rgba(143,230,255,.55)}
+/* (hover: the words and the border brighten (.btn:hover), the track too and the knob turns white; not on a touch screen, where it would stick after a tap) */
+@media (hover:hover){
+  :hover > .hsw-t{background:#444d65;border-color:rgba(195,203,224,.5)}
+  :hover > .hsw-t::before{background:#fff}
+  [aria-checked="true"]:hover > .hsw-t{background:#b4efff;border-color:#b4efff;box-shadow:0 0 13px rgba(143,230,255,.75),0 0 3px rgba(143,230,255,1)}
+  [aria-checked="true"]:hover > .hsw-t::before{background:var(--void)}
+  .hsw[aria-checked="true"]:hover{color:#c8f4ff;border-color:rgba(143,230,255,.8)}
+}
+@media (prefers-reduced-motion:reduce){ .hsw-t,.hsw-t::before{transition:none} }
+#toursHaloSw{display:none}   /* (a phone's, at the top of the list of tours) */
+body.showcase .hsw{display:none}   /* (the showcase scripts the ship's route itself) */
 /* the list of tours says so while the Halo flies them */
 #tours .ht-note{display:block;margin:0;padding:7px 12px;color:var(--ship);font-size:calc(11px*var(--ts));background:rgba(143,230,255,.07);border-bottom:1px solid rgba(143,230,255,.22)}
 /* the flash when the Halo folds space with you aboard */
@@ -540,6 +550,11 @@ body.showcase .strip{padding-bottom:calc(124px + env(safe-area-inset-bottom,0px)
 .sm-row button small{color:var(--faint);font-size:calc(10px*var(--ts));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .sm-row button[aria-checked="true"]{color:var(--void);background:var(--ship);border-color:var(--ship)}
 .sm-row button[aria-checked="true"] small{color:rgba(4,5,10,.7)}
+/* its Halo tour item is a switch like the desk's (0.9.7, owner review): the words on the left, the pill on the right; on, the pill and the border light up */
+.sm-row button.sm-sw{flex-direction:row;justify-content:space-between;gap:10px;padding:6px 12px 6px 14px;text-align:left}
+.sm-st{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0}
+.sm-row button.sm-sw[aria-checked="true"]{color:var(--ink);background:rgba(143,230,255,.1);border-color:rgba(143,230,255,.55)}
+.sm-row button.sm-sw[aria-checked="true"] small{color:var(--ship)}
 #btnShip.following{color:var(--ship);background:rgba(143,230,255,.14)}
 .nogl{position:fixed;inset:0;display:grid;place-items:center;padding:16px;text-align:center;color:var(--soft)}
 
@@ -595,7 +610,7 @@ body.sky .info .acts,body.sky .ladder,body.sky .lad-chip,body.sky .progress{opac
 .st-name{margin-top:8px;color:var(--ink);font-size:calc(14px*var(--ts));font-weight:500}
 .st-text{margin-top:3px;color:var(--soft);font-size:calc(12px*var(--ts));min-height:3.4em;-webkit-user-select:text;user-select:text}
 
-@media (max-width:1100px){ .search input{width:170px} .controls{max-width:calc(100vw - 400px)} }
+@media (max-width:1100px){ .search input{width:170px} }
 /* ---- phones and small windows: a dock of big buttons at the bottom, the info as a card above it, the scale ladder behind a chip.
    --dock-h and --sheet-h are measured by src/09h-ui.js so captions, toasts and cards stack above them. */
 @media (max-width:680px), (max-height:520px) and (max-width:1000px){
@@ -617,11 +632,11 @@ body.sky .info .acts,body.sky .ladder,body.sky .lad-chip,body.sky .progress{opac
   .controls .btn[aria-expanded="true"]{background:var(--flare-bg);color:var(--flare)}
   .controls #btnSound{min-width:0}
   .controls #btnSound.silent{color:var(--mute);box-shadow:inset 0 0 0 1px rgba(255,128,118,.55)}
-  .controls #btnRide,.controls .halo-sw,.controls #rideCamSeg{display:none}
-  /* (tours is a dock button like the others: the halo switch stays on a desk, the ship menu has the Halo tour; ship stays in its place) */
-  .tours-split{display:contents}
-  .tours-split #btnTours{border-radius:10px}
-  .tours-split #btnTours::before{margin-right:0}
+  .controls #btnRide,.controls .hsw,.controls #rideCamSeg{display:none}
+  /* (tours is a dock button like the others: the Halo tour switch stays on a desk, the ship menu and the list of tours have it; ship stays in its place) */
+  .tours-pair{display:contents}
+  .controls #btnTours::before{margin-right:0}
+  body:not(.showcase) #toursHaloSw{display:inline-flex;min-height:32px}
   .controls #btnShip{order:0;margin-top:0}
   #btnShip[aria-pressed="true"]{background:rgba(143,230,255,.14);color:var(--ship)}
   #btnTours.touring{background:rgba(168,240,176,.1)}

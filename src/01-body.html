@@ -46,9 +46,9 @@
   </label>
   <button class="btn home" data-ico="&#8962;" id="btnHome" title="Home: fly back to Earth (H)" aria-label="Home: fly back to Earth (H)">home</button>
   <button class="btn primary" data-ico="&#8801;" id="btnAtlas" aria-expanded="false" aria-controls="atlas">atlas</button>
-  <!-- tours, and the Halo's switch beside it: on, the Halo flies the tour picked (the Halo tour); off, it roams on its own. On a phone only
-       the tours button shows (the ship menu has the Halo tour) -->
-  <div class="tours-split" role="group" aria-label="Tours"><button class="btn" data-ico="&#9656;" id="btnTours" aria-expanded="false" aria-controls="tours">tours</button><button class="btn halo-sw" id="btnHaloSw" role="switch" aria-checked="false" aria-label="Fly the tour with the Halo" title="Fly the tour with the Halo"><span class="hs-l">&#9790; halo</span><span class="hs-k" aria-hidden="true"></span></button></div>
+  <!-- tours, and right of it the Halo tour switch (the words and a pill switch, like a phone setting): on, the Halo flies the tour picked (the
+       Halo tour); off, it roams on its own. On a phone only the tours button shows (the ship menu and the list of tours have the switch) -->
+  <div class="tours-pair" role="group" aria-label="Tours"><button class="btn" data-ico="&#9656;" id="btnTours" aria-expanded="false" aria-controls="tours">tours</button><button class="btn hsw" id="btnHaloSw" role="switch" aria-checked="false" aria-label="Halo tour: fly the tour you pick with the Halo"><span class="hsw-l">Halo tour</span><span class="hsw-t" aria-hidden="true"></span></button></div>
   <button class="btn" data-ico="&#9719;" id="btnTime" aria-expanded="false" aria-controls="timem">time</button>
   <div class="seg mini" data-key="travel" role="radiogroup" aria-label="Travel speed" title="How fast you fly between objects (Y)"><span class="seg-l">travel</span><button data-v="cinematic" role="radio">slow</button><button data-v="quick" role="radio">quick</button><button data-v="warp" role="radio">warp</button></div>
   <!-- riding along: the camera moves between angles, or holds one (K); only while riding -->
@@ -64,7 +64,7 @@
 <div id="shipMenu" class="ship-menu" role="menu" aria-label="The Halo" hidden>
   <div class="sm-head">the Halo <span>a made-up ship</span></div>
   <div class="sm-row"><button role="menuitemradio" aria-checked="false" id="smChase"><b>ride along</b><small>and see where</small></button><button role="menuitemradio" aria-checked="false" id="smCock"><b>cockpit</b><small>on its bridge</small></button><button role="menuitem" id="smStop" hidden><b>stop riding</b><small>stay by it</small></button><button role="menuitemcheckbox" aria-checked="false" id="smMark"><b>marker</b><small>show it</small></button></div>
-  <div class="sm-row sm-row2"><button role="menuitemcheckbox" aria-checked="false" id="smTour"><b>halo tour</b><small>it flies a tour</small></button><button role="menuitemcheckbox" aria-checked="false" id="smStill" hidden><b>camera</b><small>moving</small></button></div>
+  <div class="sm-row sm-row2"><button role="menuitemcheckbox" aria-checked="false" id="smTour" class="sm-sw"><span class="sm-st"><b>Halo tour</b><small>it flies a tour</small></span><span class="hsw-t" aria-hidden="true"></span></button><button role="menuitemcheckbox" aria-checked="false" id="smStill" hidden><b>camera</b><small>moving</small></button></div>
 </div>
 
 <aside id="atlas" class="atlas" aria-label="Universe atlas" hidden>
@@ -102,8 +102,9 @@
 </aside>
 
 <aside id="tours" class="panel" aria-label="Tours" hidden>
-  <div class="panel-head"><span class="ptitle">tours</span><button class="btn" id="toursClose">close</button></div>
-  <!-- while the Halo tour plays (the halo switch on tours, or the ship menu on a phone), the tour picked here is flown by the Halo -->
+  <!-- (on a phone the Halo tour switch sits at the top of the list; on a desk it is right of the tours button) -->
+  <div class="panel-head"><span class="ptitle">tours</span><button class="btn hsw" id="toursHaloSw" role="switch" aria-checked="false" aria-label="Halo tour: fly the tour you pick with the Halo"><span class="hsw-l">Halo tour</span><span class="hsw-t" aria-hidden="true"></span></button><button class="btn" id="toursClose">close</button></div>
+  <!-- while the Halo tour plays (its switch right of tours, or on a phone the ship menu and the switch above), the tour picked here is flown by the Halo -->
   <div class="opt-note ht-note" id="htNote" hidden>&#9790; flown by the Halo · it flies the one you pick</div>
   <div class="opt tog"><button id="btnTour" aria-pressed="true">pause tour</button><button id="btnFree" aria-pressed="false">free camera</button></div>
   <div class="opt dwell-opt">
