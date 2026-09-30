@@ -51,7 +51,10 @@ body.info-compact .stopl:has(> .stopinfo.kind:not(:empty)){grid-template-columns
 .stopinfo{white-space:nowrap;min-width:0}
 .stopinfo.kind{overflow:hidden;text-overflow:ellipsis}
 .stopinfo:empty,body:not(.info-compact) .stopinfo.kind{display:none}
-.title{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;margin:4px 0 2px}
+/* the Halo tour (0.9.7): one small line in the Halo's blue over the place's name, what the ship is doing there or where it is going */
+.htline{margin-top:4px;color:var(--ship);font-size:calc(10.5px*var(--ts));letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.htline:not([hidden]) + .title{margin-top:1px}
+.title{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;margin:4px 0 0}
 .info h1{font-family:var(--mono);font-weight:500;font-size:calc(clamp(22px,3vw,30px)*var(--ts));line-height:1.15;margin:0;letter-spacing:0;text-wrap:balance;font-variant-ligatures:none}
 /* the green button beside the name says where it goes: "next stop · Moon ›", "start again ›", or (filled) "back to the tour · Earth ›" */
 .gonext{pointer-events:auto;flex:0 1 auto;min-width:0;max-width:100%;box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;min-height:26px;padding:2px 9px 2px 11px;
@@ -73,7 +76,8 @@ body.info-compact .stopl:has(> .stopinfo.kind:not(:empty)){grid-template-columns
 .scale{display:flex;align-items:center;gap:8px;margin-top:8px;color:var(--soft);font-size:calc(11px*var(--ts));font-variant-numeric:tabular-nums;white-space:nowrap;pointer-events:auto;cursor:help;width:max-content}
 .scale .rlab{color:var(--faint);letter-spacing:.1em;text-transform:uppercase;font-size:calc(10px*var(--ts))}
 .scale .bar{display:inline-block;height:5px;border:1px solid var(--soft);border-top:0;flex:none}
-.progress{margin-top:4px;color:var(--faint);font-size:calc(11px*var(--ts));white-space:pre;font-variant-numeric:tabular-nums;display:flex;align-items:center;min-height:1.5em}
+/* the angle line sits right under the name (owner, 0.9.7: at the bottom of the panel it looked cut off from it), so the two read as one header */
+.progress{margin-top:1px;color:var(--faint);font-size:calc(11px*var(--ts));white-space:pre;font-variant-numeric:tabular-nums;display:flex;align-items:center;min-height:1.5em}
 /* the angle arrows sit on the angle line, around the grey ASCII bar, and only while it shows */
 .progress .anav{display:none;width:26px;height:24px;margin:-4px 0;font-size:calc(15px*var(--ts));color:var(--soft);cursor:pointer}
 .progress .plab{flex:0 1 auto;min-width:0;overflow:hidden}   /* (with very big text the bar is cut short rather than pushing the arrow out of the card) */
@@ -106,19 +110,19 @@ body.info-hidden .info{display:none}
 .lad-chip{display:none}
 
 /* idle: after a few quiet seconds the interface fades, leaving the object's name; any touch, key or mouse move brings it back */
-.brand,.lad-chip,.play-m,.info-pill,.itools,.grip,.info .nav,.info .gonext,.info .stop,.info .title,.info .acts,.info .type,.info .where,.info .fact,.info .readout,.info .scale,.info .progress{transition:opacity .25s}
+.brand,.lad-chip,.play-m,.info-pill,.itools,.grip,.info .nav,.info .gonext,.info .stop,.info .title,.info .acts,.info .type,.info .where,.info .fact,.info .readout,.info .scale,.info .progress,.info .htline{transition:opacity .25s}
 body.ui-idle .controls,body.ui-idle .ladder,body.ui-idle .lad-chip,body.ui-idle .play-m,body.ui-idle .brand,body.ui-idle .info-pill,body.ui-idle .daily,body.ui-idle .shiparrow,body.ui-idle .backpill,
 body.ui-idle .itools,body.ui-idle .grip,body.ui-idle .info .nav,body.ui-idle .info .gonext,body.ui-idle .info .acts,body.ui-idle .info .type,body.ui-idle .info .where,body.ui-idle .info .fact,body.ui-idle .info .readout,body.ui-idle .info .scale{opacity:0!important;transition:opacity 1s ease-in}
 /* a faded button still works on the first tap (it also brings the interface back); a tap on the sky only brings it back (src/09h-ui.js).
    The scale bar's faded track is sky too: on a touch screen a tap there would otherwise fly to the nearest marker (tablets keep the desk layout) */
 @media (pointer:coarse){ body.ui-idle .lad-track,body.ui-idle .ladmark{pointer-events:none} }
-body.ui-idle .info .stop,body.ui-idle .info .title,body.ui-idle .info .progress{opacity:.5;transition:opacity 1s ease-in}
+body.ui-idle .info .stop,body.ui-idle .info .htline,body.ui-idle .info .title,body.ui-idle .info .progress{opacity:.5;transition:opacity 1s ease-in}
 body.ui-idle .info .progress.hintish,body.ui-idle .info .progress.tip{opacity:0}
 body.ui-idle .info::before{opacity:0;transition:opacity 1s}
 body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border-left-color:var(--flare);transition:background 1s,border-color 1s}
 
 /* info actions: share, compare */
-.acts{display:flex;gap:6px;margin:6px 0 2px}
+.acts{display:flex;gap:6px;margin:9px 0 2px}
 .act{pointer-events:auto;font-size:calc(10.5px*var(--ts));letter-spacing:.06em;color:var(--dim);background:rgba(5,7,14,.5);border:1px solid var(--line);border-radius:10px;padding:2px 9px;cursor:pointer}
 .act:hover{color:var(--flare);border-color:rgba(255,179,92,.5)}
 .act[aria-pressed="true"]{color:var(--flare);border-color:rgba(255,179,92,.6)}
@@ -164,14 +168,29 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .topr > *{pointer-events:auto}
 #btnRide{color:var(--ship)}
 #btnRide.following{color:var(--void);background:var(--ship);border-color:var(--ship)}
-/* the Halo tour (0.9.6): on the lower row beside play, lit while it plays; riding along, the camera switch (moving / still) joins the lower row */
-#btnHaloTour{color:var(--ship);border-color:rgba(143,230,255,.4)}
-#btnHaloTour[aria-pressed="true"]{color:var(--void);background:var(--ship);border-color:var(--ship)}
-.controls #rideCamSeg,.controls #btnHaloTour{order:9;margin-top:-6px}   /* (the lower row, beside play: the top row is full at 1280 px) */
+/* the Halo's buttons (ship, ride) sit on the lower row beside play (0.9.7: the halo switch made the top row too wide at 1280 px); riding
+   along, the camera switch (moving / still) joins them, on their left so ride stays put */
+.controls #rideCamSeg,.controls #btnShip,.controls #btnRide{order:9;margin-top:-6px}
 #rideCamSeg[hidden],.ht-note[hidden]{display:none}
-body.showcase #btnHaloTour{display:none}   /* (the showcase scripts the ship's route itself) */
 #rideCamSeg button[aria-checked="true"]{color:var(--ship)}
-.ht-note{color:var(--ship);padding:0 2px 8px}
+/* tours, split (0.9.7, owner): "▸ tours" opens the list; the halo switch beside it ("☾ halo ○──", on "☾ halo ──●") flies the tour with the
+   Halo. Tinted Halo blue even when off, so it stands apart from tours; lit and glowing while the Halo tour plays */
+.tours-split{display:inline-flex;align-items:stretch;flex:none}
+.tours-split #btnTours{border-top-right-radius:0;border-bottom-right-radius:0}
+.tours-split #btnTours::before{content:attr(data-ico);margin-right:5px}
+.halo-sw{display:inline-flex;align-items:center;gap:6px;margin-left:-1px;padding:6px 8px 6px 9px;border-top-left-radius:0;border-bottom-left-radius:0;
+  color:var(--ship);background:rgba(34,92,114,.55);border-color:rgba(143,230,255,.42);transition:background .25s,box-shadow .25s,color .25s}
+.halo-sw .hs-k{display:inline-block;width:3ch;text-align:center;letter-spacing:-.06em;font-size:1.12em;line-height:1;opacity:.8}
+.halo-sw .hs-k::before{content:"\25CB\2500\2500"}
+.halo-sw[aria-checked="true"] .hs-k::before{content:"\2500\2500\25CF"}
+.halo-sw:hover{color:#dcf8ff;background:rgba(52,128,156,.6);border-color:rgba(143,230,255,.7)}
+.halo-sw[aria-checked="true"]{color:var(--void);background:var(--ship);border-color:var(--ship);box-shadow:0 0 12px rgba(143,230,255,.55),0 0 3px rgba(143,230,255,.8)}
+.halo-sw[aria-checked="true"] .hs-k{opacity:1}
+.halo-sw[aria-checked="true"]:hover{background:#b4efff}
+body.showcase .halo-sw{display:none}   /* (the showcase scripts the ship's route itself) */
+body.showcase .tours-split #btnTours{border-radius:3px}
+/* the list of tours says so while the Halo flies them */
+#tours .ht-note{display:block;margin:0;padding:7px 12px;color:var(--ship);font-size:calc(11px*var(--ts));background:rgba(143,230,255,.07);border-bottom:1px solid rgba(143,230,255,.22)}
 /* the flash when the Halo folds space with you aboard */
 .fold-flash{position:fixed;inset:0;pointer-events:none;z-index:1;opacity:0;background:radial-gradient(ellipse at 50% 50%,rgba(235,250,255,.95) 0%,rgba(143,230,255,.55) 35%,rgba(20,40,70,.0) 80%)}
 .fold-flash.go{animation:foldFlash 1.1s ease-out}
@@ -598,7 +617,12 @@ body.sky .info .acts,body.sky .ladder,body.sky .lad-chip,body.sky .progress{opac
   .controls .btn[aria-expanded="true"]{background:var(--flare-bg);color:var(--flare)}
   .controls #btnSound{min-width:0}
   .controls #btnSound.silent{color:var(--mute);box-shadow:inset 0 0 0 1px rgba(255,128,118,.55)}
-  .controls #btnRide,.controls #btnHaloTour,.controls #rideCamSeg{display:none}
+  .controls #btnRide,.controls .halo-sw,.controls #rideCamSeg{display:none}
+  /* (tours is a dock button like the others: the halo switch stays on a desk, the ship menu has the Halo tour; ship stays in its place) */
+  .tours-split{display:contents}
+  .tours-split #btnTours{border-radius:10px}
+  .tours-split #btnTours::before{margin-right:0}
+  .controls #btnShip{order:0;margin-top:0}
   #btnShip[aria-pressed="true"]{background:rgba(143,230,255,.14);color:var(--ship)}
   #btnTours.touring{background:rgba(168,240,176,.1)}
   /* the info card */
@@ -622,11 +646,11 @@ body.sky .info .acts,body.sky .ladder,body.sky .lad-chip,body.sky .progress{opac
   .progress .anav:last-child{margin-left:8px}
   .type,.where{font-size:calc(11px*var(--ts))}
   body.info-compact .where{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .acts{flex-wrap:wrap;margin:8px 0 4px}
+  .acts{flex-wrap:wrap;margin:10px 0 4px}
   .act{padding:4px 11px}
   .fact{font-size:calc(12px*var(--ts));max-width:none}
   .readout{white-space:pre-wrap;width:auto;max-width:none}
-  .progress{margin-top:5px}
+  .progress{margin-top:4px}
   .progress.hintish{display:none}
   body.ui-idle .info{background:transparent;border-color:transparent;-webkit-backdrop-filter:none;backdrop-filter:none;pointer-events:none;transition:background 1s,border-color 1s}
   /* hidden: a pill above the dock brings it back */
