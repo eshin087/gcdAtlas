@@ -74,7 +74,8 @@ function markSeen(o){
 }
 let seenClock = 0, seenIdx = -1;
 function updateSeen(dt){
-  const i = tour.on ? tour.obj : orbit.lock;
+  // (on the Halo tour the place the ship is at counts, as the panel shows it; nothing while it travels)
+  const i = tour.on ? tour.obj : htShowsPlace() ? (htGoing() ? -1 : infoObj) : orbit.lock;
   if (i < 0 || flight){ seenClock = 0; return; }
   if (i !== seenIdx){ seenIdx = i; seenClock = 0; }
   seenClock += dt; if (seenClock > 3) markSeen(OBJ[i]);

@@ -212,7 +212,8 @@ const cat = await page.evaluate(CATQ => {
   return out; }, CATQ);
 errors.push(...cat);
 // the halo switch on tours (0.9.7, in place of the halo tour button): a real switch, flush with tours on the top row; on, the Halo tour starts
-// with the tour picked and the list of tours says the Halo flies it; off, it ends. The top row of the bar keeps to one line at 1280 px
+// with the tour picked, the info panel shows the place (not the ship) and the list of tours says the Halo flies it; off, it ends and the panel
+// shows the Halo again. The top row of the bar keeps to one line at 1280 px
 const hsw = await page.evaluate(() => { const C = window.__cosmos, $ = s => document.querySelector(s), sw = $('#btnHaloSw'), t = $('#btnTours'), r = {};
   C.setTour(false); C.view('saturn', 0); C.tick(1/30);
   const a = t.getBoundingClientRect(), b = sw.getBoundingClientRect();
@@ -222,14 +223,19 @@ const hsw = await page.evaluate(() => { const C = window.__cosmos, $ = s => docu
   r.old = !!$('#btnHaloTour');
   r.before = [C.HT.on, sw.getAttribute('aria-checked')];
   sw.click(); r.on = [C.HT.on, sw.getAttribute('aria-checked'), C.HT.tourId === C.tourId];
+  // (and the panel shows the place the Halo visits or goes to, not the ship, with its blue line and the panel's ride buttons; back to the Halo after)
+  C.hud(); const hl = $('#htLine'), pl = C.htPlace();
+  r.place = [!!pl && pl !== C.BYKEY.halo && $('#objName').textContent === pl.name, !hl.hidden && /^(with the Halo · |→ )/.test(hl.textContent), !$('#btnRideI').hidden];
   t.click(); r.note = !$('#tours').hidden && !$('#htNote').hidden && $('#htNote').getBoundingClientRect().height > 0; t.click();
-  sw.click(); r.off = [C.HT.on, sw.getAttribute('aria-checked')];
+  sw.click(); r.off = [C.HT.on, sw.getAttribute('aria-checked')]; C.hud();
+  r.back = [$('#objName').textContent === C.BYKEY.halo.name, $('#htLine').hidden];
   C.lockOn(C.BYKEY.earth.index); C.land(0); C.setTour(false);
   return r; });
 if (!hsw.flush || hsw.old) errors.push('the halo switch is not a switch flush with tours (or the old halo tour button is still there): ' + JSON.stringify(hsw));
 if (hsw.rows !== 1) errors.push(`the top row of the bar takes ${hsw.rows} lines at 1280 px`);
 if (hsw.before.join() !== 'false,false' || hsw.on.join() !== 'true,true,true' || hsw.off.join() !== 'false,false') errors.push('the halo switch does not start and end the Halo tour: ' + JSON.stringify(hsw));
 if (!hsw.note) errors.push('the list of tours does not say the Halo flies it while the halo switch is on');
+if (hsw.place.join() !== 'true,true,true' || hsw.back.join() !== 'true,true') errors.push('the Halo tour does not show the place in the info panel, or not the Halo after: ' + JSON.stringify([hsw.place, hsw.back]));
 // saved choices keep working: 'travel' (the old spacecraft chip) opens human-made; the old "not seen yet" chip becomes all with the box ticked
 // (sorted as it was); the old default ("distance, nearest first" over the headings) stays grouped; a saved flat list stays flat.
 // With every black hole seen, "not seen yet" says so and its button shows them all again.

@@ -315,7 +315,12 @@ function setReadout(t){
   if (t === roLast) return; roLast = t;
   readoutEl.textContent = t;
 }
+// the Halo tour shows the place, not the ship (owner, 0.9.7): while it plays and the camera is with the ship (riding along, or locked on it
+// after a drag), the panel shows the place the ship visits or is going to (htPlace, 09t-halotour.js), with a blue line over the name saying
+// what the ship is doing. Not during a flight to somewhere else (the tour ends when it lands).
+function htShowsPlace(){ return HT.on && !tour.on && !cmp && !SKYV.on && typeof ship !== 'undefined' && (isRiding() || (orbit.lock === ship.index && !flight)); }
 function setInfo(i){
+  if (typeof ship !== 'undefined' && i === ship.index && htShowsPlace()){ const p = htPlace(); if (p) i = p.index; }
   // a new object's numbers (the orange lines) fade in instead of appearing all at once
   if (i !== infoObj){ readoutEl.classList.remove('fade'); void readoutEl.offsetWidth; readoutEl.classList.add('fade'); }
   infoObj = i; const o = OBJ[i];
@@ -323,8 +328,17 @@ function setInfo(i){
   syncStop();
   syncWhere();
   setReadout(o.readout ? o.readout() : '');
-  $('#btnFlyby').hidden = !o.flyby;
+  syncFlyby();
   atlasMark(i);
+}
+// (no flyby on the Halo tour: it would fly the camera away from the ship, and the row of buttons has no room for it beside stop riding)
+function syncFlyby(){ $('#btnFlyby').hidden = !OBJ[infoObj].flyby || htShowsPlace(); }
+// the Halo tour: the panel follows the place (on to the next stop as soon as the ship sets course for it), and the blue line over the name
+function syncHtInfo(){
+  const on = htShowsPlace(), el = $('#htLine');
+  if (on){ const p = htPlace(); if (p && p.index !== infoObj) setInfo(p.index); }
+  if (el.hidden === on) el.hidden = !on;
+  if (on){ const t = htDoing(); if (el.textContent !== t){ el.textContent = t; el.title = t; } }
 }
 // where the object is, under its name; honest once the camera has let go of it (it used to say "you are here" 48 billion light-years out)
 const freeCam = () => orbit.lock < 0 && !tour.on && !flight && !cmp && !SKYV.on;
@@ -337,7 +351,9 @@ function syncWhere(){
 // the row above the name: "stop 3 / 31" on a tour; otherwise the kind of object ("gas giant"), shown while the type line is folded away
 // (it used to read "-- / 31" off the tour)
 function syncStop(){
-  const el = $('#stopInfo'), k = tour.on ? TOUR.indexOf(infoObj) : HT.on ? HT.i : -1;
+  // (on the Halo tour: the stop the panel shows, which is the one the ship is going to while it travels)
+  const hk = HT.on ? HT.stops.indexOf(OBJ[infoObj]) : -1;
+  const el = $('#stopInfo'), k = tour.on ? TOUR.indexOf(infoObj) : HT.on ? (hk >= 0 ? hk : HT.i) : -1;
   const t = k >= 0 ? 'stop ' + (k + 1) + ' / ' + (tour.on ? TOUR.length : HT.stops.length) : tour.on ? '' : (OBJ[infoObj].type || '').split(' · ')[0];
   if (el.textContent !== t) el.textContent = t;
   el.classList.toggle('kind', k < 0);
@@ -402,7 +418,9 @@ function updateModeUI(){
   const hs = $('#btnHaloSw'); hs.setAttribute('aria-checked', String(HT.on));
   hs.title = HT.on ? 'Fly the tour with the Halo: on. Click to stop (you keep riding, the Halo roams on its own)' : 'Fly the tour with the Halo: ride along while it flies the stops of the tour picked in tours';
   $('#rideCamSeg').hidden = !(riding && shipCam.mode === 'chase'); $('#htNote').hidden = !HT.on;
-  const onShip = typeof ship !== 'undefined' && infoObj === ship.index;
+  // (the panel's own ride buttons: on the Halo, and on the Halo tour, whose panel shows the place)
+  syncHtInfo(); syncFlyby();
+  const onShip = typeof ship !== 'undefined' && (infoObj === ship.index || htShowsPlace());
   $('#btnRideI').hidden = !onShip; $('#btnRideI').textContent = riding ? 'stop riding' : 'ride along';
   $('#btnCamI').hidden = !riding; $('#btnCamI').textContent = shipCam.mode === 'chase' ? 'cockpit view' : 'outside view';
   $('#btnFree').setAttribute('aria-pressed', String(!tour.on && orbit.lock < 0 && !flight));
@@ -499,6 +517,7 @@ function updateHUD(dt){
   roTimer -= dt;
   if (roTimer <= 0){
     roTimer = 0.15;
+    if (HT.on || !$('#htLine').hidden){ syncHtInfo(); syncFlyby(); }   // (the Halo tour: the place it visits or goes to, and what the ship is doing)
     const o = OBJ[infoObj]; setReadout(o.readout ? o.readout() : '');
     let p = '', f = -1, tip = false, ang = false;
     // the angle line: during a swing it already shows the angle the camera is swinging to (so every tap on an arrow counts visibly), its bar still empty
@@ -515,6 +534,7 @@ function updateHUD(dt){
       // (riding along: on the Halo tour its stop and how long it stays, as a bar like the angles'; otherwise which camera, and the key)
       const S = S_, st = S.stay;
       if (HT.on && (S.phase === 'light' || S.phase === 'fold')) p = (S.phase === 'light' ? 'light speed ' : 'folding space ') + '>'.repeat(1 + Math.floor(performance.now()/250) % 3);
+      else if (HT.on && htGoing()) p = 'setting course ' + '>'.repeat(1 + Math.floor(performance.now()/250) % 3);   // (the panel is on the next stop already)
       else if (HT.on && st){ f = clamp(st.t/st.dur, 0, 1); p = `${S.target.label || S.target.name} · ${HT.i + 1}/${HT.stops.length}  ${bar(f)}`; }
       else p = (SET.rideCam === 'still' ? 'still camera' : 'moving camera') + (isCompact() ? ' · drag to take over' : ' · K switches · drag to take over');
     } else if (orbit.lock >= 0 && !flight && isCompact() && !isPlaying()){ p = 'drag to turn · pinch to zoom · double-tap to centre'; tip = true; }   // (paused on a phone: the gestures)
@@ -552,9 +572,10 @@ function fmtLen(km, sig){ const [v, u] = lenUnit(km); const r = sig ? +v.toPreci
 // km per light-year of world space around the viewed object (only a few objects draw their insides magnified)
 function kmPerLy(){ const i = tour.on ? tour.obj : (orbit.lock >= 0 ? orbit.lock : -1), o = i >= 0 ? OBJ[i] : null; return o && o.scaleKm ? o.scaleKm(Math.max(orbit.dist, 1e-30)/o.rad) : LY; }
 function updateScale(){
-  const dist = Math.max(orbit.dist, 1e-30);
+  // (on the Halo tour the panel shows the place, so the ruler measures at the place, not at the ship the camera rides with)
+  const hp = htShowsPlace() ? OBJ[infoObj] : null, dist = Math.max(hp ? V.len(hp.rel) : orbit.dist, 1e-30);
   const targetPx = innerWidth < 680 ? 90 : 130;
-  const km = targetPx*(2*tanY*dist/viewHcss)*kmPerLy();
+  const km = targetPx*(2*tanY*dist/viewHcss)*(hp ? (hp.scaleKm ? hp.scaleKm(dist/hp.rad) : LY) : kmPerLy());
   const [val, unit] = lenUnit(km);
   const p = Math.pow(10, Math.floor(Math.log10(val))), m = val/p, nice = (m >= 5 ? 5 : m >= 2 ? 2 : 1)*p;
   scaleBar.style.width = (targetPx*nice/val).toFixed(0) + 'px';
@@ -1435,7 +1456,7 @@ function atlasTitle(t){ $('#atlas .ptitle').textContent = t || 'atlas'; }
 function beginComparePick(){
   hideHint();
   if (cmp){ endCompare(true); return; }
-  cmpA = orbit.lock >= 0 ? orbit.lock : infoObj; cmpPick = true;
+  cmpA = orbit.lock >= 0 && !htShowsPlace() ? orbit.lock : infoObj; cmpPick = true;   // (on the Halo tour: the place the panel shows)
   atlasTitle('compare ' + OBJ[cmpA].name + ' with'); toggleAtlas(true); focusSearch();
   toast('pick something to put beside ' + OBJ[cmpA].name);
 }
@@ -1510,9 +1531,10 @@ deepEl.addEventListener('input', () => setDeep(+deepEl.value));
 
 // ---------------------------------------------------------------- share links: the address remembers the object, camera angle, comparison, tour and time
 function viewHash(){
-  const p = new URLSearchParams(), i = orbit.lock >= 0 ? orbit.lock : infoObj, o = OBJ[i];
+  // (on the Halo tour, the place the panel shows: a link cannot bring back the ship where it is now)
+  const ht = htShowsPlace(), p = new URLSearchParams(), i = orbit.lock >= 0 && !ht ? orbit.lock : infoObj, o = OBJ[i];
   p.set('o', o.key);
-  if (orbit.lock >= 0 && !flight) p.set('c', orbit.yaw.toFixed(3) + ',' + orbit.pitch.toFixed(3) + ',' + (orbit.distT/o.rad).toPrecision(4));
+  if (orbit.lock >= 0 && !flight && !ht) p.set('c', orbit.yaw.toFixed(3) + ',' + orbit.pitch.toFixed(3) + ',' + (orbit.distT/o.rad).toPrecision(4));
   if (cmp) p.set('vs', cmp.b.key);
   if (tour.on) p.set('tour', TOUR_ID);
   if (Math.abs(jdNow() - realJD()) > 1) p.set('jd', jdNow().toFixed(2));

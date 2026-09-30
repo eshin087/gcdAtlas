@@ -51,6 +51,9 @@ body.info-compact .stopl:has(> .stopinfo.kind:not(:empty)){grid-template-columns
 .stopinfo{white-space:nowrap;min-width:0}
 .stopinfo.kind{overflow:hidden;text-overflow:ellipsis}
 .stopinfo:empty,body:not(.info-compact) .stopinfo.kind{display:none}
+/* the Halo tour (0.9.7): one small line in the Halo's blue over the place's name, what the ship is doing there or where it is going */
+.htline{margin-top:4px;color:var(--ship);font-size:calc(10.5px*var(--ts));letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.htline:not([hidden]) + .title{margin-top:1px}
 .title{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;margin:4px 0 0}
 .info h1{font-family:var(--mono);font-weight:500;font-size:calc(clamp(22px,3vw,30px)*var(--ts));line-height:1.15;margin:0;letter-spacing:0;text-wrap:balance;font-variant-ligatures:none}
 /* the green button beside the name says where it goes: "next stop · Moon ›", "start again ›", or (filled) "back to the tour · Earth ›" */
@@ -107,13 +110,13 @@ body.info-hidden .info{display:none}
 .lad-chip{display:none}
 
 /* idle: after a few quiet seconds the interface fades, leaving the object's name; any touch, key or mouse move brings it back */
-.brand,.lad-chip,.play-m,.info-pill,.itools,.grip,.info .nav,.info .gonext,.info .stop,.info .title,.info .acts,.info .type,.info .where,.info .fact,.info .readout,.info .scale,.info .progress{transition:opacity .25s}
+.brand,.lad-chip,.play-m,.info-pill,.itools,.grip,.info .nav,.info .gonext,.info .stop,.info .title,.info .acts,.info .type,.info .where,.info .fact,.info .readout,.info .scale,.info .progress,.info .htline{transition:opacity .25s}
 body.ui-idle .controls,body.ui-idle .ladder,body.ui-idle .lad-chip,body.ui-idle .play-m,body.ui-idle .brand,body.ui-idle .info-pill,body.ui-idle .daily,body.ui-idle .shiparrow,body.ui-idle .backpill,
 body.ui-idle .itools,body.ui-idle .grip,body.ui-idle .info .nav,body.ui-idle .info .gonext,body.ui-idle .info .acts,body.ui-idle .info .type,body.ui-idle .info .where,body.ui-idle .info .fact,body.ui-idle .info .readout,body.ui-idle .info .scale{opacity:0!important;transition:opacity 1s ease-in}
 /* a faded button still works on the first tap (it also brings the interface back); a tap on the sky only brings it back (src/09h-ui.js).
    The scale bar's faded track is sky too: on a touch screen a tap there would otherwise fly to the nearest marker (tablets keep the desk layout) */
 @media (pointer:coarse){ body.ui-idle .lad-track,body.ui-idle .ladmark{pointer-events:none} }
-body.ui-idle .info .stop,body.ui-idle .info .title,body.ui-idle .info .progress{opacity:.5;transition:opacity 1s ease-in}
+body.ui-idle .info .stop,body.ui-idle .info .htline,body.ui-idle .info .title,body.ui-idle .info .progress{opacity:.5;transition:opacity 1s ease-in}
 body.ui-idle .info .progress.hintish,body.ui-idle .info .progress.tip{opacity:0}
 body.ui-idle .info::before{opacity:0;transition:opacity 1s}
 body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border-left-color:var(--flare);transition:background 1s,border-color 1s}

@@ -20,6 +20,8 @@
   <button class="grip" id="infoGrip" aria-label="Show more"><i></i></button>
   <!-- on a tour: the stop number and the tour's name, which opens the list of tours; otherwise what kind of thing this is (while the type line below is folded away) and the camera's mode -->
   <div class="stop"><span class="stopl"><span id="stopInfo" class="stopinfo"></span><button id="modeTour" class="mode m-tour tourpick" hidden aria-haspopup="true" aria-expanded="false" aria-controls="tours" title="Pick another tour"><span id="modeTourName">grand tour</span> &#9662;</button><span id="mode" class="mode">tour</span></span><span class="itools"><button class="itool" id="infoMore" aria-expanded="true" aria-controls="info">less</button><button class="itool" id="infoHide" aria-label="Hide the info panel" title="Hide this panel (I)">hide</button></span></div>
+  <!-- the Halo tour: the panel shows the place, and this line what the ship is doing there ("with the Halo · a wide pass round Saturn") or where it goes ("→ Jupiter · light speed") -->
+  <div id="htLine" class="htline" hidden></div>
   <div class="title">
     <h1 id="objName">Earth</h1>
     <!-- the green button says where it goes: the next tour stop, the start of the tour again, or back to the tour you left (hidden when no tour is involved) -->
