@@ -19,7 +19,7 @@ All notable changes, newest first. Dates are UTC.
 - The ground cloud billows out to about 500 m round Starbase's pad and rises to about 170 m, its lobes rolling outward, brighter on its sunward side; at ignition a ring of dust and spray races out from the pad.
 - A smoke column rises from the pad to about 14 km behind the rocket, widening, fading over a couple of minutes and drifting with the real wind at its height.
 - A vapour cone forms round the rocket near the speed of sound, below about 13 km.
-- The cameras by the pad at liftoff stand 380 to 630 m out (Falcon's 320 m). They stood 40 to 120 m out, where the new ground cloud swallowed them within seconds and the picture turned to grey fog. Now the rocket rises out of the cloud in view.
+- The cameras by the pad at liftoff stand 410 and 630 m out (Falcon's about 320 m). They stood 40 to 120 m out, where the new ground cloud swallowed them within seconds and the picture turned to grey fog. Now the rocket rises out of the cloud in view.
 
 **Real skies and weather** (owner: a more beautiful sky with dynamic clouds and realistic weather; picked: real weather)
 - A new function, /api/weather, gets the weather over the three launch sites from Open-Meteo, hour by hour from three days ago to two days ahead: cloud cover low, mid and high, wind at 10 m and at about 1.5 km, visibility, rain and humidity. It uses the pads' coordinates only.
