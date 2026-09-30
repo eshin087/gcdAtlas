@@ -397,9 +397,10 @@ function updateModeUI(){
   sb.classList.toggle('following', cpt && riding); const st = cpt && riding ? 'riding' : 'ship'; if (sb.textContent !== st) sb.textContent = st;
   if (!shipMenuEl.hidden) syncShipMenu();
   rb.title = riding ? 'Stop riding along (the camera stays with the ship)' : 'Ride along with the Halo, the place it visits in view: K holds the camera still, C for the cockpit';
-  // (the Halo tour's button, lit while it plays; the camera switch on the lower row while riding along outside the ship; the note in the tours list)
-  const hb = $('#btnHaloTour'); hb.setAttribute('aria-pressed', String(HT.on)); hb.textContent = HT.on ? 'halo tour ■' : 'halo tour';
-  hb.title = HT.on ? 'End the Halo tour (it roams on its own again; you keep riding)' : 'The Halo tour: ride along while the Halo flies the stops of a tour, with cinematic camera moves (pick the tour in tours)';
+  // (the halo switch on tours, on while the Halo tour plays, which can also end by itself; the camera switch on the lower row while riding along
+  // outside the ship; the note in the tours list)
+  const hs = $('#btnHaloSw'); hs.setAttribute('aria-checked', String(HT.on));
+  hs.title = HT.on ? 'Fly the tour with the Halo: on. Click to stop (you keep riding, the Halo roams on its own)' : 'Fly the tour with the Halo: ride along while it flies the stops of the tour picked in tours';
   $('#rideCamSeg').hidden = !(riding && shipCam.mode === 'chase'); $('#htNote').hidden = !HT.on;
   const onShip = typeof ship !== 'undefined' && infoObj === ship.index;
   $('#btnRideI').hidden = !onShip; $('#btnRideI').textContent = riding ? 'stop riding' : 'ride along';

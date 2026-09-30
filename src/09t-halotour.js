@@ -6,7 +6,8 @@
 // gives it a shuffle of its own places. At each stop it stays about a minute (HT.STAY), with one job at most and only at a place on its own
 // list, then goes on by light speed or a fold (travelMode). The camera plays the ride's bigger moves (RIDE.epic, 08r-ride.js) and a caption
 // names each place as the ship arrives. The green button beside the name sends it on at once; a drag takes the camera (play rides along
-// again, the ship flying on meanwhile); halo tour again, stop riding, a tour, the screensaver or picking something else ends it.
+// again, the ship flying on meanwhile); the halo switch on tours (0.9.7; on a phone the ship menu), stop riding, a tour, the screensaver or
+// picking something else ends it.
 const HT_SKIP = new Set(['solarsystem', 'oort', 'universe', 'cosmicweb', 'bootesvoid', 'gw170817', 'gw150914', 'tde', 'sstars', 'm87jet']);
 function haloCan(o){
   if (!o || o === ship || o.marker || HT_SKIP.has(o.key)) return false;
@@ -93,7 +94,7 @@ TICKS.push(dt => {
   if (HT.capT > 0 && (HT.capT -= dt) <= 0) SHOWCAP.txt = '';
   RIDE.epic = true;
 });
-// the button, and test hooks
-$('#btnHaloTour').addEventListener('click', () => { hideHint(); if (HT.on) haloTourEnd(); else haloTourStart(TOUR_ID); });
+// the halo switch on tours (0.9.7; the ship menu's item on a phone), and test hooks. Off, it ends the Halo tour and you keep riding
+$('#btnHaloSw').addEventListener('click', () => { hideHint(); if (HT.on) haloTourEnd(); else haloTourStart(TOUR_ID); updateModeUI(); });
 Object.assign(window.__cosmos, { haloTourStart, haloTourEnd, haloTourSkip, haloStops, haloCan, HT,
   ride:{ RIDE, SHOTS, get shot(){ return RIDE.shot ? RIDE.shot.name : null; }, reach:rideReach, seed:n => { let s = n >>> 0; rideR = () => { s = (s*1664525 + 1013904223) >>> 0; return s/4294967296; }; }, start:startShot } });
