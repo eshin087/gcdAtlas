@@ -1,6 +1,7 @@
 
 // ================================================================ render targets
 const DETAIL = [{name:'ultra', w:4}, {name:'fine', w:5}, {name:'normal', w:6.5}, {name:'bold', w:9}];
+if (SET.detailAuto) SET.detail = 1;   // (auto starts on fine; see AUTO_D in the main loop)
 let detailIdx = clamp(SET.detail | 0, 0, DETAIL.length - 1), glowOn = SET.glow, labelsOn = SET.labels;
 let dpr = 1, cellW = 6, cellH = 11, cols = 1, rows = 1, sceneW = 2, sceneH = 2;
 let tanY = Math.tan(cam.fovY/2), tanX = tanY, viewWcss = 1, viewHcss = 1, canvasHcss = 1;
@@ -296,7 +297,7 @@ function render(){
 
 // ================================================================ HUD
 let infoObj = 0, toastTimer = 0, roTimer = 0, hintHidden = false;
-const infoEl = $('.info'), atlasEl = $('#atlas'), settingsEl = $('#settings'), ladderEl = $('#ladder'), controlsEl = $('.controls'), brandEl = $('.brand'), ladChipEl = $('#ladChip'), infoPillEl = $('#infoPill');
+const infoEl = $('.info'), atlasEl = $('#atlas'), settingsEl = $('#settings'), ladderEl = $('#ladder'), controlsEl = $('.controls'), brandEl = $('.brand'), ladChipEl = $('#ladChip'), infoPillEl = $('#infoPill'), shipMenuEl = $('#shipMenu');
 // panels and the ladder sit just below the toolbar, however many rows it wraps onto
 const syncCtl = () => { const b = controlsEl.getBoundingClientRect(); document.documentElement.style.setProperty('--ctl-b', (isCompact() ? 54 : Math.round(b.bottom)) + 'px'); };
 if (typeof ResizeObserver !== 'undefined') new ResizeObserver(syncCtl).observe(controlsEl); syncCtl();
@@ -386,8 +387,12 @@ function updateModeUI(){
   }
   $('#btnPlay').lastChild.textContent = playing ? 'pause' : back ? 'back to ' + back.name : 'play';
   syncWhere();
-  $('#btnShip').setAttribute('aria-pressed', String(!!SET.haloMark));
-  const riding = shipCam.on || (shipCam.pending && !!flight), rb = $('#btnRide'); rb.classList.toggle('following', riding); rb.textContent = riding ? 'riding' : 'ride';
+  const riding = shipCam.on || (shipCam.pending && !!flight), rb = $('#btnRide'), sb = $('#btnShip'), cpt = isCompact(); rb.classList.toggle('following', riding); rb.textContent = riding ? 'riding' : 'ride';
+  // (a desk's ship button toggles the marker; a phone's opens the Halo's menu, and says "riding" while you ride)
+  if (cpt){ sb.removeAttribute('aria-pressed'); sb.setAttribute('aria-haspopup', 'menu'); sb.setAttribute('aria-expanded', String(!shipMenuEl.hidden)); sb.title = 'The Halo: ride along, cockpit, marker'; }
+  else { sb.setAttribute('aria-pressed', String(!!SET.haloMark)); sb.removeAttribute('aria-haspopup'); sb.removeAttribute('aria-expanded'); sb.title = 'Show where the Halo is (a blue marker)'; }
+  sb.classList.toggle('following', cpt && riding); const st = cpt && riding ? 'riding' : 'ship'; if (sb.textContent !== st) sb.textContent = st;
+  if (!shipMenuEl.hidden) syncShipMenu();
   rb.title = riding ? 'Stop riding along (the camera stays with the ship)' : 'Ride along with the Halo: chase view behind the ship, C for the cockpit';
   const onShip = typeof ship !== 'undefined' && infoObj === ship.index;
   $('#btnRideI').hidden = !onShip; $('#btnRideI').textContent = riding ? 'stop riding' : 'ride along';
@@ -739,14 +744,14 @@ shipArrowEl.addEventListener('click', followShip);
 
 // ---------------------------------------------------------------- settings
 function syncSettingsUI(){
-  const v = { detail:String(detailIdx), travel:SET.travel, time:String(timeScale), dwell:SET.dwell, musicStyle:SET.musicStyle, saverIdle:String(SET.saverIdle), fadeUI:SET.fadeUI };
+  const v = { detail:SET.detailAuto ? 'auto' : String(detailIdx), travel:SET.travel, time:String(timeScale), dwell:SET.dwell, musicStyle:SET.musicStyle, saverIdle:String(SET.saverIdle), fadeUI:SET.fadeUI };
   document.querySelectorAll('.seg[data-key]').forEach(seg => { const k = seg.dataset.key; seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.v === v[k]))); });
   settingsEl.querySelectorAll('.tog button').forEach(b => b.setAttribute('aria-pressed', String(!!SET[b.dataset.key])));
   $('#volume').value = SET.volume; $('#moodNote').textContent = 'plays ' + music.moodText(SET.musicStyle);
   syncSoundBtn(true);
   $('#textSize').value = SET.textSize; $('#tsTxt').textContent = Math.round(SET.textSize*100) + '%';
   $('#menuSize').value = SET.menuSize; $('#msTxt').textContent = Math.round(SET.menuSize*100) + '%';
-  $('#detailInfo').textContent = `${cols} x ${rows} characters`;
+  $('#detailInfo').textContent = (SET.detailAuto ? DETAIL[detailIdx].name + ' now · ' : '') + `${cols} x ${rows} characters`;
 }
 // the sound button shows whether music really plays: a soft red "sound off" (on phones "muted") while it is off,
 // and also while the browser still holds it back before the first click, although the setting is on
@@ -767,7 +772,9 @@ function syncSoundBtn(force){
 function toggleSound(){ if (soundSilentAtInput) setOpt('sound', true); else setOpt('sound', !SET.sound); soundSilentAtInput = false; }
 function setOpt(key, v, quiet){
   switch (key){
-    case 'detail': detailIdx = SET.detail = clamp(v | 0, 0, DETAIL.length - 1); adaptCount = 0; resize(); if (!quiet) toast(`detail: ${DETAIL[detailIdx].name} (${cols} x ${rows} characters)`); break;
+    case 'detail':
+      if (v === 'auto'){ SET.detailAuto = true; SET.detail = detailIdx = 1; Object.assign(AUTO_D, { up:0, slow:0, tries:0, off:autoDetailOff() }); adaptCount = 0; resize(); if (!quiet) toast('detail: auto · fine, and ultra when the screen is sharp and there is time to spare'); break; }
+      SET.detailAuto = false; detailIdx = SET.detail = clamp(v | 0, 0, DETAIL.length - 1); adaptCount = 0; resize(); if (!quiet) toast(`detail: ${DETAIL[detailIdx].name} (${cols} x ${rows} characters)`); break;
     case 'travel': SET.travel = v; retimeFlight(); if (!quiet) toast('travel: ' + v + (v === 'warp' ? ' · near-instant' : v === 'cinematic' ? ' · slow and scenic' : '')); break;
     case 'time': timeScale = +v; if (!quiet) toast(timeScale ? 'time ' + timeScale + 'x' : 'time paused'); break;
     case 'glow': SET.glow = glowOn = !!v; break;
@@ -1180,6 +1187,7 @@ function closeOpen(){
   if (!settingsEl.hidden || !$('#tours').hidden || !$('#timem').hidden){ togglePanel(null, false); return true; }
   if (!atlasEl.hidden){ if (!trayEl.hidden) setBadgeTray(false, true); else closeAtlas(); return true; }   // (the badge tray first, then the atlas)
   if (b.contains('lad-open')){ setLadOpen(false); return true; }
+  if (!shipMenuEl.hidden){ setShipMenu(false); return true; }
   return false;
 }
 for (const el of [searchEl, atlasSearch]){ el.addEventListener('input', onSearchInput); el.addEventListener('keydown', onSearchKey); }
@@ -1195,8 +1203,27 @@ $('#goNext').addEventListener('click', goNextClick);
 $('#modeTour').addEventListener('click', () => { hideHint(); togglePanel('tours', $('#tours').hidden); });
 $('#btnTour').addEventListener('click', () => { hideHint(); if (tour.on) stopTour(false); else setTour(true); });   // (pausing here remembers the stop, like the pause button: the green button then goes on from it)
 $('#btnFree').addEventListener('click', () => { hideHint(); unlock(); toast(isCompact() ? 'free camera · drag to look around · ⌂ for home' : 'free camera · W A S D to fly, drag to look around · H for home'); });
-$('#btnShip').addEventListener('click', () => setOpt('haloMark', !SET.haloMark));
+$('#btnShip').addEventListener('click', () => { if (isCompact()) setShipMenu(shipMenuEl.hidden); else setOpt('haloMark', !SET.haloMark); });
 const toggleRide = () => { if (shipCam.on || (shipCam.pending && flight)){ if (flight) finishFlightHere(); shipCam.pending = false; stopShipCam(); toast('stopped riding · the camera stays with the Halo'); updateModeUI(); } else followShip(); };
+// phones: the dock's ship button opens a small menu over the dock (ride along, cockpit, the marker; while riding: chase, cockpit, stop).
+// Any choice closes it, and so does a tap anywhere else, Esc, or the layout changing to a desk's.
+const isRiding = () => shipCam.on || (shipCam.pending && !!flight);
+function setShipMenu(on){ shipMenuEl.hidden = !on; $('#btnShip').setAttribute('aria-expanded', String(on)); if (on){ syncShipMenu(); wakeUI(); } }
+function syncShipMenu(){
+  const r = isRiding();
+  $('#smChase').firstChild.textContent = r ? 'chase view' : 'ride along';
+  $('#smChase').setAttribute('aria-checked', String(r && shipCam.mode === 'chase'));
+  $('#smCock').setAttribute('aria-checked', String(r && shipCam.mode === 'cockpit'));
+  $('#smStop').hidden = !r; $('#smMark').hidden = r;
+  $('#smMark').setAttribute('aria-checked', String(!!SET.haloMark)); $('#smMark').lastChild.textContent = SET.haloMark ? 'hide it' : 'show it';
+}
+const rideAs = m => { setShipMenu(false); if (typeof ship === 'undefined') return; hideHint(); if (isRiding()) setShipCamMode(m); else { startShipCam(m); toast(m === 'cockpit' ? 'riding along · on the bridge of the Halo' : 'riding along with the Halo · tap ship for the cockpit'); } };
+$('#smChase').addEventListener('click', () => rideAs('chase'));
+$('#smCock').addEventListener('click', () => rideAs('cockpit'));
+$('#smStop').addEventListener('click', () => { setShipMenu(false); if (isRiding()) toggleRide(); });
+$('#smMark').addEventListener('click', () => { setShipMenu(false); setOpt('haloMark', !SET.haloMark); });
+addEventListener('pointerdown', e => { if (!shipMenuEl.hidden && !(e.target.closest && e.target.closest('#shipMenu, #btnShip'))) setShipMenu(false); }, { capture:true });
+COMPACT_MQ.addEventListener('change', () => { if (!isCompact()) setShipMenu(false); });
 $('#btnRide').addEventListener('click', toggleRide);
 $('#btnRideI').addEventListener('click', toggleRide);
 $('#btnCamI').addEventListener('click', () => setShipCamMode(shipCam.mode === 'chase' ? 'cockpit' : 'chase'));
@@ -1251,7 +1278,23 @@ $('#btnSound').addEventListener('click', toggleSound);
 $('#btnHelp').addEventListener('click', () => toggleHelp(true));
 $('#helpClose').addEventListener('click', () => toggleHelp(false));
 $('#help').addEventListener('click', e => { if (e.target.id === 'help') toggleHelp(false); });
-function toggleHelp(on){ $('#help').hidden = !on; if (on) $('#helpClose').focus(); else canvas.focus({preventScroll:true}); }
+function toggleHelp(on){ $('#help').hidden = !on; if (on){ $('#notes').hidden = true; $('#helpClose').focus(); } else canvas.focus({preventScroll:true}); }
+// what's new: the patch notes (docs/PATCHNOTES.md, put in the page by build.mjs). The button shows a dot until you have seen the newest
+// version's notes; someone here for the first time has nothing to catch up on, so their first visit counts as seen.
+const NOTES_V = ($('#notesList').querySelector('details') || { dataset:{} }).dataset.v || '';
+const notesSeen = () => { try { return localStorage.getItem('gcdatlas.notesSeen'); } catch (e) { return NOTES_V; } };
+const notesDot = on => { for (const b of [$('#btnNotes'), $('#settingsNotes')]) b.classList.toggle('has-new', on); document.body.classList.toggle('notes-unseen', on); };
+const markNotesSeen = () => { try { localStorage.setItem('gcdatlas.notesSeen', NOTES_V); } catch (e) {} notesDot(false); };
+try { if (!localStorage.getItem('gcdatlas.settings') && !notesSeen()) markNotesSeen(); } catch (e) {}
+notesDot(!!NOTES_V && notesSeen() !== NOTES_V);
+function toggleNotes(on){ $('#notes').hidden = !on; if (on){ $('#help').hidden = true; markNotesSeen(); $('#notesClose').focus(); } else canvas.focus({preventScroll:true}); }
+$('#btnNotes').addEventListener('click', () => toggleNotes(true));
+$('#helpNotes').addEventListener('click', () => toggleNotes(true));
+$('#settingsNotes').addEventListener('click', () => { togglePanel('settings', false); toggleNotes(true); });
+$('#notesClose').addEventListener('click', () => toggleNotes(false));
+$('#notes').addEventListener('click', e => { if (e.target.id === 'notes') toggleNotes(false); });
+const modalOpen = () => !$('#help').hidden || !$('#notes').hidden;
+const closeModals = () => { toggleHelp(false); toggleNotes(false); };
 // browsers that block sound on load accept a click, tap or key press as permission (pointerup and touchend count on phones)
 // (first note whether the music was silent, before this very press lets it start: see toggleSound)
 for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => { soundSilentAtInput = !(SET.sound && music.audible); }, { capture:true, passive:true });
@@ -1259,6 +1302,26 @@ for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown', 'w
 
 // ================================================================ main loop
 let tmT = 0, last = performance.now(), ema = 16, adaptCount = 0, raised = 0, calmT = 0, runTime = 0, resizePending = false, refocusT = 0, lodT = 0;
+// Auto detail (the default since 0.9.4): fine, stepping up to ultra where ultra's characters are still at least 6 pixels wide (a sharp screen;
+// on an ordinary one they would be 4 x 7 pixels, too small to read as letters) once frames have had room to spare for a few seconds, and back
+// to fine after 3 slow seconds. Ultra draws about 1.6 times the characters and ray-marched pixels of fine. After two steps back it stops
+// trying, and remembers that on this device for 14 days (gcdatlas.autoDetail).
+const autoDetailOff = () => { try { const a = JSON.parse(localStorage.getItem('gcdatlas.autoDetail') || 'null'); return !!a && Date.now() - a.fine < 14*864e5; } catch (e) { return false; } };
+const AUTO_D = { up:0, slow:0, tries:0, off:autoDetailOff() };
+const ultraSharp = () => Math.round(DETAIL[0].w*dpr) >= 6;
+function autoDetail(){
+  if (!SET.detailAuto || AUTO_D.off) return;
+  if (detailIdx === 1 && ultraSharp()){
+    AUTO_D.up = runTime > 3 && ema < 19 && LODK >= 1 ? AUTO_D.up + 1 : 0;
+    if (AUTO_D.up >= 4){ AUTO_D.up = 0; AUTO_D.tries++; detailIdx = 0; runTime = 0; ema = 16; calmT = 0; resize(); syncSettingsUI(); }
+  } else if (detailIdx === 0){
+    AUTO_D.slow = ema > 24 ? AUTO_D.slow + 1 : 0;
+    if (AUTO_D.slow >= 3){
+      AUTO_D.slow = 0; detailIdx = 1; runTime = 0; ema = 20; calmT = 0; resize(); syncSettingsUI();
+      if (AUTO_D.tries >= 2){ AUTO_D.off = true; try { localStorage.setItem('gcdatlas.autoDetail', JSON.stringify({ fine:Date.now() })); } catch (e) {} }
+    }
+  }
+}
 addEventListener('resize', () => { if (resizePending) return; resizePending = true; requestAnimationFrame(() => { resizePending = false; resize(); ladTitles(); }); });
 // when zooming out from inside the galaxy, rise gently above the disk so the Milky Way unfolds instead of staying edge-on
 function riseAboveDisk(dt){
@@ -1527,6 +1590,7 @@ function frame(now){
   if (!window.__noAdapt && lodT > 1 && document.visibilityState === 'visible'){
     lodT = 0;
     if (ema > 38) LODK = Math.max(0.5, LODK - 0.1); else if (ema < 24) LODK = Math.min(1, LODK + 0.05);
+    autoDetail();
     if (runTime > 10 && ema > 48 && LODK <= 0.5 && adaptCount < 2 && detailIdx < DETAIL.length - 1){
       adaptCount++; runTime = 0; ema = 20; calmT = 0; detailIdx++; resize(); toast('detail lowered to ' + DETAIL[detailIdx].name + ' for smoother motion');
     }

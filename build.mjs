@@ -27,7 +27,18 @@ const js = list.map(f => `\n// ---- ${f}\n` + read(f)).join('');
 try { new vm.Script(js, { filename: 'gcdatlas.js' }); }
 catch (e) { console.error('Syntax error in the bundled script:\n' + e.stack.split('\n').slice(0, 6).join('\n')); process.exit(1); }
 
-const head = read('00-head.html'), body = read('01-body.html');
+const head = read('00-head.html');
+// what's new: docs/PATCHNOTES.md ("## version · date · title", then "- " bullets) as the panel's HTML, newest first and open
+const esc = t => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const notes = [];
+for (const line of fs.readFileSync(path.join(ROOT, 'docs', 'PATCHNOTES.md'), 'utf8').replace(/<!--[\s\S]*?-->/g, '').split(/\r?\n/)){
+  const h = line.match(/^## (\S+) · ([^·]+?) · (.+)$/), b = line.match(/^- (.+)$/);
+  if (h) notes.push({ v:h[1], date:h[2].trim(), title:h[3].trim(), items:[] });
+  else if (b && notes.length) notes[notes.length - 1].items.push(b[1].trim());
+}
+if (!notes.length){ console.error('docs/PATCHNOTES.md has no versions'); process.exit(1); }
+const notesHtml = notes.map((n, i) => `<details data-v="${esc(n.v)}"${i ? '' : ' open'}><summary><span class="nv">${esc(n.v)}</span><span class="nd">${esc(n.date)}</span><span class="nt">${esc(n.title)}</span></summary><ul>${n.items.map(t => `<li>${esc(t)}</li>`).join('')}</ul></details>`).join('\n');
+const body = read('01-body.html').replace('<!--PATCHNOTES-->', notesHtml);
 const version = new Date().toISOString().slice(0, 10);
 const script = `<script>\n/* gcdatlas ${version} */\n${js}\n</script>\n`;
 
@@ -49,5 +60,9 @@ fs.writeFileSync(path.join(DIST, 'artifact.html'), `${head}\n${body}\n${script}`
 // the lab (/lab): the same page, told before its script runs to open as a small stage for trying the Halo's looks (src/09l-lab.js); kept out of search
 const labHead = head.replace(/<title>[^<]*<\/title>/, '<title>gcdatlas lab</title>');
 fs.writeFileSync(path.join(DIST, 'lab.html'), `<!doctype html>\n<html lang="en">\n<head>\n${meta}<meta name="robots" content="noindex">\n${labHead}\n</head>\n<body>\n${body}\n<script>window.__LAB = 1;</script>\n${script}</body>\n</html>\n`);
+// the song review page (/songs): the same page, told before its script runs to list every candidate song of the radio, to play
+// and mark keep or drop (src/09s-songs.js); kept out of search
+const songsHead = head.replace(/<title>[^<]*<\/title>/, '<title>gcdatlas songs</title>');
+fs.writeFileSync(path.join(DIST, 'songs.html'), `<!doctype html>\n<html lang="en">\n<head>\n${meta}<meta name="robots" content="noindex">\n${songsHead}\n</head>\n<body>\n${body}\n<script>window.__SONGS = 1;</script>\n${script}</body>\n</html>\n`);
 const kb = f => (fs.statSync(path.join(DIST, f)).size/1024).toFixed(0) + ' KB';
 console.log(`built ${list.length} scripts -> dist/index.html (${kb('index.html')}), dist/artifact.html (${kb('artifact.html')})`);

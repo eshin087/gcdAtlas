@@ -7,10 +7,13 @@
 // the settings list every song, and a picked song plays at once (the shuffle then carries on).
 // A seed deals a song's palette within its style: key and mode, tempo, one or two chord progressions from a bank of a dozen
 // or more, its instruments (keys, lead, bass, pad), drum kit and groove, its melodies, its arrangement, a quiet texture
-// (vinyl, rain, wind or tape) and a name from a place in the atlas. Every style is about as loud as lofi, on headphones and
-// on small speakers (tests/music.mjs checks both), and every instrument that can take another's place is about as loud as it.
+// (vinyl, rain, wind or tape) and a name from a place in the atlas. The bass supports and never leads (0.9.4, owner: it was
+// loud and unpleasant): each style sets its balance by part (mix), the calm styles have the lightest low end, and every
+// style is about as loud as lofi on what a small speaker plays (above 200 Hz); tests/music.mjs checks the loudness and the
+// bass balance of every song. Every instrument that can take another's place is about as loud as it.
 // Everything is synthesised in the browser: no audio files. It tries to start on load; browsers that block that start it on the first
-// click, tap or key press. The first track skips its intro so the groove is there at once.
+// click, tap or key press. The first track skips its intro so the groove is there at once. The review page (/songs) plays
+// one candidate song at a time from any bar (audition).
 const music = (() => {
   const AC = window.AudioContext || window.webkitAudioContext;
   let ctx = null, master = null, mixG = null, verbSend = null, drumBus = null, drumLP = null, musBus = null, musLP = null, duck = null, crackleG = null, rainG = null, windG = null;
@@ -82,7 +85,8 @@ const music = (() => {
   const FORMS = ['aAbB', 'abaB', 'aaaB', 'aAaB'];
   function tune(cells, deg0){
     const a = phrase(pick(cells), deg0), b = phrase(pick(cells), deg0 + (R() < 0.5 ? 1 : 0)), form = pick(FORMS);
-    return [...form].map((f, i) => f === 'a' ? (i ? vary(a) : a) : f === 'A' ? answer(a) : f === 'b' ? b : answer(b));
+    const out = [...form].map((f, i) => f === 'a' ? (i ? vary(a) : a) : f === 'A' ? answer(a) : f === 'b' ? b : answer(b));
+    out.form = form; return out;
   }
   const melPitch = (n, base) => base + 12*Math.floor(n.deg/5) + SCALES[T.mode][n.deg % 5];
   // the notes of phrase ph on this sixteenth (bar2: first or second bar of the phrase)
@@ -107,16 +111,23 @@ const music = (() => {
     T.chosen[name] = x;
     return x;
   }
+  // A style's balance by part (STYLES[..].mix over MIX0), applied as each note is made, like the style's level: kick (its
+  // body; the click is drums), bass (the bass line), root (the soft sine under the chord in ambient), keys (the chords on the
+  // keys), pad, lead (the tune and anything on top), drums (all but the kick's body) and drone. Changing it draws nothing, so
+  // every song stays the same song. _render(.., { mix }) can set it for one render (and level, times the style's).
+  const MIX0 = { kick:1, bass:1, root:1, keys:1, pad:1, lead:1, drums:1, drone:1 };
+  const mx = k => T && T.mix ? T.mix[k] : 1;
   // quiet textures: vinyl crackle, rain, wind or tape hiss (at their own levels, not the style's)
   const TEXTURES = { vinyl:{ crackle:0.022 }, dust:{ crackle:0.01 }, rain:{ rain:1, crackle:0.005 }, tape:{ hiss:0.004 }, wind:{ wind:1 }, none:{} };
   // ---------------------------------------------------------------- styles
   // Each style sets its tempo range, how often a song is in minor, its chord progressions (degrees above the key: the major
-  // key's tonic, or the minor key's), its arrangements (plans), its level, and deals its song's palette in setup(T). It plays
-  // one sixteenth note at a time in step(c).
+  // key's tonic, or the minor key's), its arrangements (plans), its level and balance (mix: since 0.9.4 the bass line and the
+  // kick are much softer, and the tune a little louder), and deals its song's palette in setup(T). It plays one sixteenth
+  // note at a time in step(c).
   const L_CELLS = [[0, 3, 6, 10, 16, 19, 22], [2, 6, 8, 12, 14, 24, 28], [0, 4, 7, 10, 12, 20], [0, 6, 8, 14, 18, 22, 24], [3, 6, 10, 11, 14, 22], [0, 8, 10, 16, 24, 26],
     [4, 6, 8, 20, 22, 24, 28], [0, 3, 8, 16, 19, 24]];
   const STYLES = {
-    lofi:{ label:'lofi', bpm:[66, 88], minor:0.3, sameB:0.4, bpc:pr => pr.length <= 2 ? 2 : 1, slow:pr => pr.length >= 4 && R() < 0.2 ? 2 : 1, drone:0.012, level:1,
+    lofi:{ label:'lofi', bpm:[66, 88], minor:0.3, sameB:0.4, bpc:pr => pr.length <= 2 ? 2 : 1, slow:pr => pr.length >= 4 && R() < 0.2 ? 2 : 1, drone:0.012, level:1.56, mix:{ bass:0.3, kick:0.5, lead:1.4, keys:0.9 },
       progs:{ major:[
         [[2, 'm9'], [7, 'dom9'], [0, 'maj9'], [9, 'm9']], [[0, 'maj9'], [9, 'm9'], [5, 'maj9'], [7, 'dom9']], [[5, 'maj7'], [4, 'm7'], [2, 'm9'], [0, 'maj9']],
         [[9, 'm9'], [2, 'm11'], [7, 'dom9'], [0, 'maj9']], [[0, 'maj9'], [5, 'maj9']], [[4, 'm7'], [9, 'm9'], [2, 'm9'], [7, 'sus']],
@@ -152,7 +163,7 @@ const music = (() => {
         T.mel = { A:tune(L_CELLS, 4), B:tune(L_CELLS, 5) };
       },
       step:lofiStep },
-    house:{ label:'chill house', bpm:[108, 122], minor:0.7, sameB:0.35, bpc:pr => pr.length <= 2 ? 2 : 1, slow:pr => pr.length >= 4 && R() < 0.3 ? 2 : 1, drone:0.012, level:1,
+    house:{ label:'chill house', bpm:[108, 122], minor:0.7, sameB:0.35, bpc:pr => pr.length <= 2 ? 2 : 1, slow:pr => pr.length >= 4 && R() < 0.3 ? 2 : 1, drone:0.012, level:1.65, mix:{ bass:0.36, kick:0.32, lead:1.2 },
       progs:{ minor:[
         [[0, 'm9'], [8, 'maj9'], [3, 'maj9'], [10, 'dom9']], [[0, 'm9'], [5, 'm9']], [[0, 'm11'], [10, 'sus'], [8, 'maj9'], [7, 'm7']], [[0, 'm9'], [8, 'maj9'], [3, 'maj9'], [10, 'sus']],
         [[0, 'm9'], [10, 'six9']], [[0, 'm11'], [5, 'dom9']], [[0, 'm9'], [3, 'maj9'], [8, 'maj9'], [7, 'm7']], [[5, 'm9'], [0, 'm9']],
@@ -182,7 +193,7 @@ const music = (() => {
         T.mel.B = T.mel.A;
       },
       step:houseStep },
-    ambient:{ label:'ambient', bpm:[52, 72], minor:0.25, sameB:0.3, bpc:() => 4, slow:pr => pick(pr.length <= 2 ? [0.5, 1, 1] : [0.5, 1, 1, 2]), drone:0.05, level:0.77,
+    ambient:{ label:'ambient', bpm:[52, 72], minor:0.25, sameB:0.3, bpc:() => 4, slow:pr => pick(pr.length <= 2 ? [0.5, 1, 1] : [0.5, 1, 1, 2]), drone:0.02, level:0.78, mix:{ root:0.15, lead:1.6 },
       progs:{ major:[
         [[0, 'maj9'], [9, 'm9'], [5, 'maj9'], [2, 'm11']], [[0, 'sus'], [10, 'maj9'], [5, 'maj9']], [[2, 'm11'], [0, 'maj9'], [7, 'sus'], [9, 'm9']],
         [[0, 'lyd'], [2, 'add9']], [[0, 'maj9'], [4, 'm7'], [9, 'm9'], [5, 'lyd']], [[5, 'lyd'], [0, 'maj9']], [[0, 'six9'], [7, 'sus'], [9, 'm9'], [5, 'maj9']],
@@ -200,7 +211,7 @@ const music = (() => {
         T.mel = { A:tune([[0, 8, 16, 24], [0, 12, 16], [4, 16, 20], [0, 6, 16, 28], [0, 16, 24]], 5) };
       },
       step:ambientStep },
-    piano:{ label:'ambient piano', bpm:[56, 78], minor:0.35, sameB:0.35, bpc:() => 2, slow:pr => pr.length >= 8 ? 1 : pr.length >= 4 && R() < 0.25 ? 0.5 : 1, drone:0, level:5.75,
+    piano:{ label:'ambient piano', bpm:[56, 78], minor:0.35, sameB:0.35, bpc:() => 2, slow:pr => pr.length >= 8 ? 1 : pr.length >= 4 && R() < 0.25 ? 0.5 : 1, drone:0, level:7.2,
       progs:{ major:[
         [[0, 'maj9'], [7, 'sus'], [9, 'm9'], [5, 'maj9']], [[9, 'm9'], [5, 'maj9'], [0, 'maj9'], [7, 'sus']], [[0, 'maj9'], [4, 'm7'], [5, 'maj9'], [5, 'm6']],
         [[5, 'maj9'], [0, 'maj9'], [7, 'sus'], [9, 'm9']], [[0, 'add9'], [9, 'madd9'], [4, 'm7'], [5, 'maj7']], [[5, 'maj7'], [7, 'sus'], [4, 'm7'], [9, 'm9']],
@@ -224,7 +235,7 @@ const music = (() => {
         T.mel = { A:tune(cells, 3), B:tune(cells, 5) };
       },
       step:pianoStep },
-    downtempo:{ label:'downtempo', bpm:[80, 100], minor:0.8, sameB:0.35, bpc:() => 2, slow:pr => pr.length >= 4 && R() < 0.3 ? 0.5 : 1, drone:0, level:2.45,
+    downtempo:{ label:'downtempo', bpm:[80, 100], minor:0.8, sameB:0.35, bpc:() => 2, slow:pr => pr.length >= 4 && R() < 0.3 ? 0.5 : 1, drone:0, level:2.3, mix:{ bass:0.52, lead:1.25 },
       progs:{ minor:[
         [[0, 'm9'], [5, 'dom9']], [[0, 'm11'], [3, 'maj9'], [8, 'maj9'], [7, 'm7']], [[0, 'm9'], [10, 'sus'], [8, 'maj9'], [10, 'dom9']], [[0, 'm9'], [8, 'maj7']],
         [[0, 'm11'], [10, 'six9'], [8, 'maj9'], [5, 'm9']], [[5, 'm9'], [0, 'm9']], [[0, 'm9'], [3, 'maj9'], [5, 'm11'], [8, 'maj9']], [[0, 'm9', 4], [8, 'maj9'], [10, 'sus']],
@@ -254,7 +265,7 @@ const music = (() => {
         T.mel = { A:tune(cells, 5), B:tune(cells, 6) };
       },
       step:downStep },
-    synthwave:{ label:'synthwave', bpm:[80, 106], minor:0.6, sameB:0.35, bpc:() => 2, slow:pr => pr.length >= 4 && R() < 0.25 ? 0.5 : 1, drone:0, level:1.12,
+    synthwave:{ label:'synthwave', bpm:[80, 106], minor:0.6, sameB:0.35, bpc:() => 2, slow:pr => pr.length >= 4 && R() < 0.25 ? 0.5 : 1, drone:0, level:1.94, mix:{ bass:0.27, lead:1.2 },
       progs:{ minor:[
         [[0, 'm9'], [8, 'maj9'], [3, 'maj9'], [10, 'sus']], [[0, 'm9'], [10, 'dom9'], [8, 'maj9'], [10, 'dom9']], [[0, 'm9'], [8, 'maj9'], [5, 'm9'], [7, 'm7']],
         [[0, 'm7'], [5, 'm7'], [8, 'maj7'], [7, 'm7']], [[8, 'maj7'], [10, 'add9'], [0, 'm9', 4]], [[0, 'm9'], [3, 'maj9'], [10, 'add9'], [8, 'maj9']],
@@ -298,6 +309,19 @@ const music = (() => {
     ['house', 1, 'Night Bus to Io'], ['house', 25, 'Warm Signal from Hale-Bopp'], ['house', 74, 'Sunrise over Halley'], ['house', 33, 'Golden Hour on Antares'],
     ['synthwave', 1, 'Tapes from Io'], ['synthwave', 40, 'Tapes from Rigel'], ['synthwave', 12, 'City Lights of Mars'],
   ].map(([style, seed, title]) => ({ id:style + '-' + seed, style, seed, title }));
+  // The candidates on the review page (/songs, src/09s-songs.js): the radio's songs and new ones, picked from a few hundred
+  // seeds of each style by measurement (bass balance, loudness, a tune that comes back, variety). The owner marks each one
+  // keep or drop by ear; the keepers go in SONGS.
+  // (2026-09-29: 16 new songs from about 2,400 seeds, mostly lofi and downtempo for the default mix)
+  const CANDIDATES = [...SONGS, ...[
+    ['lofi', 171, 'Tea on Neptune'], ['lofi', 352, 'Study Notes from Pluto'], ['lofi', 99, 'Cassette from Mercury'], ['lofi', 49, 'Rainy Day on the Sombrero'],
+    ['lofi', 162, 'Centaurus A at 3 AM'],
+    ['downtempo', 273, 'Slow Motion over Aldebaran'], ['downtempo', 259, 'Afternoon on Epsilon Eridani'], ['downtempo', 208, 'Half Light on Rigel'], ['downtempo', 50, 'Long Way to Orion'],
+    ['ambient', 271, 'The Long Night of Omega Centauri'],
+    ['piano', 396, 'Quiet Hours on HL Tauri'], ['piano', 241, 'Snow on Aldebaran'],
+    ['house', 286, 'Nights under Pluto'], ['house', 30, 'Afterglow over the Veil'], ['house', 32, 'Dancing on the Crab'],
+    ['synthwave', 15, 'Neon over Antares'],
+  ].map(([style, seed, title]) => ({ id:style + '-' + seed, style, seed, title }))];
   // A mood picks the styles. The default mix plays the gentle ones: all but chill house and synthwave, which play under
   // groove. (calm is the mood of ambient and ambient piano, and CALM those two styles.)
   const MOODS = {
@@ -364,7 +388,7 @@ const music = (() => {
     SH.recent.push(name); if (SH.recent.length > 60) SH.recent.shift();
     return name;
   }
-  let T = null, nextT = 0, step = 0, forceStyle = null, forceWith = null;
+  let T = null, nextT = 0, step = 0, forceStyle = null, forceWith = null, forceSong = null, mixWith = null, solo = null;
   // Deal a song: its palette, harmony, arrangement and tunes (T), drawn from R. (song: from the catalogue; its seed
   // is set here and R stays on it while it plays)
   function deal(style, song){
@@ -372,8 +396,8 @@ const music = (() => {
     const S = STYLES[style];
     const minor = R() < S.minor, key = nextKey(minor);
     const bpm = S.bpm[0] + Math.floor(R()*(S.bpm[1] - S.bpm[0] + 1)), title = makeTitle(style);
-    T = { style, key, bpm, minor, mode:minor ? 'minor' : 'major', title:song ? song.title : title, song:song ? song.id : null, label:S.label + ' · ' + bpm + ' bpm', held:[], chosen:{}, mem:SH.memo[style] || {},
-      force:forceWith, swing:0, subPrev:0, guidePrev:0, pushed:-1 };
+    T = { style, key, bpm, minor, mode:minor ? 'minor' : 'major', title:song && song.title ? song.title : title, song:song ? song.id : null, label:S.label + ' · ' + bpm + ' bpm', held:[], chosen:{}, mem:SH.memo[style] || {},
+      force:forceWith, swing:0, subPrev:0, guidePrev:0, pushed:-1, mix:{ ...MIX0, ...S.mix, ...(mixWith || {}) } };
     // the song's harmony: progression A, and B (A again, or another in the same mode)
     const bank = S.progs[T.mode], a = choose('prog', bank), b = R() < S.sameB ? a : choose('progB', bank.filter(p => p !== a));
     const mk = p => ({ p:p.map(([d, ty, n]) => [key + d, ty, n]), bpc:S.bpc(p), slow:S.slow(p), at:bank.indexOf(p) });
@@ -391,22 +415,29 @@ const music = (() => {
     SH.memo[style] = T.chosen; if (T.leadI && T.leadI !== 'none') SH.lastLead = T.leadI;
     return T;
   }
-  // a song's length in seconds (the piano's breathing tempo included)
-  const lengthOf = T => { let s = 0; for (let b = 0; b < T.sections.length; b++) s += 4*60/(T.drift ? T.bpm*(1 + T.drift*Math.sin(b*0.45 + T.driftPh)) : T.bpm); return s; };
+  // a song's length in seconds (the piano's breathing tempo included), and where each bar starts
+  const barLen = (T, b) => 4*60/(T.drift ? T.bpm*(1 + T.drift*Math.sin(b*0.45 + T.driftPh)) : T.bpm);
+  const lengthOf = T => { let s = 0; for (let b = 0; b < T.sections.length; b++) s += barLen(T, b); return s; };
+  const barStarts = T => { const out = []; let s = 0; for (let b = 0; b < T.sections.length; b++){ out.push(s); s += barLen(T, b); } return out; };
   // (at: the time the track starts; a new track is made a little ahead of the music)
   function newTrack(at){
-    const song = forceStyle ? null : nextSong(), style = song ? song.style : forceStyle, S = STYLES[style];
-    deal(style, song); const { key, bpm, sections } = T;
+    const song = forceSong || (forceStyle ? null : nextSong()), style = song ? song.style : forceStyle, S = STYLES[style];
+    deal(style, song);
     step = first ? T.introEnd*16 : 0; first = false;
     // (a render starts where the intro ends, so an intro draws from a generator of its own: after it the song goes on
     // exactly as it renders)
     if (song && step === 0 && T.introEnd){ T.mainR = R; R = gen(song.seed + 104729); }
-    if (!offline && typeof onTrack === 'function') onTrack(T);
+    if (!offline && !solo && typeof onTrack === 'function') onTrack(T);
     // the style's level (set on each note as it is made, so the last song's tail keeps its own) and the song's texture
-    vel = S.level;
+    vel = S.level*(mixWith && mixWith.level || 1);
+    trackSound(at === undefined ? ctx.currentTime : at);
+  }
+  // the song's texture, drone, filter, tape hiss and echo from time t, for the rest of the song (from its step)
+  function trackSound(t){
+    const S = STYLES[T.style], { key, bpm, sections } = T;
     // (a song is dealt up to 0.25 s ahead, so a skip can land before the skipped song's settings: those are cancelled first)
-    const t = at === undefined ? ctx.currentTime : at, X = TEXTURES[T.tex] || TEXTURES.none;
-    for (const [g, v, tc] of [[crackleG, X.crackle || 0, 2], [rainG, X.rain ? 0.015 : 0, 3], [windG, X.wind ? 0.06 : 0, 4], [droneG, S.drone*vel, 4]]){ g.gain.cancelScheduledValues(t); g.gain.setTargetAtTime(v, t, tc); }
+    const X = TEXTURES[T.tex] || TEXTURES.none;
+    for (const [g, v, tc] of [[crackleG, X.crackle || 0, 2], [rainG, X.rain ? 0.015 : 0, 3], [windG, X.wind ? 0.06 : 0, 4], [droneG, S.drone*vel*mx('drone'), 4]]){ g.gain.cancelScheduledValues(t); g.gain.setTargetAtTime(v, t, tc); }
     // the drone follows the key (a slow glide from the last one)
     const d = low(key, 36, 47); drones.forEach((o, i) => { o.frequency.cancelScheduledValues(t); o.frequency.setTargetAtTime(hz(d + [0, 7, 12][i]), t, 1.5); });
     musLP.frequency.cancelScheduledValues(t);
@@ -506,7 +537,7 @@ const music = (() => {
     }
   }
   function noise(t, dur, v, type, f, q, out, send = 0, att = 0){
-    v *= vel;
+    v *= vel*(out === drumBus ? mx('drums') : 1);
     const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.playbackRate.value = 0.9 + R()*0.2;
     const fl = ctx.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q;
     const g = ctx.createGain();
@@ -521,21 +552,21 @@ const music = (() => {
   function kick(t, v, K = KICKS.dusty){
     const [f0, f1, dec, click, gk] = K, o = ctx.createOscillator(), g = ctx.createGain(); v *= gk;
     o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + 0.13);
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v*vel, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + dec);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v*vel*mx('kick'), t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + dec);
     o.connect(g).connect(drumBus); o.start(t); o.stop(t + dec + 0.03); tidy(o, [o, g]);
     noise(t, 0.012, v*click, 'highpass', 2500, 0.5, drumBus);
   }
   function snare(t, v, soft){
     noise(t, soft ? 0.16 : 0.2, v, 'bandpass', soft ? 1500 : 1900, 0.8, drumBus, 0.25);
     const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'triangle'; o.frequency.setValueAtTime(190, t); o.frequency.exponentialRampToValueAtTime(140, t + 0.08);
-    g.gain.setValueAtTime(v*0.5*vel, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1); o.connect(g).connect(drumBus); o.start(t); o.stop(t + 0.12); tidy(o, [o, g]);
+    g.gain.setValueAtTime(v*0.5*vel*mx('drums'), t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1); o.connect(g).connect(drumBus); o.start(t); o.stop(t + 0.12); tidy(o, [o, g]);
   }
   function clap(t, v){ for (let k=0;k<3;k++) noise(t + k*0.011, 0.07 + (k === 2 ? 0.12 : 0), v*(k === 2 ? 1 : 0.6), 'bandpass', 1300, 1.2, drumBus, 0.35); }
   // a cross-stick on the rim, a brush on the snare, a finger snap
   function rim(t, v){
     noise(t, 0.03, v*0.7, 'bandpass', 2300, 2.5, drumBus, 0.2);
     const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'triangle'; o.frequency.setValueAtTime(560, t); o.frequency.exponentialRampToValueAtTime(470, t + 0.03);
-    g.gain.setValueAtTime(v*0.45*vel, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05); o.connect(g).connect(drumBus); o.start(t); o.stop(t + 0.06); tidy(o, [o, g]);
+    g.gain.setValueAtTime(v*0.45*vel*mx('drums'), t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05); o.connect(g).connect(drumBus); o.start(t); o.stop(t + 0.06); tidy(o, [o, g]);
   }
   const brush = (t, v) => noise(t, 0.24, v, 'bandpass', 3000, 0.5, drumBus, 0.2, 0.012);
   const snap = (t, v) => noise(t, 0.08, v, 'bandpass', 2900, 1.6, drumBus, 0.4);
@@ -549,7 +580,7 @@ const music = (() => {
   const shaker = (t, v) => noise(t, 0.075, v, 'bandpass', 6000, 1.2, drumBus, 0, 0.02);
   // hand percussion: a conga (tuned in MIDI notes), a wood block, a soft tom for fills
   function drumTone(t, f0, f1, ft, dec, v, send = 0){
-    const o = ctx.createOscillator(), g = ctx.createGain();
+    const o = ctx.createOscillator(), g = ctx.createGain(); v *= mx('drums');
     o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + ft);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v*vel, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + dec);
     o.connect(g).connect(drumBus); const nodes = [o, g];
@@ -617,13 +648,15 @@ const music = (() => {
       flt.type = 'lowpass'; flt.Q.value = 0.5;
       if (kind === 'brass'){ flt.frequency.setValueAtTime(fc*0.35, t); flt.frequency.linearRampToValueAtTime(fc, t + Math.min(dur*0.5, 2.5)); } else flt.frequency.value = fc;
       pan.pan.value = (R()*2 - 1)*0.6;
+      // (the sine an octave down fades out below about 160 Hz: under a low chord it only hummed)
+      const sg = ctx.createGain(); sg.gain.value = Math.max(0.2, Math.min(1, Math.pow(f/320, 1.5)));
       const oscs = (kind ? [['sawtooth', -7 - R()*4], ['sawtooth', 7 + R()*4]] : [['sawtooth', -6 - R()*4], ['sawtooth', 6 + R()*4], ['sine', 0]])
-        .map(([type, det]) => { const o = ctx.createOscillator(); o.type = type; o.frequency.value = type === 'sine' ? f/2 : f; o.detune.value = det; o.connect(flt); return o; });
-      flt.connect(g).connect(pan).connect(musBus);
+        .map(([type, det]) => { const o = ctx.createOscillator(); o.type = type; o.frequency.value = type === 'sine' ? f/2 : f; o.detune.value = det; o.connect(type === 'sine' ? sg : flt); return o; });
+      sg.connect(flt); flt.connect(g).connect(pan).connect(musBus);
       const att = kind === 'strings' ? Math.min(dur*0.3, 0.8 + R()*0.8) : Math.min(dur*0.3, 3 + R()*3), peak = v*(0.8 + 0.4*R());
       g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + att); g.gain.setValueAtTime(peak, t + Math.max(dur - 1.5, att)); g.gain.linearRampToValueAtTime(0, t + dur + 1.5);
       for (const o of oscs){ o.start(t); o.stop(t + dur + 1.6); }
-      tidy(oscs[0], [...oscs, flt, g, pan]); held(g, t, t + dur + 1.6);
+      tidy(oscs[0], [...oscs, sg, flt, g, pan]); held(g, t, t + dur + 1.6);
     });
   }
   // a warm pad: one soft triangle (or sine: 'glass') per note, slow in and out
@@ -656,18 +689,20 @@ const music = (() => {
   }
   // a pad chord in one of the pad sounds, each at about the saw pad's loudness for the same v
   function padChord(kind, t, notes, dur, v, cutoff){
+    v *= mx('pad');
     if (kind === 'choir') choir(t, notes.slice(0, 4), dur, v*1.1);
     else if (kind === 'glass') warm(t, notes, dur, v*1.17, 2400, 'sine');
     else if (kind === 'warm') warm(t, notes, dur, v*1.31, cutoff);
     else if (kind === 'strings' || kind === 'brass') pad(t, notes, dur, v*(kind === 'brass' ? 1.25 : 1.22), cutoff*1.4, kind);
     else if (kind !== 'none') pad(t, notes, dur, v, cutoff);
   }
-  // a soft sine under the chord's root (ambient and ambient piano): slow in and out, dry and in the middle, no random draws
+  // a soft sine under the chord's root (ambient): very slow in and out, so it is felt more than heard, dry and in the middle,
+  // no random draws
   function subPad(t, m, dur, v){
-    v *= vel;
-    const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = hz(m);
-    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + 2.5); g.gain.setValueAtTime(v, t + Math.max(dur - 2, 2.5)); g.gain.linearRampToValueAtTime(0, t + dur + 1.5);
-    o.connect(g).connect(duck); o.start(t); o.stop(t + dur + 1.6); tidy(o, [o, g]); held(g, t, t + dur + 1.6);
+    v *= vel*mx('root');
+    const o = ctx.createOscillator(), g = ctx.createGain(), att = Math.min(4, dur*0.4); o.frequency.value = hz(m);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + att); g.gain.setValueAtTime(v, t + Math.max(dur - 2, att)); g.gain.linearRampToValueAtTime(0, t + dur + 3);
+    o.connect(g).connect(duck); o.start(t); o.stop(t + dur + 3.1); tidy(o, [o, g]); held(g, t, t + dur + 3.1);
   }
   // a sine sub bass that can slide in from the last note (downtempo)
   function sub(t, m, dur, v, from){
@@ -682,7 +717,7 @@ const music = (() => {
   // the song's bass sound, each about as strong as the round bass for the same v
   const BASSG = { round:1, upright:1.36, sub:1.08, synth:1.27 };
   function bassNote(t, m, dur, v, from){
-    const k = T.bassI || 'round', vv = v*BASSG[k];
+    const k = T.bassI || 'round', vv = v*BASSG[k]*mx('bass');
     if (k === 'sub') sub(t, m, dur, vv, from); else if (k === 'upright') upright(t, m, dur, vv); else if (k === 'synth') synthBass(t, m, dur, vv); else bass(t, m, dur, vv);
   }
   // ---------------------------------------------------------------- leads
@@ -815,7 +850,7 @@ const music = (() => {
     warm:(t, m, d, v, p) => warm(t, [m], d, v*0.5, 1400),
   };
   const REG = { musicbox:12, glock:12, bell:12 };
-  const lead = (name, t, m, dur, v, pan = 0.2) => { if (LEAD[name]) LEAD[name](t, m + (REG[name] || 0), dur, v, pan); };
+  const lead = (name, t, m, dur, v, pan = 0.2) => { if (LEAD[name]) LEAD[name](t, m + (REG[name] || 0), dur, v*mx('lead'), pan); };
   // tape hiss for one song (it fades out early if the next song starts sooner)
   let hissNow = null;
   function hiss(t, dur, v){
@@ -828,6 +863,7 @@ const music = (() => {
   }
   // ---------------------------------------------------------------- the sequencer: sixteenth notes, scheduled a little ahead
   function play(t){
+    if (T && solo && step >= T.sections.length*16){ soloEnd(); return 3600; }   // (one song on its own ends with it)
     if (!T || step >= T.sections.length*16){ newTrack(t); }
     if (T.mainR && step === T.introEnd*16){ R = T.mainR; T.mainR = null; }
     const s = step % 16, bar = Math.floor(step/16), sec = T.sections[bar];
@@ -851,7 +887,7 @@ const music = (() => {
   // a chord on the song's keys, each about as loud as the Rhodes for the same v (up: strummed from the top)
   const KEYG = { rhodes:1, wurli:1, piano:1.45, guitar:1.95, organ:0.52 };
   function hit(t, notes, dur, v, inst, up){
-    const L = notes.length; v *= KEYG[inst];
+    const L = notes.length; v *= KEYG[inst]*mx('keys');
     for (let j = 0; j < L; j++){
       const i = up ? L - 1 - j : j, m = notes[i], pan = L > 1 ? (i/(L - 1) - 0.5)*0.5 : 0, vv = v*(0.85 + 0.3*R()), dt = (R() - 0.5)*0.008;
       if (inst === 'guitar') pluck(t + j*0.022, m, vv, PLUCKS.guitar, pan, dur);
@@ -916,7 +952,7 @@ const music = (() => {
     // bass: the root, then the fifth or the octave on 3 (root8); a step into the next chord (approach); or long notes (sparse)
     if (sec !== 'intro'){
       const r = low(root, 33, 46), nx = T.chords[bar + 1];
-      if (T.bassPat === 'sparse'){ if (s === 0) bassNote(t, r, Math.min(left, sd*14), chordStart ? 0.18 : 0.153); if (s === 10 && R() < 0.4) bassNote(tt, r + 12, sd*2, 0.108); }
+      if (T.bassPat === 'sparse'){ if (s === 0) bassNote(t, r, Math.min(left, sd*14), chordStart ? 0.135 : 0.115); if (s === 10 && R() < 0.4) bassNote(tt, r + 12, sd*2, 0.108); }
       else {
         if (chordStart) bassNote(t, r, sd*(T.bassPat === 'approach' ? 7 : 6), 0.18);
         if (s === 8 && sec !== 'break') bassNote(tt, r + (R() < 0.5 ? 7 : 12), sd*3, 0.126);
@@ -992,7 +1028,7 @@ const music = (() => {
       if (T.breakI === 'bell') bell(t, m, 0.03); else if (T.breakI === 'musicbox') lead('musicbox', t, m - 12, sd*8, 0.04, 0); else if (s === 0 && chordStart) choir(t, voiceNR(root, type, 57, 72).slice(0, 3), left, 0.012);
     }
   }
-  // ---------------------------------------------------------------- ambient: slow pads over the drone and a low root, and a sparkle
+  // ---------------------------------------------------------------- ambient: slow pads over the drone and a faint low root, and a sparkle
   function ambientStep(c){
     const { t, sd, s, bar, root, type, chordStart, k, left } = c;
     if (chordStart){ padChord(T.padI, t, voice(root, type, 50, 74), left + 4, 0.04, 800); subPad(t, low(root, 36, 47), left + 2, 0.24); }
@@ -1012,14 +1048,13 @@ const music = (() => {
   // ---------------------------------------------------------------- ambient piano: felt piano, a left hand, a right hand, a slow tune
   function pianoStep(c){
     const { t, sd, s, bar, sec, root, type, chordStart, lastBar, k, left, n } = c, loose = () => (R() - 0.5)*0.03, r = low(root, 36, 47);
-    // left hand: root and fifth, octaves, a walking root, fifth and tenth, or a low chord, under the pedal until the next chord,
-    // with a soft sine on the same root
+    // left hand: root and fifth, octaves, a walking root, fifth and tenth, or a low chord, under the pedal until the next chord
+    // (it gives the low end: the soft sine that held the root under it until 0.9.4 made the bass boom)
     if (chordStart){
       if (T.lh === 'octave'){ piano(t + loose(), r, left, 0.04); piano(t + 0.03 + loose(), r + 12, left, 0.026); }
       else if (T.lh === 'block'){ piano(t + loose(), r, left, 0.036); piano(t + 0.02 + loose(), r + 7, left, 0.022); piano(t + 0.04 + loose(), r + 12 + (CTONES[type] || [0, 4])[1], left, 0.02); }
       else if (T.lh !== 'walk'){ piano(t + loose(), r, left, 0.042); piano(t + 0.05 + loose(), r + 7, left, 0.03); }
       if (sec !== 'intro') padChord(T.padI, t, voice(root, type, 52, 67), left + 0.5, 0.0024, 650);
-      subPad(t, r, left + 0.5, 0.045);
     }
     if (T.lh === 'walk' && !busy()){
       if (s === 0) piano(t + loose(), r, left, chordStart ? 0.042 : 0.034);
@@ -1029,7 +1064,8 @@ const music = (() => {
     // right hand: broken chords in eighths, rising and falling over two bars; every third sixteenth, across the beat (dotted);
     // a few quarter notes (sparse); or soft chords on 1 and 3 (hymn). About a quarter of the notes are left out.
     if (sec !== 'outro' && !(sec === 'intro' && bar === 0) && !busy()){
-      const vs = voice(root, type, 57, 76), pos = (bar % 2)*16 + s, B = sec === 'B' ? 0.8 : 1;
+      // (the busier patterns a little softer, so the tune stands out over them)
+      const vs = voice(root, type, 57, 76), pos = (bar % 2)*16 + s, B = (sec === 'B' ? 0.8 : 1)*({ eighths:0.75, dotted:0.85, hymn:0.8 }[T.rh] || 1);
       if (T.rh === 'dotted'){ if (pos % 3 === 0 && pos < 30 && R() > 0.15){ const L = vs.length, cyc = 2*L - 2, j = (pos/3) % cyc; piano(t + loose(), vs[j < L ? j : cyc - j], left, (0.016 + 0.008*R())*B); } }
       else if (T.rh === 'sparse'){ if (s % 4 === 0 && R() < 0.6) piano(t + loose(), pick(vs), left, (0.018 + 0.008*R())*B); }
       else if (T.rh === 'hymn'){ if (s === 0 || s === 8) vs.slice(-3).forEach((m, i) => piano(t + i*0.02 + loose(), m, s === 0 ? Math.min(left, sd*8) : left, 0.02*B)); }
@@ -1120,7 +1156,7 @@ const music = (() => {
     const ahead = document.hidden ? 1.6 : 0.25;
     while (nextT < ctx.currentTime + ahead) nextT += play(nextT);
   }
-  const level1 = 0.85;   // the master level at full volume
+  const level1 = 0.95;   // the master level at full volume
   function level(){ return level1*SET.volume; }
   function fadeTo(v, sec){ if (!master) return; const t = ctx.currentTime; master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(master.gain.value, t); master.gain.linearRampToValueAtTime(v, t + sec); }
   function start(){
@@ -1143,30 +1179,94 @@ const music = (() => {
   // on an OfflineAudioContext. Everything is scheduled at once and the live graph and track are put back before it renders.
   // (force: a song's choices set by name, such as { lead:'flute' }, for tests)
   let lastRender = '', lastInfo = null;
-  function render(style, sec, seed, rate, force){
+  // (intro: from the very start, as the radio plays a song that is not its first, instead of from the end of the intro;
+  // mix: a style's balance set by part, such as { bass:0.5 }, for tuning)
+  // The notes are scheduled a little at a time, CHUNK seconds ahead of the rendering (it stops at each step with suspend()),
+  // as the live radio schedules them: the same calls in the same order, but a whole song scheduled at once kept thousands of
+  // waiting notes in the graph and took minutes to render. Between steps the render keeps its graph and song in its own
+  // state (G below), so the live radio and other renders are untouched.
+  const CHUNK = 1;
+  function render(style, sec, seed, rate, force, intro, mix){
     const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
     if (!OAC || !STYLES[style]) return Promise.resolve(null);
     const G = () => [ctx, master, mixG, verbSend, drumBus, drumLP, musBus, musLP, duck, crackleG, rainG, windG, droneG, drones, wobble, noiseBuf, WAVES, vibesBus, arpBus, echoIn, echoL, echoR,
-      R, T, nextT, step, first, forceStyle, forceWith, offline, vel, SH, hissNow];
+      R, T, nextT, step, first, forceStyle, forceWith, forceSong, mixWith, offline, vel, SH, hissNow, solo];
+    const put = v => { [ctx, master, mixG, verbSend, drumBus, drumLP, musBus, musLP, duck, crackleG, rainG, windG, droneG, drones, wobble, noiseBuf, WAVES, vibesBus, arpBus, echoIn, echoL, echoR,
+      R, T, nextT, step, first, forceStyle, forceWith, forceSong, mixWith, offline, vel, SH, hissNow, solo] = v; };
+    let own = null, t = 0.1;
+    // schedule everything that starts before `until` (in the render's own state)
+    const more = until => { const keep = G(); try { put(own); while (t < Math.min(until, sec)) t += play(t); own = G(); } finally { put(keep); } };
     const keep = G();
     // (the noise and reverb buffers draw from a generator of their own, so a seed deals the same song at any sample rate)
     let oc = null;
     try {
       R = gen(seed + 7919); oc = new OAC(2, Math.ceil(sec*rate), rate); offline = true; build(oc);
-      R = gen(seed);
-      forceStyle = style; forceWith = force || null; first = true; T = null; SH = fresh(); hissNow = null; newTrack(0); lastRender = T.name;
+      forceStyle = style; forceSong = { id:style + '-' + seed, style, seed }; forceWith = force || null; mixWith = mix || null; solo = null;
+      first = !intro; T = null; hissNow = null; newTrack(0); lastRender = T.name;
       // (what the song chose: its key, tempo, progressions as degrees, arrangement and palette)
       const rel = P => P.p.map(([r, ty, b]) => [r - T.key, ty, Math.max(1, Math.round((b || P.bpc)*P.slow))]);
       lastInfo = { length:lengthOf(T), title:T.title, label:T.label, style, key:T.key, mode:T.mode, bpm:T.bpm, progA:rel(T.pA), progB:T.pB === T.pA ? null : rel(T.pB), progAt:[T.pA.at, T.pB.at],
-        plan:T.plan.map(([a, b]) => a + ' ' + b).join(', '), bars:T.sections.length };
+        plan:T.plan.map(([a, b]) => a + ' ' + b).join(', '), bars:T.sections.length, forms:T.mel ? Object.keys(T.mel).map(k => T.mel[k] && k + ' ' + T.mel[k].form).filter(Boolean).join(', ') : '' };
       for (const k in T) if (['string', 'number', 'boolean'].includes(typeof T[k]) && !(k in lastInfo)) lastInfo[k] = T[k];
-      let t = 0.1; while (t < sec) t += play(t);
       master.gain.value = level1;
-    } finally {
-      [ctx, master, mixG, verbSend, drumBus, drumLP, musBus, musLP, duck, crackleG, rainG, windG, droneG, drones, wobble, noiseBuf, WAVES, vibesBus, arpBus, echoIn, echoL, echoR,
-        R, T, nextT, step, first, forceStyle, forceWith, offline, vel, SH, hissNow] = keep;
-    }
+      own = G();
+    } finally { put(keep); }
+    more(2*CHUNK);
+    for (let s = CHUNK; s < sec - CHUNK; s += CHUNK) oc.suspend(s).then(() => { more(s + 2*CHUNK); oc.resume(); });
     return oc.startRendering();
+  }
+  // ---------------------------------------------------------------- one song on its own (the review page, /songs)
+  // audition(id, at) plays one song of CANDIDATES live, from the start of the bar at `at` seconds (0: from the very start,
+  // intro and all) and stops at its end; the radio stays off meanwhile. Up to that bar the song is dealt and played on a
+  // silent scratch graph, so every random draw happens as it does from the start and the song goes on exactly as it
+  // plays (and renders) from the start.
+  function audition(id, at = 0){
+    const song = CANDIDATES.find(x => x.id === id), OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if (!song || !AC || !OAC) return false;
+    if (!ctx){ try { build(); } catch (e) { console.warn('sound unavailable', e); return false; } }
+    if (ctx.state === 'suspended') ctx.resume();
+    wantOn = false; running = false;
+    const now = ctx.currentTime, t0 = now + 0.12;
+    // (what still rings or is scheduled from the last song is cut: its long notes fade, and the music dips until t0)
+    if (T) release(T.held, now);
+    mixG.gain.cancelScheduledValues(now); mixG.gain.setValueAtTime(mixG.gain.value, now); mixG.gain.linearRampToValueAtTime(0, now + 0.06); mixG.gain.setValueAtTime(1, t0);
+    const live = [ctx, master, mixG, verbSend, drumBus, drumLP, musBus, musLP, duck, crackleG, rainG, windG, droneG, drones, wobble, noiseBuf, WAVES, vibesBus, arpBus, echoIn, echoL, echoR, offline, hissNow];
+    let bars = null, b = 0;
+    try {
+      R = gen(7919); offline = true; build(new OAC(2, 1, 48000));   // (the scratch graph's buffers draw from a generator of their own)
+      solo = { id, ended:false }; forceSong = song; first = false; T = null; hissNow = null; newTrack(0);
+      bars = barStarts(T); while (b + 1 < bars.length && bars[b + 1] <= at + 0.01) b++;
+      let t = 0.1; while (step < b*16) t += play(t);   // (from 0.1 s, as a render: a note can come a little early)
+    } finally {
+      forceSong = null;
+      [ctx, master, mixG, verbSend, drumBus, drumLP, musBus, musLP, duck, crackleG, rainG, windG, droneG, drones, wobble, noiseBuf, WAVES, vibesBus, arpBus, echoIn, echoL, echoR, offline, hissNow] = live;
+    }
+    trackSound(t0);
+    Object.assign(solo, { t0, at:bars[b], len:lengthOf(T), bars });
+    nextT = t0; running = true;
+    clearInterval(timer); timer = setInterval(pump, 50); pump();
+    fadeTo(level(), 0.1);
+    return true;
+  }
+  // the song has ended: its last notes ring out, then the sound sleeps
+  function soloEnd(){
+    running = false; solo.ended = true;
+    setTimeout(() => { if (!running){ clearInterval(timer); if (ctx.state === 'running') ctx.suspend(); } }, 6000);
+  }
+  function soloStop(){
+    if (!solo) return;
+    const was = solo; solo = null; running = false;
+    if (!ctx) return;
+    if (T) release(T.held, ctx.currentTime);
+    T = null; fadeTo(0, 0.25);
+    setTimeout(() => { if (!running){ clearInterval(timer); if (ctx.state === 'running') ctx.suspend(); } }, 600);
+    return was;
+  }
+  // where the song on its own is (s), its length, and whether it plays
+  function soloState(){
+    if (!solo || !solo.len) return null;
+    const t = Math.max(0, Math.min(solo.len, solo.at + (ctx.currentTime - solo.t0)));
+    return { id:solo.id, t, len:solo.len, playing:!solo.ended || t < solo.len, ended:solo.ended && t >= solo.len };
   }
   // the catalogue with each song's tempo and length (dealt once, without a sound)
   let songList = null;
@@ -1176,6 +1276,16 @@ const music = (() => {
     try { forceWith = null; songList = SONGS.map(x => { const t = deal(x.style, x); return { ...x, label:STYLES[x.style].label, bpm:t.bpm, sec:lengthOf(t) }; }); }
     finally { [R, T, SH, forceWith] = keep; }
     return songList;
+  }
+  // the candidates, the same way, with their key and whether the radio plays them now
+  const KEYN = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+  let candList = null;
+  function candidates(){
+    if (candList) return candList;
+    const keep = [R, T, SH, forceWith, mixWith];
+    try { forceWith = mixWith = null; candList = CANDIDATES.map(x => { const t = deal(x.style, x); return { ...x, label:STYLES[x.style].label, bpm:t.bpm, sec:lengthOf(t), key:KEYN[t.key % 12] + ' ' + t.mode, radio:SONGS.some(y => y.id === x.id) }; }); }
+    finally { [R, T, SH, forceWith, mixWith] = keep; }
+    return candList;
   }
   // the next n songs a mood would play (for the tests), without playing anything
   function shuffle(mood, n){
@@ -1194,8 +1304,10 @@ const music = (() => {
     get _dbg(){ return { ctx, master, live, styles:Object.keys(STYLES) }; },
     // the moods of the settings panel, and what each one plays ('ambient, piano and lofi')
     moods:MOODS, moodText,
-    _render:(style, sec = 30, { seed = 1, rate = 48000, force = null } = {}) => render(style, sec, seed, rate, force),   // for tests/music.mjs
+    _render:(style, sec = 30, { seed = 1, rate = 48000, force = null, intro = false, mix = null } = {}) => render(style, sec, seed, rate, force, intro, mix),   // for tests/music.mjs and the review page
     songs, calm:CALM, _shuffle:shuffle, _places:PLACES, _names:NAMES,
+    // the review page: the candidates, one played on its own from a time (s), stopped, and where it is
+    candidates, audition, stopSong:soloStop, get songState(){ return soloState(); },
     get _last(){ return lastRender; },
     get _info(){ return lastInfo; },
     set onTrack(f){ onTrack = f; },

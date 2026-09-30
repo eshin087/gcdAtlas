@@ -297,11 +297,11 @@ void main(){
     // (and the sheen along the edges where the hull meets the sky: a thin line of light hugging its outline)
     if(!hit){ vec3 pa = o + d*amT; col += vec3(0.6, 0.84, 1.)*lsK*(0.15 + 0.85*sq(smoothstep(-0.9, 0.85, pa.y)))*exp(-max(am, 0.)/max(0.9*uPix*amT, 0.002))*0.9; }
   }
-  // the working lights on the belly pod (scan array, tractor emitter, probe bay) and at the needle's tip (the gun, also lit by the drill);
-  // the scoop's plasma sheath round the needle
+  // the working lights on the belly pod (scan array, tractor emitter, probe bay) and at the needle's tip (the fold cannon's feed, ice white:
+  // it glows as the gun forms in front of it and draws power); the scoop's plasma sheath round the needle
   col += vec3(0.45, 0.9, 1.)*lamp(o, d, vec3(0.066, 0.2, 0.), 0.01, front + 0.02)*45.*uP2.x;
   col += vec3(0.5, 1., 0.75)*lamp(o, d, vec3(0.07, -0.02, 0.), 0.011, front + 0.02)*45.*uP2.y;
-  col += vec3(1., 0.8, 0.55)*pblob(o, d, vec3(0., 0.85, 0.), 0.014)*55.*uP2.z;
+  col += vec3(0.8, 0.92, 1.)*pblob(o, d, vec3(0., 0.85, 0.), 0.014)*55.*uP2.z;
   col += vec3(0.6, 0.83, 1.)*lamp(o, d, vec3(0.064, -0.1, 0.), 0.009, front + 0.02)*35.*uP2.w;   // (the bay Pip, the drone, lives in: ice blue)
   if(uP1.w > 0.01) col += uP3.rgb*(blob(o, d, vec3(0., 0.74, 0.), 0.1)*5. + pblob(o, d, vec3(0., 0.85, 0.), 0.02)*30.)*uP1.w;
   // the shield. Under load a line hugs the hull's outline, one pixel out and about one wide, at any size: on a phone the fine detail is too small to show,
@@ -350,7 +350,7 @@ const foldCellThr = (ix, iz, mode, cs) => foldF((ix + 0.5)*cs, (iz + 0.5)*cs, mo
 P.ship = program(VS_RECT, COMMON + `precision highp int;\n#define RM ${reduceMotion ? 1 : 0}\n` + FS_SHIP_BODY);
 const SHIP_TARGETS = ['earth', 'moon', 'jupiter', 'saturn', 'titan', 'sun', 'mars', 'sgra', 'betelgeuse', 'pillars', 'crab', 'etacar', 'catseye', 'hltau', 'omegacen', 'm87bh', 'andromeda',
   'm51', 'antennae', 'ton618', 'milkyway', 'antares', 'alphacen', 'trappist1', 'magnetar', 'sn1987a', 'galcentre', 'rsoph', 'europa', 'io', 'lmc', 'm104', '3c273', 'proxima', 'sirius', 'pleiades', 'casa', 'bubble', 'halley', 'ceres', 'southernring'];
-// the ship itself. How it travels (light speed, folds) and what it does on each visit (scan, probe, weapons test, skim, tractor and drill) is in 07h-halo.js.
+// the ship itself. How it travels (light speed, folds) and what it does on each visit (scan, Pip, weapons test, skim) is in 07h-halo.js (the scan in 07j-scan.js, the fold cannon in 07k-cannon.js).
 const shipOff = () => ship.viewOff || [0, 0, 0];
 const ship = (() => {
   const RAD = 2.5*KM;

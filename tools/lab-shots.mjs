@@ -2,7 +2,7 @@
 // Halo's looks without waiting for the ship on the site.
 //   npm run lab -- --do=cam:chase+act:fold --at=3,7,9.5,10.5    teleport, seen from the chase camera, stills 3, 7, 9.5 and 10.5 s after
 //   npm run lab -- --do=place:sgra+cam:side --at=2,4             the shield by Sgr A*
-// --do: lab buttons pressed in turn (place:saturn|jupiter|earth|mars|sgra|crab, cam:side|top|chase|bridge|orbit, speed:0.25|pause|step,
+// --do: lab buttons pressed in turn (place:saturn|jupiter|earth|mars|sgra|crab, cam:side|top|aim|chase|bridge|orbit, speed:0.25|pause|step,
 // act:fold|probe|scan|weapons, load:auto). --at: seconds after the last press (real time: each still takes about a tenth of a second).
 // --load=0.8: the shield's load, as its slider sets it. --phone: a phone held upright. --out=dir: where they go (tests/out/lab).
 import { chromium } from 'playwright';

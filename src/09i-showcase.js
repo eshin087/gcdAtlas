@@ -1,6 +1,6 @@
 // ================================================================ the Halo showcase (?showcase=halo): a scripted look at the ship, for reviewing its design.
 // The camera circles the ship once (it holds still for that, which it never does on the site), then rides along while it roams: at Saturn a
-// scan, light speed to Jupiter (seen from the bridge), a skim and an outing by Pip, a fold to Sgr A* (the shield under the strongest pull) and
+// scan and a weapons test (the fold cannon), light speed to Jupiter (seen from the bridge), a skim and an outing by Pip, a fold to Sgr A* (the shield under the strongest pull) and
 // Pip there, then a fold back to Saturn and round again. Its stays are shorter than on the site (STAY, against about two minutes).
 // Buttons (keys 1 to 7) do any of it now, or as soon as the ship can (a queue of one: the last one pressed, lit while it waits): teleport,
 // light speed, black hole, scan, Pip, weapons, skim (ship.demo in 07h-halo.js). A caption names each part. Taking the camera (a drag, the
@@ -9,10 +9,11 @@ const SHOWCASE = { on:new URLSearchParams(location.search).get('showcase') === '
 if (SHOWCASE.on){
   const SC = SHOWCASE, D = Math.PI/180, TURN_T = 22, LIGHT = [-0.55, 0.35, 0.6], STAY = 75;   // (LIGHT: the light during the turn, in the ship's frame: above, ahead, starboard)
   // the round: after each stop, where next and how, and the jobs there (anywhere else a button took it, the site's own jobs, and back to Saturn)
-  const ROUTE = { saturn:{ next:'jupiter', by:'light', jobs:['scan'] }, jupiter:{ next:'sgra', by:'fold', jobs:['skim', 'probe'] }, sgra:{ next:'saturn', by:'fold', jobs:['probe'] } };
+  const ROUTE = { saturn:{ next:'jupiter', by:'light', jobs:['scan', 'weapons'] }, jupiter:{ next:'sgra', by:'fold', jobs:['skim', 'probe'] }, sgra:{ next:'saturn', by:'fold', jobs:['probe'] } };
+  // (the weapons test says what each part of it is: the fold cannon forming, its three shots, breaking up; weapCap in 07k-cannon.js)
   const JOB = { scan:tg => 'hologram scan of ' + tg.name + ' · a ring sweeps it pole to pole; the numbers it finds are real',
     probe:() => "Pip, the ship's little drone, comes out to help round the ship",
-    weapons:tg => 'weapons test on ' + tg.name + ' (fictional): rail gun, plasma lance, antimatter pulse · nothing is harmed',
+    weapons:(tg, A) => 'weapons test (fictional), nothing is harmed · ' + (A && A.cap ? A.cap() : 'the fold cannon on ' + tg.name),
     skim:tg => 'skimming ' + tg.name + (tg === sun || tg.group === 'stars' ? "'s surface" : "'s cloud tops") + ' to refuel' };
   // the turn, in the ship's frame (ship radii): from straight above with the needle pointing right (like the concept art) down to the
   // starboard side, then once round (the front, the port side from below, the stern) and up into the chase camera's place.
@@ -107,7 +108,7 @@ if (SHOWCASE.on){
     if (S.phase === 'light') return bridge + 'light speed · to ' + S.leg.B.name + wait;
     if (S.phase === 'fold') return 'folding space · to ' + nx.tg.name;
     if (A && A.kind === 'probe' && A.tau > -0.8) return A.line() + wait;   // (Pip says what it is doing)
-    if (A && A.tau > -0.8 && A.tau < ACTS[A.kind].T + 0.5) return JOB[A.kind](tg) + wait;
+    if (A && A.tau > -0.8 && A.tau < ACTS[A.kind].T + (A.kind === 'weapons' ? 1.2 : 0.5)) return JOB[A.kind](tg, A) + wait;
     if (S.phase === 'align') return (nx.mode === 'fold' ? (S.spool > 0.05 ? 'the heart powers up for the fold · next stop: ' : 'setting course for ') + nx.tg.name : bridge + 'turning toward ' + nx.tg.name + ' · light speed next') + wait;
     return (bridge || 'riding along · ') + roamLine() + wait;
   }

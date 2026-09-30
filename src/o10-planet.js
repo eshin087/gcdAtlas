@@ -12,32 +12,43 @@ float ringOp(float rr){
   return clamp(o, 0., 0.96);
 }
 vec3 ringCol(float rr){ return mix(vec3(0.6, 0.54, 0.46), vec3(0.94, 0.86, 0.72), smoothstep(1.5, 2.05, rr))*(0.85 + 0.3*noise(vec3(rr*60., 5., 1.))); }
+// the planet is drawn display-referred, like the Solar System's bodies in FS_PLANETG: colours are what a cell shows in full sunlight after
+// FS_CELL's tone map, and main undoes that map, so the pale zones and darker belts land on different characters
+vec3 unTone(vec3 c){ return -log(1. - clamp(c, 0., 0.985)); }
+// darkness of the cloud belts at a latitude (degrees), after Cassini's pictures: the equatorial belts either side of the bright equatorial zone,
+// the temperate belts, fainter bands towards the poles
+float sbelt(float la){
+  float b = exp(-pow((la - 14.)/4.5, 2.))*0.9 + exp(-pow((la + 15.)/5., 2.))*0.85;
+  b += exp(-pow((la - 36.)/3., 2.))*0.65 + exp(-pow((la + 36.)/3., 2.))*0.6;
+  b += exp(-pow((la - 47.)/2.2, 2.))*0.45 + exp(-pow((la + 46.)/2.2, 2.))*0.4;
+  b += exp(-pow((la - 55.)/2., 2.))*0.35 + exp(-pow((la + 55.)/2., 2.))*0.3 + exp(-pow((la - 63.)/2., 2.))*0.3 + exp(-pow((la + 63.)/2., 2.))*0.3;
+  b += (exp(-pow((la - 4.)/1.2, 2.)) + exp(-pow((la + 4.)/1.2, 2.)))*0.25;
+  return b;
+}
 vec3 planetCol(vec3 n, out float storm){
-  float lat = n.y, cl = sqrt(max(1. - lat*lat, 0.)), lon = atan(n.z, n.x);
+  float lat = n.y, cl = sqrt(max(1. - lat*lat, 0.)), lon = atan(n.z, n.x), la = degrees(asin(clamp(lat, -1., 1.)));
   float lw = lon + uTime*0.035*cos(lat*9.);
   vec3 sp = vec3(cos(lw)*cl, lat, sin(lw)*cl);
   float turb = fbm3(sp*vec3(4., 16., 4.) + 3.);
   float fest = fbm3(sp*vec3(9., 44., 9.) + 7.);
-  float bands = sin(lat*23. + turb*2.4)*0.5 + 0.5;
-  float fine = sin(lat*63. + fest*4.)*0.5 + 0.5;
-  vec3 c = mix(vec3(0.78, 0.63, 0.42), vec3(0.98, 0.9, 0.72), bands);
-  c = mix(c, vec3(0.62, 0.48, 0.33), fine*0.28);
-  c = mix(c, vec3(0.9, 0.85, 0.72), smoothstep(0.62, 0.8, fest)*0.4);
-  c = mix(c, vec3(0.55, 0.62, 0.68), smoothstep(0.6, 0.9, abs(lat))*0.45);
-  // great white spot: a swirling storm drifting at its own rate
-  float slon = lon - 1.2;
-  vec2 q = vec2(atan(sin(slon), cos(slon)), (lat - 0.5)*3.2);
-  float sr = length(q);
-  vec2 qs = rot2(4./(sr + 0.15) - uTime*0.4)*q;
-  storm = smoothstep(0.34, 0.05, sr)*(0.55 + 0.6*fbm3(vec3(qs*9., 1.)));
-  c = mix(c, vec3(1., 0.98, 0.92), storm);
-  // polar hexagon and vortex eye
+  float b = sbelt(la + (turb - 0.5)*3. + (fest - 0.5)*1.5);
+  // butterscotch zones, tan belts, the bright equatorial zone, a cooler grey round the north pole and a warmer one round the south
+  vec3 c = mix(vec3(0.76, 0.68, 0.5), vec3(0.58, 0.46, 0.31), clamp(b*(0.8 + 0.5*fest), 0., 1.));
+  c = mix(c, vec3(0.82, 0.75, 0.57), exp(-la*la/60.)*0.6);
+  c = mix(c, vec3(0.55, 0.57, 0.56), smoothstep(60., 72., la)*0.8);
+  c = mix(c, vec3(0.6, 0.54, 0.44), smoothstep(-60., -72., la)*0.6);
+  c *= 0.93 + 0.14*fest;
+  // small white storms in the "storm alley" near 35 deg S
+  storm = smoothstep(0.8, 0.9, noise(vec3(lw*6., la*0.4, 4.)))*exp(-pow((la + 35.)/2.5, 2.));
+  c = mix(c, vec3(0.86, 0.84, 0.78), storm*0.8);
+  // the hexagon: a jet stream round the north pole whose six straight sides lie near 78 deg N; a dark vortex at each pole
   if(lat > 0.85){
     float ang = mod(lon, 1.0471976) - 0.5235988, hexR = 0.2/cos(ang);
-    c = mix(c, vec3(0.42, 0.52, 0.6), smoothstep(0.025, 0., abs(cl - hexR))*0.75 + smoothstep(hexR, hexR*0.5, cl)*0.3);
-    c = mix(c, vec3(0.25, 0.3, 0.38), smoothstep(0.045, 0.015, cl)*0.8);
+    c = mix(c, vec3(0.5, 0.54, 0.58), smoothstep(hexR, hexR*0.8, cl)*0.5);
+    c = mix(c, vec3(0.36, 0.4, 0.46), smoothstep(0.035, 0.005, abs(cl - hexR))*0.85);
+    c = mix(c, vec3(0.24, 0.27, 0.32), smoothstep(0.05, 0.015, cl)*0.85);
   }
-  return c;
+  return mix(c, vec3(0.3, 0.27, 0.24), smoothstep(0.05, 0.015, cl)*step(lat, 0.)*0.8);
 }
 void main(){
   vec3 o, d; localRay(o, d);
@@ -53,9 +64,11 @@ void main(){
     if(abs(L.y) > 1e-3){ float tr = -p.y/L.y; if(tr > 0.){ vec3 q = p + L*tr; sh = 1. - ringOp(length(q.xz)/RP)*0.9; } }
     float storm; vec3 base = planetCol(n, storm);
     float mu = max(dot(n, -d), 0.);
-    col = base*(dif*sh*1.2 + 0.01);
+    // the light rises quickly past the line between day and night and stays nearly level across the lit side, darkening towards the edge
+    float lam = (1. - exp(-dif*3.6))/(1. - exp(-3.6))*(0.6 + 0.4*sqrt(mu));
+    col = unTone(base*lam*sh);
     col += base*0.06*max(-dot(n, L), 0.)*smoothstep(0., 0.4, abs(n.y));
-    col += vec3(0.95, 0.85, 0.65)*pow(1. - mu, 4.)*dif*0.35;
+    col += vec3(0.95, 0.85, 0.65)*pow(1. - mu, 4.)*dif*0.2;
     float al = abs(n.y), lon = atan(n.z, n.x);
     float band = exp(-pow((al - 0.955)/0.012, 2.))*(0.4 + 0.9*noise(vec3(lon*9. + uTime*0.6, al*40., uTime*0.3)));
     col += mix(aur, aur2, noise(vec3(lon*3., uTime*0.2, 1.)))*band*(0.3 + 0.9*smoothstep(0.2, -0.2, dot(n, L)))*0.9;
@@ -104,7 +117,8 @@ const saturn = (() => {
     fact:'Its icy rings span 20 Earths yet are about 10 metres thick. Titan, bigger than Mercury, circles far outside them wrapped in orange haze.',
     parent:sun, offset:planetPos(PLANET_EL.saturn, JD_NOW), rad:R/RPL, solid:RPL, R0:poleFrame(40.589, 83.537), prog:program(VS_RECT, FS_PLANET), minZoom:0.02, pxMin:6, farColor:[1, 0.92, 0.72], farLum:0.8, labelRange:2e-3,
     views:[
-      {dirFn:() => sunSide(o, 0.45, 0.28), k:2.1, hold:8, drift:0.04},
+      // (from the side of the rings the Sun lights: from the other side they are dark; the Sun crosses the ring plane every 15 years)
+      {dirFn:() => sunSide(o, 0.45, M3.applyT(o.R0, sunDirFrom(o))[1] < 0 ? -0.28 : 0.28), k:2.1, hold:8, drift:0.04},
       {d:[0.25, 0.07, -1], k:0.05, off:[0.6, 0, 0.3], hold:8, drift:0.004},
       {dirFn:() => sunSide(o, 2.9, 0.3), k:2.7, hold:7, drift:0.02},
       sunBack('saturn', 5, 0.34),
