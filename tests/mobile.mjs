@@ -323,8 +323,13 @@ await page.evaluate(() => { __cosmos.setOpt('textSize', 1, true); document.query
 // riding, the button says so and the menu offers outside, cockpit and stop, the Halo tour and the camera (moving / still); a tap elsewhere closes it. The what's new button is not in the dock (it is in settings and help).
 await page.evaluate(() => document.querySelector('#btnShip').click());
 const sm = await page.evaluate(() => { const m = document.querySelector('#shipMenu'), d = document.querySelector('.controls').getBoundingClientRect(), r = m.getBoundingClientRect();
-  return { open:!m.hidden, bottom:r.bottom, dockTop:d.top, left:r.left, right:r.right, vis:[...m.querySelectorAll('button')].filter(b => !b.hidden).map(b => b.id).join(), exp:document.querySelector('#btnShip').getAttribute('aria-expanded'), notes:getComputedStyle(document.querySelector('#btnNotes')).display }; });
+  // (0.9.7, owner review: its Halo tour item is a switch like the desk's, the words on the left and the pill on the right, inside the item)
+  const t = m.querySelector('#smTour'), tb = t.getBoundingClientRect(), p = t.querySelector('.hsw-t'), pb = p && p.getBoundingClientRect(), w = t.querySelector('.sm-st').getBoundingClientRect();
+  const tour = { pill:!!pb && pb.left >= w.right && pb.right <= tb.right - 4 && pb.width >= 34 && pb.height >= 18, name:t.querySelector('b').textContent, on:t.getAttribute('aria-checked'),
+    fit:[...m.querySelectorAll('button')].filter(b => !b.hidden).every(b => b.scrollWidth <= b.clientWidth + 1) };
+  return { open:!m.hidden, bottom:r.bottom, dockTop:d.top, left:r.left, right:r.right, vis:[...m.querySelectorAll('button')].filter(b => !b.hidden).map(b => b.id).join(), exp:document.querySelector('#btnShip').getAttribute('aria-expanded'), notes:getComputedStyle(document.querySelector('#btnNotes')).display, tour }; });
 if (!sm.open || sm.bottom > sm.dockTop + 1 || sm.left < 0 || sm.right > 390 || sm.vis !== 'smChase,smCock,smMark,smTour' || sm.exp !== 'true') fail('the ship menu: ' + JSON.stringify(sm));
+if (!sm.tour.pill || sm.tour.name !== 'Halo tour' || sm.tour.on !== 'false' || !sm.tour.fit) fail('the ship menu\'s Halo tour switch: ' + JSON.stringify(sm.tour));
 if (sm.notes !== 'none') fail('the what\'s new button shows in the dock');
 await shot('12-ship-menu');
 await page.evaluate(() => document.querySelector('#smChase').click());
@@ -341,19 +346,35 @@ const sm3 = await page.evaluate(() => ({ riding:__cosmos.shipCam.on, btn:documen
 if (sm3.riding || sm3.btn !== 'ship') fail('stop riding from the ship menu: ' + JSON.stringify(sm3));
 // (0.9.6) the Halo tour from the menu rides along; the camera switch holds it still and back; stop riding ends the tour too.
 // (0.9.7) The card shows the place, not the ship, with the blue line over its name and stop riding, and the list of tours says the Halo flies
-// it; the dock has no halo switch (the menu has the Halo tour). After stop riding the card is the Halo's again.
+// it; the dock has no Halo tour switch (the menu and the list of tours have it). While it plays, the menu's switch is on and names the tour,
+// and the switch at the top of the list of tours is on too. After stop riding the card is the Halo's again.
 await page.evaluate(() => { document.querySelector('#btnShip').click(); document.querySelector('#smTour').click(); });
 await page.waitForTimeout(300);
 const ht = await page.evaluate(() => { const C = __cosmos, $ = s => document.querySelector(s), r = { tour:C.HT.on, riding:C.shipCam.on || C.shipCam.pending };
   C.land(0.2); C.hud(); const pl = C.htPlace(), i = $('#info').getBoundingClientRect(), l = $('#htLine').getBoundingClientRect();
   r.card = { name:$('#objName').textContent, place:pl && pl.name, line:$('#htLine').textContent, lineIn:l.width > 0 && l.left >= i.left - 1 && l.right <= i.right + 1, stop:!$('#btnRideI').hidden, sw:getComputedStyle($('#btnHaloSw')).display };
-  $('#btnTours').click(); r.card.note = $('#htNote').getBoundingClientRect().height > 0; $('#toursClose').click();
+  $('#btnTours').click(); r.card.note = $('#htNote').getBoundingClientRect().height > 0; r.card.tsw = [getComputedStyle($('#toursHaloSw')).display !== 'none', $('#toursHaloSw').getAttribute('aria-checked')]; $('#toursClose').click();
+  $('#btnShip').click(); r.card.menu = [$('#smTour').getAttribute('aria-checked'), $('#smTour small').textContent]; $('#btnShip').click();
   document.querySelector('#btnShip').click(); document.querySelector('#smStill').click(); r.still = C.SET.rideCam;
   document.querySelector('#btnShip').click(); document.querySelector('#smStill').click(); r.moving = C.SET.rideCam;
   document.querySelector('#btnShip').click(); document.querySelector('#smStop').click(); r.after = C.HT.on || C.shipCam.on; C.hud(); r.back = $('#objName').textContent; return r; });
 if (!ht.tour || !ht.riding || ht.still !== 'still' || ht.moving !== 'moving' || ht.after) fail('the Halo tour and the camera switch from the ship menu: ' + JSON.stringify(ht));
 const hc = ht.card || {};
 if (hc.name !== hc.place || hc.name === 'the Halo' || !/^(with the Halo · |→ )/.test(hc.line) || !hc.lineIn || !hc.stop || !hc.note || hc.sw !== 'none' || ht.back !== 'the Halo') fail('the card on the Halo tour: ' + JSON.stringify([hc, ht.back]));
+if ((hc.tsw || []).join() !== 'true,true' || (hc.menu || []).join() !== 'true,grand tour') fail('the Halo tour switches are not on while it plays: ' + JSON.stringify([hc.tsw, hc.menu]));
+// the switch at the top of the list of tours (0.9.7, owner review) starts the Halo tour with the tour picked and ends it; the list stays open,
+// says the Halo flies it, and its head (title, switch, close) fits on one line inside the panel. Nothing in the head sticks out
+await page.evaluate(() => document.querySelector('#btnTours').click()); await page.waitForTimeout(300);
+const tsw = await page.evaluate(() => { const C = __cosmos, $ = s => document.querySelector(s), sw = $('#toursHaloSw'), r = {};
+  sw.click(); r.on = [C.HT.on, sw.getAttribute('aria-checked'), $('#btnHaloSw').getAttribute('aria-checked'), !$('#tours').hidden, $('#htNote').getBoundingClientRect().height > 0];
+  const p = $('#tours').getBoundingClientRect(), h = $('#tours .panel-head'), hb = h.getBoundingClientRect(), s = sw.getBoundingClientRect(), c = $('#toursClose').getBoundingClientRect();
+  r.head = s.left >= p.left && c.right <= p.right + 1 && Math.abs(s.top - c.top) <= 4 && s.right <= c.left && hb.height < 60 && h.scrollWidth <= h.clientWidth + 1;
+  return r; });
+await page.waitForTimeout(400); await shot('12b-tours-halo-switch');
+const tsw2 = await page.evaluate(() => { const C = __cosmos, $ = s => document.querySelector(s), r = {};
+  $('#toursHaloSw').click(); r.off = [C.HT.on, $('#toursHaloSw').getAttribute('aria-checked')]; $('#toursClose').click(); C.land(0.2);
+  $('#btnShip').click(); $('#smStop').click(); C.hud(); r.riding = C.shipCam.on || C.shipCam.pending; return r; });
+if (tsw.on.join() !== 'true,true,true,true,true' || !tsw.head || tsw2.off.join() !== 'false,false' || tsw2.riding) fail('the Halo tour switch in the list of tours: ' + JSON.stringify([tsw, tsw2]));
 
 // home: from a tour stop far away, the home button flies to Earth and pauses the tour, and the card offers to resume it
 const hmAt = await page.evaluate(() => { const C = __cosmos; C.startTour('grand'); C.land(0.1); C.tourGo(C.BYKEY.crab.index, true); C.tick(1/60); return C.flight ? 'flying' : C.OBJ[C.orbit.lock].key; });

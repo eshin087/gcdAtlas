@@ -298,6 +298,7 @@ function render(){
 // ================================================================ HUD
 let infoObj = 0, toastTimer = 0, roTimer = 0, hintHidden = false;
 const infoEl = $('.info'), atlasEl = $('#atlas'), settingsEl = $('#settings'), ladderEl = $('#ladder'), controlsEl = $('.controls'), brandEl = $('.brand'), ladChipEl = $('#ladChip'), infoPillEl = $('#infoPill'), shipMenuEl = $('#shipMenu');
+const HT_SW = [$('#btnHaloSw'), $('#toursHaloSw')];   // (the Halo tour switches: right of tours on a desk, at the top of the list of tours on a phone)
 // panels and the ladder sit just below the toolbar, however many rows it wraps onto
 const syncCtl = () => { const b = controlsEl.getBoundingClientRect(); document.documentElement.style.setProperty('--ctl-b', (isCompact() ? 54 : Math.round(b.bottom)) + 'px'); };
 if (typeof ResizeObserver !== 'undefined') new ResizeObserver(syncCtl).observe(controlsEl); syncCtl();
@@ -413,10 +414,10 @@ function updateModeUI(){
   sb.classList.toggle('following', cpt && riding); const st = cpt && riding ? 'riding' : 'ship'; if (sb.textContent !== st) sb.textContent = st;
   if (!shipMenuEl.hidden) syncShipMenu();
   rb.title = riding ? 'Stop riding along (the camera stays with the ship)' : 'Ride along with the Halo, the place it visits in view: K holds the camera still, C for the cockpit';
-  // (the halo switch on tours, on while the Halo tour plays, which can also end by itself; the camera switch on the lower row while riding along
-  // outside the ship; the note in the tours list)
-  const hs = $('#btnHaloSw'); hs.setAttribute('aria-checked', String(HT.on));
-  hs.title = HT.on ? 'Fly the tour with the Halo: on. Click to stop (you keep riding, the Halo roams on its own)' : 'Fly the tour with the Halo: ride along while it flies the stops of the tour picked in tours';
+  // (the Halo tour switches, right of tours and in the list of tours, on while the Halo tour plays, which can also end by itself; the camera
+  // switch on the lower row while riding along outside the ship; the note in the tours list)
+  for (const hs of HT_SW){ hs.setAttribute('aria-checked', String(HT.on));
+    hs.title = HT.on ? 'Halo tour: on, the Halo flies ' + htTour().name + '. Click to end it (you keep riding, the Halo roams on its own)' : 'Halo tour: ride along while the Halo flies the tour you pick in tours'; }
   $('#rideCamSeg').hidden = !(riding && shipCam.mode === 'chase'); $('#htNote').hidden = !HT.on;
   // (the panel's own ride buttons: on the Halo, and on the Halo tour, whose panel shows the place)
   syncHtInfo(); syncFlyby();
@@ -1252,7 +1253,7 @@ function syncShipMenu(){
   $('#smCock').setAttribute('aria-checked', String(r && shipCam.mode === 'cockpit'));
   $('#smStop').hidden = !r; $('#smMark').hidden = r;
   $('#smChase').lastChild.textContent = r ? 'place in view' : 'and see where';
-  $('#smTour').setAttribute('aria-checked', String(HT.on)); $('#smTour').lastChild.textContent = HT.on ? 'end it' : 'it flies a tour';
+  $('#smTour').setAttribute('aria-checked', String(HT.on)); $('#smTour small').textContent = HT.on ? htTour().name : 'it flies a tour';   // (a switch: its pill says on or off)
   $('#smStill').hidden = !(r && shipCam.mode === 'chase'); $('#smStill').setAttribute('aria-checked', String(SET.rideCam === 'still')); $('#smStill').lastChild.textContent = SET.rideCam === 'still' ? 'still' : 'moving';
   $('#smMark').setAttribute('aria-checked', String(!!SET.haloMark)); $('#smMark').lastChild.textContent = SET.haloMark ? 'hide it' : 'show it';
 }
