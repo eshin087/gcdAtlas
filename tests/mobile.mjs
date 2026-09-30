@@ -169,12 +169,21 @@ await page.evaluate(() => { __cosmos.land(0.1); __cosmos.hud(); });
 await shot('7a-next-stop');
 await fade('off');
 
-// the card: "stop 3 / 31" and the tour's name, which opens the list of tours; the angle arrows sit on the angle line
+// the card: "stop 3 / 31" and the tour's name, which opens the list of tours; the angle arrows sit on the angle line, and the angle line sits
+// right under the name (0.9.7: it used to be the last line of the card), in both the short and the full card
 const cardTxt = await page.evaluate(() => { const C = __cosmos; C.hud(); const k = C.TOUR.indexOf(C.tour.obj), p = document.querySelector('#progress');
   return { stop:document.querySelector('#stopInfo').textContent, want:'stop ' + (k + 1) + ' / ' + C.TOUR.length, name:document.querySelector('#modeTour').textContent, arrows:!!p.querySelector('#prevObj') && !!p.querySelector('#nextObj') && p.classList.contains('angles') }; });
 if (cardTxt.stop !== cardTxt.want) fail('the card does not say which stop this is: "' + cardTxt.stop + '"');
 if (cardTxt.name !== 'grand tour ▾') fail('the tour name is not "grand tour ▾": ' + cardTxt.name);
 if (!cardTxt.arrows || !(await rect('#nextObj')).shown) fail('the angle arrows are not on the angle line');
+const lineAt = () => page.evaluate(() => { const p = document.querySelector('#progress'), t = document.querySelector('#info .title').getBoundingClientRect(), r = p.getBoundingClientRect(), a = document.querySelector('#info .acts');
+  return { after:p.previousElementSibling && p.previousElementSibling.classList.contains('title'), gap:Math.round(r.top - t.bottom), above:a.offsetHeight ? Math.round(a.getBoundingClientRect().top - r.bottom) : null }; });
+const card0 = await page.evaluate(() => __cosmos.SET.infoM || 'full');
+for (const s of ['compact', 'full', card0]){
+  await page.evaluate(s => { __cosmos.SET.infoM = s; document.querySelector('#infoMore').click(); document.querySelector('#infoMore').click(); }, s);
+  await page.waitForTimeout(250); const L = await lineAt();
+  if (!L.after || L.gap < -2 || L.gap > 10 || (L.above != null && L.above < 0)) fail(`the angle line is not right under the name (${s} card): ` + JSON.stringify(L));
+}
 await page.tap('#modeTour'); await page.waitForTimeout(400);
 if (!(await rect('#tours')).shown) fail('the tour name did not open the list of tours');
 await shot('7c-tours-from-name');
