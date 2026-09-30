@@ -153,15 +153,16 @@ const pipFace = (q, f) => q.hurry ? 'sad' : f === 'curious' && q.kind === 'near'
 // (bp from u0 at rate), its cells' size (cs), the way to the bay in its own frame (bayL) and its cells (cells); last, lastActs: the outing
 // before (never the same one twice in a row); fin: this job's outing is over (the job is done); face: the face it shows (a name in FACES),
 // fc: its eyes' shape now, easing toward that face; wink: one eye shut (> 0 its right, < 0 its left), winkS: the eye a blink shuts (0 both)
-const pipFresh = () => ({ st:'stowed', A:null, kind:'land', plan:null, g:null, last:'', lastActs:'', fin:false, u:-9, pos:[0, 0, 0], pupil:[0, 1, 0], body:[0, 1, 0],
+const pipFresh = () => ({ st:'stowed', O:null, req:null, reqDone:null, nextBit:null, form:'pod', wantT:0, outAt:4, outN:0, kind:'land', plan:null, g:null, last:'', lastActs:'', fin:false, u:-9, pos:[0, 0, 0], pupil:[0, 1, 0], body:[0, 1, 0], bodyM:[0, 1, 0],
   ax:[1, 0, 0], open:1, blinkIn:3, blinkT:9, glow:1, flash:0, thr:0, face:'curious', fc:{ ...FACES.curious }, wink:0, wkF:0, winkS:0, unfold:0, scale:1, shots:0, lamp:0, px:0, pz:0, ant:0, iris:ICE_P.slice(), trail:[],
   trAcc:0, vis:0, pose:null, anc:null, ancV:[0, 0, 0], err:[0, 0, 0], errV:[0, 0, 0], Tp:null, spot:null, hurry:false, home:false, bk:null, bp:0, dg:0, dm:0, pres:1, cs:0.27, bayL:[0, 0, 1],
-  cells:null, brk:0, wz:1, arr:0, embN:0, embIn:0, rb:lcg(7), clr:9, far:0, bobK:0, wasOut:false });
+  cells:null, brk:0, wz:1, arr:0, embN:0, embIn:0, rb:lcg(7), clr:9, far:0, bobK:0, wasOut:false, flK:-1, flL:null, flC:null });
 const PIP = pipFresh();
 const DM0 = new Float32Array(9);
-// its size: its bounding sphere in ship radii (0.06: half of 0.9.2's Pip, 1.5 times 0.9.3's first one, owner). Its body reaches 0.55 of that
+// its size: its bounding sphere in ship radii (0.08 since 0.9.9, a third bigger than 0.9.3's 0.06, so it has a presence by the ship; 0.9.3's was
+// 1.5 times its first one, owner). Its body reaches 0.55 of that
 // from its centre, so the clearance it keeps from the hull (PIP_R, below) follows it
-const PIP_SIZE = 0.06;
+const PIP_SIZE = 0.08;
 const drone = addObj({ key:'halo-drone', name:'Pip', label:'', type:"the Halo's little drone (made up)", group:'travel', layer:3, parent:ship, offset:[0, 0, 0], pos:[0, 0, 0],
   rad:PIP_SIZE*ship.rad, prog:P.drone, selfPos:true, hidden:true, noPick:true, noLabel:true, noImpostor:true, atlas:false, noWaypoint:true,
   // (lit like the ship: by the Sun, or by the showcase's fixed light)
@@ -179,7 +180,7 @@ const camL = () => M3.applyT(ship.R0, V.mul(ship.rel, -1/ship.rad));          //
 
 // ---------------------------------------------------------------- the hull as the ship's shader draws it (map() in FS_SHIP_BODY), in ship radii and ship axes: Pip keeps
 // its body (PIP_R across its middle) clear of it, follows its plates and lands on it
-const PIP_R = 0.575*PIP_SIZE;   // (its body's radius in ship radii, 0.55 of its own radius across, and a little: 0.0345)
+const PIP_R = 0.575*PIP_SIZE;   // (its body's radius in ship radii, 0.55 of its own radius across, and a little: 0.046)
 const sdCapJS = (px, py, pz, ax, ay, az, bx, by, bz, r) => { const pax = px - ax, pay = py - ay, paz = pz - az, bax = bx - ax, bay = by - ay, baz = bz - az;
   const h = clamp((pax*bax + pay*bay + paz*baz)/(bax*bax + bay*bay + baz*baz), 0, 1); return Math.hypot(pax - bax*h, pay - bay*h, paz - baz*h) - r; };
 const sdEllJS = (x, y, z, a, b, c) => { const k0 = Math.hypot(x/a, y/b, z/c), k1 = Math.hypot(x/(a*a), y/(b*b), z/(c*c)); return k0*(k0 - 1)/Math.max(k1, 1e-9); };
@@ -192,11 +193,20 @@ function hullD(x, y, z){
   return Math.min(bow, det, arm, nac, Math.hypot(x, y + 0.3, z) - 0.038);
 }
 const hullDp = p => hullD(p[0], p[1], p[2]);
-// the way out of the hull there (its gradient)
-function hullN(p){ const e = 0.002, x = p[0], y = p[1], z = p[2];
+// the way out of the hull there (its gradient; e: over what distance, wider to round off the hull's sharp edges)
+function hullN(p, e = 0.002){ const x = p[0], y = p[1], z = p[2];
   return V.norm([hullD(x + e, y, z) - hullD(x - e, y, z), hullD(x, y + e, z) - hullD(x, y - e, z), hullD(x, y, z + e) - hullD(x, y, z - e)]); }
 // a point kept at least c from the hull: one that is closer is moved out along the way out
 function hullOut(p, c){ for (let k=0;k<3;k++){ const d = hullDp(p); if (d >= c) return p; p = V.add(p, V.mul(hullN(p), c - d)); } return p; }
+// the same with a soft edge (0.9.9 review): a point that comes within a few w of c is eased out to more than c (a softplus of its clearance), along
+// a way out rounded over the hull's edges, so a path grazing the hull bends smoothly round it; pushed out straight to c, it turned a corner
+// in one frame
+function hullSoft(p, c, w = 0.004){
+  let d = hullDp(p); if (d > c + 6*w) return p;
+  const x = (d - c)/w, dd = c + w*(x > 30 ? x : Math.log1p(Math.exp(x)));
+  for (let k=0;k<4 && Math.abs(d - dd) > 2e-4;k++){ p = V.add(p, V.mul(hullN(p, k ? 0.002 : 0.016), dd - d)); d = hullDp(p); }
+  return p;
+}
 // the top of the hull (its dorsal side, -x) over a point (y, z) of the ship's plane: where a line straight down meets it; null where there is none
 function hullTop(y, z){ let x = -0.3; for (let i=0;i<80;i++){ const d = hullD(x, y, z); if (d < 3e-4) return x; x += Math.max(d, 0.0015); if (x > 0.1) return null; } return null; }
 // a point on an arm's midline (ua: 0 at the shoulder, 1 at the tail), as armPlan in the shader: its y and z (sd: -1 left, 1 right)
@@ -209,11 +219,15 @@ const overHull = (y, z, h, c = Math.min(h, PIP_R + 0.004)) => hullOut([(hullTop(
 // where Pip is (at(u, g): ship axes, ship radii), where it looks (look), how it moves on top of that (fl: rolls, spins, nods, hops), its face
 // (face, wink: FACES), its lamp and thruster (lamp, thr), its effects and what the readout says (say). A flight between two moves (fly) is worked out as it starts (flyPrep):
 // a smooth curve from where the last move left Pip, at its speed, to where the next one begins, at that one's speed, bent round the hull where a
-// straight one would graze it. So Pip keeps to one smooth path; the spring (pipAnchor) only has to smooth a plan cut short (drone.hurry).
+// straight one would graze it, and as long as it takes to keep to Pip's pace (flyFit). So Pip keeps to one smooth path; the spring (pipAnchor)
+// only has to smooth a plan cut short (drone.hurry) and a spot that rides along with the camera.
 const PIP_LAUNCH = 0.3, PIP_ASM = 2.5, PIP_DIS = 2.5, PIP_HURRY = 1.2;
 const mv = (P, T, o) => { o.dur = T; o.a = o.a || P.a; P.segs.push(o); return o; };
-const fly = (P, o) => { const g = Object.assign({ fly:true, look:'fly', sp:P.near ? 0.32 : 0.55, a:P.a, bodyT:0.18 }, o);
-  if (P.zip){ Object.assign(g, { sp:1.1, thr:1, trail:true, face:'happy', say:'Pip zips out' }); P.zip = false; }
+// a flight's pace (0.9.9 review, owner: nothing that reads as a teleport): sp its top speed, acc the most it speeds up, slows down or turns (ship
+// radii a second, and a second per second), tmin its shortest time. A zip is quicker; near a black hole or a magnetar everything is gentler
+const fly = (P, o) => { const g = Object.assign({ fly:true, look:'fly', sp:P.near ? 0.32 : 0.55, acc:P.near ? 1.2 : 2.2, tmin:0.9, a:P.a, bodyT:0.18 }, o);
+  if (P.zip){ Object.assign(g, { sp:1.1, tmin:0.7, thr:1, trail:true, face:'happy', say:'Pip zips out' }); P.zip = false; }
+  if (g.sp > 1) g.acc = Math.max(g.acc, 4.5);
   g.at = flyAt; P.segs.push(g); return g; };
 const sOf = (u, g) => clamp((u - g.t0)/g.dur, 0, 1);
 const hold = p => () => p;
@@ -228,34 +242,110 @@ function crPath(pts){
 function hermV(p0, m0, p1, m1, s){ const s2 = s*s, s3 = s2*s, a = 2*s3 - 3*s2 + 1, b = s3 - 2*s2 + s, c = -2*s3 + 3*s2, d = s3 - s2;
   return [a*p0[0] + b*m0[0] + c*p1[0] + d*m1[0], a*p0[1] + b*m0[1] + c*p1[1] + d*m1[1], a*p0[2] + b*m0[2] + c*p1[2] + d*m1[2]]; }
 const hermP = (h, u) => { const T = h.t1 - h.t0; return hermV(h.p0, V.mul(h.v0, T), h.p1, V.mul(h.v1, T), clamp((u - h.t0)/T, 0, 1)); };
-function flyAt(u, g){ const H = g.pc; let j = 0; while (j < H.length - 1 && u > H[j].t1) j++; return hermP(H[j], u); }
-// (a curve that comes closer to the hull than both its ends do, between a sixth and five sixths of the way, gets a knot pushed out over it,
-// twice at most and never on a piece shorter than 0.4 s; near its ends it keeps to the clearance the moves there were given, which can be
-// small: hovering over a plate, landing on it)
-function hermRound(h, depth){
-  const T = h.t1 - h.t0, lim = Math.min(0.034, 0.75*Math.min(hullDp(h.p0), hullDp(h.p1)));
-  let worst = 9, ws = 0.5;
-  for (let i=2;i<=10;i++){ const s = i/12, d = hullDp(hermP(h, h.t0 + s*T)); if (d < worst){ worst = d; ws = s; } }
-  if (worst > lim || depth <= 0 || T < 0.4) return [h];
-  const tm = h.t0 + ws*(h.t1 - h.t0), m = hullOut(hermP(h, tm), 0.08), vm = V.mul(V.sub(h.p1, h.p0), 1/(h.t1 - h.t0));
-  return [...hermRound({ t0:h.t0, t1:tm, p0:h.p0, v0:h.v0, p1:m, v1:vm }, depth - 1), ...hermRound({ t0:tm, t1:h.t1, p0:m, v0:vm, p1:h.p1, v1:h.v1 }, depth - 1)];
+// (0 to 1 with no speed and no acceleration at either end)
+const ss5 = s => { s = clamp(s, 0, 1); return s*s*s*(10 - 15*s + 6*s*s); };
+// where a flight has Pip at u. Its end may ride along with the camera (a move marked live: a spot in front of the camera): the curve was aimed
+// at where that spot was as the flight began, and the spot's move since is blended in over the flight (ss5), so Pip arrives exactly where the
+// next move starts, at its speed, however the camera moved on the way (before the 0.9.9 review it jumped the rest of the way, up to 480 px)
+function flyAt(u, g){
+  const H = g.pc; let j = 0; while (j < H.length - 1 && u > H[j].t1) j++;
+  const p = hermP(H[j], u), b = g.nx; if (!b || !b.live) return p;
+  return V.add(p, V.mul(V.sub(b.at(g.te, b), g.p1), ss5((u - g.t0)/Math.max(g.te - g.t0, 1e-6))));
 }
+// (a curve that comes closer to the hull than both its ends do gets a knot pushed out over it, twice at most and never on a piece shorter than
+// 0.4 s; it may come as close as its ends, which can be close: hovering over a plate, landing on it. 0.9.9 review: it keeps a little more than Pip's
+// radius from the hull all the way, where before it could graze the hull (0.034) near its ends and be pushed off it with a jolt, and it is
+// checked from end to end, not only between a sixth and five sixths of the way. The knot is the curve's worst point pushed out along the way out, or lifted over or under
+// the plates, or out past their side (KNOTS, ship axes), whichever leaves both pieces clearest: pushed out along the way out alone, a curve
+// from one side of the plates to the other went through them)
+const KNOTS = [null, [-0.16, 0, 0], [0.16, 0, 0], [-0.3, 0, 0], [0.3, 0, 0], [0, 0, 0.32], [0, 0, -0.32], [-0.2, 0, 0.26], [-0.2, 0, -0.26], [0.2, 0, 0.26], [0.2, 0, -0.26],
+  [0, 0, 0.5], [0, 0, -0.5], [0, 0.3, 0], [0, -0.3, 0]];
+// (its clearance from the hull, sampled from a/12 to b/12 of the way about every 0.035 ship radii: the arms are only 0.09 wide, and 12
+// samples on a long flight stepped over them. coarse: 12 samples, to rank candidates quickly)
+function hermClr(h, a = 0, b = 12, coarse = false){
+  const T = h.t1 - h.t0, L = V.len(V.sub(h.p1, h.p0)) + 0.3*(V.len(h.v0) + V.len(h.v1))*T, n = coarse ? 12 : clamp(Math.ceil(L/0.035), 12, 64); let w = 9, ws = 0.5;
+  for (let i=Math.round(a*n/12), e=Math.round(b*n/12);i<=e;i++){ const s = i/n, d = hullDp(hermP(h, h.t0 + s*T)); if (d < w){ w = d; ws = s; } }
+  return [w, ws];
+}
+const hermLim = h => Math.min(PIP_R + 0.024, 0.9*Math.min(hullDp(h.p0), hullDp(h.p1)));
+function hermRound(h, depth){
+  const T = h.t1 - h.t0, lim = hermLim(h), [worst, ws] = hermClr(h);
+  if (worst > lim || depth <= 0 || T < 0.25) return [h];
+  const tm = h.t0 + ws*T, q = hermP(h, tm), vm = V.mul(V.sub(h.p1, h.p0), 1/T), n = hullN(q, 0.012);
+  let best = null, bc = -9;
+  for (const o of KNOTS){
+    const m = hullOut(V.add(q, o || V.mul(n, 0.1)), 0.1), A = { t0:h.t0, t1:tm, p0:h.p0, v0:h.v0, p1:m, v1:vm }, B = { t0:tm, t1:h.t1, p0:m, v0:vm, p1:h.p1, v1:h.v1 };
+    const c = Math.min(hermClr(A, 0, 12, true)[0], hermClr(B, 0, 12, true)[0]) - 0.03*V.len(V.sub(m, q)); if (c > bc){ bc = c; best = [A, B]; }
+  }
+  return [...hermRound(best[0], depth - 1), ...hermRound(best[1], depth - 1)];
+}
+// a piece's top speed and its most acceleration (a cubic's acceleration is greatest at one of its ends)
+function hermPeak(h){
+  const T = h.t1 - h.t0, m0 = V.mul(h.v0, T), m1 = V.mul(h.v1, T), P0 = h.p0, P1 = h.p1; let v = 0;
+  for (let i=0;i<=8;i++){ const s = i/8, s2 = s*s, a = 6*s2 - 6*s, b = 3*s2 - 4*s + 1, c = 3*s2 - 2*s;
+    v = Math.max(v, Math.hypot(a*(P0[0] - P1[0]) + b*m0[0] + c*m1[0], a*(P0[1] - P1[1]) + b*m0[1] + c*m1[1], a*(P0[2] - P1[2]) + b*m0[2] + c*m1[2])); }
+  const d = V.sub(P1, P0), a0 = V.len(V.sub(V.mul(d, 6), V.add(V.mul(m0, 4), V.mul(m1, 2)))), a1 = V.len(V.sub(V.add(V.mul(m0, 2), V.mul(m1, 4)), V.mul(d, 6)));
+  return [v/T, Math.max(a0, a1)/(T*T)];
+}
+// how long a flight takes: long enough for its way at its top speed and its most acceleration (flyEst), then longer until the curve, with its
+// bends over the hull, keeps to both, whatever speed it starts and ends with (one begun at speed the other way turns round gently). Before 0.9.9 review
+// every flight was squeezed into 2.6 s at most, so a long one (from the ship to a spot by the camera) became a zip
+// (a long way is flown a little faster: its top speed grows with its length from 0.8 ship radii on, up to twice; at the plain pace the flight
+// back from a spot by the camera took 8 s)
+const flySp = (g, D) => g.sp*clamp(D/0.8, 1, 2);
+const flyEst = (g, D) => Math.max(g.tmin, 1.5*D/flySp(g, D), Math.sqrt(6*D/g.acc));
+function flyFit(g, t0, p0, v0, p1, v1){
+  const vpk = Math.max(flySp(g, V.len(V.sub(p1, p0))), V.len(v0), V.len(v1))*1.03, lim = hermLim({ p0, p1 }) - 0.006, ok = h => { const [v, a] = hermPeak(h); return v <= vpk && a <= g.acc; };
+  let T = flyEst(g, V.len(V.sub(p1, p0))), pc = null;
+  // (first the plain curve's pace, which is quick to check; then the bends round the hull)
+  for (let k=0;k<16 && !ok({ t0, t1:t0 + T, p0, v0, p1, v1 });k++) T *= 1.12;
+  for (let k=0;k<10;k++){
+    if (k) T *= 1.12;
+    pc = hermRound({ t0, t1:t0 + T, p0, v0, p1, v1 }, 2);
+    // (quick enough, gentle enough, and clear of the hull all the way: a curve still grazing it is given more time, which rounds it out)
+    if (pc.every(ok) && pc.every(h => hermClr(h)[0] >= lim)) break;
+  }
+  return { T, pc };
+}
+// a flight as it starts: from where the move before left Pip, at its speed, to where the next one starts, at its speed. Its length is fixed
+// now, and the moves after it are timed again from its end
 function flyPrep(P, k){
   const g = P.segs[k], a = P.segs[k - 1], b = P.segs[k + 1], e = 0.01, p0 = a.at(g.t0, a);
   if (b.prep) b.prep(b, p0);
   const v0 = V.mul(V.sub(p0, a.at(g.t0 - e, a)), 1/e), p1 = b.at(g.t1, b), v1 = V.mul(V.sub(b.at(g.t1 + e, b), p1), 1/e);
-  g.pc = hermRound({ t0:g.t0, t1:g.t1, p0, v0, p1, v1 }, 2);
+  const t0 = performance.now(), f = flyFit(g, g.t0, p0, v0, p1, v1); PIP.prepMs = Math.max(PIP.prepMs || 0, performance.now() - t0);
+  g.pc = f.pc; g.dur = f.T; g.t1 = g.te = g.t0 + f.T; g.nx = b;
+  pipLayout(P, k + 1);
+  g.p1 = b.at(g.te, b);
 }
-// the moves' times: in order, each flight as long as its way needs at its pace
-function pipLayout(P){
-  let t = 0; const S = P.segs;
-  for (let i=0;i<S.length;i++){
+// the moves' times: in order from move i0 on (the ones before are laid out already), each flight as long as its way needs at its pace (worked
+// out again as it starts). The break-up home starts with the last move when that is the way home (home); an outing still open (it ends in an
+// idle stretch) has none yet
+const PIP_NEVER = 1e9;
+function pipLayout(P, i0 = 0){
+  const S = P.segs; let t = i0 > 0 ? S[i0 - 1].t1 : 0;
+  for (let i=i0;i<S.length;i++){
     const g = S[i];
-    if (g.fly){ const a = S[i - 1], b = S[i + 1], p0 = a.at(a.t1, a); b.t0 = 0; b.t1 = b.dur; if (b.prep) b.prep(b, p0);
-      g.dur = clamp(0.5 + V.len(V.sub(b.at(0, b), p0))/g.sp, g.sp > 1 ? 0.6 : 0.8, P.near ? 3 : 2.6); }
+    if (g.fly && !g.pc){ const a = S[i - 1], b = S[i + 1], p0 = a.at(a.t1, a); b.t0 = 0; b.t1 = b.dur; if (b.prep) b.prep(b, p0); g.dur = flyEst(g, V.len(V.sub(b.at(0, b), p0))); }
     g.t0 = t; g.t1 = t += g.dur;
   }
-  P.DIS0 = S[S.length - 1].t0;
+  const L = S[S.length - 1]; P.DIS0 = L.home ? L.t0 : PIP_NEVER; P.IN = L.home ? P.DIS0 + PIP_DIS + 0.1 : PIP_NEVER;
+}
+// more of an outing, from u on: the move Pip is on ends there (nothing planned after it is kept) and build adds what comes next, starting
+// from where Pip is (p0). A builder starts with a flight, so Pip flies on from where it is at its speed, or with a move that holds p0: while
+// Pip is still moving, a short flight comes first, so it slows to a stop there (overshooting a little and settling back), never stopping dead
+function pipAppend(P, u, build){
+  pipActivate(P, u);
+  const g = P.segs[P.k], ug = Math.max(u, g.t0), p0 = g.at(ug, g), v0 = V.mul(V.sub(p0, g.at(ug - 0.01, g)), 100);
+  P.segs.length = P.k + 1;
+  // (only its end in the schedule moves: its own clock (t0, dur, te) stays, or a move worked out from its share done (sOf) would jump ahead
+  // at the cut, and the flight after it would start from there: before the 0.9.9 review a hull check cut short sent Pip flying from the end of its path)
+  g.t1 = Math.max(u, g.t0);
+  const i0 = P.segs.length; build(P, p0);
+  const f = P.segs[i0];
+  if (f && !f.fly && V.len(v0) > 0.03)
+    P.segs.splice(i0, 0, { fly:true, at:flyAt, a:f.a, look:f.look, face:f.face, thr:f.thr, say:f.say, bodyT:f.bodyT, sp:P.near ? 0.32 : 0.55, acc:P.near ? 1.2 : 2.2, tmin:0.6 });
+  pipLayout(P, i0);
 }
 // (the segments up to u become current in turn: a flight is worked out as it starts, a move may do something as it starts)
 function pipActivate(P, u){
@@ -331,8 +421,9 @@ PIPA.engine = (P, k3) => {
   fly(P, { say:`Pip flies to the ${nm} engine` });
   mv(P, (1.8 + 0.6*r())*k3, { at:(u, g) => [C1[0], C1[1], C1[2] + 0.012*Math.sin(2*Math.PI*0.7*(u - g.t0))*envW(0, 1, sOf(u, g), 0.25)], look:N, glance:r(), lamp:0.8, thr:0.25, face:'focused', say:`Pip checks the ${nm} engine` });
   mv(P, 1.3, { at:(u, g) => V.lerp(C1, C2, ease(sOf(u, g))), look:N, lamp:1, thr:0.2, fl:(u, g) => ({ nod:0.3*smooth(0.3, 1, sOf(u, g)) }), say:`Pip peeks into the ${nm} engine` });
-  // (the puff: shoved back hard, at full speed within a tenth of a second, easing to a stop; a tumble once round, its eyes wide, then dizzy)
-  const shove = t => (1 - (1 + t/0.1)*Math.exp(-t/0.1))/(1 - 9*Math.exp(-8));
+  // (the puff: shoved back hard, at full speed within about a seventh of a second, easing to a stop; a tumble once round, its eyes wide, then
+  // dizzy. 0.9.9 review: a little softer, so it reads as a shove and not a jump: at most about 9 ship radii/s², under the smoothness test's limit)
+  const sk = 0.14, shove = t => (1 - (1 + t/sk)*Math.exp(-t/sk))/(1 - (1 + 0.8/sk)*Math.exp(-0.8/sk));
   mv(P, 0.8, { at:(u, g) => V.lerp(C2, B1, shove(clamp(u - g.t0, 0, 0.8))), puff:N, look:N, thr:0.1, face:(u, g) => u - g.t0 < 0.3 ? 'surprised' : 'dizzy', say:'a puff from the engine pushes Pip back',
     fl:(u, g) => { const s = sOf(u, g); return rm ? { roll:0.25*Math.sin(Math.PI*s) } : { roll:2*Math.PI*(1 - Math.pow(1 - s, 3))*e, spin:0.8*Math.sin(Math.PI*s) }; } });
   // (shaking it off: still dizzy, then a cross look back at the engine)
@@ -349,15 +440,28 @@ PIPA.engine = (P, k3) => {
 PIPA.photo = (P, k3) => {
   const r = P.r, sd = r() < 0.5 ? -1 : 1, near = P.near, two = !near && k3 === 1 && r() < 0.6;
   const K = near ? [-0.34, 0.8, 0.2*sd] : [-0.5 - 0.12*r(), 1.1 + 0.25*r(), (0.2 + 0.18*r())*sd], K2 = [K[0] + 0.12, K[1] - 0.2, K[2] - sd*0.32];
+  // (0.9.9 review: with the camera near, as the flight out starts, the spot ahead of the ship that shows best: right of the middle on a desk, where
+  // the info panel is not, the upper part on a phone, over the card; ahead of the ship alone it often came out under the panel)
+  const pick = () => { if (!camNear()) return;
+    const tx = isCompact() ? 0 : 0.35, ty = isCompact() ? 0.35 : 0.15, s0 = near ? 0.7 : 1; let best = null, bs = 1e9;
+    for (const y of [1.15, 0.75]) for (const x of [-0.5, -0.3]) for (const z of [-0.55, -0.3, 0.3, 0.55]){
+      const k = [x*s0, y*s0, z*s0], p = shipPt(k), f = V.dot(p, cam.fwd); if (!(f > 0)) continue;
+      const sx = V.dot(p, cam.right)/(f*tanX), sy = V.dot(p, cam.up)/(f*tanY), s = (sx - tx)**2 + (sy - ty)**2 + (Math.abs(sx) > 0.85 || Math.abs(sy) > 0.8 ? 4 : 0) + (behindHull(p) ? 4 : 0);
+      if (s < bs){ bs = s; best = k; } }
+    if (best){ K.splice(0, 3, ...best); K2.splice(0, 3, K[0] + 0.12, K[1] - 0.2, K[2] - Math.sign(K[2])*0.32); } };
   fly(P, { sp:near ? 0.32 : 0.85, thr:0.8, trail:!near, say:'Pip flies out ahead of the Halo' });
-  mv(P, 0.9, { at:hold(K), look:'ship', thr:0.25, say:'Pip turns to face the Halo' });
+  mv(P, 0.9, { prep:pick, at:hold(K), look:'ship', thr:0.25, say:'Pip turns to face the Halo' });
   const snap = Kp => mv(P, 1.1, { at:hold(Kp), look:'ship', shot:[0.25], thr:0.2, say:`Pip snaps a photo of the Halo with ${P.nm} behind it`,
     face:(u, g) => u - g.t0 < 0.3 ? 'focused' : 'happy', wink:(u, g) => u - g.t0 < 0.3 ? 1 : 0, fl:(u, g) => ({ hop:0.6*Math.sin(Math.PI*clamp((u - g.t0 - 0.4)/0.45, 0, 1))**2 }) });
   snap(K);
   if (two){ mv(P, 1.2, { at:(u, g) => V.lerp(K, K2, ease(sOf(u, g))), look:'ship', thr:0.4, say:'Pip moves for another photo' }); snap(K2); }
-  fly(P, { sp:near ? 0.32 : 0.95, thr:0.7, say:'Pip comes back to wave' });
-  const w = mv(P, 2.2*k3 + 0.2, { prep:g => { g.W = pipWaveSpot(near, sd); }, at:(u, g) => g.W, look:'cam', wave:true, face:'happy', thr:0.2, say:() => camNear() ? 'Pip waves at you' : 'Pip waves at the bridge' });
-  w.W = pipWaveSpot(near, sd);
+  fly(P, { sp:near ? 0.32 : 0.8, thr:0.7, say:'Pip comes back to wave' });
+  // (in front of the camera, riding along with it as it moves (the right on a desk); by the bridge when no one rides along. Which of the two
+  // is decided as the flight there starts and kept: switching halfway, as the ride camera pulled back past 6 ship radii, made Pip jump)
+  const ws = !isCompact() ? 1 : sd, wat = (u, g) => g.cam ? pipCamSpot(near ? 0.9 : 1.05, 0.38*ws, isCompact() ? 0.15 : -0.1) : g.W;
+  const wcam = () => camNear() && V.len(cam.rel) < ship.rad*6;
+  const w = mv(P, 2.2*k3 + 0.2, { prep:g => { g.W = pipWaveSpot(near, sd); g.cam = g.live = wcam(); }, at:wat, look:'cam', wave:true, face:'happy', thr:0.2, say:() => camNear() ? 'Pip waves at you' : 'Pip waves at the bridge' });
+  w.W = pipWaveSpot(near, sd); w.cam = w.live = wcam();
 };
 // -- play: loops round the needle, races along one side with a barrel roll, rests on the hull, in an order of its own (near a black hole or a
 // magnetar, or with reduced motion, a slow loop and a rest)
@@ -378,10 +482,12 @@ PLAY.race = (P, r) => {
   const sd = r() < 0.5 ? -1 : 1, aft = r() < 0.5, Rr = 0.8, a0 = 0.8, a1 = 1.84, roll = !reduceMotion;
   const arc = s => { const th = aft ? a0 + (a1 - a0)*s : a1 - (a1 - a0)*s, w = -0.33 + Rr*Math.sin(th); return [liftJS(Math.max(w, 0.1)) - 0.012, -0.567 + Rr*Math.cos(th), sd*w]; };
   fly(P, { say:"Pip races along the Halo's side" });
+  // (the corkscrew bulges outward, away from the arm: 0.9.9 review, it bulged toward it when racing aft and grazed its edge)
+  const out = s => { const th = aft ? a0 + (a1 - a0)*s : a1 - (a1 - a0)*s; return [0, Math.cos(th), sd*Math.sin(th)]; };
   mv(P, 1.7, { look:'fly', bodyT:0.1, thr:1, trail:true, face:'happy',
     at:(u, g) => { const s = sOf(u, g), p = arc(s); if (!roll) return p;
-      const sb = smooth(0.3, 0.8, s), a = 0.045*Math.sin(Math.PI*sb), ph = 2*Math.PI*sb, t = V.norm(V.sub(arc(Math.min(s + 0.01, 1)), arc(Math.max(s - 0.01, 0)))), n2 = V.norm(V.cross(t, [-1, 0, 0]));
-      return V.add(p, V.add(V.mul([-1, 0, 0], a*Math.sin(ph)), V.mul(n2, a*(1 - Math.cos(ph))))); },
+      const sb = smooth(0.3, 0.8, s), a = 0.045*Math.sin(Math.PI*sb), ph = 2*Math.PI*sb;
+      return V.add(p, V.add(V.mul([-1, 0, 0], a*Math.sin(ph)), V.mul(out(s), a*(1 - Math.cos(ph))))); },
     fl:(u, g) => ({ roll:roll ? 2*Math.PI*smooth(0.3, 0.8, sOf(u, g))*sd : 0 }),
     say:(u, g) => { const s = sOf(u, g); return roll && s > 0.28 && s < 0.82 ? 'Pip does a barrel roll' : "Pip races along the Halo's side"; } });
 };
@@ -428,6 +534,205 @@ function pipWaveSpot(near, sd){
   const k = clamp(d - 1.25, 0.6, near ? 0.9 : 1.9);
   return hullOut(V.add(V.add(V.mul(c, k/d), V.mul(rt, 0.13*sd*k)), V.mul(up, 0.05*k)), 0.08);
 }
+// ---------------------------------------------------------------- 0.9.9: Pip is out for most of every stay (owner: it rarely came out; "make the viewer love Pip"). Between
+// the bits it keeps the ship company (pipIdle), and each bit is one of the outings above or one of these (PIPB), or it helps with the job
+// under way (PIPJ). Each builder adds a flight and its moves and ends on a move; the scheduler (pipSchedule, drone.ctl) adds the idle stretch
+// after it, and the next bit once that has lasted its while (wait).
+const PIPB = {}, PIPJ = {};
+// where the camera is, in ship axes: which side of the plates it sees (-1 the top, 1 the belly)
+const camSideX = () => camNear() ? (camL()[0] > 0 ? 1 : -1) : -1;
+// an idle stretch: flying alongside the bow, a little above the plates and out to one side (the other side each time), drifting a little and
+// looking round: ahead, at the place, at you. Endless: the scheduler cuts it after `wait` s
+function pipIdle(P, wait){
+  const r = P.r, sd = P.eside = P.eside ? -P.eside : (r() < 0.5 ? -1 : 1), E = hullOut([-0.07 - 0.04*r(), 0.16 + 0.22*r(), sd*(0.19 + 0.09*r())], 0.1), ph = r()*7;
+  fly(P, { sp:P.near ? 0.3 : 0.45, say:'Pip flies alongside the Halo' });
+  const lk = t => { const c = (t + ph) % 8; return c < 2.4 ? 0 : c < 4.6 ? 1 : c < 5.6 ? 2 : 3; };
+  mv(P, 1e6, { idle:true, wait:wait ?? (P.near ? 2.5 + 2*r() : 1.2 + 2.6*r()), bodyT:0.3, thr:0.3, glance:null,
+    at:(u, g) => { const t = u - g.t0, k = smooth(0, 1.5, t); return [E[0] + 0.012*Math.sin(t*0.9)*k, E[1] + 0.028*Math.sin(t*0.53)*k, E[2] + 0.02*Math.sin(t*0.71 + 1)*k]; },
+    look:(u, g) => [{ dir:[-0.1, 1, 0] }, 'tg', 'cam', { dir:[-0.3, 0.6, sd*0.6] }][lk(u - g.t0)],
+    face:(u, g) => lk(u - g.t0) === 2 ? 'happy' : 'curious',
+    say:(u, g) => lk(u - g.t0) === 1 ? `Pip looks at ${P.nm}` : 'Pip flies alongside the Halo' });
+}
+// a spot in front of the camera, in ship axes (ship radii): D ship radii ahead, x and y across the view as shares of its half width and half
+// height there (x: + to the right, y: + up); worked out every tick, so it rides along with the camera. Never inside the hull, and never more
+// than PIP_FAR ship radii from the ship's middle (a camera pulling far back leaves it behind, by the ship)
+const PIP_FAR = 3.2;
+function pipCamSpot(D, x, y){
+  const c = camL(), f = M3.applyT(ship.R0, cam.fwd), rt = M3.applyT(ship.R0, cam.right), up = M3.applyT(ship.R0, cam.up);
+  let p = V.add(c, V.add(V.mul(f, D), V.add(V.mul(rt, x*D*tanX), V.mul(up, y*D*tanY)))); const l = V.len(p); if (l > PIP_FAR) p = V.mul(p, PIP_FAR/l);
+  return hullOut(p, PIP_R + 0.02);
+}
+// -- peekaboo (only with the camera on the ship; 0.9.9 review, owner: it teleported about): it flies off past the right edge of your view to hide,
+// glides back in from the edge at an easy pace ("peekaboo!", a start, then a hop), glides out again, and a moment later in once more a little
+// higher, giggling (little hops, a wiggle, a wink). Its spots ride along with the camera (live), a little further from it the further the
+// camera is from the ship (Dp), so they stay within PIP_FAR of the ship's middle; every glide starts and ends at rest (ss5)
+PIPB.peek = P => {
+  // (on a desk it peeks in to 0.55 of the half width, clear of the scale ladder along the right edge)
+  const y1 = isCompact() ? -0.05 : -0.3, y2 = y1 + 0.42, xin = isCompact() ? 0.72 : 0.55;
+  const Dp = () => clamp(V.len(camL()) - 2.5, 0.9, 2.2), X = (x, D) => x === 'out' ? 1 + 2.4*PIP_R/(D*tanX) : x;
+  const spot = (x, y) => () => { const D = Dp(); return pipCamSpot(D, X(x, D), y); };
+  const glide = (x0, y0, x1, y1_) => (u, g) => { const s = ss5(sOf(u, g)), D = Dp(), a = X(x0, D), b = X(x1, D); return pipCamSpot(D, a + (b - a)*s, y0 + (y1_ - y0)*s); };
+  fly(P, { sp:0.7, thr:0.6, say:'Pip sneaks off to hide' });
+  mv(P, 1.0, { live:true, at:spot('out', y1), look:'cam', face:'curious', thr:0.2, say:'Pip plays peekaboo' });
+  mv(P, 0.8, { live:true, at:glide('out', y1, xin, y1), look:'cam', face:(u, g) => sOf(u, g) < 0.6 ? 'curious' : 'surprised', thr:0.4, say:'Pip plays peekaboo' });
+  mv(P, 1.4, { live:true, at:spot(xin, y1), look:'cam', face:(u, g) => u - g.t0 < 0.4 ? 'surprised' : 'happy', thr:0.2, say:'peekaboo!',
+    fl:(u, g) => ({ hop:0.45*Math.sin(Math.PI*clamp((u - g.t0 - 0.35)/0.45, 0, 1))**2 }) });
+  mv(P, 0.9, { live:true, at:glide(xin, y1, 'out', y1), look:'cam', face:'happy', thr:0.4, say:'Pip ducks out of sight' });
+  mv(P, 1.1, { live:true, at:glide('out', y1, 'out', y2), look:'cam', face:'curious', thr:0.3, say:'Pip plays peekaboo' });
+  mv(P, 0.8, { live:true, at:glide('out', y2, xin, y2), look:'cam', face:'happy', thr:0.4, say:'Pip plays peekaboo' });
+  mv(P, 1.8, { live:true, at:spot(xin, y2), look:'cam', face:'happy', wink:(u, g) => u - g.t0 > 0.6 && u - g.t0 < 1.2 ? 1 : 0, thr:0.2, say:'peekaboo!',
+    fl:(u, g) => { const t = u - g.t0; return { hop:0.35*(Math.sin(Math.PI*clamp(t/0.35, 0, 1))**2 + Math.sin(Math.PI*clamp((t - 0.4)/0.35, 0, 1))**2), roll:0.25*Math.sin(t*9)*envW(0, 0.9, t, 0.15) }; } });
+};
+// -- beside you (only with the camera on the ship): it flies over to just in front of the camera, a little to one side and low, and rides
+// along there for a while (a big close-up of its face): it looks at the view, at the place, back at the ship and at you, and winks
+PIPB.buddy = P => {
+  // (on a desk the right side: the info panel covers the left)
+  const r = P.r, sd = !isCompact() || r() < 0.5 ? 1 : -1, D = 0.85 + 0.3*r(), x = 0.5*sd, y = isCompact() ? 0.05 : -0.32, T = 6 + 3*r(), ph = r()*5;
+  // (mostly at you, with quick glances at the place, the ship and ahead: its eyes dart there and its body barely turns)
+  const lk = t => { const c = (t + ph) % 7; return c < 2.6 ? 0 : c < 3.5 ? 1 : c < 5.4 ? 0 : c < 6.2 ? 2 : 3; };
+  // (its little drift runs on the outing's clock, u, so it carries on unbroken from one of these moves to the next)
+  const at = u => V.add(pipCamSpot(D, x, y), [0.006*Math.sin(u*1.3), 0.004*Math.sin(u*0.9), 0.006*Math.sin(u*1.1 + 1)]);
+  fly(P, { sp:0.8, thr:0.8, say:() => camNear() ? 'Pip flies over to you' : 'Pip flies alongside the Halo' });
+  mv(P, T, { live:true, at, bodyT:1.1, thr:0.3, look:(u, g) => ['cam', 'tg', 'ship', { dir:[-0.15, 1, 0] }][lk(u - g.t0)], face:(u, g) => { const c = (u - g.t0 + ph) % 7; return c > 1.2 && c < 2.2 ? 'happy' : 'curious'; },
+    say:(u, g) => lk(u - g.t0) === 1 ? `Pip rides along beside you, looking at ${P.nm}` : 'Pip rides along beside you' });
+  mv(P, 1.1, { live:true, at, look:'cam', face:'happy', wink:(u, g) => u - g.t0 > 0.2 && u - g.t0 < 0.75 ? 1 : 0, thr:0.3, say:'Pip winks at you', fl:(u, g) => ({ hop:0.3*Math.sin(Math.PI*clamp((u - g.t0)/0.5, 0, 1))**2 }) });
+};
+// the ride camera's close-up of Pip (08r-ride.js): the ride's own framing (shotPose: the place's near edge in the view) from g degrees round,
+// only much closer, and centred between Pip and the ship's middle, near enough that both fill a good part of the view and far enough that both
+// stay in it. A: where Pip is by the ship (ship axes; the ride passes a point that follows Pip on a soft spring, so a quick move of Pip's never
+// swings the camera). World axes, relative to the ship's middle, like shotPose
+function pipShotPose(g, A = PIP.anc || [0, 0.3, 0.3]){
+  const L = V.len(A), M = localPt(V.mul(A, 0.5));
+  const p = shotPose({ e:6, g, d:Math.max(0.95, 0.35 + 0.75*L/Math.max(tanY, 0.3)), roll:0 });
+  return { eye:V.add(p.eye, M), look:V.add(p.look, M), fwd:p.fwd, up:p.up };
+}
+// (a close-up of Pip suits it now (0.9.9 review, owner's pick: slow and smooth, only while Pip does something calm near the ship): out, itself, not
+// heading home, within 1.2 ship radii of the ship's middle, and busy with a calm bit or idling; to start one, also barely moving (start))
+const PIP_CALM = new Set(['idle', 'hull', 'engine', 'bow', 'twirl', 'scan', 'skim']);
+// (Pip is doing a bit made for the camera, in front of it: the ride camera holds its shot until it is over, 08r-ride.js)
+const pipCamBit = () => { const q = PIP, P = q.plan, g = q.g; return q.st === 'out' && !!P && !P.goHome && (P.a === 'peek' || P.a === 'buddy') && !(g && g.idle); };
+const pipShotOk = start => { const q = PIP, P = q.plan, g = q.g;
+  return q.st === 'out' && q.form === 'pod' && !q.bk && !q.home && !q.hurry && !!P && !P.goHome && !!q.anc && V.len(q.anc) < 1.2 && (PIP_CALM.has(P.a) || !!(g && g.idle)) && (!start || V.len(q.ancV) < 0.25); };
+// -- the bow: it sits on top of the needle near its tip and rides there, happy in the wind (its eyes arches, swaying, looking round), then waves
+PIPB.bow = P => {
+  const r = P.r, y = 0.68 + 0.05*r(), S = [(hullTop(y, 0) ?? -0.01) - PIP_R - 0.003, y, 0], U = [S[0] - 0.06, y - 0.05, 0], T = 4.5 + 2.5*r();
+  fly(P, { say:'Pip flies up to the bow' });
+  mv(P, 0.9, { at:(u, g) => V.lerp(U, S, ease(sOf(u, g))), look:{ dir:[0, 1, 0] }, thr:0.3, face:'happy', say:'Pip sits on the bow' });
+  mv(P, T, { at:hold(S), rest:true, thr:0, face:(u, g) => ((u - g.t0) % 5) < 3.6 ? 'happy' : 'curious', say:'Pip rides on the bow, enjoying the view',
+    look:(u, g) => { const c = (u - g.t0) % 5; return c < 3.6 ? { dir:[-0.12, 1, 0.12*Math.sin(u*0.7)] } : 'tg'; },
+    fl:(u, g) => { const t = u - g.t0, k = envW(0, g.dur, t, 0.4); return { roll:0.16*Math.sin(t*1.9)*k, nod:0.07*Math.sin(t*3.1)*k }; } });
+  mv(P, 1.4, { at:hold(S), rest:true, thr:0, look:'cam', wave:true, face:'happy', say:() => camNear() ? 'Pip waves at you from the bow' : 'Pip waves from the bow' });
+  mv(P, 0.6, { at:(u, g) => V.lerp(S, U, ease(sOf(u, g))), look:'cam', thr:0.6, face:'happy', say:'Pip hops off the bow' });
+};
+// (the twirl's sparkles: white and a soft pink)
+const PINKW_ = [1, 0.82, 0.9];
+// -- a spark: one drifts off the heart; Pip spots it (surprised), darts after it, catches it (a flash, happy eyes), carries it back and lets it
+// fall into the heart (a streak and a glint on the heart). The spark drifts off slowly, speeds up and slows as Pip catches it (moteW, 0.9.9 review:
+// at an even pace it stopped dead in Pip's grip)
+const moteW = (u, g) => smooth(0, 1, (u - g.t0 + 0.6)/(g.dur + 0.6));
+PIPB.mote = P => {
+  const r = P.r, sd = r() < 0.5 ? -1 : 1, core = HULL.core, W = [-0.11, -0.2, 0.03*sd];
+  const path = crPath([[-0.04, -0.3, 0], [-0.12, -0.26, 0.08*sd], [-0.2, -0.16, 0.17*sd], [-0.26, -0.04, 0.1*sd], [-0.22, 0.04, -0.06*sd], [-0.17, -0.02, -0.14*sd]]);
+  const m = P.mote = { path, g:null, drop:null };
+  fly(P, { say:'Pip goes to look at the heart' });
+  mv(P, 1.1, { at:hold(W), look:core, face:'curious', thr:0.2, say:'Pip looks at the heart' });
+  mv(P, 0.6, { at:hold(W), look:(u, g) => path(0.02), face:'surprised', thr:0.2, say:'a spark drifts off the heart' });
+  // (it chases the spark a quarter of a second behind it, weaving; the spark is caught at the chase's end)
+  // (from where it watched, easing onto the spark's trail within 0.4 s)
+  const ch = m.g = mv(P, 2.6, { at:(u, g) => { const s = sOf(u, g), w = moteW(u, g), l = clamp(w - 0.1*(1 - s), 0, 1), p = path(l);
+      return hullOut(V.lerp(W, V.add(p, [0.015*Math.sin(u*9)*(1 - s), 0, 0.02*Math.sin(u*7)*(1 - s)]), smooth(0, 0.6, u - g.t0)), PIP_R + 0.01); },
+    look:(u, g) => path(moteW(u, g)), face:'happy', thr:0.85, trail:true, bodyT:0.12, say:'Pip chases the spark' });
+  mv(P, 0.9, { at:(u, g) => ch.at(ch.t1, ch), look:'cam', face:'happy', thr:0.3, shot:[0.02], say:'Pip catches the spark', fl:(u, g) => ({ hop:0.5*Math.sin(Math.PI*clamp((u - g.t0 - 0.1)/0.45, 0, 1))**2 }) });
+  const B = hullOut([-0.1, -0.3, 0], PIP_R + 0.03);
+  fly(P, { sp:0.4, say:'Pip carries the spark back' });
+  m.drop = mv(P, 1.4, { at:hold(B), look:core, face:(u, g) => u - g.t0 < 0.6 ? 'focused' : 'happy', thr:0.2, say:'Pip puts the spark back in the heart',
+    fl:(u, g) => ({ nod:0.3*envW(0.3, 0.8, u - g.t0, 0.15) }) });
+};
+// (the spark: along its path until it is caught, then held in front of Pip, then a streak down into the heart and a glint there)
+function pipMoteDraw(q){
+  const m = q.plan && q.plan.mote; if (!m || !m.g || !m.drop || !(m.g.t1 > 0)) return;
+  const u = q.u, g = m.g, e0 = g.t0 - 0.6, d0 = m.drop.t0 + 0.6; if (u < e0 || u > d0 + 0.6) return;
+  let p;
+  if (u < g.t1){ p = shipPt(m.path(moteW(u, g))); if (u < e0 + 0.3){ const c = shipPt(HULL.core); if (!behindHull(c)) P_(c, WHITE, 1.5*(1 - (u - e0)/0.3), -5); } }
+  else if (u < d0){ p = V.add(drone.rel, M3.apply(drone.rot, [0, 1.2*drone.rad, 0])); }
+  else { const c = shipPt(HULL.core), f = 1 - (u - d0)/0.6, h = V.add(drone.rel, M3.apply(drone.rot, [0, 1.2*drone.rad, 0]));
+    if (!behindHull(c)){ P_(c, [0.9, 0.95, 1], 2.2*f, -7); if (!behindHull(h) && f > 0.5) L_(h, c, WHITE, 0.6*(f - 0.5)*2, ICE_, 0.9*(f - 0.5)*2); } return; }
+  if (behindHull(p) || pipHidden(p)) return;
+  const tw = 0.75 + 0.25*Math.sin(u*23);
+  P_(p, WHITE, 1.6*tw, -3); P_(p, [0.75, 0.9, 1], 0.5*tw, -6);
+}
+// -- a twirl: two happy turns on the spot with a hop and a few sparkles (after a job well done, and now and then for fun)
+PIPB.twirl = (P, p0) => {
+  const n = reduceMotion ? 1 : 2;
+  mv(P, 1.5, { at:hold(p0 || [-0.09, 0.3, 0.2]), look:'cam', face:'happy', thr:0.4, fx:'twinkle', say:'Pip does a happy twirl',
+    fl:(u, g) => { const s = sOf(u, g); return { spin:2*Math.PI*n*ease(s), hop:0.5*Math.sin(Math.PI*s)**2 }; } });
+};
+// (the next bit: a shuffled bag of them all, never the same twice running; peekaboo and beside you only with the camera on the ship, a spark
+// chase not by a black hole. The heart it drew in the air was taken out in the 0.9.9 review, owner)
+const PIP_BITS = ['hull', 'engine', 'photo', 'play', 'peek', 'bow', 'mote', 'buddy', 'twirl', 'buddy'];
+function pipBitNext(q){
+  // (while the ride camera is close on Pip, only a calm bit, so the close-up can play out rather than glide away at once: the ones made for the
+  // camera would take its place, and a fast one would leave it)
+  const P = q.plan, r = P.r, close = typeof RIDE !== 'undefined' && RIDE.pk > 0.05;
+  // (the made-for-the-camera bits only with the camera close by, and riding along only over a close shot with no pull-back to come: a tour's
+  // pull-back left Pip playing peekaboo with a camera far away)
+  const rideOk = !shipCam.on || typeof RIDE === 'undefined' || (!RIDE.queue.length && (!RIDE.shot || NEAR.has(RIDE.shot.name) || RIDE.shot.name === 'still'));
+  const camOk = camNear() && V.len(cam.rel) < ship.rad*6 && rideOk;
+  const ok = b => (camOk || !(b === 'peek' || b === 'buddy')) && !(close && !PIP_CALM.has(b)) && b !== P.lastBit && !(P.near && b === 'mote');
+  for (let k=0;k<2;k++){
+    if (!P.bag.length){ const b = PIP_BITS.slice(); for (let i=b.length - 1;i>0;i--){ const j = Math.floor(r()*(i + 1)); [b[i], b[j]] = [b[j], b[i]]; } P.bag.push(...b); }
+    const i = P.bag.findIndex(ok); if (i >= 0){ const b = P.bag.splice(i, 1)[0]; P.lastBit = b; return b; }
+    P.bag.length = 0;
+  }
+  return 'twirl';
+}
+function pipBitAdd(P, b, p0){
+  P.a = b;
+  if (PIPA[b]) PIPA[b](P, 0.85); else PIPB[b](P, p0);
+}
+// -- the jobs Pip helps with. The scan: it flies down beside the bow on the belly's side, by the scan array, turns its lamp on the place and gathers the readings
+// (motes of light streaming up to it from the ring on the body) until the sweep is over, then hops for joy
+PIPJ.scan = (P, A) => {
+  const r = P.r, sd = r() < 0.5 ? -1 : 1, K = hullOut([0.07, 0.3 + 0.08*r(), 0.15*sd], PIP_R + 0.03);
+  fly(P, { sp:0.6, say:'Pip flies down to help with the scan' });
+  mv(P, 1e6, { at:(u, g) => V.add(K, [0, 0.008*Math.sin((u - g.t0)*1.3), 0]), look:'tg', face:'focused', lamp:(u, g) => smooth(0.3, 0.9, u - g.t0), thr:0.25, fx:'data', job:A,
+    until:() => S_.act !== A || A.tau > SCAN.SW0 + SCAN.SWT + 0.5, say:() => A.tau >= SCAN.SW0 ? 'Pip gathers the readings' : 'Pip helps with the scan',
+    then:(P, p0) => { mv(P, 1.3, { at:hold(p0), look:'cam', face:'happy', thr:0.3, shot:[0.05], say:'Pip got the readings', fl:(u, g) => ({ hop:0.6*Math.sin(Math.PI*clamp((u - g.t0 - 0.15)/0.45, 0, 1))**2 }) }); } });
+};
+// the skim: it rides out in front of the bow scoop, braced in the stream of gas (a cross little face, shaken about), then shakes itself off
+PIPJ.skim = (P, A) => {
+  const r = P.r, sd = r() < 0.5 ? -1 : 1, K = [-0.02, 0.93, 0.05*sd];
+  fly(P, { sp:0.6, say:'Pip flies out to the bow scoop' });
+  mv(P, 1e6, { at:(u, g) => { const b = A.low || 0, t = u - g.t0; return V.add(K, [0.006*b*Math.sin(t*37), -0.012*b*(0.5 + 0.5*Math.sin(t*23)), 0.008*b*Math.sin(t*29 + 1)]); },
+    look:{ dir:[0.15, 1, 0] }, face:() => (A.low || 0) > 0.05 ? 'cross' : 'focused', thr:() => 0.5 + 0.5*(A.low || 0), job:A,
+    until:() => S_.act !== A || (A.tau > 1 && (A.low || 0) < 0.02 && A.tau > ACTS.skim.T*0.6), say:() => (A.low || 0) > 0.05 ? 'Pip braces in the gas at the bow scoop' : 'Pip rides out in front of the bow scoop',
+    fl:(u, g) => ({ roll:0.25*(A.low || 0)*Math.sin((u - g.t0)*19) }),
+    then:(P, p0) => { mv(P, 1.4, { at:hold(p0), look:'cam', thr:0.3, face:(u, g) => u - g.t0 < 0.8 ? 'dizzy' : 'happy', say:'Pip shakes the gas off',
+      fl:(u, g) => { const t = u - g.t0; return { spin:(reduceMotion ? 0.12 : 0.4)*Math.sin(2*Math.PI*4.2*t)*envW(0, 0.9, t, 0.1) }; } }); } });
+};
+// the weapons test: it flies to the needle and settles on top of it near the tip, facing ahead, and winks at you; then it is the railgun's
+// heart (07k-cannon.js builds the gun round it, plates and rails unfolding from its sides): it stays itself and in place, focused, squints as
+// each slug leaves, looks cross while the big shot charges, kicks back with the gun and is happy as it folds away; then a happy twirl
+const PIP_DOCK = [(hullTop(0.64, 0) ?? -0.0135) - PIP_R - 0.012, 0.64, 0];   // (0.012 up: hullD runs short over the plates, and closer it was eased off them)
+PIPJ.weapons = (P, A) => {
+  const D = PIP_DOCK, U = [D[0] - 0.07, D[1] - 0.08, 0];
+  fly(P, { sp:0.6, thr:0.7, say:'Pip flies to the needle' });
+  mv(P, 1.0, { at:(u, g) => V.lerp(U, D, ease(sOf(u, g))), look:{ dir:[0, 1, 0] }, face:'focused', thr:0.4, say:'Pip settles on the needle' });
+  mv(P, 1e6, { at:() => A.gun ? [D[0], D[1] - gunRec(A.gun), D[2]] : D, dock:A, job:A, rest:true, thr:0,
+    look:(u, g) => { const t = u - g.t0; return !A.gun && t > 0.4 && t < 1.2 ? 'cam' : { dir:[0, 1, 0] }; },
+    face:(u, g) => { if (A.gun) return gunFace(A.gun); const t = u - g.t0; return t > 0.4 && t < 1.2 ? 'happy' : 'focused'; },
+    wink:(u, g) => { const t = u - g.t0; return !A.gun && t > 0.55 && t < 1.05 ? 1 : 0; },
+    until:() => S_.act !== A || A.gunDone, say:() => A.gunDone ? 'Pip is itself again' : A.gun ? "Pip is the railgun's heart" : 'Pip waits on the needle, ready',
+    then:(P, p0) => PIPB.twirl(P, p0) });
+};
+// Pip's own show (the probe job, and the showcase's and the lab's Pip button): two or three of its four outings in a row while the cameras
+// turn to it; the job is done when they are
+PIPJ.probe = (P, A) => {
+  const m = pipMix(P.r, P.near, PIP.last, PIP.lastActs), k3 = m.acts.length > 2 ? 0.85 : 1; PIP.last = m.sig; PIP.lastActs = m.acts.join(); P.acts = m.acts.slice();
+  for (const a of m.acts){ P.a = a; PIPA[a](P, k3); }
+  mv(P, 0.01, { at:(u, g) => { const L = P.segs[P.segs.indexOf(g) - 1]; return L.at(L.t1, L); }, on:() => { A.fin = true; A.finT = A.tau; }, say:'Pip is done showing off' });
+};
+
 // the mix: two or three of the four (near a black hole or a magnetar two), in an order of its own, a launch and a way home; never the same
 // outing twice in a row (r: its dice)
 function pipMix(r, near, last = '', lastActs = ''){
@@ -443,29 +748,81 @@ function pipMix(r, near, last = '', lastActs = ''){
   }
   return { acts, launch, ret, sig };
 }
-// (its dice: from the visit's seed and the place, so each visit and each place gets an outing of its own, the same on every run of a route)
-const pipSeed = A => A.pl.seed*7919 + [...A.tg.key].reduce((h, c) => (h*31 + c.charCodeAt(0)) % 1000003, 17);
-function pipPlan(A){
-  const q = PIP, near = q.kind === 'near', r = lcg(pipSeed(A)), m = pipMix(r, near, q.last, q.lastActs);
-  q.last = m.sig; q.lastActs = m.acts.join();
-  const side = r() < 0.5 ? -1 : 1, P = Object.assign({ t:0, k:0, segs:[], r, near, side, nm:pipName(A.tg), a:'launch', DIS0:0, IN:0 }, m), F = pipSpot(side);
+// (its dice: from the stay and the place, so each stay and each place gets an outing of its own, the same on every run of a route)
+const pipSeed = O => (O.seed*7919 + [...O.tg.key].reduce((h, c) => (h*31 + c.charCodeAt(0)) % 1000003, 17)) >>> 0;
+// an outing (O: its place, dice, clock tau): it takes shape beside the ship and comes out (one of the launches), then helps with the job that
+// called it or keeps the ship company; the rest is added as it goes (pipTick), and its way home once it is time (pipGoHome)
+function pipOpen(O, req){
+  const q = PIP, near = q.kind === 'near', r = lcg(pipSeed(O)), m = pipMix(r, near, q.last, q.lastActs), side = r() < 0.5 ? -1 : 1;
+  const P = { t:0, k:0, segs:[], r, near, side, nm:pipName(O.tg), a:'launch', DIS0:PIP_NEVER, IN:PIP_NEVER, launch:m.launch, ret:m.ret, sig:m.sig, acts:[], bag:[], lastBit:'', eside:0, mote:null, goHome:false };
+  const F = pipSpot(side);
   mv(P, PIP_ASM + 0.4, { at:hold(F), look:'cam', thr:0.12, say:'Pip streams out of the belly bay and takes shape' });
-  PIPL[m.launch](P, F);
-  const k3 = m.acts.length > 2 ? 0.85 : 1;
-  for (const a of m.acts){ P.a = a; PIPA[a](P, k3); }
-  P.a = 'home';
-  const D = pipSpot(r() < 0.6 ? side : -side);
-  PIPR[m.ret](P, D);
-  mv(P, 1e6, { at:hold(D), look:'cam', thr:0.15, home:true, face:'happy', say:'Pip streams back into the belly bay' });
+  // (called out by a job, it zips straight off to it)
+  if (req){ PIPL.zip(P, F); P.a = req.kind; PIPJ[req.kind](P, req); q.reqDone = req; } else PIPL[m.launch](P, F);
+  pipIdle(P, req ? undefined : 1 + 2*r());
   pipLayout(P);
-  P.IN = P.DIS0 + PIP_DIS + 0.1;
   return P;
 }
+// Pip is out while the ship stays somewhere: from a few seconds after it arrives (the hull whole again after a fold) until the stay's last
+// pass is nearly over (PIP_HOMEBY s before its end, so it is home before the ship turns to leave) or the ship is sent on
+const PIP_HOMEBY = 8;
+function pipWant(){
+  const S = S_, st = S.stay;
+  if (!st || st.leave || (S.phase !== 'pass' && S.phase !== 'loop') || ship.parent !== S.target) return false;
+  if (S.fk > -90 || S.asm < FLK.A1 + 0.5) return false;
+  return !(S.phase === 'pass' && S.plan.last && S.t > S.plan.T - PIP_HOMEBY);
+}
+// each tick, before it moves: out it comes (a few seconds after it is wanted, at once when a job calls it), home it goes when it is no longer
+// wanted; an outing is over once it is back in the bay
+function pipSchedule(q, dt){
+  const S = S_, O = q.O;
+  if (q.req && (S.act !== q.req || q.req.fin)) q.req = null;   // (a job that is over no longer calls)
+  const want = pipWant();
+  if (!O){
+    if (!want){ q.wantT = 0; return; }
+    q.wantT += dt;
+    if (!q.req && q.wantT < q.outAt) return;
+    q.outN++;
+    q.O = { tg:S.target, seed:S.visits*131 + q.outN, tau:-0.6, fin:false };
+    pipBegin(q, q.O);
+    return;
+  }
+  if (O.fin){ if (q.st === 'stowed' || q.st === 'pose'){ q.O = null; q.wantT = 0; q.outAt = 2 + 3*q.rb(); } return; }
+  O.tau += dt;
+  if (!want || O.tg !== S.target) pipGoHome(q);
+}
+// home, at its own pace: the mix's way home from wherever it is (once it is whole and itself: not while it takes shape or is the cannon)
+function pipGoHome(q){
+  const P = q.plan, O = q.O; if (!P || !O || O.fin || q.home || P.goHome || q.hurry) return;
+  const u = O.tau - PIP_LAUNCH;
+  if (q.st !== 'out'){ if (u < 0){ O.fin = true; q.fin = true; } return; }   // (not out yet: it stays aboard)
+  if (q.bk || q.form !== 'pod') return;
+  P.goHome = true;
+  pipAppend(P, u, P => { P.a = 'home'; const D = pipSpot(P.r() < 0.6 ? P.side : -P.side); PIPR[P.ret](P, D);
+    mv(P, 1e6, { at:hold(D), look:'cam', thr:0.15, home:true, face:'happy', say:'Pip streams back into the belly bay' }); });
+}
+// out and whole: a job's call (its bit now, from wherever Pip is), the end of a job's bit (until), or the next bit after an idle stretch
+function pipTick(q, P, u){
+  if (q.home || P.goHome || q.bk || q.form !== 'pod' || q.hurry) return;
+  const g = P.segs[P.k], req = q.req;
+  if (req && q.reqDone !== req){ q.reqDone = req; pipAppend(P, u, P => { P.a = req.kind; PIPJ[req.kind](P, req); pipIdle(P); }); return; }
+  if (g.until && g.until(u, g)){ pipAppend(P, u, (P, p0) => { P.a = 'idle'; if (g.then) g.then(P, p0); pipIdle(P); }); return; }
+  // (the lab's buttons: that bit now, unless it is helping with a job)
+  if (q.nextBit && !g.job && !g.dock){ const b = q.nextBit; q.nextBit = null; pipAppend(P, u, (P, p0) => { pipBitAdd(P, b, p0); P.lastBit = b; pipIdle(P); }); return; }
+  if (g.idle && u - g.t0 > g.wait) pipAppend(P, u, (P, p0) => { pipBitAdd(P, pipBitNext(q), p0); pipIdle(P); });
+}
+// a job asks for Pip (the scan, the skim, the weapons test, Pip's own show)
+function pipJoin(A){ if (A && PIPJ[A.kind]) PIP.req = A; }
+// (out of the bay: the ship waits for it before it jumps)
+const pipOut = () => !!(PIP.O && !PIP.O.fin) && PIP.st !== 'pose';
+// docked at the needle's tip for the weapons test A, and has winked: the cannon can form
+const pipDocked = A => { const q = PIP, g = q.g; return q.st === 'out' && q.form === 'pod' && !q.bk && !q.hurry && !!g && g.dock === A && q.u - g.t0 > 1.3; };
+
 
 // ---------------------------------------------------------------- hidden from the camera by the hull, or by the body it visits (camera-relative p)
 function pipHidden(p){
   if (behindHull(p)) return true;
-  const tg = PIP.A && PIP.A.tg; if (!tg || PIP.st === 'pose') return false;
+  const tg = PIP.O && PIP.O.tg; if (!tg || PIP.st === 'pose') return false;
   const sp = aimSphere(tg); return (sp.solid || sp.hole) && behindSphere(p, tg.rel, sp.r*0.998);
 }
 // a photo: a white flash at Pip (kept where it was taken, relative to the ship)
@@ -480,7 +837,7 @@ function pipPuff(N){
     if (!behindHull(n)) P_(n, WHITE, 3*Math.exp(-e.t/0.1), -8);
     for (const j of jets){ const a = shipPt(V.add(N, V.mul(j.d, j.s*x*0.55))), b = shipPt(V.add(N, V.mul(j.d, j.s*x))); if (!behindHull(b)) L_(a, b, [0.45, 0.7, 1], 0.12*f, e.t < 0.2 ? WHITE : [0.75, 0.9, 1], (0.5 + 0.4*j.w)*f*f); } } });
 }
-function pipStow(){ const q = PIP; q.st = 'stowed'; q.trail.length = 0; q.spot = null; q.lamp = 0; q.flash = 0; q.vis = 0; q.dm = 0; q.dg = 0; q.pres = 1; q.arr = 0; q.embN = 0; q.bk = null; q.brk = 0; }
+function pipStow(){ const q = PIP; q.st = 'stowed'; q.trail.length = 0; q.spot = null; q.lamp = 0; q.flash = 0; q.vis = 0; q.dm = 0; q.dg = 0; q.pres = 1; q.arr = 0; q.embN = 0; q.bk = null; q.brk = 0; q.form = 'pod'; }
 
 // ---------------------------------------------------------------- its break-up into embers, the same look as the ship's fold (ember wind): coming out, embers stream out
 // of the belly bay and settle on its cells, which appear one by one from the side nearest the bay; going home, its cells burn and go one by
@@ -524,6 +881,8 @@ function pipBreak(q, mode, rate, u0){
   q.bk = { mode, u0, bp0:0, rate, end:-1 }; q.brk = mode; q.cs = pipCs(); q.cells = pipTable(q.cs); q.wz = q.plan.r() < 0.5 ? -1 : 1;
   q.bayL = M3.applyT(drone.rot || I3, V.norm(V.sub(localPt(HULL.bay), q.pos)));
 }
+// where ember i goes (or comes from): the bay (ship-relative, world axes)
+const pipFar = (q, i) => localPt(HULL.bay);
 const pipBp = (k, u) => clamp(k.bp0 + (u - k.u0)*k.rate, 0, 1);
 // ember i: when it sets off and when it gets there (break-up progress)
 const EW = [0, 0];
@@ -540,7 +899,7 @@ const EB = [0];
 function emberPip(q, i, bp){
   const A = q.cells.a, c = i*PIP_CW, w = emberWhen(q, i), s = (bp - w[0])/(w[1] - w[0]);
   if (s < 0 || s > 1) return null;
-  const R = drone.rot, cellP = V.add(q.pos, V.mul(M3.apply(R, [A[c] + A[c + 4], A[c + 1] + A[c + 5], A[c + 2] + A[c + 6]]), drone.rad)), bay = localPt(HULL.bay);
+  const R = drone.rot, cellP = V.add(q.pos, V.mul(M3.apply(R, [A[c] + A[c + 4], A[c + 1] + A[c + 5], A[c + 2] + A[c + 6]]), drone.rad)), bay = pipFar(q, i);
   const P0 = q.bk.mode > 0 ? cellP : bay, P1 = q.bk.mode > 0 ? bay : cellP, D = V.sub(P1, P0), L = V.len(D) || 1e-9, e = s*s*(3 - 2*s);
   const side = V.norm(V.cross(D, cam.fwd)), lift = V.norm(V.cross(side, D)), bend = L*(0.2 + 0.14*A[c + 8])*q.wz;
   const C = V.add(V.add(P0, V.mul(D, 0.5)), V.mul(side, bend));
@@ -593,52 +952,62 @@ const NOFL = {};
 drone.ctl = dt => {
   const q = PIP;
   if (q.pose){ pipPose(q.pose); return; }
-  const A = S_.act && S_.act.kind === 'probe' ? S_.act : null;
-  if (!A){ if (q.st !== 'stowed') pipStow(); q.A = null; return; }
-  const u = A.tau - PIP_LAUNCH;
-  if (q.A !== A){ if (u < -0.6) return; pipBegin(q, A); }
-  if (q.fin){ if (q.st !== 'stowed') pipStow(); return; }
+  pipSchedule(q, dt);
+  const O = q.O;
+  if (!O || q.fin){ if (q.st !== 'stowed') pipStow(); return; }
+  const u = O.tau - PIP_LAUNCH;
   // the bay lamp (ice blue): on as the bay opens and while embers stream out
   S_.em[3] = Math.max(S_.em[3], smooth(-0.4, -0.1, u)*(1 - smooth(1.4, 2.2, u)));
   if (u < 0) return;
   const P = q.plan, u0 = q.st === 'stowed' ? u : q.u;
   q.u = u;
   pipActivate(P, u);
+  if (q.st === 'out') pipTick(q, P, u);
   const g = P.segs[P.k], su = sOf(u, g), f = g.fl ? g.fl(u, g) : NOFL, val = (x, d) => typeof x === 'function' ? x(u, g) : x ?? d;
   // where the plan puts it now and a step ago; it keeps to that on its spring, never inside the hull
-  const T1 = hullOut(pipAt(P, u), PIP_R), T0 = hullOut(pipAt(P, u - dt), PIP_R);
+  const T1 = hullSoft(pipAt(P, u), PIP_R), T0 = hullSoft(pipAt(P, u - dt), PIP_R);
   if (q.st === 'stowed'){ q.st = 'out'; q.wasOut = true; q.anc = null; q.open = 0; q.unfold = 0; q.fc = { ...FACES.curious }; q.flash = 0; q.thr = 0.15; }
   pipAnchor(q, dt, T0, T1);
   const cl = hullDp(q.anc) - PIP_R, fr = V.len(q.anc); q.clr = Math.min(q.clr, cl); q.far = Math.max(q.far, fr); q.clrNow = cl; q.farNow = fr;
   const near = camNear(), upW = near ? cam.up : localDir([-1, 0, 0]), rightW = near ? cam.right : localDir([0, 0, 1]), rad = drone.rad, spd = V.len(q.ancV);
-  let pos = localPt(q.anc), roll = f.roll || 0;
+  let pos = localPt(q.anc), roll = f.roll || 0, spin = f.spin || 0, nod = f.nod || 0, lift = f.hop ? 0.9*f.hop : 0, side = 0;
   // its flourishes, smooth functions of the clock that start and end at nothing: hovering, it bobs a little; hops; a wave, a wiggle toward you
   q.bobK += ((g.rest ? 0 : 1 - clamp(spd/0.2, 0, 1)) - q.bobK)*(1 - Math.exp(-dt*5));
   pos = V.add(pos, V.mul(upW, rad*(reduceMotion ? 0.05 : 0.1)*Math.sin(drone.t*3.77)*q.bobK));
-  if (f.hop) pos = V.add(pos, V.mul(upW, rad*0.9*f.hop));
-  if (g.wave){ const kW = envW(0, 1, su, 0.12), wig = Math.sin(2*Math.PI*2.2*(u - g.t0)); pos = V.add(pos, V.mul(rightW, rad*0.25*wig*kW)); roll += 0.34*wig*kW; }
+  if (g.wave){ const kW = envW(0, 1, su, 0.12), wig = Math.sin(2*Math.PI*2.2*(u - g.t0)); side = 0.25*wig*kW; roll += 0.34*wig*kW; }
+  // (0.9.9 review: a move cut short (a job's call, the way home) leaves its flourish where it was, and that fades out over 0.35 s, where it vanished in
+  // one frame: a hop cut off halfway dropped Pip half its size)
+  if (q.flK !== P.k){ const l = q.flL; q.flC = l && l.some(x => Math.abs(x) > 1e-3) ? { u, v:l } : null; q.flK = P.k; }
+  if (q.flC){ const k = 1 - smooth(0, 0.35, u - q.flC.u), c = q.flC.v; lift += c[0]*k; side += c[1]*k; roll += c[2]*k; spin += c[3]*k; nod += c[4]*k; if (k <= 0) q.flC = null; }
+  q.flL = [lift, side, wrapA(roll), wrapA(spin), wrapA(nod)];
+  pos = V.add(pos, V.add(V.mul(upW, rad*lift), V.mul(rightW, rad*side)));
   q.pos = pos; drone.offset = pos; drone.pos = V.add(ship.pos, pos);
   // (a trail while it zips, races or loops: at most 8 fading points, kept by the ship)
   for (const t of q.trail) t.age += dt;
   while (q.trail.length && q.trail[0].age > 0.45) q.trail.shift();
   if (g.trail && spd > 0.25){ q.trAcc += dt; if (q.trAcc > 0.055){ q.trAcc = 0; q.trail.push({ l:q.anc.slice(), age:0 }); if (q.trail.length > 8) q.trail.shift(); } }
-  // where it looks: at you (at the bridge with no one riding along), the way it flies, at the ship, at a point on the hull
-  const toCam = V.norm(V.mul(V.add(ship.rel, pos), -1)), L = typeof g.look === 'function' ? g.look(u, g) : g.look;
+  // where it looks: at you (at the bridge with no one riding along), the way it flies, at the ship, at a point on the hull. Toward the end of a
+  // flight it already looks where the next move will, so it turns as it slows down rather than once it has stopped
+  const lg = g.fly && g.nx && su > 0.65 && g.nx.look !== 'fly' ? g.nx : g;
+  const toCam = V.norm(V.mul(V.add(ship.rel, pos), -1)), L = typeof lg.look === 'function' ? lg.look(u, lg) : lg.look;
   let want = q.body;
   if (L === 'cam') want = near ? toCam : V.norm(V.sub(localPt([-0.09, 0.05, 0]), pos));
   else if (L === 'fly'){ if (spd > 0.05) want = V.norm(localDir(q.ancV)); }
   else if (L === 'ship') want = V.norm(V.sub(localPt([0, -0.12, 0]), pos));
+  else if (L === 'tg'){ const d = V.sub(V.sub(O.tg.rel, ship.rel), pos); if (V.len(d) > 0) want = V.norm(d); }
   else if (Array.isArray(L)) want = V.norm(V.sub(localPt(L), pos));
   else if (L && L.dir) want = V.norm(localDir(L.dir));
   // (busy with a job, it glances at you now and then: half a second every 2.6 s or so, never as a job starts or ends)
   if (g.glance != null && near){ const t = u - g.t0, ph = (t + 2.6*g.glance) % 2.6; if (ph > 2.05 && t > 0.8 && t < g.dur - 0.7) want = toCam; }
-  // the pupil darts first, the body follows
+  // the pupil darts first, the body follows through two easings in a row (0.9.9 review): its turn starts gently and ends gently, where one easing
+  // set it swinging at full speed the moment it looked somewhere new
   q.pupil = slerpDir(q.pupil, want, 1 - Math.exp(-dt/0.08));
-  q.body = slerpDir(q.body, q.pupil, 1 - Math.exp(-dt/(g.bodyT || 0.35)));
+  const kb = 1 - Math.exp(-dt/(0.5*(lg.bodyT || 0.35)));
+  q.bodyM = slerpDir(q.bodyM, q.pupil, kb); q.body = slerpDir(q.body, q.bodyM, kb);
   // (a loop round the needle: it faces the way it flies, head toward the needle)
   let loop = null;
   if (g.loop && spd > 0.05){ const a = q.anc, k = envW(0, 1, su, 0.08); loop = { kL:k, tan:V.norm(localDir(q.ancV)), inw:V.norm(localDir([-a[0], 0, -a[2]])) }; }
-  pipOrient(q, upW, { roll, spin:f.spin || 0, nod:f.nod || 0, kL:loop ? loop.kL : 0, tan:loop && loop.tan, inw:loop && loop.inw });
+  pipOrient(q, upW, { roll, spin, nod, kL:loop ? loop.kL : 0, tan:loop && loop.tan, inw:loop && loop.inw });
   // its face: the one the move asks for, its eyes easing to it in about 0.2 s
   q.face = pipFace(q, val(g.face, 'curious'));
   const F = FACES[q.face], kf = 1 - Math.exp(-dt/0.07); for (const k of FACE_K) q.fc[k] += (F[k] - q.fc[k])*kf;
@@ -681,26 +1050,24 @@ drone.ctl = dt => {
     S_.em[3] = Math.max(S_.em[3], Math.min(0.35 + (k.mode > 0 ? q.arr : 0), 1.3));
     // (whole: the break-up is over; home, or back in the bay in a hurry: every ember has got there, and a moment later it is stowed)
     if (k.mode < 0 && k.rate > 0 && bp >= 1){ q.bk = null; q.brk = 0; q.dm = 0; q.dg = 0; q.pres = 1; }
-    else if ((k.mode > 0 && bp >= 1) || (k.mode < 0 && k.rate < 0 && bp <= 0)){ if (k.end < 0) k.end = u; if (u - k.end >= 0.1){ q.fin = true; A.fin = true; pipStow(); } }
+    else if ((k.mode > 0 && bp >= 1) || (k.mode < 0 && k.rate < 0 && bp <= 0)){ if (k.end < 0) k.end = u; if (u - k.end >= 0.1){ q.fin = true; O.fin = true; pipStow(); } }
   } else { q.dm = 0; q.dg = 0; q.pres = 1; q.arr = 0; }
 };
-// a new job: its outing planned, everything else as it was on page load but the outing before
-function pipBegin(q, A){
-  const last = q.last, lastActs = q.lastActs;
-  Object.assign(q, pipFresh(), { last, lastActs, A, kind:pipKind(A.tg), u:A.tau - PIP_LAUNCH });
-  q.plan = pipPlan(A); q.rb = lcg(pipSeed(A) + 5);
-  A.len = q.plan.IN + PIP_LAUNCH;   // (the job's framing lasts as long as the outing)
+// a new outing: planned, everything else as it was on page load but the outings before and a job's call
+function pipBegin(q, O){
+  const keep = { last:q.last, lastActs:q.lastActs, outN:q.outN, req:q.req, wantT:q.wantT, nextBit:q.nextBit };
+  Object.assign(q, pipFresh(), keep, { O, kind:pipKind(O.tg), u:O.tau - PIP_LAUNCH });
+  q.rb = lcg(pipSeed(O) + 5);
+  q.plan = pipOpen(O, q.req && S_.act === q.req ? q.req : null);
 }
-// the job ends (a new visit, a reset): if it is still out, it is gone with it
-function pipEnd(A){ const q = PIP; if (q.A === A && q.st !== 'stowed') pipStow(); }
 // home early and quickly (the ship is leaving now), in about 1.2 s: taking shape, it comes apart the way it came, its embers flying back into
 // the bay; out and about, it glides to a stop (its error from the new plan dies away from its speed) and streams back into the bay from there;
 // already on its way in, the rest goes quicker. Not out yet: it stays aboard, and the job is done at once.
 drone.hurry = () => {
-  const q = PIP, A = S_.act && S_.act.kind === 'probe' ? S_.act : null; if (!A || A.fin) return false;
+  const q = PIP, O = q.O; if (!O || O.fin) return false;
   if (q.hurry) return true;
-  const u = A.tau - PIP_LAUNCH, P = q.plan, k = q.bk;
-  if (q.A !== A || !P || u < 0 || q.st === 'stowed'){ Object.assign(q, pipFresh(), { last:q.last, lastActs:q.lastActs, A, kind:pipKind(A.tg), fin:true, hurry:true }); A.fin = true; return true; }
+  const u = O.tau - PIP_LAUNCH, P = q.plan; let k = q.bk;
+  if (!P || u < 0 || q.st === 'stowed'){ q.fin = true; q.hurry = true; O.fin = true; pipStow(); return true; }
   q.hurry = true;
   if (k && k.mode < 0){ Object.assign(k, { u0:u, bp0:pipBp(k, u), rate:-1/PIP_HURRY }); q.home = true; }
   else if (k){ Object.assign(k, { u0:u, bp0:pipBp(k, u), rate:Math.max(k.rate, 1/PIP_HURRY) }); }
@@ -710,7 +1077,6 @@ drone.hurry = () => {
     P.segs.push({ a:'home', t0:u, t1:1e9, dur:1e9, at:hold(H), look:'cam', thr:0.3, home:true, say:'Pip hurries back into the belly bay' });
     P.DIS0 = u + 0.15; P.IN = P.DIS0 + PIP_HURRY + 0.1;
   }
-  A.len = u + PIP_LAUNCH + PIP_HURRY + 0.4;
   return true;
 };
 // its frame from where it looks (+y) and which way is up (+z: the view's up with the camera near, else the ship's), with its flourishes: a
@@ -739,7 +1105,7 @@ function pipPose(o){
   q.pos = pos; drone.offset = pos; drone.pos = V.add(ship.pos, pos);
   const toCam = V.norm(V.mul(V.add(ship.rel, pos), -1)), lk = o.look || [0, 0];
   const want = V.norm(V.add(V.mul(toCam, o.away ? -1 : 1), V.add(V.mul(cam.right, lk[0]), V.mul(cam.up, lk[1]))));
-  q.pupil = want; q.body = o.eyes ? toCam : want;
+  q.pupil = want; q.body = q.bodyM = o.eyes ? toCam : want;
   q.face = o.face || 'curious'; q.fc = { ...FACES[q.face], ...o.fc }; q.open = (o.open ?? 1)*q.fc.open; q.wink = o.wink ?? 0;
   q.glow = o.glow ?? 1; q.thr = o.thr ?? 0.25; q.lamp = o.lamp ?? 0; q.scale = o.scale ?? 1; q.unfold = o.unfold ?? 1;
   q.ant = o.ant ?? 0; q.iris = o.iris || ICE_P;
@@ -764,7 +1130,30 @@ function pipDraw(){
   if (q.spot && q.lamp > 0.02){ const s = shipPt(q.spot), n = hullN(q.spot); if (!behindHull(shipPt(V.add(q.spot, V.mul(n, 0.004)))) && V.dot(localDir(n), V.mul(s, -1)) > 0) P_(s, [0.75, 0.9, 1], 0.45*q.lamp, ship.rad*0.02); }
   if (g && g.fx === 'polish') pipSparkles(q, g);
   if (g && g.fx === 'weld') pipWeld(q, g);
+  if (g && g.fx === 'data') pipData(q, g);
+  if (g && g.fx === 'twinkle') pipTwinkle(q, g);
+  pipMoteDraw(q);
   if (q.bk && q.cells) pipEmbers(q);
+}
+// gathering a scan's readings: motes of light rising from the body's side under it to Pip, each about a second on its way, spread evenly on
+// the screen (they would crawl near the body and rush in at the end), only while the ring sweeps
+function pipData(q, g){
+  const A = g.job, tg = q.O && q.O.tg; if (!A || !tg || !(A.tau > SCAN.SW0 - 0.4) || q.form !== 'pod') return;
+  const k = smooth(SCAN.SW0 - 0.4, SCAN.SW0 + 0.3, A.tau)*(1 - smooth(SCAN.SW0 + SCAN.SWT, SCAN.SW0 + SCAN.SWT + 0.6, A.tau)); if (k < 0.01) return;
+  const sp = aimSphere(tg), C = tg.rel, R = sp.r || tg.rad*0.5, pip = drone.rel, d0 = V.norm(V.sub(pip, C)), e1 = anyPerp(d0), e2 = V.cross(d0, e1), zb = V.dot(pip, cam.fwd), t = q.u - g.t0;
+  const occ = p => V.dot(p, cam.fwd) <= 0 || behindHull(p) || ((sp.solid || sp.hole) && behindSphere(p, C, R*0.998));
+  for (let i=0;i<12;i++){
+    const x = t*0.95 + i/12, n = Math.floor(x), s = x - n, a = pipHash(n, i, 13)*6.2832, b = 0.2 + 0.5*pipHash(n, i, 17);
+    const src = V.add(C, V.mul(V.norm(V.add(d0, V.add(V.mul(e1, Math.cos(a)*b), V.mul(e2, Math.sin(a)*b)))), R*1.01)), za = V.dot(src, cam.fwd);
+    const w = za > 0 && zb > 0 ? s*za/((1 - s)*zb + s*za) : s, p = V.lerp(src, pip, w);
+    if (!occ(p)) P_(p, [0.45, 0.9, 1], k*0.9*Math.sin(Math.PI*s), s > 0.8 ? -3 : -2);
+  }
+}
+// a twirl's sparkles: a few little stars circling out from it
+function pipTwinkle(q, g){
+  const t = q.u - g.t0, f = Math.sin(Math.PI*clamp(t/g.dur, 0, 1));
+  for (let i=0;i<6;i++){ const a = i*1.0472 + t*3.2, r = drone.rad*(1.2 + 1.1*t), p = V.add(drone.rel, V.add(V.mul(cam.right, Math.cos(a)*r), V.mul(cam.up, Math.sin(a)*r)));
+    if (!pipHidden(p)) P_(p, i % 2 ? PINKW_ : WHITE, f*(0.7 + 0.3*Math.sin(t*19 + i*2)), -2); }
 }
 // polishing the bridge window: little sparkles coming and going on the glass
 function pipSparkles(q, g){
@@ -786,14 +1175,18 @@ function pipWeld(q, g){
     L_(shipPt(V.add(W, V.mul(d, sp*Math.max(a - 0.04, 0)))), shipPt(V.add(W, V.mul(d, sp*a))), [1, 0.5, 0.15], 0.2*f, [1, 0.85, 0.5], 1.1*f);
   }
 }
-// what the readout says (the job's line)
-function pipLine(A){
-  const q = PIP, u = A.tau - PIP_LAUNCH, mine = q.A === A;
-  if (mine && q.fin) return q.wasOut ? 'Pip is back aboard' + (q.shots ? ` · ${q.shots} photo${q.shots > 1 ? 's' : ''} of the Halo` : '') : 'Pip stays aboard this time';
-  if (!mine || !q.plan || u < 0) return 'approaching ' + A.tg.name + " · Pip, the ship's drone, gets ready";
+// what Pip is doing, in words ('' while it is aboard)
+function pipSay(){
+  const q = PIP, O = q.O; if (!O || q.st === 'pose') return '';
+  if (q.st !== 'out') return O.fin ? '' : O.tau - PIP_LAUNCH > -0.6 ? 'Pip streams out of the belly bay' : '';
   if (q.bk && (q.bk.mode > 0 || q.bk.rate < 0)) return q.hurry ? 'Pip hurries back into the belly bay' : 'Pip streams back into the belly bay';
   const g = q.g; if (!g) return 'Pip streams out of the belly bay and takes shape';
-  return typeof g.say === 'function' ? g.say(u, g) : g.say;
+  return typeof g.say === 'function' ? g.say(q.u, g) : g.say;
+}
+// the show's line in the readout (the probe job)
+function pipLine(A){
+  if (A.fin) return 'Pip is done showing off' + (PIP.shots ? ` · ${PIP.shots} photo${PIP.shots > 1 ? 's' : ''} of the Halo` : '');
+  return pipSay() || 'approaching ' + A.tg.name + " · Pip, the ship's drone, gets ready";
 }
 drone.reset = () => { Object.assign(PIP, pipFresh()); };
 // whether it is in the picture: in front of the camera and inside the view, big enough to draw, and not hidden by the hull or the body (the
@@ -807,9 +1200,20 @@ function pipShows(){
 // (bayD: how far it is from the bay, in ship radii; clr: how far its body is from the hull now, far: from the ship's centre (ship radii), and
 // the least and most of those on this outing (clrMin, farMax); shows: pipShows; pres: how much of it is there; embIn: the share of its embers
 // that has got there, in the bay going home)
-Object.defineProperty(drone, 'state', { get:() => ({ st:PIP.st, kind:PIP.kind, shots:PIP.shots, flash:PIP.flash, thr:PIP.thr, vis:PIP.vis, pos:PIP.pos.slice(),
+Object.defineProperty(drone, 'state', { get:() => ({ st:PIP.st, kind:PIP.kind, out:pipOut(), form:PIP.form, bit:PIP.plan && PIP.st === 'out' ? PIP.plan.a : null, say:pipSay(), shots:PIP.shots, flash:PIP.flash, thr:PIP.thr, vis:PIP.vis, pos:PIP.pos.slice(),
   bayD:V.len(V.sub(PIP.pos, localPt(HULL.bay)))/ship.rad, shows:pipShows(), scale:PIP.scale, pres:PIP.pres, brk:PIP.brk, embIn:PIP.embIn, embN:PIP.embN, face:PIP.face, fc:{ ...PIP.fc }, wink:PIP.wink,
   open:PIP.open, act:PIP.g ? PIP.g.a : null, fin:PIP.fin, hurry:PIP.hurry, clr:PIP.clrNow ?? 9, far:PIP.farNow ?? 0, clrMin:PIP.clr, farMax:PIP.far }) });
-ship.dbg.drone = { get state(){ return drone.state; }, pose(o){ PIP.pose = o || null; if (!o) pipStow(); }, hurry:() => drone.hurry(), hullD, PIP_R,
-  get plan(){ const P = PIP.plan; return P && PIP.A === S_.act && { acts:P.acts.slice(), launch:P.launch, ret:P.ret, sig:P.sig, DIS0:P.DIS0, IN:P.IN, k:P.k, segs:P.segs.map(g => [g.a, +(g.t0 || 0).toFixed(2), g.fly ? 'fly' : '']) }; },
-  mix:(seed, near = false, last = "", lastActs = "") => pipMix(lcg(seed), near, last, lastActs) };
+ship.dbg.drone = { get state(){ return drone.state; }, pose(o){ PIP.pose = o || null; if (!o) pipStow(); }, hurry:() => drone.hurry(), hullD, PIP_R, PIP_BITS,
+  // (the lab: one of its bits now; out of the bay first if it is aboard and may come out)
+  bit(b){ if (!PIPB[b] && !PIPA[b]) return false; PIP.nextBit = b; if (!PIP.O) PIP.wantT = 99; return true; },
+  get plan(){ const P = PIP.plan; return P && PIP.O && { acts:P.acts.slice(), launch:P.launch, ret:P.ret, sig:P.sig, DIS0:P.DIS0, IN:P.IN, k:P.k, segs:P.segs.map(g => [g.a, +(g.t0 || 0).toFixed(2), g.fly ? 'fly' : '']) }; },
+  // (tests/pipsmooth.mjs, once a tick: where it is by the ship with its flourishes (L) and on its path (anc, ancV), ship axes and ship radii;
+  // the move it is on; where the plan put it (raw) and where that was eased off the hull (pushed); the camera in ship axes; the most time a
+  // flight's planning took (prepMs))
+  get trk(){ const q = PIP, P = q.plan, g = q.g, R = ship.R0, r = ship.rad, raw = P && q.st === 'out' ? pipAt(P, q.u) : null;
+    return { st:q.st, form:q.form, u:q.u, bit:P && q.st === 'out' ? P.a : null, k:P ? P.k : -1, fly:!!(g && g.fly), idle:!!(g && g.idle), job:!!(g && g.job), say:pipSay(), face:q.face,
+      bk:q.bk ? q.bk.mode : 0, home:q.home, hurry:q.hurry, shows:pipShows(), anc:q.anc ? q.anc.slice() : null, ancV:q.ancV.slice(), L:M3.applyT(R, q.pos).map(x => x/r), body:M3.applyT(R, q.body),
+      launch:P ? P.launch : null, ret:P ? P.ret : null, raw, pushed:raw && hullSoft(raw, PIP_R), prepMs:q.prepMs || 0, live:!!(g && (g.live || (g.fly && g.nx && g.nx.live))),
+      eye:camL(), fwd:M3.applyT(R, cam.fwd), up:M3.applyT(R, cam.up), close:typeof RIDE !== 'undefined' ? +RIDE.pk.toFixed(4) : 0 }; },
+  mix:(seed, near = false, last = "", lastActs = "") => pipMix(lcg(seed), near, last, lastActs),
+  get fl(){ const P = PIP.plan, g = P && P.segs[P.k]; return g && g.fly ? { t0:g.t0, t1:g.t1, te:g.te, sp:g.sp, acc:g.acc, lim:hermLim({ p0:g.pc[0].p0, p1:g.pc[g.pc.length - 1].p1 }), pc:g.pc.map(h => ({ t0:h.t0, t1:h.t1, p0:h.p0, p1:h.p1, v0:h.v0, v1:h.v1, clr:hermClr(h, 1, 11), pk:hermPeak(h) })) } : null; } };

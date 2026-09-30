@@ -20,11 +20,15 @@
   <button class="grip" id="infoGrip" aria-label="Show more"><i></i></button>
   <!-- on a tour: the stop number and the tour's name, which opens the list of tours; otherwise what kind of thing this is (while the type line below is folded away) and the camera's mode -->
   <div class="stop"><span class="stopl"><span id="stopInfo" class="stopinfo"></span><button id="modeTour" class="mode m-tour tourpick" hidden aria-haspopup="true" aria-expanded="false" aria-controls="tours" title="Pick another tour"><span id="modeTourName">grand tour</span> &#9662;</button><span id="mode" class="mode">tour</span></span><span class="itools"><button class="itool" id="infoMore" aria-expanded="true" aria-controls="info">less</button><button class="itool" id="infoHide" aria-label="Hide the info panel" title="Hide this panel (I)">hide</button></span></div>
+  <!-- the Halo tour: the panel shows the place, and this line what the ship is doing there ("with the Halo · a wide pass round Saturn") or where it goes ("→ Jupiter · light speed") -->
+  <div id="htLine" class="htline" hidden></div>
   <div class="title">
     <h1 id="objName">Earth</h1>
     <!-- the green button says where it goes: the next tour stop, the start of the tour again, or back to the tour you left (hidden when no tour is involved) -->
     <button class="gonext" id="goNext" hidden><span id="goNextTxt"></span><b aria-hidden="true">&rsaquo;</b></button>
   </div>
+  <!-- the angle line, right under the name: "‹ angle 1/5  [#####-----] ›" (the arrows step through the camera angles), "en route >>", on the Halo tour its stop -->
+  <div id="progress" class="progress"><button class="nav anav" id="prevObj" aria-label="Previous camera angle" title="Previous camera angle">&lsaquo;</button><span id="progLabel" class="plab"></span><button class="nav anav" id="nextObj" aria-label="Next camera angle" title="Next camera angle">&rsaquo;</button></div>
   <div class="acts"><button class="act" id="btnShare" title="Copy a link to exactly this view">share</button><button class="act" id="btnCompare" title="Put another object beside this one at true scale">compare size</button><button class="act" id="btnRideI" hidden>ride along</button><button class="act" id="btnCamI" hidden>cockpit view</button><button class="act" id="btnFlyby" hidden title="A sweeping camera move that shows how big this is">flyby</button><button class="act" id="btnPhoto" title="Photo mode: frame a shot, save it as a picture or copy it as ASCII text (P)">photo</button></div>
   <div id="objType" class="type"></div>
   <div id="objDist" class="where"></div>
@@ -33,8 +37,6 @@
   <div class="scale" title="A ruler for what you are looking at: at the distance of this object, the bar's length on screen equals the distance written next to it.">
     <span class="rlab">ruler</span><span id="scaleBar" class="bar"></span><span id="scaleTxt"></span>
   </div>
-  <!-- the angle line, "‹ angle 1/5  [#####-----] ›": the arrows step through the camera angles -->
-  <div id="progress" class="progress"><button class="nav anav" id="prevObj" aria-label="Previous camera angle" title="Previous camera angle">&lsaquo;</button><span id="progLabel" class="plab"></span><button class="nav anav" id="nextObj" aria-label="Next camera angle" title="Next camera angle">&rsaquo;</button></div>
 </section>
 <button id="infoPill" class="info-pill" hidden aria-controls="info" title="Show the info panel (I)"><b aria-hidden="true">i</b><span id="infoPillName"></span></button>
 
@@ -44,12 +46,14 @@
   </label>
   <button class="btn home" data-ico="&#8962;" id="btnHome" title="Home: fly back to Earth (H)" aria-label="Home: fly back to Earth (H)">home</button>
   <button class="btn primary" data-ico="&#8801;" id="btnAtlas" aria-expanded="false" aria-controls="atlas">atlas</button>
-  <button class="btn" data-ico="&#9656;" id="btnTours" aria-expanded="false" aria-controls="tours">tours</button>
+  <!-- tours, and right of it the Halo tour switch (the words and a pill switch, like a phone setting): on, the Halo flies the tour picked (the
+       Halo tour); off, it roams on its own. On a phone only the tours button shows (the ship menu and the list of tours have the switch) -->
+  <div class="tours-pair" role="group" aria-label="Tours"><button class="btn" data-ico="&#9656;" id="btnTours" aria-expanded="false" aria-controls="tours">tours</button><button class="btn hsw" id="btnHaloSw" role="switch" aria-checked="false" aria-label="Halo tour: fly the tour you pick with the Halo"><span class="hsw-l">Halo tour</span><span class="hsw-t" aria-hidden="true"></span></button></div>
   <button class="btn" data-ico="&#9719;" id="btnTime" aria-expanded="false" aria-controls="timem">time</button>
   <div class="seg mini" data-key="travel" role="radiogroup" aria-label="Travel speed" title="How fast you fly between objects (Y)"><span class="seg-l">travel</span><button data-v="cinematic" role="radio">slow</button><button data-v="quick" role="radio">quick</button><button data-v="warp" role="radio">warp</button></div>
   <!-- riding along: the camera moves between angles, or holds one (K); only while riding -->
   <div class="seg mini" data-key="rideCam" id="rideCamSeg" role="radiogroup" aria-label="Ride camera" title="Riding along: the camera moves round the ship, or holds one angle (K)" hidden><span class="seg-l">camera</span><button data-v="moving" role="radio">moving</button><button data-v="still" role="radio">still</button></div>
-  <button class="btn" data-ico="&#9790;" id="btnShip" aria-pressed="false" title="Show where the Halo is (a blue marker)">ship</button><button class="btn ride" id="btnRide" title="Ride along with the Halo, the place it visits in view: K holds the camera still, C for the cockpit">ride</button><button class="btn ride halo-tour" id="btnHaloTour" aria-pressed="false" title="The Halo tour: ride along while the Halo flies the stops of a tour, with cinematic camera moves (pick the tour in tours)">halo tour</button>
+  <button class="btn" data-ico="&#9790;" id="btnShip" aria-pressed="false" title="Show where the Halo is (a blue marker)">ship</button><button class="btn ride" id="btnRide" title="Ride along with the Halo, the place it visits in view: K holds the camera still, C for the cockpit">ride</button>
   <button class="btn" data-ico="&#9834;" id="btnSound" aria-pressed="true" title="Background music (M)">sound</button>
   <button class="btn" data-ico="&#8943;" id="btnSettings" aria-expanded="false" aria-controls="settings">settings</button>
   <button class="btn" id="btnNotes" aria-label="What's new: the patch notes" title="What's new: the patch notes">new</button>
@@ -60,7 +64,7 @@
 <div id="shipMenu" class="ship-menu" role="menu" aria-label="The Halo" hidden>
   <div class="sm-head">the Halo <span>a made-up ship</span></div>
   <div class="sm-row"><button role="menuitemradio" aria-checked="false" id="smChase"><b>ride along</b><small>and see where</small></button><button role="menuitemradio" aria-checked="false" id="smCock"><b>cockpit</b><small>on its bridge</small></button><button role="menuitem" id="smStop" hidden><b>stop riding</b><small>stay by it</small></button><button role="menuitemcheckbox" aria-checked="false" id="smMark"><b>marker</b><small>show it</small></button></div>
-  <div class="sm-row sm-row2"><button role="menuitemcheckbox" aria-checked="false" id="smTour"><b>halo tour</b><small>it flies a tour</small></button><button role="menuitemcheckbox" aria-checked="false" id="smStill" hidden><b>camera</b><small>moving</small></button></div>
+  <div class="sm-row sm-row2"><button role="menuitemcheckbox" aria-checked="false" id="smTour" class="sm-sw"><span class="sm-st"><b>Halo tour</b><small>it flies a tour</small></span><span class="hsw-t" aria-hidden="true"></span></button><button role="menuitemcheckbox" aria-checked="false" id="smStill" hidden><b>camera</b><small>moving</small></button></div>
 </div>
 
 <aside id="atlas" class="atlas" aria-label="Universe atlas" hidden>
@@ -98,7 +102,10 @@
 </aside>
 
 <aside id="tours" class="panel" aria-label="Tours" hidden>
-  <div class="panel-head"><span class="ptitle">tours</span><button class="btn" id="toursClose">close</button></div>
+  <!-- (on a phone the Halo tour switch sits at the top of the list; on a desk it is right of the tours button) -->
+  <div class="panel-head"><span class="ptitle">tours</span><button class="btn hsw" id="toursHaloSw" role="switch" aria-checked="false" aria-label="Halo tour: fly the tour you pick with the Halo"><span class="hsw-l">Halo tour</span><span class="hsw-t" aria-hidden="true"></span></button><button class="btn" id="toursClose">close</button></div>
+  <!-- while the Halo tour plays (its switch right of tours, or on a phone the ship menu and the switch above), the tour picked here is flown by the Halo -->
+  <div class="opt-note ht-note" id="htNote" hidden>&#9790; flown by the Halo · it flies the one you pick</div>
   <div class="opt tog"><button id="btnTour" aria-pressed="true">pause tour</button><button id="btnFree" aria-pressed="false">free camera</button></div>
   <div class="opt dwell-opt">
     <div class="opt-l">time at each stop</div>
@@ -106,7 +113,6 @@
       <button data-v="short" role="radio">short</button><button data-v="normal" role="radio">normal</button><button data-v="long" role="radio">long</button>
     </div>
   </div>
-  <div class="opt-note ht-note" id="htNote" hidden>the Halo flies the tour you pick here · halo tour again to stop</div>
   <div id="tourList" class="tour-list"></div>
   <div class="opt"><button class="btn saver-go" id="btnSaver">&#9635; screensaver mode</button><div class="opt-note tm-sub">full screen, the interface fades away and an endless shuffled tour plays with the music (Z). Move the mouse or press a key to come back.</div></div>
   <div class="panel-foot">space pauses or resumes · [ ] step between stops</div>
@@ -280,7 +286,7 @@
         <dt><span class="kb">/ · </span>search</dt><dd>names or numbers (M31)</dd>
         <dt>scale</dt><dd>pick a size to travel to</dd>
         <dt>next stop ›</dt><dd>the green button: on with the tour</dd>
-        <dt class="kb">halo tour</dt><dd class="kb">a tour flown by the Halo</dd>
+        <dt class="kb">&#9790; halo</dt><dd class="kb">on tours: the Halo flies it</dd>
         <dt><span class="kb">space · </span>play</dt><dd>pause or play</dd>
         <dt><span class="kb">H · </span>&#8962; home</dt><dd>back to Earth</dd>
         <dt class="kb">[ ]</dt><dd class="kb">previous / next stop</dd>

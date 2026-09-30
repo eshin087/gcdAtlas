@@ -6,7 +6,8 @@
 // gives it a shuffle of its own places. At each stop it stays about a minute (HT.STAY), with one job at most and only at a place on its own
 // list, then goes on by light speed or a fold (travelMode). The camera plays the ride's bigger moves (RIDE.epic, 08r-ride.js) and a caption
 // names each place as the ship arrives. The green button beside the name sends it on at once; a drag takes the camera (play rides along
-// again, the ship flying on meanwhile); halo tour again, stop riding, a tour, the screensaver or picking something else ends it.
+// again, the ship flying on meanwhile); the Halo tour switch right of tours (0.9.9; on a phone the ship menu or the top of the list of
+// tours), stop riding, a tour, the screensaver or picking something else ends it.
 const HT_SKIP = new Set(['solarsystem', 'oort', 'universe', 'cosmicweb', 'bootesvoid', 'gw170817', 'gw150914', 'tde', 'sstars', 'm87jet']);
 function haloCan(o){
   if (!o || o === ship || o.marker || HT_SKIP.has(o.key)) return false;
@@ -44,6 +45,9 @@ function haloTourEnd(quiet){
   HT.on = false; HT.want = null; RIDE.epic = false; RIDE.queue = [];
   if (HT.capT > 0){ HT.capT = 0; SHOWCAP.txt = ''; }
   if (!quiet) toast('Halo tour over · the Halo roams on its own again');
+  // (the panel showed the place: back to the Halo while you are still with it, or let go of it (Esc, a right-drag); a tour, the screensaver
+  // or a flight to something else set it themselves)
+  if (infoObj !== ship.index && !tour.on && !SAVER.on && !SKYV.on && !cmp && (isRiding() || ((orbit.lock === ship.index || orbit.lock < 0) && !flight))) setInfo(ship.index);
   updateModeUI();
 }
 // arrived at stop HT.i: its stay (about a minute), at most one job, and where next; the caption names the place
@@ -58,12 +62,26 @@ function htArrive(){
   const f0 = o.fact || o.type || '', dot = f0.indexOf('. '), fact = dot > 0 ? f0.slice(0, dot + 1) : f0;   // (its first sentence)
   SHOWCAP.txt = o.name + ' · the Halo tour, ' + (HT.i + 1) + ' of ' + HT.stops.length + (fact ? ' · ' + fact : ''); HT.capT = 11;
 }
+// where the ship is going: the stop it was sent on to (HT.want), or the one it is jumping to (light speed, a fold, or the turn before one:
+// the align phase is only ever the turn to leave); null while it is at a place
+function htGoing(){
+  const S = S_;
+  return HT.want || ((S.phase === 'light' || S.phase === 'fold' || S.phase === 'align') && S.next ? S.next.tg : null);
+}
 // where the green button goes: the stop after the one the ship is at, or is on its way to
 function htNextStop(){
   if (!HT.on || HT.stops.length < 2) return null;
-  const S = S_, going = HT.want || ((S.phase === 'light' || S.phase === 'fold' || (S.phase === 'align' && S.stay && S.stay.leave)) && S.next ? S.next.tg : null);
-  const k = going ? HT.stops.indexOf(going) : HT.i;
+  const going = htGoing(), k = going ? HT.stops.indexOf(going) : HT.i;
   return HT.stops[((k < 0 ? HT.i : k) + 1) % HT.stops.length];
+}
+// the info panel on the Halo tour (0.9.9, owner): the place, not the ship. On the way somewhere, where it is going (so the panel is already
+// on it when the ship arrives); otherwise the place it is at. setInfo in 09-render.js turns the ship into this while the tour plays.
+function htPlace(){ return HT.on ? htGoing() || S_.target || null : null; }
+// the small blue line over the place's name: what the ship is doing there (the first line of its own readout), or where it is going and how
+function htDoing(){
+  const S = S_, g = htGoing();
+  if (g){ const m = S.next && S.next.tg === g ? S.next.mode : travelMode(S.target, g); return '→ ' + g.name + ' · ' + (m === 'fold' ? 'folding space' : 'light speed'); }
+  return 'with the Halo · ' + haloReadout().split('\n')[0];
 }
 function haloTourSkip(){
   const o = htNextStop(); if (!o) return;
@@ -93,7 +111,8 @@ TICKS.push(dt => {
   if (HT.capT > 0 && (HT.capT -= dt) <= 0) SHOWCAP.txt = '';
   RIDE.epic = true;
 });
-// the button, and test hooks
-$('#btnHaloTour').addEventListener('click', () => { hideHint(); if (HT.on) haloTourEnd(); else haloTourStart(TOUR_ID); });
-Object.assign(window.__cosmos, { haloTourStart, haloTourEnd, haloTourSkip, haloStops, haloCan, HT,
+// the Halo tour switch right of tours (0.9.9, owner review; on a phone at the top of the list of tours, and the ship menu's item), and
+// test hooks. Off, it ends the Halo tour and you keep riding
+for (const b of HT_SW) b.addEventListener('click', () => { hideHint(); if (HT.on) haloTourEnd(); else haloTourStart(TOUR_ID); updateModeUI(); });
+Object.assign(window.__cosmos, { haloTourStart, haloTourEnd, haloTourSkip, haloStops, haloCan, HT, htPlace, htDoing,
   ride:{ RIDE, SHOTS, get shot(){ return RIDE.shot ? RIDE.shot.name : null; }, reach:rideReach, seed:n => { let s = n >>> 0; rideR = () => { s = (s*1664525 + 1013904223) >>> 0; return s/4294967296; }; }, start:startShot } });

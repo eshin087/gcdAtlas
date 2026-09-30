@@ -4,6 +4,53 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.9.9 · 2026-09-30
+
+Built as 0.9.7 (PR #34); renumbered 0.9.9 when 0.9.8 (SpaceX, PR #29) was merged first and brought in.
+
+**The info panel** (owner, 2026-09-29)
+- The grey angle line ("‹ angle 1/4 [#####-----] ›", "en route", the Halo tour's stop) now sits right under the name, not at the bottom of the info panel, on a desk and on the phone card.
+- The "halo tour" button is gone. Right of a plain "▸ tours" button is a switch labelled "Halo tour" (owner, round 2: "a typical toggle that is intuitive"): a grey track with the knob on the left when off, a glowing Halo blue track with the knob on the right when on. On, it flies the tour you picked with the Halo; while it is on, the list of tours says "flown by the Halo" and picking a tour starts it with the Halo. Space and Enter flip it, and the knob does not slide with reduced motion.
+- On a phone the ship menu's Halo tour item has the same switch, and the list of tours has one at its top.
+- To make room on the desk's top row, ship and ride moved to the lower row beside play (the ride camera switch joins them while riding), and the top bar leaves 400 px on its left (was 440).
+- On the Halo tour the info panel shows the place, not the ship: its name, fact and numbers, with one blue line over the name saying what the ship is doing ("with the Halo · a wide pass round Saturn") or where it is going ("→ Jupiter · light speed"). It moves on to the next stop as soon as the ship sets course, and back to the Halo when the tour ends. The ruler, share, compare size and the seen marks follow the place; flyby is hidden.
+- On a phone the Halo's "out of light speed" toast no longer sits on the Halo tour's caption.
+
+**Pip is out for most of every stay** (owner: it rarely came out; "make the viewer love Pip")
+- Pip comes out a few seconds after the Halo arrives somewhere and stays out until the stay is nearly over; it flies home as embers before the ship jumps, and the jump waits for it.
+- Between things to do it flies alongside the bow, looking round. Its bits: peekaboo (it glides in from the right edge of your view and back out, twice, with hops and a giggle), riding along beside you (a close-up of its face, glancing at the place and back at you), sitting on the bow in the wind, chasing a spark that drifts off the ship's heart and putting it back, a happy twirl, and its four old outings (a hull check, the engines, photos and a wave, play). Never the same one twice running. (A heart it drew in the air was removed in review.)
+- It helps with every job: it gathers the scan's readings (motes of light rising to it from the body), braces at the bow scoop through a skim, and is the heart of the railgun (below). Its show (the old outing) is still a job now and then, with the cameras turned to it.
+- Pip is a third bigger (0.08 of the ship's radius, about 200 m across), so it shows beside the ship.
+- The ride camera now and then gives Pip a close-up for 8 to 12 s, slow and smooth: only while Pip does something calm near the ship, gliding in and out over about 2.5 s and following it gently, the ship and the place still in view. Its lines show in the readout.
+- Everything Pip does is smooth (owner, round 2: abrupt cuts on the Halo tour, peekaboo and the photo "teleporting"): flights are paced to their length at an easy speed and kept clear of the hull, flights to a spot by the camera land exactly on it as it moves, a move cut short no longer snaps, and Pip's body turns through two easings.
+- The cameras on the Halo no longer lurch: locked on, when a job ends, as a pass starts or before a jump; riding along, between shots (longer for a big change of distance, such as from the Halo tour's pull-back), into and out of the view behind the ship, with no sudden roll.
+
+**The weapons test: Pip's railgun, on an attack run** (owner: the 0.9.4 ring gun "spawns meh and unnatural"; round 2: the first cannon fired "at a random unnatural angle"; picked from three each time)
+- The weapons pass is an attack run, like a fighter strafing: the Halo comes in on a straight line with its nose on the body, fires straight along its heading, then pulls up and climbs away. By a black hole it keeps its usual distance.
+- Pip settles on top of the needle near its tip and winks, and stays itself as the gun's heart while it unfolds round it like a transforming toy: plates swing down and clamp round the needle, two rails telescope forward past the tip segment by segment, prongs flip in at their ends, each locking with a spark. Light runs from the heart down the hull into it.
+- Three rail slugs, each a white point too fast to follow with a straight streak behind it and a cone of light at the muzzle, and a flash, sparks and a glowing crater where it hits; then a charged big shot (lightning crackling between the rails, Pip's eyes narrowing) with a longer, thicker streak and two shock rings. The rails and Pip kick back with each shot; the rails vent, glow hot and cool, fold away the same steps backward, and Pip twirls.
+- The craters cool from white to orange to red and dark, and are gone within 7 s. By a black hole the shots fall in: they redden, stretch and fade at the shadow's edge, and a faint ring of light runs out from it (the owner's 2026-09-27 request). Nothing is ever drawn inside the shadow.
+- Replaces the 0.9.4 ring gun and its three shots (fold lance, singularity round, time echo).
+
+**A signature move at every kind of place** (owner: "make halo do cool manuevers and movement based on the object")
+- Once a stay, on its second pass, the Halo flies a move made for the place, easing to half speed round its best moment, with a ride camera shot low behind it and a line in the readout:
+  - Saturn: through the Cassini Division, the gap in its rings.
+  - Jupiter, Mars, the Moon, Io: low over the Great Red Spot, Valles Marineris, Tycho and Pele (when they are on the day side); Earth, Titan, Europa, Ceres: low over the day side (over Earth about as high as the space station).
+  - Stars: through the corona. Galaxies: an arc inside the disc, among the arms. Ring nebulae: along the axis through the hole, beside the central star. Other nebulae, remnants and star clusters: a weave through the middle. Halley: through its tail when it has one, else close by the nucleus.
+  - Black holes, the magnetar and quasars keep their distance.
+- A place with a move has one job at most, on the third pass, so the stay stays about two minutes.
+
+**The engines** (owner: the trail "looks like some kind of water", then the rings "look like bubbles")
+- A short blue ion flame: a white-hot core in a flickering blue cone, and a glow in the nozzle. It is longer and brighter the harder the engines work (speed, hard turns, the fold drive spooling up), a long white streak at light speed. About a tenth of the ship long cruising, never under a few characters on screen, so a far ship still shows it is moving.
+
+**The lab** (`/lab`)
+- New buttons for each of Pip's bits, an engines camera and a Pip camera (the ride camera's close-up). For a weapons test the parked ship turns its nose onto the place, and the aim camera looks along its heading.
+
+**Checked**
+- Motion test: Pip is out for most of a stay at Mars (167 of 176 s on the test's route), in the picture, doing several bits with several faces, never inside the hull, below the surface or more than 3.2 ship radii out, home as embers before the jump; called home early it is back within 1.7 s and sad; an attack run on the Moon unfolds the railgun fully, fires 3 slugs and a big shot within 1 degree of the heading, leaves 4 craters and nothing after; at Sgr A* an attack run's shots fall in and nothing is drawn in its shadow; stays with a signature move last 114 to 152 s on the test's route. The ride camera's close-up keeps the ship and the place in view.
+- New test, tests/pipsmooth.mjs (in `npm test`, `npm run test:pip`): Pip and the Halo's cameras every tick, over every bit, launch and way home, a hurry, every job (the weapons test on an attack run), whole stays and 240 s of the Halo tour, riding and locked on, on a desk and a phone. It fails on a screen step over 40 px in a frame, Pip over 2.2 ship radii/s or 20 ship radii/s², its body over 900 degrees/s, or the camera over 110 degrees/s or its turn changing by over 600 degrees/s². This release's first build had 251 such events; now 0.
+- Smoke test: the Halo tour switch sits right after tours on the same row, is a real switch (role, name, pill size), starts and ends the Halo tour, slides its knob (not with reduced motion), answers Space and Enter; the note shows; the top row is one line at 1280 px; the Halo tour's panel shows the place. Phone test: the angle line sits under the name, the card shows the place on the Halo tour, and the ship menu's and the list of tours' switches work.
+
 ## 0.9.8 · 2026-09-29
 
 Built on the desktop as 0.9.5 (PR #29) while 0.9.4 and 0.9.6 were being made; renumbered 0.9.8 when it was brought up to date with them (0.9.7 was taken on the desktop).

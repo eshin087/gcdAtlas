@@ -211,6 +211,56 @@ const cat = await page.evaluate(CATQ => {
   $('#atlasReset').click(); $('#atlasClose').click();
   return out; }, CATQ);
 errors.push(...cat);
+// the Halo tour switch right of tours (0.9.9, owner review: "a typical toggle", in place of "☾ halo ○──"): the plain tours button, then one
+// control with the words "Halo tour" and a pill (a round knob in a track 34 to 40 px by 18 to 20 px), role switch, named for what it does.
+// On, the Halo tour starts with the tour picked, the knob slides right and the track lights up, the info panel shows the place (not the
+// ship) and the list of tours says the Halo flies it; off, it ends and the panel shows the Halo again. Space and Enter flip it; the knob does
+// not slide with reduced motion. The phone's copy at the top of the list of tours stays hidden on a desk. The top row keeps to one line at 1280 px
+const knob = () => page.evaluate(() => { const t = document.querySelector('#btnHaloSw .hsw-t'), k = getComputedStyle(t, '::before');
+  return { x:k.transform === 'none' ? 0 : new DOMMatrix(k.transform).m41, track:getComputedStyle(t).backgroundColor, dur:k.transitionDuration, on:window.__cosmos.HT.on }; });
+const hsw = await page.evaluate(() => { const C = window.__cosmos, $ = s => document.querySelector(s), sw = $('#btnHaloSw'), t = $('#btnTours'), r = {};
+  C.setTour(false); C.view('saturn', 0); C.tick(1/30);
+  const a = t.getBoundingClientRect(), b = sw.getBoundingClientRect(), tr = sw.querySelector('.hsw-t'), tb = tr && tr.getBoundingClientRect(), lb = sw.querySelector('.hsw-l'), ts = getComputedStyle(t);
+  r.plain = t.textContent === 'tours' && ts.borderTopRightRadius === ts.borderTopLeftRadius && ts.borderBottomRightRadius === ts.borderBottomLeftRadius;
+  r.next = b.left - a.right > 0 && b.left - a.right <= 8 && Math.abs(a.top - b.top) <= 1 && Math.abs(a.height - b.height) <= 1;
+  r.sw = sw.getAttribute('role') === 'switch' && /^Halo tour: /.test(sw.getAttribute('aria-label') || '') && !!lb && lb.textContent === 'Halo tour' && !!tb && lb.getBoundingClientRect().right <= tb.left;
+  r.pill = tb ? [Math.round(tb.width), Math.round(tb.height), parseFloat(getComputedStyle(tr).borderTopLeftRadius) >= tb.height/2 - 1] : null;
+  r.phoneCopy = getComputedStyle($('#toursHaloSw')).display;
+  const top = [...document.querySelectorAll('.controls > *')].filter(e => e.offsetWidth && getComputedStyle(e).order === '0').map(e => Math.round(e.getBoundingClientRect().top));
+  r.rows = new Set(top).size;
+  r.old = !!$('#btnHaloTour') || !!document.querySelector('.halo-sw, .hs-k');
+  r.before = [C.HT.on, sw.getAttribute('aria-checked')];
+  return r; });
+const k0 = await knob();
+Object.assign(hsw, await page.evaluate(() => { const C = window.__cosmos, $ = s => document.querySelector(s), sw = $('#btnHaloSw'), t = $('#btnTours'), r = {};
+  sw.click(); r.on = [C.HT.on, sw.getAttribute('aria-checked'), C.HT.tourId === C.tourId, $('#toursHaloSw').getAttribute('aria-checked')];
+  // (and the panel shows the place the Halo visits or goes to, not the ship, with its blue line and the panel's ride buttons; back to the Halo after)
+  C.hud(); const hl = $('#htLine'), pl = C.htPlace();
+  r.place = [!!pl && pl !== C.BYKEY.halo && $('#objName').textContent === pl.name, !hl.hidden && /^(with the Halo · |→ )/.test(hl.textContent), !$('#btnRideI').hidden];
+  t.click(); r.note = !$('#tours').hidden && !$('#htNote').hidden && $('#htNote').getBoundingClientRect().height > 0; t.click();
+  return r; }));
+await page.waitForTimeout(400);   // (the knob slides for 0.2 s)
+const k1 = await knob();
+Object.assign(hsw, await page.evaluate(() => { const C = window.__cosmos, $ = s => document.querySelector(s), sw = $('#btnHaloSw'), r = {};
+  sw.click(); r.off = [C.HT.on, sw.getAttribute('aria-checked')]; C.hud();
+  r.back = [$('#objName').textContent === C.BYKEY.halo.name, $('#htLine').hidden];
+  return r; }));
+// (the keyboard: Space turns it on, Enter off)
+await page.focus('#btnHaloSw');
+await page.keyboard.press(' '); const kSp = await page.evaluate(() => [window.__cosmos.HT.on, document.activeElement.id]);
+await page.keyboard.press('Enter'); const kEn = await page.evaluate(() => [window.__cosmos.HT.on, document.activeElement.id]);
+await page.emulateMedia({ reducedMotion:'reduce' }); const kRm = await knob(); await page.emulateMedia({ reducedMotion:null });
+await page.evaluate(() => { const C = window.__cosmos; document.activeElement.blur(); C.lockOn(C.BYKEY.earth.index); C.land(0); C.setTour(false); });
+if (!hsw.plain || !hsw.next || !hsw.sw || hsw.old) errors.push('the Halo tour switch is not a labelled switch right of a plain tours button (or the old one is still there): ' + JSON.stringify(hsw));
+if (!hsw.pill || hsw.pill[0] < 34 || hsw.pill[0] > 40 || hsw.pill[1] < 18 || hsw.pill[1] > 20 || !hsw.pill[2]) errors.push('the Halo tour switch has no pill of 34 to 40 by 18 to 20 px: ' + JSON.stringify(hsw.pill));
+if (hsw.phoneCopy !== 'none') errors.push('the phone\'s Halo tour switch shows in the list of tours on a desk');
+if (hsw.rows !== 1) errors.push(`the top row of the bar takes ${hsw.rows} lines at 1280 px`);
+if (hsw.before.join() !== 'false,false' || hsw.on.join() !== 'true,true,true,true' || hsw.off.join() !== 'false,false') errors.push('the Halo tour switch does not start and end the Halo tour: ' + JSON.stringify(hsw));
+if (k0.x !== 0 || !(k1.x >= 14) || k0.track === k1.track || k0.on || !k1.on) errors.push('the Halo tour switch\'s knob does not slide right, or its track does not light up: ' + JSON.stringify([k0, k1]));
+if (kSp.join() !== 'true,btnHaloSw' || kEn.join() !== 'false,btnHaloSw') errors.push('Space and Enter do not flip the Halo tour switch: ' + JSON.stringify([kSp, kEn]));
+if (parseFloat(k1.dur) < 0.1 || parseFloat(kRm.dur) !== 0) errors.push('the Halo tour switch\'s knob: a slide of ' + k1.dur + ', with reduced motion ' + kRm.dur);
+if (!hsw.note) errors.push('the list of tours does not say the Halo flies it while the Halo tour switch is on');
+if (hsw.place.join() !== 'true,true,true' || hsw.back.join() !== 'true,true') errors.push('the Halo tour does not show the place in the info panel, or not the Halo after: ' + JSON.stringify([hsw.place, hsw.back]));
 // saved choices keep working: 'travel' (the old spacecraft chip) opens human-made; the old "not seen yet" chip becomes all with the box ticked
 // (sorted as it was); the old default ("distance, nearest first" over the headings) stays grouped; a saved flat list stays flat.
 // With every black hole seen, "not seen yet" says so and its button shows them all again.
