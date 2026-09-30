@@ -11,7 +11,7 @@ if (LAB.on){
   const SPEEDS = [0.1, 0.25, 0.5, 1, 2];
   const CAMS = [['side', 'side'], ['top', 'top'], ['aim', 'aim'], ['engine', 'engines'], ['pip', 'Pip'], ['chase', 'chase'], ['bridge', 'bridge'], ['orbit', 'drag']];
   // (Pip's bits, to watch one now: 07i-drone.js)
-  const BITS = [['peek', 'peekaboo'], ['buddy', 'beside you'], ['bow', 'bow'], ['heart', 'heart'], ['mote', 'spark'], ['twirl', 'twirl'], ['photo', 'photo'], ['play', 'play'], ['hull', 'hull'], ['engine', 'engine']];
+  const BITS = [['peek', 'peekaboo'], ['buddy', 'beside you'], ['bow', 'bow'], ['mote', 'spark'], ['twirl', 'twirl'], ['photo', 'photo'], ['play', 'play'], ['hull', 'hull'], ['engine', 'engine']];
   // a fixed camera round the parked ship, in its own frame (as the showcase's turn): elevation and bearing in degrees, distance in ship radii
   function pose(el, phi, dist){
     const D = Math.PI/180, e = el*D, f = phi*D, dir = [-Math.sin(e), -Math.cos(e)*Math.cos(f), Math.cos(e)*Math.sin(f)];
