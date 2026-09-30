@@ -5,12 +5,12 @@
      numbers with units. The newest version comes first and opens by itself; its number must match package.json (tests/smoke.mjs checks it).
      Every detail stays in docs/CHANGELOG.md, which the panel links to. -->
 
-## 0.9.7 · 29 Sep 2026 · Pip takes the stage
-- Pip, the Halo's drone, is out for most of every stay: it plays peekaboo, rides beside you, sits on the bow, draws you a heart and chases sparks.
-- It helps with every job, and in the weapons test it turns into the fold cannon: three plasma bolts and a ball of folded space. Shots near a black hole fall in.
-- The Halo's engines now pulse short rings of bent space instead of a long trail.
-- The angle line sits right under the name.
-- Tours has a halo switch: flip it and the Halo flies the tour. On the Halo tour the panel shows the place it is at or heading to.
+## 0.9.7 · 30 Sep 2026 · Pip takes the stage
+- Pip, the Halo's drone, is out for most of every stay: it plays peekaboo, rides beside you, sits on the bow and chases sparks.
+- For the weapons test the Halo makes an attack run, nose on the target, and Pip unfolds into a railgun on its needle.
+- The Halo flies a move made for each place: through Saturn's Cassini Division, low over the Great Red Spot, through a star's corona.
+- The engines have a short blue flame that grows with speed.
+- The angle line sits right under the name, and a "Halo tour" switch beside tours lets the Halo fly the tour.
 
 ## 0.9.6 · 29 Sep 2026 · Ride the Halo, and its tour
 - Riding the Halo, the camera now keeps the place it is visiting in view behind the ship, and glides from angle to angle.
