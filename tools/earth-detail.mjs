@@ -98,6 +98,7 @@ async function photoSource(L){
   const list = L.photos || ['usgs'], srcs = [];
   for (const k of list) srcs.push({ k, f:PHOTO[k].xyz ? await xyzSource(L, k) : await naipSource(L, k) });
   const f = (la, lo) => { for (const x of srcs){ const v = x.f(la, lo); if (v){ f.last = x.k; return v; } } f.last = null; return null; };
+  f.srcs = srcs;
   return f;
 }
 // ---------------------------------------------------------------- XYZ tiles in Web Mercator (NOAA NGS), stitched as needed and sampled by lat, lon; a missing tile is a redirect to an
@@ -258,15 +259,48 @@ async function buildLayer(S, L, s2cache){
   const rgb = new Uint8Array(N*N*3), elev = new Float32Array(N*N), water = new Uint8Array(N*N);
   let naipN = 0, s2N = 0; const byPhoto = {};
   const gain = s2cache['gain-' + S.key];
+  // (which source gave each pixel: 0 the first photo in the layer's list, 1.. the ones that fill in for it, 254 Sentinel-2, 255 none; and,
+  // cell by cell on a coarse grid, land and water apart, how much the first photo differs from each other source where both have pixels,
+  // for the colour match below)
+  const PS = naip ? naip.srcs : [], from = new Uint8Array(N*N).fill(255), G = 64, cs = N/G, diff = {};
+  const diffAdd = (k, w, gx, gy, q, v0) => { const D = (diff[k] = diff[k] || [new Float32Array(G*G*4), new Float32Array(G*G*4)])[w], j = (gy*G + gx)*4;
+    for (let c=0;c<3;c++) D[j + c] += v0[c] - q[c]; D[j + 3]++; };
   for (let y=0;y<N;y++) for (let x=0;x<N;x++){
     const px = (x + 0.5)*m - L.size/2, py = L.size/2 - (y + 0.5)*m, [la, lo] = planeToLL(F, px, py), i = y*N + x;
-    let v = naip ? naip(la, lo) : null; if (v){ naipN++; byPhoto[naip.last] = (byPhoto[naip.last] || 0) + 1; } else { v = s2(la, lo); if (v){ s2N++; if (gain) v = gain(v); } }
     const t = terr(la, lo);
     water[i] = t <= 0.2 ? 1 : 0;
+    let v = naip ? naip(la, lo) : null;
+    if (v){ naipN++; byPhoto[naip.last] = (byPhoto[naip.last] || 0) + 1; from[i] = PS.findIndex(q => q.k === naip.last); }
+    else { v = s2(la, lo); if (v){ s2N++; if (gain) v = gain(v); from[i] = 254; } }
+    if (PS.length > 1 && x % 2 === 0 && y % 2 === 0){
+      const v0 = from[i] === 0 ? v : null, gx = Math.floor(x/cs), gy = Math.floor(y/cs);
+      if (v0){ for (let k=1;k<PS.length;k++){ const q = PS[k].f(la, lo); if (q) diffAdd(k, water[i], gx, gy, q, v0); } const q = s2(la, lo); if (q) diffAdd(254, water[i], gx, gy, gain ? gain(q) : q, v0); }
+    }
     if (!v) v = water[i] ? [14, 36, 58] : [96, 92, 78];   // (no image: the sea, or plain ground)
     rgb.set([clampN(Math.round(v[0]), 0, 255), clampN(Math.round(v[1]), 0, 255), clampN(Math.round(v[2]), 0, 255)], i*3);
     elev[i] = Math.max(t, 0) + (bh ? bh[i] : 0);
   }
+  // where other photos (of other dates and seasons) fill in for the first one, their colours are shifted to match it: the difference between
+  // the two, measured cell by cell wherever both have pixels (land and water apart), is carried smoothly into the cells only the fill covers
+  // (a membrane: each unknown cell the mean of its neighbours) and added pixel by pixel. At Starbase the October 2024 fill stood out as green,
+  // yellow and teal squares on the January 2026 photo; one colour map for the whole layer turned lagoons red
+  const field = {};
+  for (const k in diff) for (const w of [0, 1]){
+    const D = diff[k][w], F = new Float32Array(G*G*3), known = new Uint8Array(G*G); let n = 0; const m = [0, 0, 0];
+    for (let j=0;j<G*G;j++) if (D[j*4 + 3] >= 12){ known[j] = 1; n++; for (let c=0;c<3;c++){ F[j*3 + c] = D[j*4 + c]/D[j*4 + 3]; m[c] += F[j*3 + c]; } }
+    if (n < 8) continue;
+    for (let j=0;j<G*G;j++) if (!known[j]) for (let c=0;c<3;c++) F[j*3 + c] = m[c]/n;
+    for (let it=0;it<600;it++) for (let gy=0;gy<G;gy++) for (let gx=0;gx<G;gx++){ const j = gy*G + gx; if (known[j]) continue;
+      for (let c=0;c<3;c++){ let a = 0, b = 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]){ const X = gx + dx, Y = gy + dy; if (X < 0 || Y < 0 || X >= G || Y >= G) continue; a += F[(Y*G + X)*3 + c]; b++; } F[j*3 + c] = a/b; } }
+    (field[k] = field[k] || [])[w] = F;
+  }
+  let matched = 0;
+  for (let y=0;y<N;y++) for (let x=0;x<N;x++){ const i = y*N + x, k = from[i]; if (k === 0 || k === 255) continue; const F = field[k] && field[k][water[i]]; if (!F) continue;
+    const fx = clampN((x + 0.5)/cs - 0.5, 0, G - 1.001), fy = clampN((y + 0.5)/cs - 0.5, 0, G - 1.001), X = Math.floor(fx), Y = Math.floor(fy), ax = fx - X, ay = fy - Y;
+    for (let c=0;c<3;c++){ const f = (F[(Y*G + X)*3 + c]*(1 - ax) + F[(Y*G + X + 1)*3 + c]*ax)*(1 - ay) + (F[((Y + 1)*G + X)*3 + c]*(1 - ax) + F[((Y + 1)*G + X + 1)*3 + c]*ax)*ay;
+      rgb[i*3 + c] = clampN(Math.round(rgb[i*3 + c] + f), 0, 255); }
+    matched++; }
+  if (matched) console.log(`  colours of the fill shifted to match ${PS[0].k} on ${Math.round(100*matched/(N*N))}% of the layer`);
   // alpha: 0 water, else 1 + (elevation - base)/step, rounded
   let lo = Infinity, hi = -Infinity; for (let i=0;i<N*N;i++) if (!water[i]){ lo = Math.min(lo, elev[i]); hi = Math.max(hi, elev[i]); }
   if (!isFinite(lo)){ lo = 0; hi = 0; }

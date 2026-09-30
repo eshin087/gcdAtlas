@@ -550,7 +550,7 @@ void main(){
   float day = uP1.w, fade = uP0.w, e = uP4.y, sunE = L.y;
   CALT = o.y + e + dot(o.xz, o.xz)/(2.*RE); DIP = -sqrt(2.*max(CALT, 0.)/RE);
   float thin = exp(-CALT/8500.);
-  float lit = 0.04 + 0.96*smoothstep(-0.08, 0.35, sunE);   // how bright the day is: full with the Sun 20 degrees up, dim at night
+  float lit = 0.04 + 0.96*smoothstep(-0.1, 0.2, sunE);   // how bright the day is: full with the Sun 12 degrees up (a camera's exposure follows the light: at 20 degrees a dawn launch came out murky), dim at night
   float near = smoothstep(30000., 8000., CALT);   // (above 30 km the ground shows as Earth's shader shows it, below 8 km brighter and richer)
   vec3 col; float a;
   // the ground: march the heights near the camera (then halve the last step a few times), else the sea-level curve

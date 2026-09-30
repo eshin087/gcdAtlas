@@ -19,16 +19,25 @@ All notable changes, newest first. Dates are UTC.
 - The ground cloud billows out to about 500 m round Starbase's pad and rises to about 170 m, its lobes rolling outward, brighter on its sunward side; at ignition a ring of dust and spray races out from the pad.
 - A smoke column rises from the pad to about 14 km behind the rocket, widening, fading over a couple of minutes and drifting with the real wind at its height.
 - A vapour cone forms round the rocket near the speed of sound, below about 13 km.
+- The cameras by the pad at liftoff stand 380 to 630 m out (Falcon's 320 m). They stood 40 to 120 m out, where the new ground cloud swallowed them within seconds and the picture turned to grey fog. Now the rocket rises out of the cloud in view.
 
 **Real skies and weather** (owner: a more beautiful sky with dynamic clouds and realistic weather; picked: real weather)
 - A new function, /api/weather, gets the weather over the three launch sites from Open-Meteo, hour by hour from three days ago to two days ahead: cloud cover low, mid and high, wind at 10 m and at about 1.5 km, visibility, rain and humidity. It uses the pads' coordinates only.
 - Three cloud layers from it: low cumulus (or flat stratus when the sky is nearly covered), their base worked out from the humidity, with bright sunlit tops and grey undersides; altocumulus puffs at 4.5 km; cirrus streaks along the wind at 9 km. They drift with the wind at the flight's pace and slowly change shape, cast shadows that move over the ground, and a rocket climbing through the deck fades into it.
 - The haze follows the real visibility. The sky is a richer blue, gold round a low Sun, with the Earth's shadow and the pink band above it at dusk and dawn.
 - Without the weather (offline, the artifact page) a fair day with a few clouds.
+- Dawn and dusk are brighter near the ground: the light is full once the Sun is 12 degrees up (it was 20), as a camera's exposure would follow it. A launch soon after sunrise came out murky.
 
 **Starbase as it is now**
-- The ground round Starbase's pads is from NOAA's aerial photos of 18 January 2026 (0.3 m a pixel), with the finished Pad 2, the tank farm and the new buildings; USDA's October 2024 photos fill what NOAA did not fly. The 2022 photo showed marsh where Pad 2 now stands. NOAA flies at an angle, so the photo's towers lean across the ground like long shadows; the page's own towers stand at the pads.
+- The ground round Starbase's pads is from NOAA's aerial photos of 18 January 2026 (0.3 m a pixel), with the finished Pad 2, the tank farm and the new buildings; USDA's October 2024 photos fill what NOAA did not fly, their colours shifted to match NOAA's (the difference measured round each patch and spread smoothly into it: the autumn fill stood out as green, yellow and teal squares). The 2022 photo showed marsh where Pad 2 now stands. NOAA flies at an angle, so the photo's towers lean across the ground like long shadows; the page's own towers stand at the pads.
 - OpenStreetMap entries that do not belong in a height map are left out: an underground flame trench mapped with its tower's height, and lattice towers that turned into blocks floating in the sky.
+
+**Starman's Roadster** (owner: it looked bad; make a high quality replica)
+- A new model of the 2008 Tesla Roadster at its published size: 3.95 m long, 1.85 m wide, 2.35 m between the axles. It has the bonnet between the front wings, the wing crests, haunches over the rear wheels, the intakes behind the doors, teardrop headlights, mirrors on stalks, the black roll hoop and ten-spoke wheels.
+- Starman sits in the left seat, right hand on the wheel and left arm on the door, as in SpaceX's photos. His suit is white with black shoulders, knees, gloves and boots, and his visor is dark.
+- A soft fill light from above keeps the shaded side readable. In space that side would be nearly black: `docs/ACCURACY.md` says so.
+- The first angle is closer and lower, and the second looks over Starman's left shoulder. On a phone held upright both stand back until the car fits across the screen.
+- The shader compiles in about 0.4 s on Direct3D (0.7 s before).
 
 **Under the hood**
 - `frel` gives the exact position when the focus circles the object (the ground moved thousands of kilometres a frame, seen from the station while the clock jumped).
