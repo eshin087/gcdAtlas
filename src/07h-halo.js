@@ -203,13 +203,13 @@ function planVisit(tg, arrival, dIn, next, act, seed, opt = {}){
 // kind of place, picked from three): once a stay, on its second pass, the ship flies a pass made for the place. Saturn: through the Cassini
 // Division, the gap in its rings (1.95 to 2.03 Saturn radii as FS_PLANET draws them), crossing the ring plane there at the pass's closest
 // point. Jupiter: low over the Great Red Spot; Mars, the Moon, Io: a low run over Valles Marineris, Tycho, Pele; other worlds: low over the
-// day side; stars: through the corona; galaxies: round the disc along a spiral arm, inside it; ring nebulae: through the hole along the axis,
+// day side; stars: through the corona; galaxies: an arc round inside the disc, among the arms; ring nebulae: through the hole along the axis,
 // beside the central star; other nebulae, remnants and star clusters: a weave through the middle; Halley: through its tail when it has one,
 // else close by the nucleus. Black holes, the magnetar and quasars keep their distance (none). A spec gives the closest distance Rc, where the
 // closest point should be (m: from the middle), the heading there (h), how far the pass bends (sg, as planVisit's) or an S (weave).
 const SIG_FEATURE = { jupiter:['Great Red Spot', 1.09, 'low over the Great Red Spot'], mars:['Valles Marineris', 1.025, 'a low run over Valles Marineris'],
   moon:['Tycho', 1.02, 'a low run over the crater Tycho'], io:['Pele', 1.12, 'low over Pele, the volcano'] };
-const SIG_LOW = { earth:[1.06, 'a low pass at the height of the space station'], titan:[1.08, 'low over the orange haze'], europa:[1.03, 'a low run over the ice'], ceres:[1.04, 'a low run over the craters'] };
+const SIG_LOW = { earth:[1.064, 'a low pass about as high as the space station'], titan:[1.08, 'low over the orange haze'], europa:[1.03, 'a low run over the ice'], ceres:[1.04, 'a low run over the craters'] };
 const SIG_THROUGH = new Set(['southernring', 'ringneb', 'helix']);
 const frameOfT = tg => tg.R0 || tg.rot || I3;
 // a feature's direction from a body's middle, where its shader draws it (07j-scan.js's spots and shapes), or null
@@ -230,7 +230,7 @@ function sigSpec(tg){
   if (SIG_LOW[key] && s > 0){ const [k, line] = SIG_LOW[key]; return { kind:'low', Rc:k*s, line, m:(r, sunD) => dayM(r, sunD), h:anyH, sg:[0.45, 0.6] }; }
   if (s > 0 && (tg === sun || tg.group === 'stars' || tg.starR) && key !== 'etacar' && key !== 'rsoph' && key !== 'hltau') return { kind:'corona', Rc:1.25*s, line:'through the corona', m:(r) => rdir(r), h:anyH, sg:[0.5, 0.64] };
   if (tg.group === 'galaxies' && key !== 'antennae'){ const n = ax(1);
-    return { kind:'arm', Rc:0.5*tg.rad, line:'along a spiral arm, inside the disc', m:(r) => dayM(r, null, n), h:(r, m) => V.mul(V.cross(n, m), r() < 0.5 ? -1 : 1), sg:[0.5, 0.64] }; }
+    return { kind:'arm', Rc:0.5*tg.rad, line:'sweeping round inside the disc, among its arms', m:(r) => dayM(r, null, n), h:(r, m) => V.mul(V.cross(n, m), r() < 0.5 ? -1 : 1), sg:[0.5, 0.64] }; }
   if (SIG_THROUGH.has(key)){ const a = ax(2);
     return { kind:'through', Rc:0.1*tg.rad, line:"through the ring's hole", m:(r) => dayM(r, null, a), h:(r) => V.mul(a, r() < 0.5 ? -1 : 1), sg:[0.06, 0.12] }; }
   if (key === 'halley'){ const act = tg.act || 0;
