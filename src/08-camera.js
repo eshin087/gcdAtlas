@@ -153,14 +153,15 @@ function startFlight(o, vp, onDone, via, glide){
   const durs = { cinematic:clamp(1.6 + path.S*0.42, 2.4, 13) + (scenic ? 3 : 0), quick:clamp(1.3 + path.S*0.2, 1.8, 6.5) + (scenic ? 1.4 : 0), warp:clamp(0.85 + path.S*0.03, 0.95, 1.6) };
   if (pass) for (const k in durs) if (k !== 'warp') durs[k] += 1.2;
   if (glide) for (const k in durs) if (k !== 'warp') durs[k] += 2.5;
-  const dur = durs[SET.travel] || durs.quick;
+  // (vp.minDur: a flight that shows something on the way takes at least that long, except at warp: the descent onto a launch pad)
+  const dur = Math.max(durs[SET.travel] || durs.quick, SET.travel === 'warp' ? 0 : (vp.minDur || 0)*(SET.travel === 'quick' ? 0.65 : 1));
   shipCam.on = shipCam.pending = false;   // any flight takes the camera off the ship (riding along starts again when its own flight lands)
   if (LCAM.on) stopLaunchCam(true, true);   // (and off a launch it was following)
   // start compiling the destination's shaders now, so it is ready to draw on arrival
   if (o.prog) progReady(o.prog); for (const sp of o.particles || []) if (P[sp.prog]) progReady(P[sp.prog]);
   music.whoosh(dur);
   flight = { t:0, dur, durs, path, A, B, L0:V.len(V.sub(B, A)), dir0:V.norm(V.sub(cam.rel, A)), dir1:dirEnd, prog,
-    up0:cam.up.slice(), up1:vp.up || M3.apply(camFrameOf(o), [0,1,0]), obj:o, vp, onDone, switched:false, spin:scenic || pass ? 0 : (rnd() < 0.5 ? -1 : 1)*0.5, scenic, dirMid, upMid,
+    up0:cam.up.slice(), up1:vp.up || M3.apply(camFrameOf(o), [0,1,0]), obj:o, vp, onDone, switched:false, spin:scenic || pass || vp.dirAt ? 0 : (rnd() < 0.5 ? -1 : 1)*0.5, scenic, dirMid, upMid,
     pass, via:pass ? via.o : null };
   tween = null;
 }
@@ -274,13 +275,17 @@ function updateFlight(dt){
   const Bnow = V.add(frel(f.obj), f.vp.offFn ? f.vp.offFn() : (f.vp.off || [0, 0, 0]));
   // (measured from the nearer end: from where it set off in the first half of the way, back from the destination in the second, so rounding
   // never moves it by more than a sliver of what is left to go)
-  const dAB = V.sub(Bnow, f.A), tgt = g > 0.5 ? V.add(f.A, V.mul(dAB, 1 - g)) : V.sub(Bnow, V.mul(dAB, g));
+  const dAB = V.sub(Bnow, f.A); let tgt = g > 0.5 ? V.add(f.A, V.mul(dAB, 1 - g)) : V.sub(Bnow, V.mul(dAB, g));
+  // (a destination can bend the way the aim travels: vp.tgtAt, round the Earth instead of through it, s4-spacex-run.js)
+  if (f.vp.tgtAt) tgt = f.vp.tgtAt(tgt, f.A, Bnow, g, w, x);
   if (f.pass){ const b = passBump(f.pass, e); tgt[0] += f.pass.bend[0]*b; tgt[1] += f.pass.bend[1]*b; tgt[2] += f.pass.bend[2]*b; }
   // flying up to the Halo: it turns as it goes, so the final framing follows its frame (no swing on landing)
   if (f.obj.camFrame){ f.dir1 = M3.apply(camFrameOf(f.obj), sphL(f.vp.yaw, f.vp.pitch)); f.up1 = f.vp.upFn ? f.vp.upFn() : M3.apply(camFrameOf(f.obj), [0, 1, 0]); }
   // flying to an angle that follows something moving (a planet's day side as it circles its star): the landing direction follows it too
   if (f.vp.track){ [f.vp.yaw, f.vp.pitch] = f.vp.track(); f.dir1 = M3.apply(camFrameOf(f.obj), sphL(f.vp.yaw, f.vp.pitch)); }
-  const [dir, up] = flightDir(f, x);
+  let [dir, up] = flightDir(f, x);
+  // (a destination can steer the camera itself: vp.dirAt, the rockets' approach, which comes down over the pad from above: s4-spacex-run.js)
+  if (f.vp.dirAt) [dir, up] = f.vp.dirAt(x, w, dir, up, tgt, f);
   orbit.target = tgt; orbit.dist = orbit.distT = w;
   cam.rel = V.add(tgt, V.mul(dir, w));
   setBasis(V.mul(dir, -1), up);

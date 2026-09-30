@@ -5,6 +5,13 @@
      numbers with units. The newest version comes first and opens by itself; its number must match package.json (tests/smoke.mjs checks it).
      Every detail stays in docs/CHANGELOG.md, which the panel links to. -->
 
+## 0.10.0 · 30 Sep 2026 · Launches you can hear, under real skies
+- Pick a rocket and the camera comes down from space onto the pad in one smooth move, with no jumps or odd angles all the way to orbit.
+- Hear and feel the launch: a deep rumble and the crackle of the exhaust arriving at the speed of sound, the camera shaking near the pad, a billowing ground cloud and a smoke column drifting in the wind.
+- Real weather over the pads: clouds, wind and haze as they are there, with cloud shadows moving over the ground.
+- Starbase as it looks now, from aerial photos taken in January 2026.
+- Starman's Roadster rebuilt: the real car's shape and size, with Starman at the wheel.
+
 ## 0.9.12 · 30 Sep 2026 · The Halo tour shows the places
 - On the Halo tour every shot frames the place first, through a long lens, with the Halo small in front of it.
 - Close to a planet or a star the place becomes a horizon under the ship.

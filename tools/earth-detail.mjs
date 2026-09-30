@@ -6,7 +6,10 @@
 //   Sources (see docs/ACCURACY.md):
 //   - Sentinel-2 L2A true colour (10 m), Copernicus, from Earth Search on AWS (the clearest recent date, tile by tile): the regions, and where
 //     there are no aerial photos (Mexico, the sea, Vandenberg, which is masked in NAIP). "Contains modified Copernicus Sentinel data <year>".
-//   - USGS NAIP aerial photos (0.3 to 0.6 m, public domain), from the USGS National Map image service: the layers round the pads.
+//   - Aerial photos round the pads (public domain): USGS NAIP from the USGS National Map image service (0.3 to 0.6 m); at Starbase, where the
+//     pad has changed, first NOAA NGS coastal photos (18 January 2026, 0.3 m, flown obliquely at 37.5 degrees: tall towers lean, the ground
+//     is in place) and USDA NAIP 2024 (14 October 2024, 0.6 m, from the USDA FPAC image service) where NOAA has none. A layer's `photos`
+//     lists them in order; the first that has a pixel gives it.
 //   - Terrain: the AWS Terrain Tiles (Mapzen terrarium; USGS 3DEP in the United States).
 //   - Buildings: OpenStreetMap (ODbL, "© OpenStreetMap contributors"), heights from their tags, else a guess by kind; our own pad models
 //     (towers, mounts) replace what OpenStreetMap has within 150 m of each pad.
@@ -32,8 +35,8 @@ const SITES = [
   { key:'starbase', name:'Starbase, Texas', pads:['starbase'], layers:[
     { id:'r410', la:25.9968, lo:-97.1580, size:409600, px:1024, src:'s2' },
     { id:'r51', la:25.9968, lo:-97.1580, size:51200, px:1024, src:'s2' },
-    { id:'l6', la:25.9968, lo:-97.1580, size:6400, px:1024, src:'naip', bld:true },
-    { id:'l1', la:25.99677, lo:-97.15799, size:1600, px:1024, src:'naip', bld:true } ] },
+    { id:'l6', la:25.9968, lo:-97.1580, size:6400, px:1024, src:'naip', photos:['noaa-gc2601a', 'fpac', 'usgs'], bld:true },
+    { id:'l1', la:25.99677, lo:-97.15799, size:1600, px:1024, src:'naip', photos:['noaa-gc2601a', 'fpac', 'usgs'], bld:true } ] },
   { key:'cape', name:'Cape Canaveral, Florida', pads:['lc39a', 'slc40', 'lz'], layers:[
     { id:'r410', la:28.55, lo:-80.60, size:409600, px:1024, src:'s2' },
     { id:'r51', la:28.55, lo:-80.60, size:51200, px:1024, src:'s2' },
@@ -84,16 +87,52 @@ const bilinear = (img, fx, fy) => {
   return out;
 };
 
-// ---------------------------------------------------------------- USGS NAIP (public domain), Web Mercator export, sampled by lat, lon
-async function naipSource(L){
+// ---------------------------------------------------------------- the aerial photo services, and what each one's pixels are credited as
+const PHOTO = {
+  usgs:{ credit:'USGS NAIP aerial photos', url:'https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer/exportImage', extra:'' },
+  fpac:{ credit:'USDA NAIP aerial photos (October 2024)', url:'https://apps.geo.fpac.usda.gov/geo-imagery/rest/services/naip/conus_naip/ImageServer/exportImage', extra:'&bandIds=0,1,2' },
+  'noaa-gc2601a':{ credit:'NOAA NGS aerial photos (January 2026)', xyz:'https://stormscdn.ngs.noaa.gov/gc2601a-ob-n/{z}/{x}/{y}' },
+};
+// a chain of photo sources: the first that has a pixel at a point gives it (and which one it was, for the credit)
+async function photoSource(L){
+  const list = L.photos || ['usgs'], srcs = [];
+  for (const k of list) srcs.push({ k, f:PHOTO[k].xyz ? await xyzSource(L, k) : await naipSource(L, k) });
+  const f = (la, lo) => { for (const x of srcs){ const v = x.f(la, lo); if (v){ f.last = x.k; return v; } } f.last = null; return null; };
+  f.srcs = srcs;
+  return f;
+}
+// ---------------------------------------------------------------- XYZ tiles in Web Mercator (NOAA NGS), stitched as needed and sampled by lat, lon; a missing tile is a redirect to an
+// empty image, remembered as an empty file so a rerun does not ask again
+async function xyzSource(L, key){
+  const [lo0, la0, lo1, la1] = bboxLL(L), mpp = L.size/L.px;
+  let z = Math.round(Math.log2(156543*Math.cos(L.la*D2R)/Math.max(mpp*0.7, 0.3))); z = Math.max(12, Math.min(z, 19));
+  const n = 2**z, tx = lo => (lo + 180)/360*n, ty = la => (1 - Math.log(Math.tan(la*D2R) + 1/Math.cos(la*D2R))/Math.PI)/2*n;
+  const X0 = Math.floor(tx(lo0)), X1 = Math.floor(tx(lo1)), Y0 = Math.floor(ty(la1)), Y1 = Math.floor(ty(la0)), tiles = {};
+  for (let x=X0;x<=X1;x++) for (let y=Y0;y<=Y1;y++){
+    const b = await cached(`${key}_${z}_${x}_${y}.jpg`, async () => {
+      const r = await fetch(PHOTO[key].xyz.replace('{z}', z).replace('{x}', x).replace('{y}', y), { headers:UA, redirect:'manual', signal:AbortSignal.timeout(60000) });
+      if (r.status >= 300 && r.status < 400 || r.status === 404) return Buffer.alloc(0);
+      if (!r.ok) throw new Error(key + ' tile ' + r.status);
+      const buf = Buffer.from(await r.arrayBuffer()); return buf[0] === 0xff ? buf : Buffer.alloc(0);   // (a JPEG, or nothing)
+    });
+    if (!b.length) continue;
+    const { data, info } = await sharp(b).removeAlpha().raw().toBuffer({ resolveWithObject:true });
+    tiles[x + ',' + y] = { w:info.width, h:info.height, c:3, d:data };
+    process.stdout.write('x');
+  }
+  return (la, lo) => { const fx = tx(lo), fy = ty(la), X = Math.floor(fx), Y = Math.floor(fy), t = tiles[X + ',' + Y]; if (!t) return null;
+    const v = bilinear(t, Math.min((fx - X)*t.w, t.w - 1.001), Math.min((fy - Y)*t.h, t.h - 1.001)); return v && v[0] + v[1] + v[2] > 12 && v[0] + v[1] + v[2] < 750 ? v : null; };
+}
+// ---------------------------------------------------------------- NAIP (public domain) from an ArcGIS image service, Web Mercator export, sampled by lat, lon
+async function naipSource(L, key = 'usgs'){
   const [lo0, la0, lo1, la1] = bboxLL(L), [x0, y0] = merc(la0, lo0), [x1, y1] = merc(la1, lo1);
   // (the service can answer 502 to a big export: the area is fetched in pieces of at most 1,000 px and stitched)
   const mpp = L.size/L.px/1.6, W = Math.ceil((x1 - x0)/mpp), H = Math.ceil((y1 - y0)/mpp), PC = 1000, nx = Math.ceil(W/PC), ny = Math.ceil(H/PC);
   const d = Buffer.alloc(W*H*3);
   for (let j=0;j<ny;j++) for (let i=0;i<nx;i++){
     const w = Math.min(PC, W - i*PC), h = Math.min(PC, H - j*PC), bx0 = x0 + i*PC*mpp, bx1 = bx0 + w*mpp, by1 = y1 - j*PC*mpp, by0 = by1 - h*mpp;
-    const url = `https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer/exportImage?bbox=${bx0},${by0},${bx1},${by1}&bboxSR=3857&imageSR=3857&size=${w},${h}&format=jpg&f=image`;
-    const buf = await cached(`naip_${Math.round(bx0)}_${Math.round(by0)}_${Math.round(mpp*100)}_${w}x${h}.jpg`, () => get(url));
+    const url = `${PHOTO[key].url}?bbox=${bx0},${by0},${bx1},${by1}&bboxSR=3857&imageSR=3857&size=${w},${h}${PHOTO[key].extra}&format=jpg&f=image`;
+    const buf = await cached(`${key === 'usgs' ? 'naip' : key}_${Math.round(bx0)}_${Math.round(by0)}_${Math.round(mpp*100)}_${w}x${h}.jpg`, () => get(url));
     const { data, info } = await sharp(buf).removeAlpha().resize(w, h, { fit:'fill' }).raw().toBuffer({ resolveWithObject:true });
     for (let yy=0;yy<h;yy++) data.copy(d, ((j*PC + yy)*W + i*PC)*3, yy*w*info.channels, (yy + 1)*w*info.channels);
     process.stdout.write('n');
@@ -175,6 +214,9 @@ async function osmBuildings(L){
   const j = JSON.parse(buf), out = [];
   for (const el of j.elements || []){
     const t = el.tags || {}, rings = [];
+    // (left out: anything underground, such as a flame trench that was mapped with the height of the tower above it, and lattice towers
+    // and masts, which a height map turns into solid blocks floating in the sky: the pads' own towers are drawn by the page's models)
+    if (+t.layer < 0 || /underground/.test(t.location || '') || t['construction:aeroway'] || /^(tower|mast|communications_tower)$/.test(t.man_made || '')) continue;
     if (el.type === 'way' && el.geometry) rings.push(el.geometry);
     else if (el.type === 'relation') for (const m of el.members || []) if (m.role === 'outer' && m.geometry) rings.push(m.geometry);
     if (!rings.length) continue;
@@ -210,22 +252,55 @@ async function buildLayer(S, L, s2cache){
   const F = frameAt(L.la, L.lo), N = L.px, m = L.size/N;
   process.stdout.write(`${S.key}-${L.id} (${(L.size/1000).toFixed(1)} km, ${m.toFixed(2)} m/px): `);
   const s2 = s2cache[S.key + L.size] || (s2cache[S.key + L.size] = await s2Source(L));
-  const naip = L.src === 'naip' ? await naipSource(L) : null;
+  const naip = L.src === 'naip' ? await photoSource(L) : null;
   const terr = await terrainSource(L);
   const blds = L.bld ? await osmBuildings(L) : [];
   const bh = L.bld ? rasterize(F, L, blds, S.pads) : null;
   const rgb = new Uint8Array(N*N*3), elev = new Float32Array(N*N), water = new Uint8Array(N*N);
-  let naipN = 0, s2N = 0;
+  let naipN = 0, s2N = 0; const byPhoto = {};
   const gain = s2cache['gain-' + S.key];
+  // (which source gave each pixel: 0 the first photo in the layer's list, 1.. the ones that fill in for it, 254 Sentinel-2, 255 none; and,
+  // cell by cell on a coarse grid, land and water apart, how much the first photo differs from each other source where both have pixels,
+  // for the colour match below)
+  const PS = naip ? naip.srcs : [], from = new Uint8Array(N*N).fill(255), G = 64, cs = N/G, diff = {};
+  const diffAdd = (k, w, gx, gy, q, v0) => { const D = (diff[k] = diff[k] || [new Float32Array(G*G*4), new Float32Array(G*G*4)])[w], j = (gy*G + gx)*4;
+    for (let c=0;c<3;c++) D[j + c] += v0[c] - q[c]; D[j + 3]++; };
   for (let y=0;y<N;y++) for (let x=0;x<N;x++){
     const px = (x + 0.5)*m - L.size/2, py = L.size/2 - (y + 0.5)*m, [la, lo] = planeToLL(F, px, py), i = y*N + x;
-    let v = naip ? naip(la, lo) : null; if (v) naipN++; else { v = s2(la, lo); if (v){ s2N++; if (gain) v = gain(v); } }
     const t = terr(la, lo);
     water[i] = t <= 0.2 ? 1 : 0;
+    let v = naip ? naip(la, lo) : null;
+    if (v){ naipN++; byPhoto[naip.last] = (byPhoto[naip.last] || 0) + 1; from[i] = PS.findIndex(q => q.k === naip.last); }
+    else { v = s2(la, lo); if (v){ s2N++; if (gain) v = gain(v); from[i] = 254; } }
+    if (PS.length > 1 && x % 2 === 0 && y % 2 === 0){
+      const v0 = from[i] === 0 ? v : null, gx = Math.floor(x/cs), gy = Math.floor(y/cs);
+      if (v0){ for (let k=1;k<PS.length;k++){ const q = PS[k].f(la, lo); if (q) diffAdd(k, water[i], gx, gy, q, v0); } const q = s2(la, lo); if (q) diffAdd(254, water[i], gx, gy, gain ? gain(q) : q, v0); }
+    }
     if (!v) v = water[i] ? [14, 36, 58] : [96, 92, 78];   // (no image: the sea, or plain ground)
     rgb.set([clampN(Math.round(v[0]), 0, 255), clampN(Math.round(v[1]), 0, 255), clampN(Math.round(v[2]), 0, 255)], i*3);
     elev[i] = Math.max(t, 0) + (bh ? bh[i] : 0);
   }
+  // where other photos (of other dates and seasons) fill in for the first one, their colours are shifted to match it: the difference between
+  // the two, measured cell by cell wherever both have pixels (land and water apart), is carried smoothly into the cells only the fill covers
+  // (a membrane: each unknown cell the mean of its neighbours) and added pixel by pixel. At Starbase the October 2024 fill stood out as green,
+  // yellow and teal squares on the January 2026 photo; one colour map for the whole layer turned lagoons red
+  const field = {};
+  for (const k in diff) for (const w of [0, 1]){
+    const D = diff[k][w], F = new Float32Array(G*G*3), known = new Uint8Array(G*G); let n = 0; const m = [0, 0, 0];
+    for (let j=0;j<G*G;j++) if (D[j*4 + 3] >= 12){ known[j] = 1; n++; for (let c=0;c<3;c++){ F[j*3 + c] = D[j*4 + c]/D[j*4 + 3]; m[c] += F[j*3 + c]; } }
+    if (n < 8) continue;
+    for (let j=0;j<G*G;j++) if (!known[j]) for (let c=0;c<3;c++) F[j*3 + c] = m[c]/n;
+    for (let it=0;it<600;it++) for (let gy=0;gy<G;gy++) for (let gx=0;gx<G;gx++){ const j = gy*G + gx; if (known[j]) continue;
+      for (let c=0;c<3;c++){ let a = 0, b = 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]){ const X = gx + dx, Y = gy + dy; if (X < 0 || Y < 0 || X >= G || Y >= G) continue; a += F[(Y*G + X)*3 + c]; b++; } F[j*3 + c] = a/b; } }
+    (field[k] = field[k] || [])[w] = F;
+  }
+  let matched = 0;
+  for (let y=0;y<N;y++) for (let x=0;x<N;x++){ const i = y*N + x, k = from[i]; if (k === 0 || k === 255) continue; const F = field[k] && field[k][water[i]]; if (!F) continue;
+    const fx = clampN((x + 0.5)/cs - 0.5, 0, G - 1.001), fy = clampN((y + 0.5)/cs - 0.5, 0, G - 1.001), X = Math.floor(fx), Y = Math.floor(fy), ax = fx - X, ay = fy - Y;
+    for (let c=0;c<3;c++){ const f = (F[(Y*G + X)*3 + c]*(1 - ax) + F[(Y*G + X + 1)*3 + c]*ax)*(1 - ay) + (F[((Y + 1)*G + X)*3 + c]*(1 - ax) + F[((Y + 1)*G + X + 1)*3 + c]*ax)*ay;
+      rgb[i*3 + c] = clampN(Math.round(rgb[i*3 + c] + f), 0, 255); }
+    matched++; }
+  if (matched) console.log(`  colours of the fill shifted to match ${PS[0].k} on ${Math.round(100*matched/(N*N))}% of the layer`);
   // alpha: 0 water, else 1 + (elevation - base)/step, rounded
   let lo = Infinity, hi = -Infinity; for (let i=0;i<N*N;i++) if (!water[i]){ lo = Math.min(lo, elev[i]); hi = Math.max(hi, elev[i]); }
   if (!isFinite(lo)){ lo = 0; hi = 0; }
@@ -239,7 +314,10 @@ async function buildLayer(S, L, s2cache){
   fs.writeFileSync(path.join(OUT, file), webp);
   const srcs = [naipN ? 'naip' : null, s2N ? 's2' : null].filter(Boolean);
   console.log(` ${(webp.length/1024).toFixed(0)} KB, ${Math.round(100*naipN/(N*N))}% aerial photo, ${Math.round(100*s2N/(N*N))}% Sentinel-2${blds.length ? `, ${blds.length} buildings` : ''}, ground ${base} to ${hi.toFixed(0)} m in ${step} m steps`);
-  return { id:L.id, file, la:L.la, lo:L.lo, size:L.size, px:N, base, step, top:Math.ceil(hi), src:srcs, s2dates:s2N ? s2.dates : [], naip:naipN > 0, bld:blds.length };
+  // (the photos credited: those that gave at least 1% of the layer)
+  const photos = Object.entries(byPhoto).filter(([, c]) => c > N*N*0.01).sort((a, b) => b[1] - a[1]).map(([k]) => PHOTO[k].credit);
+  if (Object.keys(byPhoto).length > 1) console.log('  photos: ' + Object.entries(byPhoto).map(([k, c]) => `${k} ${Math.round(100*c/(N*N))}%`).join(', '));
+  return { id:L.id, file, la:L.la, lo:L.lo, size:L.size, px:N, base, step, top:Math.ceil(hi), src:srcs, s2dates:s2N ? s2.dates : [], naip:naipN > 0, photos, bld:blds.length };
 }
 // (the aerial photos, as they are, set the site's colours: the satellite images round them are brightened to match, channel by channel, by
 // the ratio of the two over the same land in the site's widest layer of photos, with a soft shoulder so bright ground does not clip. Matching
@@ -247,7 +325,7 @@ async function buildLayer(S, L, s2cache){
 async function siteGain(S, s2cache){
   const L = S.layers.find(l => l.src === 'naip'); if (!L) return null;
   const F = frameAt(L.la, L.lo), N = L.px, m = L.size/N;
-  const s2 = s2cache[S.key + L.size] || (s2cache[S.key + L.size] = await s2Source(L)), naip = await naipSource(L), terr = await terrainSource(L);
+  const s2 = s2cache[S.key + L.size] || (s2cache[S.key + L.size] = await s2Source(L)), naip = await photoSource(L), terr = await terrainSource(L);
   const A = [0, 0, 0], B = [0, 0, 0]; let n = 0;
   for (let y=0;y<N;y+=8) for (let x=0;x<N;x+=8){ const [la, lo] = planeToLL(F, (x + 0.5)*m - L.size/2, L.size/2 - (y + 0.5)*m), a = naip(la, lo), b = s2(la, lo);
     if (a && b && terr(la, lo) > 0.3){ for (let k=0;k<3;k++){ A[k] += a[k]; B[k] += b[k]; } n++; } }

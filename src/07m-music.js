@@ -1295,6 +1295,43 @@ const music = (() => {
     return out;
   }
   const moodText = m => { const L = (MOODS[m] || MOODS.mix).map(st => STYLES[st].label); return L.length > 1 ? L.slice(0, -1).join(', ') + ' and ' + L[L.length - 1] : L[0]; };
+  // ---------------------------------------------------------------- a rocket's roar, driven once a frame by the launch director (s4-spacex-run.js) while a flight can be
+  // heard: a rumble below 80 Hz, the roar (noise, low-passed more the farther away it is: the air takes the highs) and the crackle (the
+  // popping of the shock waves in a big rocket's exhaust, loudest from a few hundred metres to a few kilometres). The music dips under it
+  // (owner, 0.9.9). Its noise is dealt from a fixed seed, so it sounds the same every time; built on the live context only (never on a
+  // render's), with the music's own gain captured, so a song render on the review page cannot take it over.
+  let RK = null;
+  function rocketGraph(c = ctx, dest = master, mus = mixG){
+    if (!c || !dest) return null;
+    const sr = c.sampleRate; let sd = 0x2545f491; const rr = () => (sd = (Math.imul(sd, 1664525) + 1013904223) >>> 0)/4294967296;
+    // (the roar: white and brown noise, its level wandering a little, as a big rocket's does)
+    const rb = c.createBuffer(2, sr*4, sr);
+    for (let ch=0;ch<2;ch++){ const d = rb.getChannelData(ch); let b = 0, env = 1, ev = 0;
+      for (let i=0;i<d.length;i++){ const w = rr()*2 - 1; b = b*0.985 + w*0.015; if (i % 64 === 0){ ev += (rr() - 0.5)*0.05; ev *= 0.97; env = 1 + ev; } d[i] = (w*0.3 + b*5)*env*0.6; } }
+    // (the crackle: sparse, uneven pops, each a burst of a millisecond or two)
+    const cb = c.createBuffer(2, sr*4, sr);
+    for (let ch=0;ch<2;ch++){ const d = cb.getChannelData(ch);
+      for (let i=0;i<d.length;i++){ if (rr() < 90/sr){ const A = rr() < 0.2 ? 0.7 + 0.3*rr() : 0.12 + 0.35*rr(), n = 20 + Math.floor(rr()*110);
+        for (let k=0;k<n && i + k < d.length;k++) d[i + k] += A*(rr()*2 - 1)*Math.exp(-k/(n*0.25)); } } }
+    const src = (buf, off) => { const s = c.createBufferSource(); s.buffer = buf; s.loop = true; s.start(0, off); return s; };
+    const out = c.createGain(); out.gain.value = 1; out.connect(dest);
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2000; lp.Q.value = 0.3; lp.connect(out);
+    const roar = c.createGain(); roar.gain.value = 0; src(rb, 0).connect(roar).connect(lp);
+    const rumLP = c.createBiquadFilter(); rumLP.type = 'lowpass'; rumLP.frequency.value = 75; rumLP.Q.value = 1.1;
+    const rumble = c.createGain(); rumble.gain.value = 0; src(rb, 1.7).connect(rumLP).connect(rumble).connect(out);
+    const crHP = c.createBiquadFilter(); crHP.type = 'highpass'; crHP.frequency.value = 550;
+    const crackle = c.createGain(); crackle.gain.value = 0; src(cb, 0).connect(crHP).connect(crackle).connect(lp);
+    return { c, lp, roar, rumble, crackle, mus };
+  }
+  // one frame of what the camera hears: roar, rumble and crackle 0..1, lp the cut-off (Hz), duck 0..1 how far the music dips; null: silence
+  function rocketSet(G, p, t){
+    const k = 0.1, on = !!p;
+    G.roar.gain.setTargetAtTime(on ? p.roar*0.32 : 0, t, k);
+    G.rumble.gain.setTargetAtTime(on ? p.rumble*0.9 : 0, t, k);
+    G.crackle.gain.setTargetAtTime(on ? p.crackle*0.22 : 0, t, k*0.5);
+    G.lp.frequency.setTargetAtTime(on ? clamp(p.lp, 80, 12000) : 800, t, k);
+    if (G.mus) G.mus.gain.setTargetAtTime(on ? 1 - 0.75*clamp(p.duck, 0, 1) : 1, t, 0.35);
+  }
   return {
     get on(){ return wantOn; },
     // really playing: wanted, started and not held back by the browser (before the first click the context stays suspended)
@@ -1324,6 +1361,22 @@ const music = (() => {
     styleChanged(){ if (ctx && running) this.skip(); else T = null; },
     // play a song from the list now (id: 'style-seed'); the shuffle carries on after it
     play(id){ if (!SONGS.some(x => x.id === id)) return; Q.next = id; if (ctx && running) this.skip(); else T = null; },
+    // the rocket's sound this frame (see rocketGraph); only while the music plays (sound on) and never during a song render
+    rocket(p){
+      if (!ctx || (typeof OfflineAudioContext !== 'undefined' && ctx instanceof OfflineAudioContext)) return;
+      if (!running){ if (RK) rocketSet(RK, null, ctx.currentTime); return; }
+      if (!p && !RK) return;
+      if (!RK) RK = rocketGraph();
+      if (RK) rocketSet(RK, p, ctx.currentTime);
+    },
+    // (a recording: the same sound rendered offline from a list of frames { t, p }, for the launch video; returns an AudioBuffer)
+    async rocketRender(frames, sec, rate = 48000){
+      const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext, c = new OAC(2, Math.ceil(sec*rate), rate);
+      const comp = c.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 3.5; comp.attack.value = 0.01; comp.release.value = 0.4; comp.connect(c.destination);
+      const G = rocketGraph(c, comp, null);
+      for (const f of frames) rocketSet(G, f.p, f.t);
+      return c.startRendering();
+    },
     whoosh(dur){
       if (!running || !ctx) return;
       const t = ctx.currentTime, d = Math.max(dur, 0.8);

@@ -6,5 +6,6 @@ Serverless functions deployed by Vercel next to the static page. Read-only, no s
 | --- | --- | --- |
 | `/api/sats` | CelesTrak active satellites (OMM JSON), compacted by `_lib/orbits.js` | 6 h |
 | `/api/launches` | The Space Devs Launch Library 2, next launches | 1 h |
+| `/api/weather` | Open-Meteo, the weather over the three launch sites (fixed coordinates), hourly, three days back to two ahead | 30 min |
 
 Files in `_lib/` are shared helpers, not endpoints. See `docs/SECURITY.md`.

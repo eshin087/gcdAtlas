@@ -199,6 +199,37 @@ vec4 edWide(vec3 P, out float edge){
   return vec4(t.rgb, smoothstep(1.4, 1.08, t.a*255.));
 }
 `;
+// ---------------------------------------------------------------- the clouds over a launch site (0.9.9, owner: dynamic clouds and real weather; s3-spacex.js feeds them from
+// /api/weather). Three layers, in a site's frame (x east, y up, z south, metres; alt: height above the sea): low cumulus (flat bases, rounded
+// tops, taller where denser; nearly flat stratus when the sky is almost covered), altocumulus puffs as a sheet at 4.5 km, cirrus streaks
+// drawn out along the wind at 9 km. The ground and sky (FS_SX_ENV) draw them; the rockets (SX_MAIN) fade into the low layer as they climb
+// through it. uWx0 = low, mid and high cover 0..1, visibility (m); uWx1 = the low layer's base and top (m above the sea), time (s), rain
+// (mm/h); uWx2 = how far the wind has carried the low layer (x, z m) and the high one (x, z m)
+const CLOUD_GLSL = `
+uniform vec4 uWx0; uniform vec4 uWx1; uniform vec4 uWx2;
+// the low layer's big shape at p (0..1 before the vertical profile), and its density with the profile and the billows at the edges
+// (fbm's values bunch round a half: spread out, so the cover's threshold cuts clear gaps between clouds instead of a veil)
+float cloudLowC(vec3 p){ float cov = uWx0.x; if(cov < 0.01) return 0.; float n = (fbm3(vec3((p.xz + uWx2.xy)/2600., uWx1.z*0.0012)) - 0.5)*2.4 + 0.5; return smoothstep(1. - cov - 0.04, 1. - cov + 0.14, n); }
+float cloudLow(vec3 p, float alt){
+  float h = (alt - uWx1.x)/max(uWx1.y - uWx1.x, 50.);
+  if(h < 0. || h > 1.) return 0.;
+  float base = cloudLowC(p); if(base < 0.01) return 0.;
+  float strat = smoothstep(0.8, 0.95, uWx0.x);
+  float d = base*smoothstep(0., 0.08, h)*smoothstep(1., mix(0.15 + 0.55*(1. - base), 0.7, strat), h);
+  if(d < 0.02) return 0.;
+  float det = fbm3(vec3(p.x + uWx2.x, alt*1.3, p.z + uWx2.y)/420. + vec3(0., uWx1.z*0.008, 0.));
+  return clamp(d - (1. - d)*det*0.9, 0., 1.);
+}
+// (the rockets' shader only needs how much cloud stands in front of a stage: the big shape with the vertical profile, one noise sum)
+float cloudLowCheap(vec3 p, float alt){ float h = (alt - uWx1.x)/max(uWx1.y - uWx1.x, 50.); if(h < 0. || h > 1.) return 0.; return cloudLowC(p)*smoothstep(0., 0.08, h)*smoothstep(1., 0.45, h); }
+float cloudMid(vec2 xz){ if(uWx0.y < 0.01) return 0.; float n = (fbm3(vec3((xz + uWx2.zw*0.6)/1300., 3.7 + uWx1.z*0.002)) - 0.5)*2.4 + 0.5; return smoothstep(1. - uWx0.y - 0.04, 1. - uWx0.y + 0.16, n); }
+float cloudHigh(vec2 xz){
+  if(uWx0.z < 0.01) return 0.;
+  vec2 w = normalize(uWx2.zw + vec2(1., 0.3)), sd = vec2(-w.y, w.x), x = xz + uWx2.zw;
+  float n = fbm3(vec3(dot(x, w)/9000., dot(x, sd)/1400., 7.3 + uWx1.z*0.001));
+  n = (n - 0.5)*2.2 + 0.5; return smoothstep(1. - uWx0.z - 0.05, 1. - uWx0.z + 0.3, n)*0.6;
+}
+`;
 const FS_BG = COMMON + `
 vec3 galaxyCell(vec3 d, float sc, float sd){
   vec3 c = floor(d*sc);

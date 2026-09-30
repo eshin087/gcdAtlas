@@ -29,12 +29,30 @@ const EDT = (() => {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         if (ANISO) gl.texParameterf(gl.TEXTURE_2D, ANISO.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(8, gl.getParameter(ANISO.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));   // (sharp at glancing angles)
         gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.BROWSER_DEFAULT_WEBGL);
+        // (the fine layers keep their heights on the CPU too, for the cameras that stand on the ground: heightAt)
+        if (L.size <= 20000) try { const cv = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(img.width, img.height) : Object.assign(document.createElement('canvas'), { width:img.width, height:img.height });
+          const cx = cv.getContext('2d'); cx.drawImage(img, 0, 0); const px = cx.getImageData(0, 0, img.width, img.height).data, a = new Uint8Array(img.width*img.height);
+          for (let i=0;i<a.length;i++) a[i] = px[i*4 + 3]; L.hgt = a; } catch (e) { L.hgt = null; }
         if (img.close) img.close();
         L.tex = t; L.state = 2;
       })
       .catch(e => { L.state = 3; console.info('earth detail: ' + L.file + ' not loaded (' + e + ')'); });
   }
-  function free(L){ if (L.tex) gl.deleteTexture(L.tex); L.tex = null; L.state = 0; }
+  function free(L){ if (L.tex) gl.deleteTexture(L.tex); L.tex = null; L.hgt = null; L.state = 0; }
+  // the height above the sea (m) of the ground and what stands on it at an Earth-fixed point (km), from the finest loaded layer that has its
+  // heights on the CPU (the fine ones; the JS twin of edHeight), or null where none covers it. Water is 0
+  function heightAt(pt){
+    const r = V.len(pt); if (!(r > 0)) return null; const u = V.mul(pt, 6371/r);
+    for (const S of sites){ if (V.dot(u, S.c) < 6371*0.995) continue;
+      for (const L of S.layers){ if (!L.hgt) continue;
+        const q = V.sub(u, V.mul(L.c, 6371)), x = V.dot(q, L.e)*1000, y = V.dot(q, L.n)*1000;
+        if (Math.abs(x) >= L.size/2 || Math.abs(y) >= L.size/2) continue;
+        const N = L.px, fx = clamp((0.5 + x/L.size)*N - 0.5, 0, N - 1.001), fy = clamp((0.5 - y/L.size)*N - 0.5, 0, N - 1.001), i = Math.floor(fx), j = Math.floor(fy), tx = fx - i, ty = fy - j;
+        const h = (ii, jj) => { const A = L.hgt[jj*N + ii]; return A < 2 ? 0 : L.base + (A - 2)*L.step; };
+        return (h(i, j)*(1 - tx) + h(i + 1, j)*tx)*(1 - ty) + (h(i, j + 1)*(1 - tx) + h(i + 1, j + 1)*tx)*ty;
+      } }
+    return null;
+  }
   // the camera, in Earth-fixed km (the same as camFixed in s3-spacex.js, which loads later)
   const camE = () => M3.applyT(earth.rot, V.mul(V.sub(cam.rel, frel(earth)), 1/KM));
   // once a second: load what the camera is heading for, let go of what it left
@@ -89,9 +107,9 @@ const EDT = (() => {
   // the credit line for the ground in view (the licences ask for it: Copernicus Sentinel data, OpenStreetMap's ODbL), from the layers drawn;
   // near is false seen from space, where only the satellite images show
   function credit(S, near){ if (!S) return ''; const ls = S.layers.filter(L => L.state === 2 && (near || L.size > 20000)); if (!ls.length) return '';
-    const naip = ls.some(L => L.naip), s2 = ls.some(L => L.src.includes('s2')), bld = near && ls.some(L => L.bld);
+    const photos = [...new Set(ls.flatMap(L => L.photos || (L.naip ? ['USGS NAIP aerial photos'] : [])))], s2 = ls.some(L => L.src.includes('s2')), bld = near && ls.some(L => L.bld);
     const yrs = [...new Set(ls.flatMap(L => L.s2dates || []).map(d => d.slice(0, 4)))].sort(), yr = yrs.length > 1 ? yrs[0] + ' to ' + yrs[yrs.length - 1] : yrs[0] || '';
-    return 'ground: ' + [naip ? 'USGS aerial photos' : '', s2 ? `contains modified Copernicus Sentinel data ${yr}` : '', bld ? 'buildings © OpenStreetMap contributors' : ''].filter(Boolean).join(' · '); }
+    return 'ground: ' + [photos.join(', '), s2 ? `contains modified Copernicus Sentinel data ${yr}` : '', bld ? 'buildings © OpenStreetMap contributors' : ''].filter(Boolean).join(' · '); }
   // what the readout adds now: the ground under a launch camera or near a pad, or the images on Earth seen from space nearby
   function creditNow(){
     if (!can || !FLAGS.spacex) return '';
@@ -102,5 +120,5 @@ const EDT = (() => {
   { const prev = earth.readout; earth.readout = () => { const t = prev(), c = creditNow(); return c ? t + '\n' + c : t; }; }
   // Earth's shader takes the layers of the site nearest the camera
   { const prev = earth.setU; earth.setU = function(pr){ prev.call(this, pr); bind(pr, FLAGS.spacex ? pick() : null, { earth:true }); }; }
-  return { sites, tick, want, bind, pick, siteOfPad, credit, creditNow, load, get ready(){ return sites.flatMap(S => S.layers.filter(L => L.state === 2).map(L => S.key + '-' + L.id)); } };
+  return { sites, tick, want, bind, pick, siteOfPad, credit, creditNow, heightAt, load, get ready(){ return sites.flatMap(S => S.layers.filter(L => L.state === 2).map(L => S.key + '-' + L.id)); } };
 })();
