@@ -51,7 +51,7 @@ body.info-compact .stopl:has(> .stopinfo.kind:not(:empty)){grid-template-columns
 .stopinfo{white-space:nowrap;min-width:0}
 .stopinfo.kind{overflow:hidden;text-overflow:ellipsis}
 .stopinfo:empty,body:not(.info-compact) .stopinfo.kind{display:none}
-/* the Halo tour (0.9.7): one small line in the Halo's blue over the place's name, what the ship is doing there or where it is going */
+/* the Halo tour (0.9.9): one small line in the Halo's blue over the place's name, what the ship is doing there or where it is going */
 .htline{margin-top:4px;color:var(--ship);font-size:calc(10.5px*var(--ts));letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .htline:not([hidden]) + .title{margin-top:1px}
 .title{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;margin:4px 0 0}
@@ -76,7 +76,7 @@ body.info-compact .stopl:has(> .stopinfo.kind:not(:empty)){grid-template-columns
 .scale{display:flex;align-items:center;gap:8px;margin-top:8px;color:var(--soft);font-size:calc(11px*var(--ts));font-variant-numeric:tabular-nums;white-space:nowrap;pointer-events:auto;cursor:help;width:max-content}
 .scale .rlab{color:var(--faint);letter-spacing:.1em;text-transform:uppercase;font-size:calc(10px*var(--ts))}
 .scale .bar{display:inline-block;height:5px;border:1px solid var(--soft);border-top:0;flex:none}
-/* the angle line sits right under the name (owner, 0.9.7: at the bottom of the panel it looked cut off from it), so the two read as one header */
+/* the angle line sits right under the name (owner, 0.9.9: at the bottom of the panel it looked cut off from it), so the two read as one header */
 .progress{margin-top:1px;color:var(--faint);font-size:calc(11px*var(--ts));white-space:pre;font-variant-numeric:tabular-nums;display:flex;align-items:center;min-height:1.5em}
 /* the angle arrows sit on the angle line, around the grey ASCII bar, and only while it shows */
 .progress .anav{display:none;width:26px;height:24px;margin:-4px 0;font-size:calc(15px*var(--ts));color:var(--soft);cursor:pointer}
@@ -136,7 +136,7 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .caption.done span::after{content:""}
 @keyframes blink{50%{opacity:0}}
 
-/* ---- controls, top right. The bar leaves 400 px on its left for the logo and the info panel (440 before 0.9.7: the top row sits above the
+/* ---- controls, top right. The bar leaves 400 px on its left for the logo and the info panel (440 before 0.9.9: the top row sits above the
    panel, and the Halo tour switch needed the room to keep the top row on one line at 1280 px) */
 .controls{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));top:calc(14px + env(safe-area-inset-top,0px));
   display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:center;max-width:calc(100vw - 400px);z-index:6}
@@ -169,12 +169,12 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .topr > *{pointer-events:auto}
 #btnRide{color:var(--ship)}
 #btnRide.following{color:var(--void);background:var(--ship);border-color:var(--ship)}
-/* the Halo's buttons (ship, ride) sit on the lower row beside play (0.9.7: the Halo tour switch made the top row too wide at 1280 px); riding
+/* the Halo's buttons (ship, ride) sit on the lower row beside play (0.9.9: the Halo tour switch made the top row too wide at 1280 px); riding
    along, the camera switch (moving / still) joins them, on their left so ride stays put */
 .controls #rideCamSeg,.controls #btnShip,.controls #btnRide{order:9;margin-top:-6px}
 #rideCamSeg[hidden],.ht-note[hidden]{display:none}
 #rideCamSeg button[aria-checked="true"]{color:var(--ship)}
-/* tours, and right of it the Halo tour switch (0.9.7, owner review: "a typical toggle"): the words "Halo tour" and a pill switch, like a phone
+/* tours, and right of it the Halo tour switch (0.9.9, owner review: "a typical toggle"): the words "Halo tour" and a pill switch, like a phone
    setting. Off: a grey track, the knob on the left. On: the track glows Halo blue, the knob on the right. The whole control is one button
    (role switch: a click, Space or Enter flips it). .hsw-t is the track and its ::before the knob; the ship menu and the list of tours use them too */
 .tours-pair{display:inline-flex;align-items:stretch;gap:4px;flex:none}
@@ -550,7 +550,7 @@ body.showcase .strip{padding-bottom:calc(124px + env(safe-area-inset-bottom,0px)
 .sm-row button small{color:var(--faint);font-size:calc(10px*var(--ts));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .sm-row button[aria-checked="true"]{color:var(--void);background:var(--ship);border-color:var(--ship)}
 .sm-row button[aria-checked="true"] small{color:rgba(4,5,10,.7)}
-/* its Halo tour item is a switch like the desk's (0.9.7, owner review): the words on the left, the pill on the right; on, the pill and the border light up */
+/* its Halo tour item is a switch like the desk's (0.9.9, owner review): the words on the left, the pill on the right; on, the pill and the border light up */
 .sm-row button.sm-sw{flex-direction:row;justify-content:space-between;gap:10px;padding:6px 12px 6px 14px;text-align:left}
 .sm-st{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0}
 .sm-row button.sm-sw[aria-checked="true"]{color:var(--ink);background:rgba(143,230,255,.1);border-color:rgba(143,230,255,.55)}

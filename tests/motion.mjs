@@ -334,7 +334,7 @@ const halo = await page.evaluate(HALO_SEED => {
   const fired = k => [...made].filter(e => e.kind === k).length;
   r.blasts = blasts; r.leftAfter = D.FX.filter(e => made.has(e)).length; r.shots = [...kinds].sort().join(' ');
   r.gun = { form:gunForm, bolts:fired('pg-slug'), balls:fired('pg-big'), craters:fired('pg-crater'), after:pip.state.form, aimOff:+aimOff.toFixed(2) };
-  // Pip out and about (0.9.7: out for most of every stay): at Mars, from its arrival to the jump away, with Pip's own show (the probe job) on
+  // Pip out and about (0.9.9: out for most of every stay): at Mars, from its arrival to the jump away, with Pip's own show (the probe job) on
   // the first pass. It comes out and is out for most of the stay, in the picture of the camera locked on the ship for much of it; it does
   // several bits and says what it does; its face changes with them (three faces or more, happy among them); its body never touches the hull
   // (clr: the hull's distance from its centre, as the ship's shader draws it, less its radius) nor dips below the drawn surface; it is never

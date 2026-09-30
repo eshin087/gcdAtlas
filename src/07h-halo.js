@@ -199,7 +199,7 @@ function planVisit(tg, arrival, dIn, next, act, seed, opt = {}){
   }
   return timePass(tg, act, arrival, best, Rc, seed, opt);
 }
-// ---------------------------------------------------------------- signature moves (0.9.7, owner: "make halo do cool manuevers and movement based on the object", a move for every
+// ---------------------------------------------------------------- signature moves (0.9.9, owner: "make halo do cool manuevers and movement based on the object", a move for every
 // kind of place, picked from three): once a stay, on its second pass, the ship flies a pass made for the place. Saturn: through the Cassini
 // Division, the gap in its rings (1.95 to 2.03 Saturn radii as FS_PLANET draws them), crossing the ring plane there at the pass's closest
 // point. Jupiter: low over the Great Red Spot; Mars, the Moon, Io: a low run over Valles Marineris, Tycho, Pele; other worlds: low over the
@@ -268,7 +268,7 @@ function sigVisit(tg, arrival, dIn, seed, opt){
   pl.act = 'cruise'; pl.sig = sp.kind; pl.sigLine = sp.line;
   return pl;
 }
-// ---------------------------------------------------------------- the weapons test's attack run (0.9.7, owner: the shots left at a random, unnatural angle; picked from three:
+// ---------------------------------------------------------------- the weapons test's attack run (0.9.9, owner: the shots left at a random, unnatural angle; picked from three:
 // "like a fighter strafing"). The ship comes in on a straight line aimed into the body's disc, so its heading meets the surface and the
 // railgun on its nose fires straight along it; then it pulls up and away round a corner about ATK.RC body radii out and climbs away. Seen
 // from the side it dives, fires and banks out. By a black hole or a cloud the "radius" is the usual pass distance over ATK.K, so the ship keeps
@@ -677,11 +677,11 @@ function placeShip(dt){
   // how much it is busy with a job (eased in and out): it banks, and the cameras turn toward the work
   // (on a pass with no job, framed round its closest point like a job: from about a third of the way in until near its end)
   const A = S_.act, pl = S_.plan, J = ACTS[A ? A.kind : pl.act], cru = !A && S_.phase === 'pass' && pl.act === 'cruise' ? smooth(0.12*pl.T, 0.35*pl.T, S_.t)*(1 - smooth(0.7*pl.T, 0.95*pl.T, S_.t)) : 0;
-  // (eased through two easings in a row, 0.9.7 review: with one, the locked camera's turn changed speed in one frame as a job began or ended)
+  // (eased through two easings in a row, 0.9.9 review: with one, the locked camera's turn changed speed in one frame as a job began or ended)
   const want2 = A ? A.env()*J.view : cru*J.view, kA = 1 - Math.exp(-dt*1.8);
   S_.viewA1 = S_.viewA1 ?? S_.viewA; S_.viewA1 += (Math.min(want2, 1) - S_.viewA1)*kA; S_.viewA += (S_.viewA1 - S_.viewA)*kA;
   const k = smooth(0, 1, S_.viewA), work = S_.phase === 'pass' || S_.phase === 'loop' || S_.phase === 'align';
-  // (the framing's numbers: the job's (or the pass's), and the side the pass banks to, eased there through two easings in a row (0.9.7 review). Switched
+  // (the framing's numbers: the job's (or the pass's), and the side the pass banks to, eased there through two easings in a row (0.9.9 review). Switched
   // at once, as a job ended or a new pass drew its side while the framing was still on, they moved the locked camera in one frame)
   const vt = [J.bank, J.turn, S_.side, ...J.aim, ...J.chaseAim], vj = S_.vj || (S_.vj = { a:vt.slice(), b:vt.slice() }), kv = 1 - Math.exp(-dt*3);
   for (let i=0;i<vt.length;i++){ vj.a[i] += (vt[i] - vj.a[i])*kv; vj.b[i] += (vj.a[i] - vj.b[i])*kv; }
@@ -693,7 +693,7 @@ function placeShip(dt){
   want = perpTo(want, h); if (V.len(want) < 1e-9) want = S_.belly ? perpTo(S_.belly, h) : anyPerp(h); if (V.len(want) < 1e-9) want = anyPerp(h);
   want = V.norm(want);
   if (work && k > 0){ const a = jBank*k*jSide, sd = V.cross(h, want); want = V.add(V.mul(want, Math.cos(a)), V.mul(sd, Math.sin(a))); }
-  // (0.9.7 review: it rolls about its heading toward that, eased, never faster than about 50 degrees a second, and held while the ship heads almost
+  // (0.9.9 review: it rolls about its heading toward that, eased, never faster than about 50 degrees a second, and held while the ship heads almost
   // straight at the body or away from it, where the way to the body across its heading swings round; then a second easing on top, so its roll
   // never starts at full speed. The ship, and every camera on it, rolled at up to 90 degrees a second one way and then the other as a pass began)
   const kb = 1 - Math.exp(-dt*5), wl = work ? smooth(0.05, 0.3, V.len(perpTo(u, h))) : 1;
@@ -714,7 +714,7 @@ function placeShip(dt){
     ship.viewR = M3.mul(frameY(f, V.lerp(S_.belly, u, k)), M3.rotX((tanX < tanY ? 0.12 : 0.4)*k*jSide));   // (less of a swing on a tall, narrow phone screen)
     ship.gazeR = frameY(g, S_.belly);
   } else ship.viewR = ship.gazeR = ship.R0;
-  // (the cameras' frame follows through two easings in a row, 0.9.7 review: a turn of the ship's that starts or stops at full rate, as its turn before
+  // (the cameras' frame follows through two easings in a row, 0.9.9 review: a turn of the ship's that starts or stops at full rate, as its turn before
   // a jump does, eases in and out on the screen, where the locked camera's turn jolted by 10 to 20 degrees a second in one frame. It is set at
   // once in light speed and a fold, and at a new place)
   const TV = ship.viewR, vr = S_.vr, Y = TV.slice(3, 6), X = TV.slice(0, 3);
@@ -826,7 +826,7 @@ const ACT = {};
 // (a job still under way that the ship must wait for before it leaves)
 const jobBusy = () => !!(S_.act && S_.act.done && !S_.act.done());
 // -- a sensor scan: the hologram sweep, in its own file (ACT.scan in 07j-scan.js)
-// -- Pip's show: since 0.9.7 Pip, the ship's little drone (07i-drone.js), is out for most of every stay anyway; this job has it do two or three
+// -- Pip's show: since 0.9.9 Pip, the ship's little drone (07i-drone.js), is out for most of every stay anyway; this job has it do two or three
 // of its outings in a row (a hull check, the engines, photos and a wave, play) while the cameras turn to it. It comes out for it if it is
 // not out yet. The drone moves and draws itself (drone.ctl after the camera moves, pipDraw from haloDraw); the job keeps the time, says what
 // Pip is doing and is done when the show is (or after a minute and a half whatever happens).
@@ -1205,7 +1205,7 @@ function foldDraw(){
   S.embN = nE;
 }
 
-// ---------------------------------------------------------------- the engines' flame (0.9.7, owner: the 0.9.4 trail of points looked like water and the rings that replaced it
+// ---------------------------------------------------------------- the engines' flame (0.9.9, owner: the 0.9.4 trail of points looked like water and the rings that replaced it
 // like bubbles; "a subtle cool short flame that gets more intense based on the situation and speed", a blue ion flame, picked from three).
 // Each engine has a white-hot core and a tapered blue cone of flickering streaks round it, a glow in the nozzle. Its strength k follows how
 // hard the engines work (S_.thr: the speed against the pass's cruising speed), hard turns (S_.turnL, stronger on the engine outside the turn)

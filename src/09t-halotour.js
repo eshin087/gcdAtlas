@@ -6,7 +6,7 @@
 // gives it a shuffle of its own places. At each stop it stays about a minute (HT.STAY), with one job at most and only at a place on its own
 // list, then goes on by light speed or a fold (travelMode). The camera plays the ride's bigger moves (RIDE.epic, 08r-ride.js) and a caption
 // names each place as the ship arrives. The green button beside the name sends it on at once; a drag takes the camera (play rides along
-// again, the ship flying on meanwhile); the Halo tour switch right of tours (0.9.7; on a phone the ship menu or the top of the list of
+// again, the ship flying on meanwhile); the Halo tour switch right of tours (0.9.9; on a phone the ship menu or the top of the list of
 // tours), stop riding, a tour, the screensaver or picking something else ends it.
 const HT_SKIP = new Set(['solarsystem', 'oort', 'universe', 'cosmicweb', 'bootesvoid', 'gw170817', 'gw150914', 'tde', 'sstars', 'm87jet']);
 function haloCan(o){
@@ -74,7 +74,7 @@ function htNextStop(){
   const going = htGoing(), k = going ? HT.stops.indexOf(going) : HT.i;
   return HT.stops[((k < 0 ? HT.i : k) + 1) % HT.stops.length];
 }
-// the info panel on the Halo tour (0.9.7, owner): the place, not the ship. On the way somewhere, where it is going (so the panel is already
+// the info panel on the Halo tour (0.9.9, owner): the place, not the ship. On the way somewhere, where it is going (so the panel is already
 // on it when the ship arrives); otherwise the place it is at. setInfo in 09-render.js turns the ship into this while the tour plays.
 function htPlace(){ return HT.on ? htGoing() || S_.target || null : null; }
 // the small blue line over the place's name: what the ship is doing there (the first line of its own readout), or where it is going and how
@@ -111,7 +111,7 @@ TICKS.push(dt => {
   if (HT.capT > 0 && (HT.capT -= dt) <= 0) SHOWCAP.txt = '';
   RIDE.epic = true;
 });
-// the Halo tour switch right of tours (0.9.7, owner review; on a phone at the top of the list of tours, and the ship menu's item), and
+// the Halo tour switch right of tours (0.9.9, owner review; on a phone at the top of the list of tours, and the ship menu's item), and
 // test hooks. Off, it ends the Halo tour and you keep riding
 for (const b of HT_SW) b.addEventListener('click', () => { hideHint(); if (HT.on) haloTourEnd(); else haloTourStart(TOUR_ID); updateModeUI(); });
 Object.assign(window.__cosmos, { haloTourStart, haloTourEnd, haloTourSkip, haloStops, haloCan, HT, htPlace, htDoing,

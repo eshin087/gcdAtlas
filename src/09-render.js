@@ -5,6 +5,7 @@ if (SET.detailAuto) SET.detail = 1;   // (auto starts on fine; see AUTO_D in the
 let detailIdx = clamp(SET.detail | 0, 0, DETAIL.length - 1), glowOn = SET.glow, labelsOn = SET.labels;
 let dpr = 1, cellW = 6, cellH = 11, cols = 1, rows = 1, sceneW = 2, sceneH = 2;
 let tanY = Math.tan(cam.fovY/2), tanX = tanY, viewWcss = 1, viewHcss = 1, canvasHcss = 1;
+let tanY0 = tanY, tanX0 = tanX;   // (the field of view without the launch camera's telephoto lens, LENS in s4-spacex-run.js)
 let RT = null, viewFit = 1, LODK = 1, afterFrame = null;   // afterFrame: run once right after the next frame is drawn   // LODK: ray-march step budget, lowered automatically on slow devices
 function freeRT(){ if (!RT) return; for (const k of ['sceneTex','cellTex','glowA','glowB']) gl.deleteTexture(RT[k]); for (const k of ['sceneFBO','cellFBO','glowFA','glowFB']) gl.deleteFramebuffer(RT[k]); }
 function resize(){
@@ -26,7 +27,7 @@ function resize(){
   const aspect = (cols*cellW)/(rows*cellH);
   cam.fovY = Math.max(55*DEG, 2*Math.atan(Math.tan(25*DEG)/aspect));
   viewFit = aspect < 0.8 ? 1.2 : 1;
-  tanY = Math.tan(cam.fovY/2); tanX = tanY*aspect;
+  tanY0 = tanY = Math.tan(cam.fovY/2); tanX0 = tanX = tanY*aspect;
   const di = $('#detailInfo'); if (di) di.textContent = `${cols} x ${rows} characters`;
 }
 
@@ -221,6 +222,8 @@ function render(){
   gcDir = V.norm(mw.rel); nearSun = 1 - smooth(4000, 15000, dSun);
   const outMW = 1 - mw.inside, farOut = smooth(1.5e5, 2e6, dGC);
   sky = [clamp(1 - outMW*0.8 - farOut, 0, 1), smooth(1.5e5, 2e6, dGC)*(1 - smooth(3e8, 3e9, span)), Math.exp(-dGC/5000)*mw.inside, mw.inside];
+  // (near the ground the air dims the stars and the Milky Way and hides the galaxies beyond it: ATM in s4-spacex-run.js)
+  if (ATM.k > 0){ sky[0] *= 1 - 0.5*ATM.k; sky[1] *= 1 - ATM.k; sky[3] *= 1 - 0.6*ATM.k; }
   gl.bindFramebuffer(gl.FRAMEBUFFER, RT.sceneFBO); gl.viewport(0, 0, sceneW, sceneH);
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_3D, noiseTex);
   gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_2D, TEX.mw);
@@ -239,6 +242,10 @@ function render(){
     if (o.inRange && !o.inRange()){ o.vis = 0; o.pvis = 0; continue; }
     const pmin = o.pxMin || 7;
     let vis = o.visFn ? o.visFn(rpx) : (o.alwaysFull ? 1 : smooth(pmin, pmin*2.6, rpx));
+    // near the ground, nothing beyond the Solar System shows through the air (the planetarium keeps the whole sky)
+    const deepK = ATM.k > 0.01 && !o.parent && o !== sun && o.dist > 0.01 ? 1 - ATM.k : 1;
+    if (deepK < 0.02){ o.vis = 0; o.pvis = 0; continue; }
+    vis *= deepK;
     if (cmp && (o === cmp.a || o === cmp.b)) vis = Math.max(vis, smooth(1, 3, rpx));
     if (o.mag > 1.5) vis = Math.max(vis, smooth(0.8, 2.2, rpx)*SYSMAG.k);   // enlarged planets are drawn as real discs even when only a few characters wide   // side by side, even tiny things are drawn for real
     // shaders compile on demand: until this object's are ready it keeps showing as a glowing dot
@@ -247,10 +254,11 @@ function render(){
     if (vis > 0.003){
       // farther glowing dots go down first, so a nearer opaque object (a black hole's shadow) covers them
       if (o.prog && ni){ imp.count = ni; imp.upload('ac'); drawParticles(null, impSpec); ni = 0; }
-      if (o.prog) o.onScreen = drawVolume(o, o.prog, o.rel, R, o.setU && (pr => o.setU(pr)), o.rot, vis);
+      // (volOff: something drawn after it covers it entirely this frame, such as the ground round a launch site over Earth)
+      if (o.prog) o.onScreen = o.volOff && o.volOff() ? true : drawVolume(o, o.prog, o.rel, R, o.setU && (pr => o.setU(pr)), o.rot, vis);
       if (o.drawBefore) o.drawBefore(vis);
     }
-    const pv = o.particleVis ? o.particleVis(rpxTrue) : smooth(pmin*0.4, pmin*1.4, rpxTrue);
+    const pv = (o.particleVis ? o.particleVis(rpxTrue) : smooth(pmin*0.4, pmin*1.4, rpxTrue))*deepK;
     o.pvis = pv;
     if (pv > 0.003) for (const s of o.particles) drawParticles(o, s, pv);
     if (vis > 0.003 && o.drawAfter) o.drawAfter(vis);
@@ -258,7 +266,7 @@ function render(){
     if (!o.noImpostor && (vis < 0.999 || o.mag > 1.5) && ni < imp.n){
       // (a dot only stands in for something small: once an object spans the screen, no dot at its centre)
       // (an enlarged planet keeps a soft glow at its centre too, so a disc a few characters wide still reads at a glance)
-      const b = (o.mag > 1.5 ? o.farLum*SYSMAG.k*(1 - smooth(8, 30, rpx))*1.1 : o.farLum*(1 - vis)*clamp(Math.pow(rpx/1.2, 0.33), 0, 1.2)*(1 - smooth(40, 120, rpx)))*(o.occ ?? 1);
+      const b = (o.mag > 1.5 ? o.farLum*SYSMAG.k*(1 - smooth(8, 30, rpx))*1.1 : o.farLum*(1 - vis)*clamp(Math.pow(rpx/1.2, 0.33), 0, 1.2)*(1 - smooth(40, 120, rpx)))*(o.occ ?? 1)*deepK;
       if (b > 0.015 && V.dot(o.rel, cam.fwd) > 0){ imp.a.set([o.rel[0], o.rel[1], o.rel[2], b], ni*4); imp.c.set([o.farColor[0], o.farColor[1], o.farColor[2], 0], ni*4); ni++; }
     }
   }
@@ -316,7 +324,7 @@ function setReadout(t){
   if (t === roLast) return; roLast = t;
   readoutEl.textContent = t;
 }
-// the Halo tour shows the place, not the ship (owner, 0.9.7): while it plays and the camera is with the ship (riding along, or locked on it
+// the Halo tour shows the place, not the ship (owner, 0.9.9): while it plays and the camera is with the ship (riding along, or locked on it
 // after a drag), the panel shows the place the ship visits or is going to (htPlace, 09t-halotour.js), with a blue line over the name saying
 // what the ship is doing. Not during a flight to somewhere else (the tour ends when it lands).
 function htShowsPlace(){ return HT.on && !tour.on && !cmp && !SKYV.on && typeof ship !== 'undefined' && (isRiding() || (orbit.lock === ship.index && !flight)); }
@@ -462,7 +470,8 @@ function updateLabels(){
     let pr = null;
     const zs = Math.max(orbit.dist, 1e-30);
     const inScale = o.marker ? (zs > o.labelMin && zs < o.labelRange && o.dist < zs*12) : (o.dist < o.labelRange && o.dist > (o.labelMin || 0) && (o.dist < zs*(o.layer < 3 ? 25 : 60) || (o.rpx > 6 && o.dist < zs*3000)));
-    if (labelsOn && !o.noLabel && !o.hidden && !(o.magHide > 0.5) && (inScale || (o.mag > 1.5 && SYSMAG.k > 0.5)) && (!o.inRange || o.inRange()) && i !== shipId) pr = projectCSS(o.rel);
+    const thinAir = ATM.k > 0.3 && !o.parent && o !== sun && o.dist > 0.01;   // (near the ground, no labels for what the air hides)
+    if (labelsOn && !thinAir && !o.noLabel && !o.hidden && !(o.magHide > 0.5) && (inScale || (o.mag > 1.5 && SYSMAG.k > 0.5)) && (!o.inRange || o.inRange()) && i !== shipId) pr = projectCSS(o.rel);
     if (pr){
       const rpx = o.rad*(o.solid && o.solid < 0.5 ? o.solid*1.3 : 1)*magOf(o)/(pr.z*tanY)*(viewHcss/2);
       let ok = pr.x > -40 && pr.x < innerWidth + 40 && pr.y > -20 && pr.y < innerHeight + 20 && (o.marker || rpx < viewHcss*0.3) && !(i === focus && rpx > 20);
@@ -816,6 +825,7 @@ function setOpt(key, v, quiet){
     case 'glow': SET.glow = glowOn = !!v; break;
     case 'labels': SET.labels = labelsOn = !!v; break;
     case 'twinkle': SET.twinkle = !!v; break;
+    case 'launchReal': SET.launchReal = !!v; break;
     case 'haloMark': SET.haloMark = !!v; if (!quiet) toast(v ? 'Halo indicator on · the ship is marked in blue (ride along from its card)' : 'Halo indicator off'); updateModeUI(); break;
     case 'sound': SET.sound = !!v; music.set(SET.sound); if (!quiet) toast(v ? 'music on' : 'music off'); break;
     case 'volume': SET.volume = clamp(+v, 0, 1); music.volume(); break;
@@ -1439,15 +1449,17 @@ function setCaption(txt, btn){
 function updateCaption(dt){
   let txt = '', btn = '';
   if (cmp) { txt = cmpText(); btn = 'end compare'; }
+  else if (LCAP.live){ txt = LCAP.txt; btn = LCAP.btn; }   // (a real launch happening now, even on a tour)
   else if (tour.on && tour.phase !== 'fly' && TOUR_CAP[tour.obj]) txt = TOUR_CAP[tour.obj];
   else if (SHOWCAP.txt) txt = SHOWCAP.txt;
+  else if (LCAP.txt){ txt = LCAP.txt; btn = LCAP.btn; }
   setCaption(txt, btn);
   if (capFull && capShown < capFull.length){
     capT += dt*(reduceMotion ? 1e4 : 55); const k = Math.min(capFull.length, Math.floor(capT));
     if (k !== capShown){ capShown = k; capText.textContent = capFull.slice(0, k); if (k >= capFull.length) capEl.classList.add('done'); }
   }
 }
-capBtn.addEventListener('click', () => { if (cmp) endCompare(true); });
+capBtn.addEventListener('click', () => { if (cmp) endCompare(true); else if (LCAP.go) LCAP.go(); });
 
 // ---------------------------------------------------------------- size compare: put a second object beside this one, at true scale
 let cmp = null, cmpPick = false, cmpA = -1;
@@ -1587,6 +1599,7 @@ function tick(dt){
   updateLeash(dt);
   if (flight) updateFlight(dt);
   else if (shipCam.on) updateShipCam(dt);
+  else if (LCAM.on) updateLaunchCam(dt);
   else {
     if (tween) updateTween(dt);
     if (tour.on) updateTour(dt);
@@ -1603,6 +1616,7 @@ function tick(dt){
     refocus(dt);
   }
   for (const f of AFTER_CAM) f(dt);
+  tanY = tanY0/LENS.k; tanX = tanX0/LENS.k;
   for (const o of OBJ){ o.rel = V.sub(frel(o), cam.rel); o.dist = V.len(o.rel); }
   updateSysMag(dt); updateSunOcc();
   if (cmp) placeCompare(dt);
@@ -1656,7 +1670,7 @@ tick(0);
 if (!applyHash()) tourGo(TOUR[0], true);
 tick(0);
 updateModeUI(); syncTimeUI();
-window.__cosmos = { startTour, playFlyby, setMove(o, v, f){ flight = null; tween = null; tourGo(o.index, true); tour.on = false; flyMove = { o, v, t:f*v.hold, frozen:true }; },  get flyMove(){ return flyMove; }, startCompare, endCompare, setDeep, viewHash, applyHash, get cmp(){ return cmp; }, get ssRate(){ return ssRate; }, dbg:{ imp, impSpec, atlas, sphereRect, get tan(){ return [tanX, tanY]; }, get cols(){ return cols; }, get sceneH(){ return sceneH; }, get LODK(){ return LODK; }, PROGS }, OBJ, BYKEY, tourGo, lockOn, setTour, cam, orbit, tour, TOUR, SET, setOpt, music, LADDER, goLadder,
+window.__cosmos = { startTour, playFlyby, setMove(o, v, f){ flight = null; tween = null; tourGo(o.index, true); tour.on = false; flyMove = { o, v, t:f*v.hold, frozen:true }; },  get flyMove(){ return flyMove; }, startCompare, endCompare, setDeep, viewHash, applyHash, get cmp(){ return cmp; }, get ssRate(){ return ssRate; }, set ssRate(v){ ssRate = v; }, dbg:{ imp, impSpec, atlas, sphereRect, get tan(){ return [tanX, tanY]; }, get cols(){ return cols; }, get sceneH(){ return sceneH; }, get LODK(){ return LODK; }, PROGS }, OBJ, BYKEY, tourGo, lockOn, setTour, cam, orbit, tour, TOUR, SET, setOpt, music, LADDER, goLadder,
   land:(extra = 0.2) => { let n = 0; while (flight && n < 60*180){ tick(1/60); n++; } for (let i=0;i<extra*60;i++) tick(1/60); return n/60; },
   setDays:d => { ssDays = d; }, stepObject, stepAngle, get tourId(){ return TOUR_ID; }, get tourGen(){ return TOUR_GEN; }, randomSeed:n => { RSEED = n >>> 0; }, samePlace, tourable, tourPool, tripClear, dealRandom, RANDOM_W, tripW:(a, b) => tripWeight(tripEnd(a), tripEnd(b)), get nextDeal(){ return nextDeal; }, get stepTarget(){ return flight ? (flight.dest || flight.obj).key : null; }, get via(){ return flight && flight.via ? flight.via.key : null; }, PASS,
   startShipCam, stopShipCam, setShipCamMode, get shipCam(){ return shipCam; }, SHIP_POSE, get show(){ return show; }, togglePlay, get flight(){ return flight; },
@@ -1666,4 +1680,5 @@ window.__cosmos = { startTour, playFlyby, setMove(o, v, f){ flight = null; tween
   view:(i, v) => { if (typeof i === 'string') i = BYKEY[i].index; const o = OBJ[i], vp = viewParams(o, v); flight = null; shipCam.on = false; tween = null; cam.focus = i; leash.x = leash.y = 0; orbit.lock = i; orbit.frame = camFrameOf(o); orbit.yaw = vp.yaw; orbit.pitch = vp.pitch; orbit.dist = orbit.distT = vp.dist; orbit.off = vp.off; orbit.offFn = vp.offFn; orbit.target = V.add(frel(o), vp.off); setInfo(i); applyOrbit(); tick(0); } };
 // (the atlas headings and chips, for tools/catalog.mjs, and the seed and the catalogue numbers the smoke test checks; a line of its own so it stays clear of edits to the hooks above)
 Object.assign(window.__cosmos.dbg, { GROUPS, CATS, catsOf, ATL, seedObjects:SEED_OBJECTS, catSplit });
+window.__cosmos.sx = SXDBG;   // (SpaceX launches: runs, missions, the launch camera; s4-spacex-run.js)
 requestAnimationFrame(frame);

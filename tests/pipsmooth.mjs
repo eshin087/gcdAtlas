@@ -1,4 +1,4 @@
-// Pip's smoothness (owner's review of 0.9.7, 2026-09-30: "no abrupt teleportation or transitions"). Deterministic like tests/motion.mjs: the page's clock
+// Pip's smoothness (owner's review of 0.9.9, 2026-09-30: "no abrupt teleportation or transitions"). Deterministic like tests/motion.mjs: the page's clock
 // is fixed and its own loop frozen, the Halo's route fixed by dbg.reset, the ride camera's dice by ride.seed. Every tick it records Pip by the
 // ship (ship axes) and on the screen, and the camera, then flags:
 //   teleport  Pip in the picture two ticks running whose place on the screen jumps, or whose place by the ship moves faster than it can fly
@@ -54,7 +54,7 @@ async function install(page){
 // about 460 px to a ship radius at 1.5 ship radii. On a phone the screen's numbers scale with its height)
 const TH = {
   // a teleport on the screen: Pip moves more than about its own width in one 1/60 s frame. The eye sees that as a jump, not as motion
-  // (before the fixes of the 0.9.7 review it jumped up to 480 px; now the most is about 15)
+  // (before the fixes of the 0.9.9 review it jumped up to 480 px; now the most is about 15)
   tp:40,
   // a teleport by the ship: faster than Pip ever flies (its quickest zip tops out at 1.1 ship radii a second, flourishes add a little)
   vmax:2.2,

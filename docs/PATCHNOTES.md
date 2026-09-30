@@ -5,12 +5,19 @@
      numbers with units. The newest version comes first and opens by itself; its number must match package.json (tests/smoke.mjs checks it).
      Every detail stays in docs/CHANGELOG.md, which the panel links to. -->
 
-## 0.9.7 · 30 Sep 2026 · Pip takes the stage
+## 0.9.9 · 30 Sep 2026 · Pip takes the stage
 - Pip, the Halo's drone, is out for most of every stay, moving smoothly: it plays peekaboo, rides beside you, sits on the bow and chases sparks.
 - For the weapons test the Halo makes an attack run, nose on the target, and Pip unfolds into a railgun on its needle.
 - The Halo flies a move made for each place: through Saturn's Cassini Division, low over the Great Red Spot, through a star's corona.
 - The engines have a short blue flame that grows with speed.
 - The angle line sits right under the name, and a "Halo tour" switch beside tours lets the Halo fly the tour.
+
+## 0.9.8 · 29 Sep 2026 · SpaceX launches and Starman's Roadster
+- Starman and his Tesla Roadster, where they really are right now, 90 million km out on their orbit round the Sun.
+- Starship, Falcon 9, Falcon Heavy and Crew Dragon stand on their real pads. Pick one and watch it launch by day: the Starship booster flies back and is caught by its tower.
+- The ground round the launch sites is real: aerial photos, satellite images, the land's height and the buildings of Starbase, Cape Canaveral and Vandenberg.
+- One smooth camera from start to finish, about 3 minutes a flight. Want every second? Press "real speed" in the caption.
+- Real SpaceX launches play live at their scheduled time. Now and then a replay lifts off while you look at Earth.
 
 ## 0.9.6 · 29 Sep 2026 · Ride the Halo, and its tour
 - Riding the Halo, the camera now keeps the place it is visiting in view behind the ship, and glides from angle to angle.

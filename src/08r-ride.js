@@ -44,7 +44,7 @@ const SHOTS = {
 // a job's own shot, from the side it is done on: the scan's ring and beams across the view, the cannon ahead of the needle and its shots
 // toward the body, the skim low over the surface. (Pip's outing lasts half a minute: the shots go on round it, only the close ones, NEAR)
 const JOB_SHOT = { scan:{ e:8, g:92, d:4.4 }, weapons:{ e:6, g:74, d:4.0 }, skim:{ e:18, g:80, d:3.6 },
-  // (0.9.7: a signature move, 07h-halo.js sigSpec: low behind the ship's shoulder, so what it flies through or over comes at the camera with it)
+  // (0.9.9: a signature move, 07h-halo.js sigSpec: low behind the ship's shoulder, so what it flies through or over comes at the camera with it)
   sig:{ e:10, g:38, d:3.4 } };
 const NEAR = new Set(['shoulder', 'side', 'front', 'low', 'orbit', 'sweep', 'grazing']);
 const MOVING = ['shoulder', 'side', 'front', 'high', 'low', 'wide', 'orbit'], EPIC = ['sweep', 'grazing', 'crane', 'charge', 'reveal', 'wide', 'orbit', 'front', 'low'];
@@ -64,7 +64,7 @@ function rideFrame(dt){
   const h = M3.apply(ship.R0, [0, 1, 0]), fr = V.sub(h, V.mul(u, V.dot(h, u))), fl = V.len(fr);
   let f = RIDE.F ? V.sub(RIDE.F.f, V.mul(u, V.dot(RIDE.F.f, u))) : fl > 1e-6 ? fr : anyPerp(u);
   // (it eases in by how far the heading is from straight in or out (kf), rather than switching on at a threshold: switched on, it set the
-  // camera turning at full speed in one frame, 0.9.7 review)
+  // camera turning at full speed in one frame, 0.9.9 review)
   const kf = smooth(0.1, 0.4, fl);
   if (kf > 0){ const k = RIDE.F && dt > 0 ? (1 - Math.exp(-dt/0.8))*kf : 1; f = V.lerp(V.norm(f), V.mul(fr, 1/fl), k); }
   f = V.norm(f);
@@ -80,13 +80,13 @@ function shotP(){
   const u = sh.ease ? smooth(0, 1, RIDE.t/sh.T) : clamp(RIDE.t/sh.T, 0, 1), p = mixP(sh.a, sh.z, u);
   if (!RIDE.from || RIDE.tr >= RIDE.trT) return p;
   // (the bearing turns the way it set out, from the last shot to where this one began (RIDE.dg), plus this shot's own move since: blended the
-  // short way round every frame, it flipped to the other way round when the two were half a turn apart, and the camera jumped, 0.9.7 review)
+  // short way round every frame, it flipped to the other way round when the two were half a turn apart, and the camera jumped, 0.9.9 review)
   const t = smooth(0, RIDE.trT, RIDE.tr), m = mixP(RIDE.from, p, t);
   m.g = RIDE.from.g + (RIDE.dg + wrapD(p.g - sh.a.g))*t;
   return m;
 }
 // start a shot (name, or a job's settings); its side is a coin toss, 'far' is worked out now. The glide there takes 4.2 s (3 for a job's), and
-// longer for a long way round the ship: about 35 degrees a second at most on average (0.9.7 review: a swing to the far side in 4.2 s read as a whip),
+// longer for a long way round the ship: about 35 degrees a second at most on average (0.9.9 review: a swing to the far side in 4.2 s read as a whip),
 // and for a big change of distance or tilt (a job's shot or a signature move's taking over from the Halo tour's pull-back rushed in)
 function startShot(name, job){
   const cur = RIDE.shot ? shotP() : null, S = job ? { a:job, z:job, T:[1e9, 1e9] } : SHOTS[name], sd = job ? (S_.side || 1) : name === 'still' ? 1 : rideR() < 0.5 ? -1 : 1, fd = farD();
@@ -99,8 +99,8 @@ function startShot(name, job){
   if (!job && name !== 'still'){ RIDE.last.push(name); if (RIDE.last.length > 3) RIDE.last.shift(); }
 }
 // the next shot: the Halo tour's program for a new place first (a pull-back to show it, then back in), then one at random, never one of the last three.
-// (0.9.7: now and then, while Pip is out, a close-up of Pip over it for 8 to 12 s, most of the time during Pip's show: pipShotPose, 07i-drone.js.
-// 0.9.7 review, owner: slow and smooth, only while Pip does something calm near the ship and is barely moving: pipShotOk(true))
+// (0.9.9: now and then, while Pip is out, a close-up of Pip over it for 8 to 12 s, most of the time during Pip's show: pipShotPose, 07i-drone.js.
+// 0.9.9 review, owner: slow and smooth, only while Pip does something calm near the ship and is barely moving: pipShotOk(true))
 function nextShot(){
   if (rideStill()) return startShot('still');
   if (RIDE.queue.length) return startShot(RIDE.queue.shift());
@@ -121,11 +121,11 @@ function rideStep(dt){
   rideFrame(dt);
   const S = S_, ph = S.phase;
   // (the chase pose between places: in light speed and the fold, for the last seconds before a jump, and while the hull forms after a fold.
-  // A fold's wind-up (9 s) takes the last 7.5 of them: 0.9.7 review, it took the chase pose the moment the wind-up began, swinging round at up to
+  // A fold's wind-up (9 s) takes the last 7.5 of them: 0.9.9 review, it took the chase pose the moment the wind-up began, swinging round at up to
   // 180 degrees a second with 9 s still to go)
   const leaving = ph === 'align' ? 1 - smooth(1.2, S.next && S.next.mode === 'fold' ? 7.5 : 5.5, S.jumpAt - S.t) : 0;
   const want = ph === 'light' || ph === 'fold' || S.asm < FLK.A1 + 0.3 ? 1 : leaving;
-  // (on a spring, 0.9.7 review: the swing into the chase pose and back out starts and ends gently, about 3 s long, and begins up to 5.5 s before a
+  // (on a spring, 0.9.9 review: the swing into the chase pose and back out starts and ends gently, about 3 s long, and begins up to 5.5 s before a
   // jump; eased the old way it set off at full speed, up to 120 degrees a second when the ship left soon after the stay ended. What is left
   // of it after a short turn before a light-speed hop finishes in the first second of light speed)
   if (dt > 0) [RIDE.wc, RIDE.wcV] = spring1(RIDE.wc, RIDE.wcV, want, 1.7, dt); else { RIDE.wc = want; RIDE.wcV = 0; }
@@ -135,7 +135,7 @@ function rideStep(dt){
   if (S.visits !== RIDE.visits && ph !== 'light' && ph !== 'fold'){ RIDE.visits = S.visits; RIDE.queue = RIDE.epic && !rideStill() ? ['reveal', 'pushin'] : []; RIDE.shot = null; }
   // (Pip's close-up glides in over about 2.5 s, and out again as slowly when it is over or no longer suits what Pip does, on a spring: the camera
   // starts and stops moving gently. It frames a point that follows Pip on a softer spring (pipL, ship axes), so when Pip darts off the camera
-  // drifts after it rather than whipping round: before the 0.9.7 review it followed Pip itself, and turned at up to 1200 degrees a second)
+  // drifts after it rather than whipping round: before the 0.9.9 review it followed Pip itself, and turned at up to 1200 degrees a second)
   if (RIDE.pip){ RIDE.pip.t += dt; if (RIDE.pip.t > RIDE.pip.T || !pipShotOk() || RIDE.job || rideStill() || RIDE.wc > 0.5) RIDE.pip = null; }
   if (dt > 0) [RIDE.pk, RIDE.pkV] = spring1(RIDE.pk, RIDE.pkV, RIDE.pip ? 1 : 0, 2.2, dt);
   if (!RIDE.pip && RIDE.pk < 0.003 && Math.abs(RIDE.pkV) < 0.01){ RIDE.pk = 0; RIDE.pkV = 0; }
@@ -150,7 +150,7 @@ function rideStep(dt){
   if (jk && RIDE.job !== jk){ RIDE.job = jk; startShot(null, JOB_SHOT[jk.sig ? 'sig' : jk.kind]); return; }
   if (!jk && RIDE.job){ RIDE.job = null; nextShot(); return; }
   if (rideStill() !== (RIDE.shot.name === 'still') && !jk){ nextShot(); return; }
-  // (0.9.7 review: not while Pip plays peekaboo or rides along beside the camera, made for this shot: it holds its end until Pip is done)
+  // (0.9.9 review: not while Pip plays peekaboo or rides along beside the camera, made for this shot: it holds its end until Pip is done)
   if (!jk && RIDE.t >= RIDE.shot.T && !pipCamBit()) nextShot();
 }
 // the pose for a shot's settings p, in the ship's frame (relative to its centre, world axes; like shipPose). The ship sits phi above the
@@ -172,7 +172,7 @@ function shotPose(p){
   const eye = V.mul(o, d*r);
   return { eye, look:V.add(eye, V.mul(fwd, d*r)), fwd, up };
 }
-// the pose riding along: the shot (with Pip's close-up blended over it), blended into the chase pose between places. (0.9.7 review: the eye moves
+// the pose riding along: the shot (with Pip's close-up blended over it), blended into the chase pose between places. (0.9.9 review: the eye moves
 // round the ship in the frame of the place, its tilt from u, its bearing and its distance each going from one pose's to the other's, the
 // bearing round the side the first one is on, and the view aims at a point between the two poses' look points. The view directions were
 // slerped before: a shot ahead of the ship looks almost straight back along the chase camera's view, and between two nearly opposite
@@ -193,7 +193,7 @@ function quatOf(f, u){   // (the camera's orientation: right, up and back as the
 const qdot = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3], qfix = (q, ref) => ref && qdot(q, ref) < 0 ? q.map(x => -x) : q;
 function qslerp(a, b, t){ const c = clamp(qdot(a, b), -1, 1), th = Math.acos(c), s = Math.sin(th);
   const q = s < 1e-5 ? a.map((x, i) => x + (b[i] - x)*t) : a.map((x, i) => (Math.sin((1 - t)*th)*x + Math.sin(t*th)*b[i])/s), l = Math.hypot(...q); return q.map(x => x/l); }
-function blendPose(P, C, w, key){
+function rideBlend(P, C, w, key){
   const F = RIDE.F || rideFrame(0);
   const sph = e => { const d = V.len(e), n = V.mul(e, 1/d), a = V.sub(n, V.mul(F.u, V.dot(n, F.u)));
     return [Math.acos(clamp(V.dot(n, F.u), -1, 1)), Math.atan2(V.dot(a, F.s), -V.dot(a, F.f)), d]; };
@@ -212,8 +212,8 @@ function blendPose(P, C, w, key){
 function ridePose(){
   const C = chasePose(); if (!rideOn() || RIDE.wc >= 1 || !S_.target) return C;
   let P = shotPose(shotP());
-  if (RIDE.pk > 0 && RIDE.pipL) P = blendPose(P, pipShotPose(RIDE.pipG, RIDE.pipL), smooth(0, 1, RIDE.pk), 'pip');
-  return RIDE.wc <= 0 ? P : blendPose(P, C, RIDE.wc, 'chase');
+  if (RIDE.pk > 0 && RIDE.pipL) P = rideBlend(P, pipShotPose(RIDE.pipG, RIDE.pipL), smooth(0, 1, RIDE.pk), 'pip');
+  return RIDE.wc <= 0 ? P : rideBlend(P, C, RIDE.wc, 'chase');
 }
 // how far the camera may be from the ship right now (tests: a camera that lost the ship would be far beyond this)
 function rideReach(){ const P = RIDE.shot ? Math.max(RIDE.shot.a.d, RIDE.shot.z.d, RIDE.from ? RIDE.from.d : 0) : 0; return Math.max(P*shipCam.zoom*Math.max(1, 0.62/tanX), V.len(SHIP_POSE.chase.eye)*shipCam.zoom)*ship.rad; }

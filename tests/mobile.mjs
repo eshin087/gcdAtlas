@@ -170,7 +170,7 @@ await shot('7a-next-stop');
 await fade('off');
 
 // the card: "stop 3 / 31" and the tour's name, which opens the list of tours; the angle arrows sit on the angle line, and the angle line sits
-// right under the name (0.9.7: it used to be the last line of the card), in both the short and the full card
+// right under the name (0.9.9: it used to be the last line of the card), in both the short and the full card
 const cardTxt = await page.evaluate(() => { const C = __cosmos; C.hud(); const k = C.TOUR.indexOf(C.tour.obj), p = document.querySelector('#progress');
   return { stop:document.querySelector('#stopInfo').textContent, want:'stop ' + (k + 1) + ' / ' + C.TOUR.length, name:document.querySelector('#modeTour').textContent, arrows:!!p.querySelector('#prevObj') && !!p.querySelector('#nextObj') && p.classList.contains('angles') }; });
 if (cardTxt.stop !== cardTxt.want) fail('the card does not say which stop this is: "' + cardTxt.stop + '"');
@@ -323,7 +323,7 @@ await page.evaluate(() => { __cosmos.setOpt('textSize', 1, true); document.query
 // riding, the button says so and the menu offers outside, cockpit and stop, the Halo tour and the camera (moving / still); a tap elsewhere closes it. The what's new button is not in the dock (it is in settings and help).
 await page.evaluate(() => document.querySelector('#btnShip').click());
 const sm = await page.evaluate(() => { const m = document.querySelector('#shipMenu'), d = document.querySelector('.controls').getBoundingClientRect(), r = m.getBoundingClientRect();
-  // (0.9.7, owner review: its Halo tour item is a switch like the desk's, the words on the left and the pill on the right, inside the item)
+  // (0.9.9, owner review: its Halo tour item is a switch like the desk's, the words on the left and the pill on the right, inside the item)
   const t = m.querySelector('#smTour'), tb = t.getBoundingClientRect(), p = t.querySelector('.hsw-t'), pb = p && p.getBoundingClientRect(), w = t.querySelector('.sm-st').getBoundingClientRect();
   const tour = { pill:!!pb && pb.left >= w.right && pb.right <= tb.right - 4 && pb.width >= 34 && pb.height >= 18, name:t.querySelector('b').textContent, on:t.getAttribute('aria-checked'),
     fit:[...m.querySelectorAll('button')].filter(b => !b.hidden).every(b => b.scrollWidth <= b.clientWidth + 1) };
@@ -345,7 +345,7 @@ await page.evaluate(() => { document.querySelector('#btnShip').click(); document
 const sm3 = await page.evaluate(() => ({ riding:__cosmos.shipCam.on, btn:document.querySelector('#btnShip').textContent }));
 if (sm3.riding || sm3.btn !== 'ship') fail('stop riding from the ship menu: ' + JSON.stringify(sm3));
 // (0.9.6) the Halo tour from the menu rides along; the camera switch holds it still and back; stop riding ends the tour too.
-// (0.9.7) The card shows the place, not the ship, with the blue line over its name and stop riding, and the list of tours says the Halo flies
+// (0.9.9) The card shows the place, not the ship, with the blue line over its name and stop riding, and the list of tours says the Halo flies
 // it; the dock has no Halo tour switch (the menu and the list of tours have it). While it plays, the menu's switch is on and names the tour,
 // and the switch at the top of the list of tours is on too. After stop riding the card is the Halo's again.
 await page.evaluate(() => { document.querySelector('#btnShip').click(); document.querySelector('#smTour').click(); });
@@ -362,7 +362,7 @@ if (!ht.tour || !ht.riding || ht.still !== 'still' || ht.moving !== 'moving' || 
 const hc = ht.card || {};
 if (hc.name !== hc.place || hc.name === 'the Halo' || !/^(with the Halo · |→ )/.test(hc.line) || !hc.lineIn || !hc.stop || !hc.note || hc.sw !== 'none' || ht.back !== 'the Halo') fail('the card on the Halo tour: ' + JSON.stringify([hc, ht.back]));
 if ((hc.tsw || []).join() !== 'true,true' || (hc.menu || []).join() !== 'true,grand tour') fail('the Halo tour switches are not on while it plays: ' + JSON.stringify([hc.tsw, hc.menu]));
-// the switch at the top of the list of tours (0.9.7, owner review) starts the Halo tour with the tour picked and ends it; the list stays open,
+// the switch at the top of the list of tours (0.9.9, owner review) starts the Halo tour with the tour picked and ends it; the list stays open,
 // says the Halo flies it, and its head (title, switch, close) fits on one line inside the panel. Nothing in the head sticks out
 await page.evaluate(() => document.querySelector('#btnTours').click()); await page.waitForTimeout(300);
 const tsw = await page.evaluate(() => { const C = __cosmos, $ = s => document.querySelector(s), sw = $('#toursHaloSw'), r = {};

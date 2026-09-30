@@ -1,5 +1,5 @@
 
-// ================================================================ the Halo's weapons test: Pip's railgun (0.9.7, round 2 of the owner's review: the 0.9.4 ring gun "spawns meh
+// ================================================================ the Halo's weapons test: Pip's railgun (0.9.9, round 2 of the owner's review: the 0.9.4 ring gun "spawns meh
 // and unnatural", and the first try at Pip's cannon fired "at a random unnatural angle"; picked from three: the needle railgun, a mechanical
 // unfold, rail slugs and a charged finale, fired on an attack run; made up, like the ship, and its readout says so).
 // The weapons pass is an attack run (attackVisit in 07h-halo.js): the ship comes in on a straight line with its nose on the body, so the

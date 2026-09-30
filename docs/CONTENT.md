@@ -23,7 +23,7 @@ Vesta, Bennu, Mimas and its crater Herschel, 51 Pegasi b, K2-18 b, HD 189733 b, 
 ### Next packs · planned (one pull request each)
 | Pack | Objects |
 | --- | --- |
-| 0.9.1 human reach | Parker Solar Probe, the Tesla Roadster with Starman (no logos), Tiangong (its elements already come from `/api/sats`), our radio bubble (about 212 light-years across, worked out from the date; its star count computed once), the Arecibo message on its way to M13 (illustrative), a "human reach" tour |
+| 0.9.1 human reach | Parker Solar Probe, ~~the Tesla Roadster with Starman (no logos)~~ (done in 0.9.5, with SpaceX's rockets), Tiangong (its elements already come from `/api/sats`), our radio bubble (about 212 light-years across, worked out from the date; its star count computed once), the Arecibo message on its way to M13 (illustrative), a "human reach" tour |
 | 0.9.2 surfaces | a terrain shader for patches you can fly low over; Olympus Mons, Tranquility Base and the other landing sites, Perseverance in Jezero, Valles Marineris, Io's and Enceladus's plumes (both readouts already mention them), Didymos and Dimorphos |
 | 0.9.3 the biggest things | Laniakea (real Cosmicflows-4 flows), the Virgo Cluster, the Hercules-Corona Borealis Great Wall (labelled debated), Porphyrion, GRB 221009A, the heliosphere, the Butterfly Nebula |
 
