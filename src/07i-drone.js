@@ -627,16 +627,19 @@ PIPJ.skim = (P, A) => {
     then:(P, p0) => { mv(P, 1.4, { at:hold(p0), look:'cam', thr:0.3, face:(u, g) => u - g.t0 < 0.8 ? 'dizzy' : 'happy', say:'Pip shakes the gas off',
       fl:(u, g) => { const t = u - g.t0; return { spin:(reduceMotion ? 0.12 : 0.4)*Math.sin(2*Math.PI*4.2*t)*envW(0, 0.9, t, 0.1) }; } }); } });
 };
-// the weapons test: it flies to the needle's tip, settles there facing ahead (a determined look, a wink at you), and becomes the fold cannon's
-// barrel (07k-cannon.js starts and ends that: pipTransform); once it is Pip again it does a happy twirl
-const PIP_DOCK = [-0.012, 0.835 + PIP_R + 0.03, 0];
+// the weapons test: it flies to the needle and settles on top of it near the tip, facing ahead, and winks at you; then it is the railgun's
+// heart (07k-cannon.js builds the gun round it, plates and rails unfolding from its sides): it stays itself and in place, focused, squints as
+// each slug leaves, looks cross while the big shot charges, kicks back with the gun and is happy as it folds away; then a happy twirl
+const PIP_DOCK = [(hullTop(0.64, 0) ?? -0.0135) - PIP_R - 0.003, 0.64, 0];
 PIPJ.weapons = (P, A) => {
-  const D = PIP_DOCK, U = [D[0] - 0.05, D[1] - 0.06, 0];
-  fly(P, { sp:0.7, thr:0.8, say:'Pip flies to the tip of the needle' });
-  mv(P, 0.9, { at:(u, g) => V.lerp(U, D, ease(sOf(u, g))), look:{ dir:[0, 1, 0] }, face:'focused', thr:0.4, say:'Pip docks at the tip of the needle' });
-  mv(P, 1e6, { at:hold(D), dock:A, job:A, look:(u, g) => { const t = u - g.t0; return t > 0.4 && t < 1.2 ? 'cam' : { dir:[0, 1, 0] }; },
-    face:(u, g) => { const t = u - g.t0; return t > 0.4 && t < 1.2 ? 'happy' : 'cross'; }, wink:(u, g) => { const t = u - g.t0; return t > 0.55 && t < 1.05 ? 1 : 0; }, thr:0.2,
-    until:() => S_.act !== A || A.gunDone, say:() => A.gunDone ? 'Pip is itself again' : A.gun ? 'Pip becomes the fold cannon' : 'Pip waits at the tip of the needle, ready',
+  const D = PIP_DOCK, U = [D[0] - 0.07, D[1] - 0.08, 0];
+  fly(P, { sp:0.6, thr:0.7, say:'Pip flies to the needle' });
+  mv(P, 1.0, { at:(u, g) => V.lerp(U, D, ease(sOf(u, g))), look:{ dir:[0, 1, 0] }, face:'focused', thr:0.4, say:'Pip settles on the needle' });
+  mv(P, 1e6, { at:() => A.gun ? [D[0], D[1] - gunRec(A.gun), D[2]] : D, dock:A, job:A, rest:true, thr:0,
+    look:(u, g) => { const t = u - g.t0; return !A.gun && t > 0.4 && t < 1.2 ? 'cam' : { dir:[0, 1, 0] }; },
+    face:(u, g) => { if (A.gun) return gunFace(A.gun); const t = u - g.t0; return t > 0.4 && t < 1.2 ? 'happy' : 'focused'; },
+    wink:(u, g) => { const t = u - g.t0; return !A.gun && t > 0.55 && t < 1.05 ? 1 : 0; },
+    until:() => S_.act !== A || A.gunDone, say:() => A.gunDone ? 'Pip is itself again' : A.gun ? "Pip is the railgun's heart" : 'Pip waits on the needle, ready',
     then:(P, p0) => PIPB.twirl(P, p0) });
 };
 // Pip's own show (the probe job, and the showcase's and the lab's Pip button): two or three of its four outings in a row while the cameras
@@ -731,11 +734,7 @@ function pipJoin(A){ if (A && PIPJ[A.kind]) PIP.req = A; }
 const pipOut = () => !!(PIP.O && !PIP.O.fin) && PIP.st !== 'pose';
 // docked at the needle's tip for the weapons test A, and has winked: the cannon can form
 const pipDocked = A => { const q = PIP, g = q.g; return q.st === 'out' && q.form === 'pod' && !q.bk && !q.hurry && !!g && g.dock === A && q.u - g.t0 > 1.3; };
-// the fold cannon (07k-cannon.js) turns Pip into its barrel (mode 1: its cells stream to the barrel's) and back again (-1), over dur s
-function pipTransform(mode, dur){
-  const q = PIP; if (q.st !== 'out' || q.hurry || (mode > 0 ? q.form !== 'pod' || q.bk : q.form !== 'gun')) return false;
-  pipBreak(q, mode, 1/dur, q.u, true); return true;
-}
+
 
 // ---------------------------------------------------------------- hidden from the camera by the hull, or by the body it visits (camera-relative p)
 function pipHidden(p){
@@ -794,15 +793,13 @@ function pipTable(cs){
 // (the cells' size: the nearest step to one character on screen, from its radius in scene pixels; two scene pixels to a character)
 function pipCs(){ const rpx = drone.rad/Math.max(drone.dist, 1e-300)*sceneH*0.5/tanY, w = clamp(2.2/Math.max(rpx, 0.5), PIP_CS[0], PIP_CS[PIP_CS.length - 1]);
   let b = PIP_CS[0]; for (const c of PIP_CS) if (Math.abs(Math.log(c/w)) < Math.abs(Math.log(b/w))) b = c; return b; }
-// start a break-up (mode 1 going home, -1 coming out): its cells' size and the way to the bay in its own frame, both kept to its end. gun:
-// into the fold cannon's barrel and back out of it instead of the bay (its cells light as their first ember lands: gunLocks, 07k-cannon.js)
-function pipBreak(q, mode, rate, u0, gun = false){
-  q.bk = { mode, u0, bp0:0, rate, end:-1, gun }; q.brk = mode; q.cs = pipCs(); q.cells = pipTable(q.cs); q.wz = q.plan.r() < 0.5 ? -1 : 1;
-  q.bayL = M3.applyT(drone.rot || I3, V.norm(V.sub(gun ? gunMidL() : localPt(HULL.bay), q.pos)));
-  if (gun) gunLocks(q);
+// start a break-up (mode 1 going home, -1 coming out): its cells' size and the way to the bay in its own frame, both kept to its end
+function pipBreak(q, mode, rate, u0){
+  q.bk = { mode, u0, bp0:0, rate, end:-1 }; q.brk = mode; q.cs = pipCs(); q.cells = pipTable(q.cs); q.wz = q.plan.r() < 0.5 ? -1 : 1;
+  q.bayL = M3.applyT(drone.rot || I3, V.norm(V.sub(localPt(HULL.bay), q.pos)));
 }
-// where ember i goes (or comes from): the bay, or its cell of the cannon's barrel (ship-relative, world axes)
-const pipFar = (q, i) => q.bk.gun ? gunCellW(i) : localPt(HULL.bay);
+// where ember i goes (or comes from): the bay (ship-relative, world axes)
+const pipFar = (q, i) => localPt(HULL.bay);
 const pipBp = (k, u) => clamp(k.bp0 + (u - k.u0)*k.rate, 0, 1);
 // ember i: when it sets off and when it gets there (break-up progress)
 const EW = [0, 0];
@@ -862,7 +859,7 @@ function pipEmbers(q){
   }
   q.embN = n;
   // (the sparks where they arrive, in the bay going home)
-  if (leaving && !q.bk.gun && q.arr > 0.02){ const bp_ = shipPt(HULL.bay); if (!behindHull(bp_)) P_(bp_, [0.8, 0.93, 1], Math.min(q.arr, 1.2), -4); }
+  if (leaving && q.arr > 0.02){ const bp_ = shipPt(HULL.bay); if (!behindHull(bp_)) P_(bp_, [0.8, 0.93, 1], Math.min(q.arr, 1.2), -4); }
 }
 
 // ---------------------------------------------------------------- each tick, after the camera has moved (the ship's place relative to the camera is brought up to date first;
@@ -958,14 +955,11 @@ drone.ctl = dt => {
     // the bay glows as embers leave it and as they arrive (brighter with each arrival)
     const [na, done] = pipArrivals(q, bp0, bp); q.embIn = done;
     q.arr = q.arr*Math.exp(-dt/0.18) + na*0.06;
-    if (!k.gun) S_.em[3] = Math.max(S_.em[3], Math.min(0.35 + (k.mode > 0 ? q.arr : 0), 1.3));
-    // (whole: the break-up is over, and out of the cannon it is itself again; into the cannon: it is the barrel now; home, or back in the bay
-    // in a hurry: every ember has got there, and a moment later it is stowed)
-    if (k.mode < 0 && k.rate > 0 && bp >= 1){ q.bk = null; q.brk = 0; q.dm = 0; q.dg = 0; q.pres = 1; if (k.gun) q.form = 'pod'; }
-    else if (k.gun && k.mode > 0 && bp >= 1){ q.bk = null; q.brk = 0; q.form = 'gun'; q.dm = 0; q.dg = 0; q.pres = 0; }
+    S_.em[3] = Math.max(S_.em[3], Math.min(0.35 + (k.mode > 0 ? q.arr : 0), 1.3));
+    // (whole: the break-up is over; home, or back in the bay in a hurry: every ember has got there, and a moment later it is stowed)
+    if (k.mode < 0 && k.rate > 0 && bp >= 1){ q.bk = null; q.brk = 0; q.dm = 0; q.dg = 0; q.pres = 1; }
     else if ((k.mode > 0 && bp >= 1) || (k.mode < 0 && k.rate < 0 && bp <= 0)){ if (k.end < 0) k.end = u; if (u - k.end >= 0.1){ q.fin = true; O.fin = true; pipStow(); } }
-  } else if (q.form === 'gun'){ q.dm = 0; q.dg = 0; q.pres = 0; q.arr = 0; }
-  else { q.dm = 0; q.dg = 0; q.pres = 1; q.arr = 0; }
+  } else { q.dm = 0; q.dg = 0; q.pres = 1; q.arr = 0; }
 };
 // a new outing: planned, everything else as it was on page load but the outings before and a job's call
 function pipBegin(q, O){
@@ -983,8 +977,6 @@ drone.hurry = () => {
   const u = O.tau - PIP_LAUNCH, P = q.plan; let k = q.bk;
   if (!P || u < 0 || q.st === 'stowed'){ q.fin = true; q.hurry = true; O.fin = true; pipStow(); return true; }
   q.hurry = true;
-  // (the cannon, or on its way into it or out of it: it is itself again at once, where it docked, and streams home from there)
-  if (q.form === 'gun' || (k && k.gun)){ q.bk = k = null; q.form = 'pod'; q.brk = 0; q.dm = 0; q.dg = 0; q.pres = 1; }
   if (k && k.mode < 0){ Object.assign(k, { u0:u, bp0:pipBp(k, u), rate:-1/PIP_HURRY }); q.home = true; }
   else if (k){ Object.assign(k, { u0:u, bp0:pipBp(k, u), rate:Math.max(k.rate, 1/PIP_HURRY) }); }
   else {
@@ -1029,7 +1021,7 @@ function pipPose(o){
 }
 // how much of its volume shows (a glint takes over below about 1.8 pixels), 0 where the hull or the body is in front of it
 function pipVis(){
-  const q = PIP; if (q.st === 'stowed' || (q.form === 'gun' && !q.bk) || !progReady(drone.prog)) return 0;
+  const q = PIP; if (q.st === 'stowed' || !progReady(drone.prog)) return 0;
   const rpx = drone.rad*q.scale/Math.max(drone.dist, 1e-300)*sceneH*0.5/tanY;
   return smooth(0.9, 1.8, rpx)*(pipHidden(drone.rel) ? 0 : 1);
 }
@@ -1095,8 +1087,6 @@ function pipWeld(q, g){
 function pipSay(){
   const q = PIP, O = q.O; if (!O || q.st === 'pose') return '';
   if (q.st !== 'out') return O.fin ? '' : O.tau - PIP_LAUNCH > -0.6 ? 'Pip streams out of the belly bay' : '';
-  if (q.bk && q.bk.gun) return q.bk.mode > 0 ? 'Pip turns into the fold cannon' : 'the fold cannon turns back into Pip';
-  if (q.form === 'gun') return 'Pip is the fold cannon';
   if (q.bk && (q.bk.mode > 0 || q.bk.rate < 0)) return q.hurry ? 'Pip hurries back into the belly bay' : 'Pip streams back into the belly bay';
   const g = q.g; if (!g) return 'Pip streams out of the belly bay and takes shape';
   return typeof g.say === 'function' ? g.say(q.u, g) : g.say;

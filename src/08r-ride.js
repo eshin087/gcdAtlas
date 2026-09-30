@@ -43,7 +43,9 @@ const SHOTS = {
 };
 // a job's own shot, from the side it is done on: the scan's ring and beams across the view, the cannon ahead of the needle and its shots
 // toward the body, the skim low over the surface. (Pip's outing lasts half a minute: the shots go on round it, only the close ones, NEAR)
-const JOB_SHOT = { scan:{ e:8, g:92, d:4.4 }, weapons:{ e:6, g:74, d:4.0 }, skim:{ e:18, g:80, d:3.6 } };
+const JOB_SHOT = { scan:{ e:8, g:92, d:4.4 }, weapons:{ e:6, g:74, d:4.0 }, skim:{ e:18, g:80, d:3.6 },
+  // (0.9.7: a signature move, 07h-halo.js sigSpec: low behind the ship's shoulder, so what it flies through or over comes at the camera with it)
+  sig:{ e:10, g:38, d:3.4 } };
 const NEAR = new Set(['shoulder', 'side', 'front', 'low', 'orbit', 'sweep', 'grazing']);
 const MOVING = ['shoulder', 'side', 'front', 'high', 'low', 'wide', 'orbit'], EPIC = ['sweep', 'grazing', 'crane', 'charge', 'reveal', 'wide', 'orbit', 'front', 'low'];
 const rideOn = () => !RIDE_LAB;
@@ -111,8 +113,8 @@ function rideStep(dt){
   if (RIDE.wc >= 1) return;   // (the shot waits while the chase pose has the camera)
   RIDE.t += dt; RIDE.tr += dt;
   // a job gets its own shot, held until it is done; then the shots go on
-  const A = S.act, jk = A && JOB_SHOT[A.kind] && !rideStill() ? A : null;
-  if (jk && RIDE.job !== jk){ RIDE.job = jk; startShot(null, JOB_SHOT[jk.kind]); return; }
+  const A = S.act, jk = A && JOB_SHOT[A.kind] && !rideStill() ? A : !A && S.phase === 'pass' && S.plan.sig && !rideStill() ? S.plan : null;
+  if (jk && RIDE.job !== jk){ RIDE.job = jk; startShot(null, JOB_SHOT[jk.sig ? 'sig' : jk.kind]); return; }
   if (!jk && RIDE.job){ RIDE.job = null; nextShot(); return; }
   if (rideStill() !== (RIDE.shot.name === 'still') && !jk){ nextShot(); return; }
   if (!jk && RIDE.t >= RIDE.shot.T) nextShot();
