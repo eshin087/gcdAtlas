@@ -117,11 +117,19 @@ function saverStops(){
   for (let i = keys.length - 1; i > 0; i--){ const j = Math.floor(Math.random()*(i + 1)); [keys[i], keys[j]] = [keys[j], keys[i]]; }
   return keys.map(k => [k, '']);
 }
+// the angle line ("angle 2/4 [#####-----]") sits right under the place's name while the screensaver plays, and goes back into the info
+// panel when it ends (owner, 0.9.6: with everything else faded it looked lost where it was)
+const angHome = { par:null, next:null };
+function moveAngleLine(toSaver){
+  const el = $('#progress');
+  if (toSaver){ if (!angHome.par){ angHome.par = el.parentNode; angHome.next = el.nextSibling; } $('#svObj').after(el); }
+  else if (angHome.par){ angHome.par.insertBefore(el, angHome.next); angHome.par = null; }
+}
 function startSaver(){
   if (SAVER.on) return;
   SAVER.on = true; SAVER.startAt = performance.now();
   togglePanel(null, false); toggleAtlas(false); if (cmp) endCompare(false); $('#daily').hidden = true; if (!$('#help').hidden) toggleHelp(false);
-  document.body.classList.add('saver'); $('#saverHud').hidden = false;
+  document.body.classList.add('saver'); $('#saverHud').hidden = false; moveAngleLine(true);
   try { if (document.fullscreenEnabled && !document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {}); } catch (e) {}
   SAVER.prevTravel = SET.travel; if (SET.travel === 'warp') SET.travel = 'quick';
   TOURS.find(t => t.id === 'saver').stops = saverStops();
@@ -131,7 +139,7 @@ function startSaver(){
 }
 function stopSaver(){
   if (!SAVER.on) return;
-  SAVER.on = false; document.body.classList.remove('saver'); $('#saverHud').hidden = true;
+  SAVER.on = false; document.body.classList.remove('saver'); $('#saverHud').hidden = true; moveAngleLine(false);
   if (SAVER.prevTravel) SET.travel = SAVER.prevTravel;
   try { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); } catch (e) {}
   const here = tour.obj; stopTour(false); useTour('grand'); tour.last = TOUR.includes(here) ? here : null;

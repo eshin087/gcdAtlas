@@ -61,17 +61,19 @@ const lad = await page.evaluate(() => {
 });
 if (!lad.show || !lad.playing || !lad.moved) fail('a ladder pick arrived paused: ' + JSON.stringify(lad));
 
-// 5. the Halo: its indicator is off until the ship button is pressed; riding along lands behind it, stays with it through a fold and a
-// light-speed jump, and a drag lets go. The chase camera eases toward a point on its rig, |SHIP_POSE.chase.eye| ship radii from the ship's
-// centre and in the ship's own frame, so while it rides it is never further than that: a camera that lost the ship would be far beyond it.
+// 5. the Halo: its indicator is off until the ship button is pressed; riding along lands by it, stays with it through a fold and a
+// light-speed jump, and a drag lets go. The camera eases toward a point at most ride.reach() from the ship's centre (the ride camera's shot,
+// 08r-ride.js, or the chase pose between places), so while it rides it is never further than that: a camera that lost the ship would be far
+// beyond it. (With the still camera, so the distance after the fold is the one shot's.)
 const ride = await page.evaluate(seed => {
   const C = __cosmos, h = C.BYKEY.halo, D = h.dbg, vis = () => !document.getElementById('shipMark').hidden || !document.getElementById('shipArrow').hidden;
   C.setDays(0); C.tick(0); D.reset(seed);   // (the same route every run, whatever came before: the clock back to NOW, the planets moved there, then the ship)
-  const r = { markOff:!vis(), rig:Math.hypot(...C.SHIP_POSE.chase.eye)*C.shipCam.zoom };
+  C.setOpt('rideCam', 'still', true);
+  const r = { markOff:!vis(), rig:C.ride.reach()/h.rad, chase:Math.hypot(...C.SHIP_POSE.chase.eye)*C.shipCam.zoom };
   document.getElementById('btnShip').click(); C.tick(1/60); C.hud(); r.markOn = C.SET.haloMark;
   document.getElementById('btnShip').click();
   C.startShipCam('chase'); C.land(0.3);
-  r.riding = C.shipCam.on; r.dist = +(Math.hypot(...h.rel)/h.rad).toFixed(4);
+  r.riding = C.shipCam.on; r.dist = +(Math.hypot(...h.rel)/h.rad).toFixed(4); r.rig = C.ride.reach()/h.rad;
   // the next hop is a fold, the one after it a light-speed jump; the camera must stay on the ship all the way
   let i = 0; while (h.S.phase !== 'pass' && i++ < 60*30) C.tick(1/60);
   D.force({ travel:'fold' }); D.replan();
@@ -97,7 +99,7 @@ const ride = await page.evaluate(seed => {
   r.jumped = h.S.target.key !== k1 && legs > 60; r.farInLightSpeed = +farLs.toFixed(4); r.ridingAfterJump = C.shipCam.on;
   C.setShipCamMode('cockpit'); for (let j=0;j<60;j++) C.tick(1/60); r.cockpit = Math.hypot(...h.rel)/h.rad < 1;
   C.togglePlay(); r.paused = !C.shipCam.on; C.togglePlay(); r.resumed = C.shipCam.on;
-  C.setShipCamMode('chase'); C.stopShipCam();
+  C.setShipCamMode('chase'); C.stopShipCam(); C.setOpt('rideCam', 'moving', true);
   return r;
 }, HALO_SEED);
 if (!ride.markOff) fail('the Halo indicator shows before the ship button is pressed');
@@ -107,10 +109,58 @@ if (!ride.riding || offRig(ride.dist)) fail('riding along did not land behind th
 if (!ride.folded || !ride.stillRiding || offRig(ride.farAfterFold)) fail('the camera lost the ship when it folded space: ' + JSON.stringify(ride));
 if (!(ride.fold.wind >= 6.5) || !(ride.fold.eased < 0.6) || !ride.fold.burstOut || !ride.fold.burstIn) fail('the fold did not wind up slowly (about 7 s, the ship easing off) with a starburst as it went and as it arrived: ' + JSON.stringify(ride.fold));
 if (ride.fold.shield > 0 || !(ride.fold.zipBig < 0.05) || !ride.fold.zipped) fail('the shield showed in the teleport, or the heart did not streak in before the hull formed: ' + JSON.stringify(ride.fold));
-if (ride.backOut.phase !== 'pass' || ride.backOut.fz !== 1 || !(ride.backOut.dist >= 0.95*ride.rig)) fail('the chase camera did not ease back out after a fold: ' + JSON.stringify({ backOut:ride.backOut, rig:ride.rig }));
+if (ride.backOut.phase !== 'pass' || ride.backOut.fz !== 1 || !(ride.backOut.dist >= 0.95*ride.chase)) fail('the chase camera did not ease back out after a fold: ' + JSON.stringify({ backOut:ride.backOut, rig:ride.rig }));
 if (!ride.jumped || !ride.ridingAfterJump || offRig(ride.farInLightSpeed)) fail('the camera lost the ship at light speed: ' + JSON.stringify(ride));
 if (!ride.cockpit) fail('the cockpit view is not on the ship');
 if (!ride.paused || !ride.resumed) fail('pause / play did not stop and resume riding along');
+
+// 5b. riding along (0.9.6). (a) From the edge of the observable universe to the Halo at Andromeda, the ship stays in the middle of the view
+// all the way in: the flight used to aim at a point rounded to thousands of kilometres off it, the ship off the screen and its marker jumping at
+// the edge until the last frame. (b) The moving camera shows the place the ship visits: in every pass and loop its near edge is inside the view,
+// the ship on the screen, and it plays several shots; the still camera holds one. (c) The Halo tour flies the tour's stops in order, names each
+// place in the caption, and the green button sends it on.
+const rideB = await page.evaluate(seed => {
+  const C = __cosmos, h = C.BYKEY.halo, D = h.dbg, S = h.S, r = {}, [tx, ty] = C.dbg.tan, deg = 180/Math.PI;
+  const inView = v => { const z = v[0]*C.cam.fwd[0] + v[1]*C.cam.fwd[1] + v[2]*C.cam.fwd[2]; if (!(z > 0)) return false;
+    return Math.abs((v[0]*C.cam.right[0] + v[1]*C.cam.right[1] + v[2]*C.cam.right[2])/(z*tx)) < 1 && Math.abs((v[0]*C.cam.up[0] + v[1]*C.cam.up[1] + v[2]*C.cam.up[2])/(z*ty)) < 1; };
+  // (a)
+  C.setDays(0); C.tick(0); D.reset(seed, 'andromeda'); C.view('universe', 0); C.ride.seed(1); C.startShipCam('chase');
+  let off = 0, n = 0; while (C.flight && n < 60*60){ C.tick(1/60); n++; if (C.cam.focus === h.index){ const v = C.cam.rel.map(x => -x), c = (v[0]*C.cam.fwd[0] + v[1]*C.cam.fwd[1] + v[2]*C.cam.fwd[2])/Math.hypot(...v); off = Math.max(off, Math.acos(Math.min(1, c))*deg); } }
+  r.far = { off:+off.toFixed(1), landed:C.shipCam.on };
+  // (b)
+  const watch = (key, sec, cam) => {
+    C.stopShipCam(); C.setOpt('rideCam', cam, true); D.reset(seed + 1, key); for (let i = 0; i < 60*7; i++) C.tick(1/60); C.startShipCam('chase'); C.land(0.2);
+    const q = { key, ticks:0, shipOut:0, bodyOut:0, shots:new Set() };
+    for (let i = 0; i < 60*sec; i++){ C.tick(1/60);
+      if (!C.shipCam.on || C.ride.RIDE.wc > 0.05 || (S.phase !== 'pass' && S.phase !== 'loop')) continue;
+      q.ticks++; q.shots.add(C.ride.shot);
+      if (!inView(C.cam.rel.map(x => -x))) q.shipOut++;
+      const tg = S.target, b = h.offset.map((x, j) => -x - C.cam.rel[j]), bd = Math.hypot(...b), R = tg.solid ? tg.rad*tg.solid : tg.rad*0.6;
+      const ang = Math.acos(Math.min(1, (b[0]*C.cam.fwd[0] + b[1]*C.cam.fwd[1] + b[2]*C.cam.fwd[2])/bd))*deg, al = Math.asin(Math.min(1, R/bd))*deg;
+      if (ang - al > Math.atan(ty)*deg) q.bodyOut++;
+    }
+    q.shots = [...q.shots].filter(Boolean); return q; };
+  r.moving = [watch('saturn', 70, 'moving'), watch('earth', 70, 'moving')];
+  r.still = watch('jupiter', 40, 'still');
+  C.setOpt('rideCam', 'moving', true);
+  // (c)
+  C.stopShipCam(); D.reset(seed + 2, 'saturn'); for (let i = 0; i < 60*7; i++) C.tick(1/60);
+  C.haloTourStart('grand'); C.land(0.2);
+  const L = C.HT.stops.map(o => o.key), seen = [], caps = []; let t = 0;
+  r.tour = { on:C.HT.on, start:S.target.key, n:L.length, epic:C.ride.RIDE.epic, next:document.getElementById('goNextTxt').textContent };
+  let tEnd = 1e9; while (t < tEnd && t < 60*400){ C.tick(1/30); t++; if (seen.length === 3 && tEnd > 1e8) tEnd = t + 60;
+    const k = S.target.key; if ((S.phase === 'pass' || S.phase === 'loop') && seen[seen.length - 1] !== k && seen.length < 3){ seen.push(k); caps.push(null); }
+    if (!caps[caps.length - 1] && C.showcap) caps[caps.length - 1] = C.showcap;
+    if (S.stay && S.stay.t > 12 && (S.phase === 'pass' || S.phase === 'loop') && !C.HT.want) document.getElementById('goNext').click(); }
+  Object.assign(r.tour, { seen, want:L.slice(L.indexOf('saturn'), L.indexOf('saturn') + 3), caps:caps.map(c => (c || '').split(' · ')[0]), names:seen.map(k => C.BYKEY[k].name) });
+  C.haloTourEnd(true); r.tour.off = !C.HT.on && !C.ride.RIDE.epic; C.stopShipCam();
+  return r;
+}, HALO_SEED);
+if (!rideB.far.landed || rideB.far.off > 30) fail('riding along from the edge of the universe lost the Halo on the way in: ' + JSON.stringify(rideB.far));
+for (const q of rideB.moving) if (q.ticks < 600 || q.shipOut || q.bodyOut || q.shots.length < 3) fail('the moving ride camera did not keep the ship and ' + q.key + ' in view, or played fewer than 3 shots: ' + JSON.stringify(q));
+if (rideB.still.shipOut || rideB.still.bodyOut || rideB.still.shots.join() !== 'still') fail('the still ride camera moved, or lost the ship or Jupiter: ' + JSON.stringify(rideB.still));
+if (!rideB.tour.on || !rideB.tour.epic || rideB.tour.start !== 'saturn' || rideB.tour.seen.join() !== rideB.tour.want.join() || rideB.tour.caps.join() !== rideB.tour.names.join() || !/^next stop/.test(rideB.tour.next) || !rideB.tour.off)
+  fail('the Halo tour did not fly the grand tour from Saturn, stop by stop, naming each: ' + JSON.stringify(rideB.tour));
 
 // 6. arrows: from the Moon, "next" goes up the scale bar to Earth; the arrows beside the name step angles and the loop carries on;
 //    changing the travel speed mid-flight re-times the rest of the trip
