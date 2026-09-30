@@ -4,6 +4,16 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.9.11 · 2026-09-30
+
+Built beside 0.9.10 (the Halo tour's camera, in review at the same time); whichever merges second renumbers.
+
+**Sharing and credit** (owner, 2026-09-30: make the site easier to share and say who made it, without anything personal)
+- Link previews: a shared link shows a 1200 x 630 picture (M87* at its third angle, with "gcdatlas", "the real universe, drawn in ASCII" and gcdatlas.com) in chats, X, Discord and the like. New meta tags: `og:image` (with size and alt text), `og:site_name`, `twitter:card` (large image) and its title, description and image. `tools/og-image.mjs` (`npm run og`) renders candidates on the GPU into tests/out/og/ and writes the chosen one to assets/og.jpg; build.mjs copies it to dist/og.jpg.
+- The site's address is gcdatlas.com: the canonical link, `og:url` and the preview point there (gcdatlas.vercel.app still works).
+- Photo mode signs its pictures and its copied text gcdatlas.com (was gcdatlas.vercel.app).
+- Help's last line: what's new · made by GCD · the code on GitHub · your settings, location and progress stay on your device. What's new ends with "Made by GCD; the code is on GitHub."
+
 ## 0.9.9 · 2026-09-30
 
 Built as 0.9.7 (PR #34); renumbered 0.9.9 when 0.9.8 (SpaceX, PR #29) was merged first and brought in.

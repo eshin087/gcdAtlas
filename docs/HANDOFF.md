@@ -48,7 +48,7 @@ This file carries the context of the chat sessions that built gcdatlas (v0.1 to 
 
 ## Where things are
 
-- Site: https://gcdatlas.vercel.app (Vercel project `gcdatlas`, deploys `main` automatically; every PR gets a preview URL).
+- Site: https://gcdatlas.com, also https://gcdatlas.vercel.app (Vercel project `gcdatlas`, deploys `main` automatically; every PR gets a preview URL).
 - Repo: `eshin087/gcdatlas`. Source in `src/`, built by `node build.mjs` into `dist/`. Serverless functions in `api/` (`/api/sats` from CelesTrak, `/api/launches` from Launch Library 2).
 - Content inventory: `docs/CATALOG.md` (generated). Backlog: `docs/CONTENT.md`. Plans: `docs/ROADMAP.md`.
 - Tests: `npm test` (smoke, phone layout, camera motion), `npm run test:tour` (long regression), `npm run shots -- key:view`.

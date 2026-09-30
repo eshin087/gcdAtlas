@@ -19,7 +19,7 @@ State on 2026-09-29: v0.8.3 to v0.9.3 are merged (the deterministic motion test,
 
 ## What this is
 
-gcdatlas (https://gcdatlas.vercel.app, repo `eshin087/gcdatlas`) is a single-page WebGL2 atlas of the universe rendered entirely as ASCII characters. Real positions, distances and sizes; physically based, artistic rendering. It is meant to be a long-term project that keeps growing (more objects, an ASCII Earth, social features later) without breaking what exists.
+gcdatlas (https://gcdatlas.com, also gcdatlas.vercel.app; repo `eshin087/gcdatlas`) is a single-page WebGL2 atlas of the universe rendered entirely as ASCII characters. Real positions, distances and sizes; physically based, artistic rendering. It is meant to be a long-term project that keeps growing (more objects, an ASCII Earth, social features later) without breaking what exists.
 
 ## Golden rules
 
@@ -44,6 +44,7 @@ npm run shots -- sun:0,crab:1  # screenshots into tests/out/ (+ a contact sheet)
 npm run lab -- --do=cam:chase+act:fold --at=3,7,9.5   # stills of the Halo lab (/lab) on the GPU (+ a contact sheet)
 # /songs (dist/songs.html): the song review page; /lab: the Halo lab
 npm run catalog                # regenerate docs/CATALOG.md from the built page
+npm run og -- --at=m87bh:2,helix:0   # link preview candidates (tests/out/og/); --pick=key:view writes assets/og.jpg
 npx vercel dev                 # local server with the /api functions
 ```
 
