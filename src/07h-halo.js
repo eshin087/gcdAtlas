@@ -303,7 +303,8 @@ function attackVisit(tg, arrival, dIn, seed, opt){
   let acc = 0, at = 0, prev = A0; const arc = [];
   for (let i=1;i<=96;i++){ const q = pathPt(g, i/96); acc += V.len(V.sub(q, prev)); prev = q; arc.push(acc); if (!at && V.len(q) <= ATK.D0*Ru) at = acc; }
   const fcArc = clamp((at || arc[20])/acc, 0.02, 0.6);
-  return timePass(tg, 'weapons', arrival, g, m.r, seed, Object.assign({}, opt, { style:null, fcArc, attack:{ Ru, b } }));
+  // (flown a little slower than a plain pass: a long straight run-in, time for Pip to settle and the gun to fire)
+  return timePass(tg, 'weapons', arrival, g, m.r, seed, Object.assign({}, opt, { style:null, fcArc, attack:{ Ru, b }, Tf:(opt.Tf || HALO.T_FAST)*1.3 }));
 }
 // the timing of a pass (g: its curve P, the ways in and out di and dout, where its closest point is, cDir): its length by arc, and its speed:
 // cruising in and out, slowed down for the job (centred on a share fc of the path); out of a fold it starts slow and eases up over 5 s while
@@ -445,10 +446,10 @@ function foldVisit(tg, nx){
 // goes after (its last pass bends toward that)
 function beginVisit(tg, plan, how){
   S_.visits++;
-  const forced = plan.act !== 'cruise', C = pickNext(tg), jobs = [];
-  for (let i = 0, n = forced ? (hrnd() < 0.5 ? 1 : 0) : (hrnd() < 0.55 ? 1 : 2); i < n; i++) jobs.push(chooseAct(tg));
-  // (a place with a signature move keeps its second pass for it: the jobs start on the third)
-  S_.stay = { tg, t:0, dur:HALO.STAY[0] + (HALO.STAY[1] - HALO.STAY[0])*hrnd(), n:0, jobs, jobAt:forced || sigSpec(tg) ? 2 : 1, leave:false, sigDone:false };
+  // (a place with a signature move keeps its second pass for it and has one job at most, on the third: two made the stay run long)
+  const forced = plan.act !== 'cruise', C = pickNext(tg), jobs = [], sg = !!sigSpec(tg);
+  for (let i = 0, n = forced ? (hrnd() < 0.5 ? 1 : 0) : (hrnd() < 0.55 || sg ? 1 : 2); i < n; i++) jobs.push(chooseAct(tg));
+  S_.stay = { tg, t:0, dur:HALO.STAY[0] + (HALO.STAY[1] - HALO.STAY[0])*hrnd(), n:0, jobs, jobAt:forced || sg ? 2 : 1, leave:false, sigDone:false };
   S_.next = { tg:C, mode:travelMode(tg, C) };
   // (not while a showcase's caption or the Halo tour's says what happens: on a phone the two would sit on top of each other)
   if (riding() && S_.visits > 1 && !SHOWCAP.txt && !HT.on) toast((how === 'fold' ? 'the Halo folds space · ' : 'out of light speed · ') + 'at ' + tg.name);
@@ -534,7 +535,8 @@ function startLoop(){
   if (L && L.rate > 1.25*HALO.TURN) L = null;
   if (!L) L = roamPlan(e, pl.Rc, tg, act, last);
   // (a job whose pass cannot be reached by a gentle loop, a skim that must graze the surface most often, waits for the next one, or is left)
-  if (act !== 'cruise' && (!L || L.rate > 1.25*HALO.TURN)){ st.jobs.unshift(act); act = 'cruise'; L = roamPlan(e, pl.Rc, tg, act, last); }
+  // (an attack run starts farther out, straight at the body: the turn into it may be brisker, up to 1.6 times the usual rate)
+  if (act !== 'cruise' && (!L || L.rate > (act === 'weapons' ? 1.6 : 1.25)*HALO.TURN)){ st.jobs.unshift(act); act = 'cruise'; L = roamPlan(e, pl.Rc, tg, act, last); }
   // (no loop fits: it moves on from here)
   if (!L){ if (act !== 'cruise') st.jobs.unshift(act); startAlign(); return; }
   S_.loop = L; S_.phase = 'loop'; S_.t = 0;
