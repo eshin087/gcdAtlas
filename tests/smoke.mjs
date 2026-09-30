@@ -165,13 +165,13 @@ if (atl.cells !== 13) errors.push('the atlas has ' + atl.cells + ' cells ("all" 
 if (!(atl.rows >= 10)) errors.push('the atlas list has room for only ' + atl.rows + ' rows at 1280 x 800');
 if (atl.dflt.sort !== 'kind' || atl.dflt.all !== 'true' || atl.dflt.result || atl.dflt.dir !== '⇅near → far' || atl.dflt.kb || atl.dflt.flow) errors.push('the atlas default view: ' + JSON.stringify(atl.dflt));
 if (atl.gal.note !== 'from Earth' || atl.gal.heads !== 1 || atl.gal.stray.length || atl.gal.first !== 'the Milky Way, the Galactic Centre, Large Magellanic Cloud') errors.push('galaxies chosen: ' + JSON.stringify(atl.gal));
-if (atl.flat !== 'Earth, International Space Station, #all around us, the Solar System, the Oort cloud, the cosmic web, the observable universe') errors.push('one list by distance: ' + atl.flat);
-if (atl.flatSays.join('|') !== '137 places · near → far / from Earth|⇅near → far|true') errors.push('the results line for one list by distance: ' + JSON.stringify(atl.flatSays));
+if (atl.flat !== 'Earth, Starship, #all around us, the Solar System, the Oort cloud, the cosmic web, the observable universe') errors.push('one list by distance: ' + atl.flat);
+if (atl.flatSays.join('|') !== '142 places · near → far / from Earth|⇅near → far|true') errors.push('the results line for one list by distance: ' + JSON.stringify(atl.flatSays));
 if (atl.size.join('|') !== '⇅big → small|the observable universe|93 billion ly|true size, across') errors.push('size does not start with the biggest, said short: ' + JSON.stringify(atl.size));
-if (!atl.search.jupiter || !/^\d+ found · searching all 137$/.test(atl.search.found) || atl.search.btn !== 'clear' || !atl.search.dim || atl.search.kb !== 1) errors.push('a search with black holes chosen: ' + JSON.stringify(atl.search));
+if (!atl.search.jupiter || !/^\d+ found · searching all 142$/.test(atl.search.found) || atl.search.btn !== 'clear' || !atl.search.dim || atl.search.kb !== 1) errors.push('a search with black holes chosen: ' + JSON.stringify(atl.search));
 if (atl.cleared.box || atl.cleared.cat !== 'bh' || atl.cleared.n !== 8 || atl.cleared.kb) errors.push('clearing the search: ' + JSON.stringify(atl.cleared));
 if (atl.kRight !== 'galaxies' || atl.kDown.join() !== 'human,human' || atl.kAll.join() !== 'all,atlasAll,radio,atlasCats') errors.push('arrow keys in the kinds: ' + JSON.stringify([atl.kRight, atl.kDown, atl.kAll]));
-if (!/^8 black holes not seen yet/.test(atl.seenNow[0]) || !/^7 black holes not seen yet/.test(atl.seenNow[1]) || atl.seenNow[2] !== '7' || atl.seenNow[3] !== '7 of 137' || !atl.seenNow[4]) errors.push('a place seen with "not seen yet" on: ' + JSON.stringify(atl.seenNow));
+if (!/^8 black holes not seen yet/.test(atl.seenNow[0]) || !/^7 black holes not seen yet/.test(atl.seenNow[1]) || atl.seenNow[2] !== '7' || atl.seenNow[3] !== '7 of 142' || !atl.seenNow[4]) errors.push('a place seen with "not seen yet" on: ' + JSON.stringify(atl.seenNow));
 if (!atl.tray[0] || atl.tray[1] !== 'true' || atl.tray[2] !== 9 || atl.tray[3] !== 9) errors.push('the badge tray: ' + JSON.stringify(atl.tray));
 if (atl.badgeGo[0] !== 'bh' || !atl.badgeGo[1] || atl.badgeGo[2] || !/^7 black holes not seen yet/.test(atl.badgeGo[3])) errors.push('black hole hunter does not show the black holes left: ' + JSON.stringify(atl.badgeGo));
 const planetsLeft = atl.planets[1] ? atl.planets[1].split(',') : [], PL = ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'];

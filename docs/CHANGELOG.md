@@ -4,6 +4,41 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.9.8 · 2026-09-29
+
+Built on the desktop as 0.9.5 (PR #29) while 0.9.4 and 0.9.6 were being made; renumbered 0.9.8 when it was brought up to date with them (0.9.7 was taken on the desktop).
+
+**SpaceX launches and Starman's Roadster**
+- Starman and the Tesla Roadster, where they really are right now: the cherry-red car with Starman at the wheel, still fixed to the Falcon Heavy upper stage that carried it in 2018. The position comes from NASA JPL's own tracking (JPL Horizons, solution 11). The readout gives its distance from Earth and from the Sun, its speed, the laps of the Sun it has made, how far it has flown, and its next predicted close pass (Mars, 22 April 2035, 2.4 million km). One angle pulls back until its whole orbit round the Sun is in view.
+- Four SpaceX rockets stand on their real pads, in the atlas under human-made: Starship on the launch mount beside its tower at Starbase, Texas (Pad 2); Falcon 9 at Cape Canaveral; Falcon Heavy at Kennedy; Crew Dragon docked at the International Space Station.
+- Pick one and it launches. The camera flies down to the pad in one move, a 20-second countdown starts with a view from the air that glides in to the rocket, and the whole flight plays with a moving camera: liftoff in a cloud of exhaust and steam, a tracking camera miles away, a camera on the booster's side looking down at the ground falling away, max Q, stage separation up close, the boosters turning back, and the landings.
+- Starship: 33 engines, hot staging, the booster flying back to Texas and caught by the tower's chopstick arms, the ship burning on toward orbit. Falcon 9: the booster lands on a droneship at sea. Falcon Heavy: both side boosters land back at Cape Canaveral seconds apart, as on its first flight in 2018, and the centre core on a droneship. Crew Dragon: launch, separation from the second stage, then, about a day later, the approach to the space station, holding about 220 m and 20 m out, and docking.
+- Real SpaceX launches play at their real time from their real pad, from the same launch schedule the atlas already shows. A caption with a watch button appears 20 minutes before liftoff, on any page, and you can join a flight already on its way.
+- Now and then, while you look at Earth, an illustrative replay lifts off from a pad on the side you can see, in daylight: a glowing trail from orbit, and a caption with a watch button.
+- A link to a rocket (for example gcdatlas.vercel.app/#o=starship) starts its countdown when it opens.
+- The small illustrative ascents that used to rise from the launch pads are gone.
+
+**The ground round the launch sites is real** (owner, after the first look: the Earth there should look real, "the point is to be impressed at the earth detail")
+- Starbase, Cape Canaveral with Kennedy, and Vandenberg are drawn from real images and heights: USGS aerial photos round the pads (0.3 m a pixel at the Cape, flown 9 January 2023; 0.6 m at Starbase, flown 10 June 2022), Copernicus Sentinel-2 satellite images (10 m, clear scenes from 2025 and 2026) for regions 410 km across and for Vandenberg, the ground's height from the AWS Terrain Tiles (USGS 3DEP elevation in the United States), and about 2,300 buildings from OpenStreetMap.
+- Near the ground the heights are ray-marched: the Vehicle Assembly Building, hangars, the tank farms and Vandenberg's hills stand up and cast shadows in the afternoon Sun. Water mirrors the sky and glints; the open sea is one colour (satellite passes from different days showed seams there). From higher up the images lie on the curve of the Earth, and from space the same images show on Earth round the sites, blending into the painted globe with no square edge.
+- The images are files next to the page (3.1 MB in 14 WebP images), never part of it: a site's regional image loads when the camera heads there from a few thousand kilometres away, the fine ones within a few kilometres (all of a site's at once when a rocket there is picked), and they are let go of two minutes after the camera leaves. The page's first load is the same as before. Offline and in the artifact page the ground keeps its sketch.
+- The readout credits the sources while they show (the licences ask for it): "USGS aerial photos · contains modified Copernicus Sentinel data 2025 to 2026 · buildings © OpenStreetMap contributors".
+- `tools/earth-detail.mjs` makes the images (cached, so adding a site only fetches what is new); see `docs/ACCURACY.md` for how accurate and how recent each part is.
+
+**Watching a launch, round 2** (owner: the transitions were abrupt, the flights too long, the galaxies showed from the pad, and launches happened at night)
+- No more cuts. Picking a rocket flies the camera straight into the first shot, and the launch camera takes over from exactly there. Every change of shot is a glide of about 3 s: the aim slides, the camera swings round, the distance and the zoom ease, and it widens on the way when the two subjects are far apart. Two ground cameras travel along the ground from one to the other; into or out of the camera on a booster's side the view swings round the booster. On the way it never goes below the ground or through a rocket or the core of a plume (checked for all four flights).
+- Clicked flights and replays are flown by day: the atlas clock eases over a few seconds to the nearest afternoon at the pad (the Sun about 35 degrees up). Before, a flight played at whatever time the atlas showed, often night at the pads. Live launches keep the real time, at night if they are at night.
+- The air hides the deep sky: near the ground, galaxies, nebulae and far stars fade out with their labels, the star field dims, and the sky is blue by day. They come back above about 90 km. Your sky (the planetarium) keeps the whole sky.
+- About 3 minutes a flight, countdown included (Starship 172 s, Falcon 9 173 s, Falcon Heavy 175 s, Crew Dragon 200 s; they were 244, 224, 249 and 429 s): the quiet parts go faster. While you watch, the caption's "real speed" button plays every second as it happened (a Starship flight is about 9 minutes), and "highlights" switches back. It is remembered.
+- New shots: the aerial view of the place during the countdown; on the booster's side, fixed to its sunlit half, looking down along the hull at the coast falling away (Starship, Falcon 9, Crew Dragon, and a Falcon Heavy side booster); the catch seen from the sunlit side, and the ship from above with the Earth behind it.
+
+**Speed**
+- Earth's shader with the images is a second copy, compiled in the background the first time the camera nears a site (0.4 s on Direct3D); the one drawn at start-up compiles as fast as before (0.3 s).
+- Near the ground, Earth's own volume is not drawn under the ground and sky that cover it (it cost as much again), and the ground's ray march starts at the height of the highest roof near the site: an aerial view costs half what it did, less than a close view of the Sun.
+
+**Under the hood**
+- `build.mjs` fails when two files define a top-level function with the same name: the ride camera's `shotPose` (0.9.6) had silently replaced the launch camera's, and the flight to a rocket came out as not-a-number.
+
 ## 0.9.6 · 2026-09-29
 
 Built on the MacBook, on top of 0.9.4 (see `docs/SYNC.md`). Numbered 0.9.6 because 0.9.5 (SpaceX launches) was already open.

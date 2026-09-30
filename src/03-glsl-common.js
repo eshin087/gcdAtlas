@@ -116,6 +116,89 @@ void outCol(vec3 c, float a){ fragColor = vec4(max(c, 0.)*uOut*uVis, clamp(a, 0.
 void localRay(out vec3 o, out vec3 d){ vec3 rd = rayDir(); o = uCamLocal; d = rd*uRot; }
 `;
 
+// ---------------------------------------------------------------- Earth detail (src/objects/e2-earth-detail.js binds it): up to four square images of the ground round a
+// launch site, finest first. Each is a square uEdC[i].w metres from its centre to its edge, centred on uEdC[i].xyz (a point on the sea-level
+// sphere, in the frame the shader works in), with its east and north axes uEdE[i].xyz and uEdN[i].xyz; uEdX[i] = (pixels across, base, step,
+// 0): its alpha is 1 for water, else 2 + (height above sea level - base)/step (terrain plus buildings). uEdS = (layers ready, metres per unit
+// of the shader's frame, 0, 0). A point is placed on a layer by the orthographic projection the images were made in (tools/earth-detail.mjs).
+const ED_GLSL = `
+#ifndef ED_N
+#define ED_N 4
+#endif
+uniform vec4 uEdC[ED_N]; uniform vec4 uEdE[ED_N]; uniform vec4 uEdN[ED_N]; uniform vec4 uEdX[ED_N]; uniform vec4 uEdS;
+uniform sampler2D uEd0; uniform sampler2D uEd1;
+#if ED_N > 2
+uniform sampler2D uEd2; uniform sampler2D uEd3;
+#endif
+// (uEdS.z: the highest ground or roof near the site, m above the sea. uEdS.w is always 0: the loops start from it, so ANGLE on Direct3D keeps
+// them loops instead of unrolling a copy at every call)
+// an image colour as light for a lit surface: brighter than the photo's own values, as bright as the painted globe round it
+vec3 edLin(vec3 c){ return pow(c, vec3(1.6))*2.6; }
+vec4 edTex(int i, vec2 uv, float lod){
+#if ED_N > 2
+  return i == 0 ? textureLod(uEd0, uv, lod) : i == 1 ? textureLod(uEd1, uv, lod) : i == 2 ? textureLod(uEd2, uv, lod) : textureLod(uEd3, uv, lod);
+#else
+  return i == 0 ? textureLod(uEd0, uv, lod) : textureLod(uEd1, uv, lod);
+#endif
+}
+#ifdef ED_GRAD
+vec4 edTexG(int i, vec2 uv, vec2 gx, vec2 gy){ return i == 0 ? textureGrad(uEd0, uv, gx, gy) : i == 1 ? textureGrad(uEd1, uv, gx, gy) : i == 2 ? textureGrad(uEd2, uv, gx, gy) : textureGrad(uEd3, uv, gx, gy); }
+#endif
+// where P falls on layer i: (u, v, how far in from the edge 0..1)
+vec3 edUV(int i, vec3 P){ vec3 q = (P - uEdC[i].xyz)*uEdS.y; float hs = uEdC[i].w; vec2 xy = vec2(dot(q, uEdE[i].xyz), dot(q, uEdN[i].xyz));
+  return vec3(0.5 + xy.x/(2.*hs), 0.5 - xy.y/(2.*hs), 1. - max(abs(xy.x), abs(xy.y))/hs); }
+// the colour (as the image has it, sRGB) of the ground at P, blended from the finest layers that cover it, and how much of it is water (a);
+// fp: the size of a pixel there (m). cov: how much the layers cover (0 outside them)
+vec4 edColour(vec3 P, float fp, out float cov){
+  vec4 col = vec4(0.); cov = 0.;
+  for(int i=int(uEdS.w);i<ED_N;i++){
+    if(float(i) >= uEdS.x || cov > 0.995) break;
+    vec3 u = edUV(i, P); if(u.z <= 0.) continue;
+    float w = smoothstep(0., 0.06, u.z)*(1. - cov), texel = 2.*uEdC[i].w/uEdX[i].x;
+    vec4 t = edTex(i, u.xy, max(log2(fp/texel), 0.));
+    col += vec4(t.rgb, clamp(2. - t.a*255., 0., 1.))*w; cov += w;
+  }
+  return cov > 0. ? col/cov : col;
+}
+#ifdef ED_GRAD
+// the same, filtered over a pixel's footprint on the ground given as two vectors (g1 along the view, g2 across), so ground seen at a
+// glancing angle stays sharp across the view (the textures filter anisotropically) instead of blurring to the long side of the footprint
+vec4 edColourG(vec3 P, vec3 g1, vec3 g2, out float cov){
+  vec4 col = vec4(0.); cov = 0.;
+  for(int i=int(uEdS.w);i<ED_N;i++){
+    if(float(i) >= uEdS.x || cov > 0.995) break;
+    vec3 u = edUV(i, P); if(u.z <= 0.) continue;
+    float w = smoothstep(0., 0.06, u.z)*(1. - cov), k = uEdS.y/(2.*uEdC[i].w);
+    vec4 t = edTexG(i, u.xy, vec2(dot(g1, uEdE[i].xyz), -dot(g1, uEdN[i].xyz))*k, vec2(dot(g2, uEdE[i].xyz), -dot(g2, uEdN[i].xyz))*k);
+    col += vec4(t.rgb, clamp(2. - t.a*255., 0., 1.))*w; cov += w;
+  }
+  return cov > 0. ? col/cov : col;
+}
+#endif
+// the height above sea level (m) of the ground and what stands on it at P, from the finest layer that covers it; water 1 over the sea,
+// lakes and lagoons; ok 0 outside every layer
+float edHeight(vec3 P, out float water, out float ok){
+  water = 0.; ok = 0.;
+  for(int i=int(uEdS.w);i<ED_N;i++){
+    if(float(i) >= uEdS.x) break;
+    vec3 u = edUV(i, P); if(u.z <= 0.002) continue;
+    float A = edTex(i, u.xy, 0.).a*255.;
+    ok = 1.; if(A < 1.5){ water = 1.; return 0.; }
+    return uEdX[i].y + (A - 2.)*uEdX[i].z;
+  }
+  return 0.;
+}
+// the widest layer round P blurred to about ten kilometres (rgb), how open the water is there (a: 1 with nothing but water for kilometres),
+// and how far P lies inside that layer (edge: 0 at its edge, 1 from halfway in). Out on the open sea the images show seams between
+// satellite passes taken on different days, so it is drawn in one colour; and Earth's shader gives the image the painted map's broad
+// colours toward its edge, so from space it shows no square
+vec4 edWide(vec3 P, out float edge){
+  edge = 0.; int i = int(uEdS.x) - 1; if(i < 0) return vec4(0., 0., 0., 1.);
+  vec3 u = edUV(i, P); if(u.z <= 0.) return vec4(0., 0., 0., 1.);
+  vec4 t = edTex(i, u.xy, 5.); edge = smoothstep(0.03, 0.5, u.z);
+  return vec4(t.rgb, smoothstep(1.4, 1.08, t.a*255.));
+}
+`;
 const FS_BG = COMMON + `
 vec3 galaxyCell(vec3 d, float sc, float sd){
   vec3 c = floor(d*sc);

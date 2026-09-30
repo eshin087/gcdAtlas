@@ -147,6 +147,7 @@ function startFlight(o, vp, onDone, via, glide){
   if (glide) for (const k in durs) if (k !== 'warp') durs[k] += 2.5;
   const dur = durs[SET.travel] || durs.quick;
   shipCam.on = shipCam.pending = false;   // any flight takes the camera off the ship (riding along starts again when its own flight lands)
+  if (LCAM.on) stopLaunchCam(true, true);   // (and off a launch it was following)
   // start compiling the destination's shaders now, so it is ready to draw on arrival
   if (o.prog) progReady(o.prog); for (const sp of o.particles || []) if (P[sp.prog]) progReady(P[sp.prog]);
   music.whoosh(dur);
@@ -480,10 +481,12 @@ function resumeShow(){
   updateModeUI();
 }
 function pauseShow(){ if (show.on || show.pending){ show.on = show.pending = false; motion.last = 'show'; if (show.phase === 'swing') tween = null; } }
-const isPlaying = () => tour.on || show.on || show.pending || !!flyMove || shipCam.on || (!!flight && !!shipCam.pending && flight.obj === ship);
+const isPlaying = () => tour.on || show.on || show.pending || !!flyMove || shipCam.on || (!!flight && !!shipCam.pending && flight.obj === ship) || LCAM.on || (!!flight && !!SX.pend);
 // the play / pause control (and the space bar): pause whatever moves the camera; play brings back the last thing that did
 function togglePlay(){
   if (tour.on){ stopTour(false); motion.last = 'tour'; toast('paused · press play (or space) to carry on with the tour'); }
+  else if (LCAM.on){ stopLaunchCam(); toast('paused · the camera is yours · press play to follow the flight again'); }
+  else if (motion.last === 'launch' && sxResume()){}
   else if (shipCam.on){ stopShipCam(); toast('paused · press play to ride along with the Halo again'); }
   else if (motion.last === 'ship' && typeof ship !== 'undefined' && orbit.lock === ship.index){ startShipCam(); }
   else if (show.on || show.pending || flyMove){ pauseShow(); flyMove = null; tween = null; toast('paused · the camera is yours · press play to carry on'); }
@@ -660,6 +663,8 @@ for (const el of [canvas, $('#labels'), $('#shipMark')]) el.addEventListener('wh
 function beginManual(){
   manualAt = performance.now();
   if (stopShipCam()) toast('the camera is yours · press play to ride along with the Halo again');
+  if (stopLaunchCam()) toast('the camera is yours · press play to follow the flight again');
+  SX.pend = null;
   shipCam.pending = false;
   if (tour.on){ stopTour(true); motion.last = 'tour'; }
   if (show.on || show.pending){ pauseShow(); updateModeUI(); }

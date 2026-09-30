@@ -26,7 +26,17 @@ list.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
 const js = list.map(f => `\n// ---- ${f}\n` + read(f)).join('');
 try { new vm.Script(js, { filename: 'gcdatlas.js' }); }
 catch (e) { console.error('Syntax error in the bundled script:\n' + e.stack.split('\n').slice(0, 6).join('\n')); process.exit(1); }
+// every file shares one scope: two top-level functions with one name are not a syntax error, the later one silently replaces the first
+// (the ride camera's shotPose once replaced the launch camera's, and the flight to a rocket came out as NaN)
+{ const seen = new Map(), dup = [];
+  for (const f of list) for (const m of read(f).matchAll(/^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gm)){ if (seen.has(m[1])) dup.push(`${m[1]} (${seen.get(m[1])} and ${f})`); else seen.set(m[1], f); }
+  if (dup.length){ console.error('The same top-level function name in two places:\n  ' + dup.join('\n  ')); process.exit(1); } }
 
+// the Earth detail images (tools/earth-detail.mjs) are served next to the page, never inside it: dist/earth/
+{ const src = path.join(ROOT, 'assets', 'earth'), dst = path.join(DIST, 'earth');
+  if (fs.existsSync(src)){ fs.mkdirSync(dst, { recursive:true });
+    const want = new Set(fs.readdirSync(src)); for (const f of fs.readdirSync(dst)) if (!want.has(f)) fs.unlinkSync(path.join(dst, f));
+    for (const f of want){ const a = path.join(src, f), b = path.join(dst, f); if (!fs.existsSync(b) || fs.statSync(b).size !== fs.statSync(a).size) fs.copyFileSync(a, b); } } }
 const head = read('00-head.html');
 // what's new: docs/PATCHNOTES.md ("## version · date · title", then "- " bullets) as the panel's HTML, newest first and open
 const esc = t => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

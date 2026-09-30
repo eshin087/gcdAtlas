@@ -2212,6 +2212,91 @@
   "file": "src/objects/p7-places.js"
  },
  {
+  "key": "roadster",
+  "name": "Starman and the Tesla Roadster",
+  "group": "travel",
+  "type": "a car in orbit round the Sun · launched on the first Falcon Heavy",
+  "bh": false,
+  "distLy": 0.000009454055460819266,
+  "sizeKm": 0.009839999999999998,
+  "views": 3,
+  "flyby": false,
+  "tour": false,
+  "cats": [
+   "travel",
+   "human"
+  ],
+  "file": "src/objects/s1-roadster.js"
+ },
+ {
+  "key": "starship",
+  "name": "Starship",
+  "group": "travel",
+  "type": "rocket · the largest ever flown · on its pad at Starbase",
+  "bh": false,
+  "distLy": 6.734174010771931e-10,
+  "sizeKm": 0.03018,
+  "views": 2,
+  "flyby": false,
+  "tour": false,
+  "cats": [
+   "travel",
+   "human"
+  ],
+  "file": "src/objects/s3-spacex.js"
+ },
+ {
+  "key": "falcon9",
+  "name": "Falcon 9",
+  "group": "travel",
+  "type": "rocket · reusable first stage · on its pad at Cape Canaveral",
+  "bh": false,
+  "distLy": 6.734174017506104e-10,
+  "sizeKm": 0.028620000000000003,
+  "views": 2,
+  "flyby": false,
+  "tour": false,
+  "cats": [
+   "travel",
+   "human"
+  ],
+  "file": "src/objects/s3-spacex.js"
+ },
+ {
+  "key": "dragon",
+  "name": "Crew Dragon",
+  "group": "travel",
+  "type": "capsule for crew and cargo · docked at the ISS",
+  "bh": false,
+  "distLy": 7.179523215721447e-10,
+  "sizeKm": 0.00504,
+  "views": 2,
+  "flyby": false,
+  "tour": false,
+  "cats": [
+   "travel",
+   "human"
+  ],
+  "file": "src/objects/s3-spacex.js"
+ },
+ {
+  "key": "falconheavy",
+  "name": "Falcon Heavy",
+  "group": "travel",
+  "type": "rocket · three Falcon 9 cores · on its pad at Kennedy",
+  "bh": false,
+  "distLy": 6.734174024240279e-10,
+  "sizeKm": 0.028620000000000003,
+  "views": 2,
+  "flyby": false,
+  "tour": false,
+  "cats": [
+   "travel",
+   "human"
+  ],
+  "file": "src/objects/s3-spacex.js"
+ },
+ {
   "key": "halo",
   "name": "the Halo",
   "group": "travel",
