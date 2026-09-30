@@ -488,7 +488,7 @@ function endLight(){
 }
 function endFold(){
   const B = S_.next.tg;
-  S_.belly = null; S_.viewA = 0; S_.fold = null; S_.load = Math.min(S_.load, 0.15);   // (the shield does not bring the last stop's load along)
+  S_.belly = S_.belly1 = null; S_.viewA = S_.viewA1 = 0; S_.fold = null; S_.load = Math.min(S_.load, 0.15);   // (the shield does not bring the last stop's load along)
   if (riding()) music.whoosh(1.2);
   // (riding along, the camera folds with the ship: it keeps its place behind it, rather than swinging round to where the ship now heads)
   if (shipCam.on && shipCam.eye){ const R = ship.R0; S_.reseat = [M3.applyT(R, shipCam.eye), M3.applyT(R, shipCam.fwd), M3.applyT(R, shipCam.up)]; }
@@ -551,30 +551,54 @@ function placeShip(dt){
   // how much it is busy with a job (eased in and out): it banks, and the cameras turn toward the work
   // (on a pass with no job, framed round its closest point like a job: from about a third of the way in until near its end)
   const A = S_.act, pl = S_.plan, J = ACTS[A ? A.kind : pl.act], cru = !A && S_.phase === 'pass' && pl.act === 'cruise' ? smooth(0.12*pl.T, 0.35*pl.T, S_.t)*(1 - smooth(0.7*pl.T, 0.95*pl.T, S_.t)) : 0;
-  const want2 = A ? A.env()*J.view : cru*J.view;
-  S_.viewA += (Math.min(want2, 1) - S_.viewA)*(1 - Math.exp(-dt*0.9));
+  // (eased through two easings in a row, 0.9.7 review: with one, the locked camera's turn changed speed in one frame as a job began or ended)
+  const want2 = A ? A.env()*J.view : cru*J.view, kA = 1 - Math.exp(-dt*1.8);
+  S_.viewA1 = S_.viewA1 ?? S_.viewA; S_.viewA1 += (Math.min(want2, 1) - S_.viewA1)*kA; S_.viewA += (S_.viewA1 - S_.viewA)*kA;
   const k = smooth(0, 1, S_.viewA), work = S_.phase === 'pass' || S_.phase === 'loop' || S_.phase === 'align';
+  // (the framing's numbers: the job's (or the pass's), and the side the pass banks to, eased there through two easings in a row (0.9.7 review). Switched
+  // at once, as a job ended or a new pass drew its side while the framing was still on, they moved the locked camera in one frame)
+  const vt = [J.bank, J.turn, S_.side, ...J.aim, ...J.chaseAim], vj = S_.vj || (S_.vj = { a:vt.slice(), b:vt.slice() }), kv = 1 - Math.exp(-dt*3);
+  for (let i=0;i<vt.length;i++){ vj.a[i] += (vt[i] - vj.a[i])*kv; vj.b[i] += (vj.a[i] - vj.b[i])*kv; }
+  const [jBank, jTurn, jSide, ax, ay, az, cx, cy, cz] = vj.b;
   // the belly faces the body it visits; while it works it banks, turning its side to the body (eased, so the ship rolls smoothly);
   // between stars it keeps its roll
   const u = work ? V.norm(V.mul(r.p, -1)) : null;
   let want = work ? u : (S_.belly || anyPerp(h));
   want = perpTo(want, h); if (V.len(want) < 1e-9) want = S_.belly ? perpTo(S_.belly, h) : anyPerp(h); if (V.len(want) < 1e-9) want = anyPerp(h);
   want = V.norm(want);
-  if (work && k > 0){ const a = J.bank*k*S_.side, sd = V.cross(h, want); want = V.add(V.mul(want, Math.cos(a)), V.mul(sd, Math.sin(a))); }
-  S_.belly = S_.belly ? V.norm(perpTo(V.lerp(S_.belly, want, 1 - Math.exp(-dt*2.5)), h)) : want;
+  if (work && k > 0){ const a = jBank*k*jSide, sd = V.cross(h, want); want = V.add(V.mul(want, Math.cos(a)), V.mul(sd, Math.sin(a))); }
+  // (0.9.7 review: it rolls about its heading toward that, eased, never faster than about 50 degrees a second, and held while the ship heads almost
+  // straight at the body or away from it, where the way to the body across its heading swings round; then a second easing on top, so its roll
+  // never starts at full speed. The ship, and every camera on it, rolled at up to 90 degrees a second one way and then the other as a pass began)
+  const kb = 1 - Math.exp(-dt*5), wl = work ? smooth(0.05, 0.3, V.len(perpTo(u, h))) : 1;
+  if (S_.belly1){ const b1 = V.norm(perpTo(S_.belly1, h)), sa = Math.atan2(V.dot(V.cross(b1, want), h), V.dot(b1, want));
+    const a = Math.sign(sa)*Math.min(Math.abs(sa)*(1 - Math.exp(-dt*3))*wl, 0.9*dt); S_.belly1 = V.norm(V.add(V.mul(b1, Math.cos(a)), V.mul(V.cross(h, b1), Math.sin(a)))); }
+  else S_.belly1 = want;
+  if (!isFinite(S_.belly1[0]) || V.len(S_.belly1) < 0.5) S_.belly1 = want;
+  S_.belly = S_.belly ? V.norm(perpTo(V.lerp(S_.belly, S_.belly1, kb), h)) : want;
   if (!isFinite(S_.belly[0]) || V.len(S_.belly) < 0.5) S_.belly = want;
   ship.R0 = frameY(h, S_.belly); ship.rot = ship.R0;
   // framing while it works: the job happens on a body that passes from ahead to below. A camera trailing from behind would soon lose
   // it, so the trailing frame turns from the heading toward the body only as far as it takes to keep the body within ~34 degrees of
   // the view, with "down" toward the body (the ship banks in the picture), turned a little to one side for a three-quarter view, and
   // aimed a little below the ship. From the bridge the pilot looks toward the body, over the side of the hull.
+  // (sclamp: the turn is held between its limits with rounded corners; a hard clamp stopped the locked camera's turn in one frame)
   if (work && k > 1e-3){
-    const psi = angleOf(h, u), f = rotToward(h, u, clamp(psi - 0.6, 0, 1.3)*k*J.turn), g = rotToward(h, u, clamp(psi - 0.3, 0, 1.0)*k*J.turn);
-    ship.viewR = M3.mul(frameY(f, V.lerp(S_.belly, u, k)), M3.rotX((tanX < tanY ? 0.12 : 0.4)*k*S_.side));   // (less of a swing on a tall, narrow phone screen)
+    const psi = angleOf(h, u), f = rotToward(h, u, sclamp(psi - 0.6, 0, 1.3)*k*jTurn), g = rotToward(h, u, sclamp(psi - 0.3, 0, 1.0)*k*jTurn);
+    ship.viewR = M3.mul(frameY(f, V.lerp(S_.belly, u, k)), M3.rotX((tanX < tanY ? 0.12 : 0.4)*k*jSide));   // (less of a swing on a tall, narrow phone screen)
     ship.gazeR = frameY(g, S_.belly);
   } else ship.viewR = ship.gazeR = ship.R0;
-  ship.viewOff = [J.aim[0]*k, J.aim[1]*k, J.aim[2]*k*S_.side]; ship.chaseOff = [J.chaseAim[0]*k, J.chaseAim[1]*k, J.chaseAim[2]*k*S_.side];
+  // (the cameras' frame follows through two easings in a row, 0.9.7 review: a turn of the ship's that starts or stops at full rate, as its turn before
+  // a jump does, eases in and out on the screen, where the locked camera's turn jolted by 10 to 20 degrees a second in one frame. It is set at
+  // once in light speed and a fold, and at a new place)
+  const TV = ship.viewR, vr = S_.vr, Y = TV.slice(3, 6), X = TV.slice(0, 3);
+  if (!vr || vr.v !== S_.visits || S_.phase === 'light' || S_.phase === 'fold' || !(dt > 0)) S_.vr = { v:S_.visits, a:[Y, X], b:[Y, X] };
+  else { const kf = 1 - Math.exp(-dt*7); vr.a = [slerpDir(vr.a[0], Y, kf), slerpDir(vr.a[1], X, kf)]; vr.b = [slerpDir(vr.b[0], vr.a[0], kf), slerpDir(vr.b[1], vr.a[1], kf)];
+    ship.viewR = frameY(vr.b[0], vr.b[1]); }
+  ship.viewOff = [ax*k, ay*k, az*k*jSide]; ship.chaseOff = [cx*k, cy*k, cz*k*jSide];
 }
+// x held between a and b, its corners rounded over w either side (the slope goes from 0 to 1 smoothly there)
+const sclamp = (x, a, b, w = 0.15) => x <= a - w ? a : x >= b + w ? b : x < a + w ? a + (x - a + w)**2/(4*w) : x > b - w ? b - (b + w - x)**2/(4*w) : x;
 // ---------------------------------------------------------------- the shield (made up, like the ship) and the real gravity it works against
 // Its load follows the real escape speed where the ship is: sqrt(r_s/r) of light speed near a black hole or a neutron star, and a body's
 // surface escape speed x sqrt(R/r) elsewhere. Planets barely register, the Sun's surface is about a quarter, a black-hole pass runs from about
@@ -1215,7 +1239,7 @@ ship.dbg = {
     Object.assign(S_, { phase:'pass', t:0, target:null, spool:0, ls:0, scale:1, scoop:0, em:[0, 0, 0, 0], visits:0, force:{}, lastSkim:-9, lastAct:null, plan:null, next:null,
       align:null, leg:null, fold:null, act:null, h:[0, 1, 0], belly:null, vel:[0, 0, 0], speed:0, viewA:0, side:1, hFrom:null, jumpAt:0, stretch:0, lsRun:0, emerge:1, seedN:1, reaim:0,
       ringPh:0, beat:0, load:0, gWant:0, gDir:[0, 1, 0], vesc:0, gTg:null, climbK:0, fk:-99, asm:99, csL:false, wz:1, reseat:null, dg:0, dm:0, hfl:0, shK:1, cc:0, fz:1, embN:0, zipped:true, jt:0, stay:null, loop:null, lastStyle:null,
-      thr:0, thrW:0, turnL:[0, 0, 0], hPrev:null });
+      thr:0, thrW:0, turnL:[0, 0, 0], hPrev:null, vj:null, viewA1:0, belly1:null, vr:null });
     foldVisit(BYKEY[key]); S_.t = 3;
   },
   force(o){ Object.assign(S_.force, o); },
