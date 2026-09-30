@@ -82,7 +82,7 @@ const crab = (() => {
     pos, rad:6, R0:facingEarth(pos, V.norm([0.3, 0.15, 1]), 0), prog:program(VS_RECT, FS_CRAB), minZoom:0.02, pxMin:6, farColor:[1, 0.62, 0.45], farLum:0.55, labelRange:6e4, aka:'m1 ngc 1952 supernova remnant pulsar',
     views:[{d:[0.3,0.15,1],k:1.9,hold:8,drift:0.03},{d:[0.5,0.38,0.78],k:0.36,hold:7,drift:0.06},{d:[-0.85,0.3,0.4],k:1.05,hold:6,drift:0.05}],
     setU(pr){ gl.uniform4f(pr.u.uP0, 0, 1, 0, 1 - crabPulsar.vis); },
-    visFn:rpx => smooth(6, 15.6, rpx)*(0.04 + 0.96*smooth(0.02, 1.5, orbit.dist)),
+    visFn:rpx => smooth(6, 15.6, rpx)*(0.04 + 0.96*smooth(0.02, 1.5, viewDist())),
     readout:() => 'about 11 light-years across, expanding at 1,500 km/s\nlight from it takes 6,500 years to reach us' });
   return o;
 })();

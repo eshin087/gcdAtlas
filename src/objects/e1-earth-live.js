@@ -37,7 +37,7 @@ const earthLive = (() => {
     for (const [name, idx] of j.named || []) L.named[name] = d.slice(idx*7, idx*7 + 7);
     // swap the representative shells for the real thing
     earth.particles.push({ ps, prog:'ptSatR', mode:3, sb:0.4, size:1.5, rot:() => earth.R0, rad:EARTH_B*KM,
-      q0:() => [(jdNow() - L.satRef)*86400, 0, 1 - smooth(1.5e-8, 6e-8, orbit.dist), 6371/7135.5], show:inWindow });
+      q0:() => [(jdNow() - L.satRef)*86400, 0, 1 - smooth(1.5e-8, 6e-8, viewDist()), 6371/7135.5], show:inWindow });
     L.updated = new Date(j.ref);
   }
   // ---- the ISS and Hubble as real objects, placed from their live elements (or typical ones until those arrive)
@@ -105,7 +105,7 @@ const earthLive = (() => {
   ROUTES.forEach(([a, b]) => { const A = unit(AIRPORTS[a]), B = unit(AIRPORTS[b]), ang = Math.acos(clamp(V.dot(A, B), -1, 1)), hrs = ang*EARTH_R/850 + 0.6;
     for (let k=0;k<PER*2;k++) legs.push({ A:k % 2 ? B : A, B:k % 2 ? A : B, ang, hrs, ph:Math.random() }); });
   for (let i=0;i<legs.length;i++) planes.c.set([1, 0.78, 0.4, 0], i*4);
-  earth.particles.push({ ps:planes, prog:'ptBasic', mode:3, sb:0.55, size:1.4, rot:() => earth.rot, rad:EARTH_B*KM, show:() => FLAGS.planes && inWindow(), vis:() => 1 - smooth(1.2e-9, 4e-9, orbit.dist) });
+  earth.particles.push({ ps:planes, prog:'ptBasic', mode:3, sb:0.55, size:1.4, rot:() => earth.rot, rad:EARTH_B*KM, show:() => FLAGS.planes && inWindow(), vis:() => 1 - smooth(1.2e-9, 4e-9, viewDist()) });
   function updatePlanes(){
     const hours = (jdNow() - JD_NOW)*24, rs = (EARTH_R + 11)/EARTH_B;
     for (let i=0;i<legs.length;i++){
@@ -121,7 +121,7 @@ const earthLive = (() => {
   earth.update = function(dt){ prevUpdate.call(this, dt); if (orbit.dist < 6e-9 && (cam.focus === earth.index || orbit.lock === earth.index)) updatePlanes(); };
   const prevRead = earth.readout;
   earth.readout = () => {
-    const d = orbit.dist/earth.rad, next = L.launches.find(l => Date.parse(l.net) > (jdNow() - 2440587.5)*86400000);
+    const d = viewDist()/earth.rad, next = L.launches.find(l => Date.parse(l.net) > (jdNow() - 2440587.5)*86400000);
     if (d < 6 && d >= 2 && L.status === 'live') return `${L.satCount.toLocaleString('en-US')} active satellites, live from CelesTrak · colours: Starlink blue, navigation green, geostationary gold\n` + (next ? `next launch: ${next.name} · ${next.site || next.pad}` : 'yellow dots near the ground are illustrative air traffic on real routes');
     if (d < 2) return 'yellow dots: illustrative air traffic on 55 of the busiest routes\n' + (L.status === 'live' ? `${L.satCount.toLocaleString('en-US')} satellites overhead (live orbits)` : 'satellites shown as their typical orbital shells');
     return prevRead();

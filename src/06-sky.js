@@ -45,7 +45,7 @@ const catalogStars = (() => {
     particleVis:() => 1,
     particles:[
       {ps, prog:'catStar', mode:3, sb:1, size:1, q0:() => [1, 0.42, GT, twinkleAmt()], rad:1, rot:() => I3},
-      {ps:lines, prog:'lnBasic', lines:true, mode:3, sb:0.2, size:1, rad:1, rot:() => I3, vis:() => labelsOn ? smooth(6, 30, orbit.dist)*(1 - smooth(900, 4000, orbit.dist))*(1 - smooth(1500, 5000, V.len(o.rel))) : 0},
+      {ps:lines, prog:'lnBasic', lines:true, mode:3, sb:0.2, size:1, rad:1, rot:() => I3, vis:() => labelsOn ? smooth(6, 30, viewDist())*(1 - smooth(900, 4000, viewDist()))*(1 - smooth(1500, 5000, V.len(o.rel))) : 0},
     ] });
   o.starPos = starPos; o.starVel = starVel;
   // move every catalogue star (and the constellation figures) to where it will be DEEP million years from now

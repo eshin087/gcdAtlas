@@ -144,7 +144,7 @@ const rideB = await page.evaluate(seed => {
   r.still = watch('jupiter', 40, 'still');
   C.setOpt('rideCam', 'moving', true);
   // (c)
-  C.stopShipCam(); D.reset(seed + 2, 'saturn'); for (let i = 0; i < 60*7; i++) C.tick(1/60);
+  C.stopShipCam(); D.reset(seed + 2, 'saturn'); C.ride.seed(seed + 2); for (let i = 0; i < 60*7; i++) C.tick(1/60);
   C.haloTourStart('grand'); C.land(0.2);
   const L = C.HT.stops.map(o => o.key), seen = [], caps = []; let t = 0;
   r.tour = { on:C.HT.on, start:S.target.key, n:L.length, epic:C.ride.RIDE.epic, next:document.getElementById('goNextTxt').textContent };
@@ -161,6 +161,36 @@ for (const q of rideB.moving) if (q.ticks < 600 || q.shipOut || q.bodyOut || q.s
 if (rideB.still.shipOut || rideB.still.bodyOut || rideB.still.shots.join() !== 'still') fail('the still ride camera moved, or lost the ship or Jupiter: ' + JSON.stringify(rideB.still));
 if (!rideB.tour.on || !rideB.tour.epic || rideB.tour.start !== 'saturn' || rideB.tour.seen.join() !== rideB.tour.want.join() || rideB.tour.caps.join() !== rideB.tour.names.join() || !/^next stop/.test(rideB.tour.next) || !rideB.tour.off)
   fail('the Halo tour did not fly the grand tour from Saturn, stop by stop, naming each: ' + JSON.stringify(rideB.tour));
+
+// 5c. the Halo tour frames the place first (owner, 0.9.12: "the tour object should be the main focus of almost every shot and halo is more a
+// bonus cool addon"): at a place (a pass or a loop, the chase pose not holding the camera), the place's disc covers at least 4% of the view,
+// or is at least 3 times the ship's size on the screen, in 85% of the samples; the ship stays in the picture and is never bigger on the screen
+// than the place. Before 0.9.12 the ship covered 10 to 50% of the view and the place 0.2 to 3%, and a click on the ship lost the place
+const tourFrame = await page.evaluate(seed => {
+  const C = __cosmos, h = C.BYKEY.halo, D = h.dbg, S = h.S, W = innerWidth, H = innerHeight;
+  C.stopShipCam(); if (C.HT.on) C.haloTourEnd(true); C.setDays(0); C.tick(0); D.reset(seed + 3, 'saturn'); C.ride.seed(seed + 3); for (let i = 0; i < 60*3; i++) C.tick(1/60);
+  C.haloTourStart('grand'); C.land(0.2);
+  // (a click on the ship on the tour rides along again, with the tour's shots)
+  C.stopShipCam(); C.lockOn(h.index); const clickRides = C.HT.on && (C.shipCam.on || C.shipCam.pending); C.land(0.2);
+  const q = { n:0, good:0, shipIn:0, shipBig:0, places:[], clickRides, low:[] };
+  const pxOf = (rel, R) => { const d = Math.hypot(...rel); return d <= R ? 1e4 : Math.tan(Math.asin(R/d))/C.dbg.tan[1]*H/2; };
+  for (let i = 0; i < 30*240; i++){ C.tick(1/30); if (i % 15) continue;
+    if (!(S.phase === 'pass' || S.phase === 'loop') || C.ride.RIDE.wc > 0.05 || !C.shipCam.on) continue;
+    const tg = h.parent, prp = pxOf(tg.rel, C.ride.frame(tg, Math.hypot(...h.offset))), srp = pxOf(h.rel, h.rad), p = C.proj({ rel:tg.rel });
+    let cov = prp >= 1e4 ? 1 : 0;
+    if (!cov && p){ let n = 0, m = 0; for (let a = 0; a < 20; a++) for (let b = 0; b < 20; b++){ const u = (a + 0.5)/10 - 1, v = (b + 0.5)/10 - 1; if (u*u + v*v > 1) continue; m++; const x = p.x + u*prp, y = p.y + v*prp; if (x >= 0 && x <= W && y >= 0 && y <= H) n++; } cov = Math.PI*prp*prp*n/m/(W*H); }
+    const sp = C.proj({ rel:h.rel }), ok = cov >= 0.04 || (!!p && p.x > 0 && p.x < W && p.y > 0 && p.y < H && prp >= 3*srp);
+    q.n++; if (ok) q.good++; else if (q.low.length < 6) q.low.push([+(i/30).toFixed(1), tg.key, C.ride.shot, +cov.toFixed(3), Math.round(prp), Math.round(srp)]);
+    if (sp && sp.x > 0 && sp.x < W && sp.y > 0 && sp.y < H) q.shipIn++;
+    if (srp > prp) q.shipBig++;
+    if (!q.places.includes(tg.key)) q.places.push(tg.key);
+  }
+  C.haloTourEnd(true); C.stopShipCam();
+  return q;
+}, HALO_SEED);
+if (!tourFrame.clickRides || tourFrame.n < 200 || tourFrame.places.length < 2 || tourFrame.good < 0.85*tourFrame.n || tourFrame.shipIn < 0.9*tourFrame.n || tourFrame.shipBig)
+  fail('the Halo tour did not frame the place first (its disc 4% of the view or 3 times the ship, the ship in the picture and smaller): ' + JSON.stringify(tourFrame));
+console.log(`  Halo tour: the place framed first in ${Math.round(100*tourFrame.good/Math.max(tourFrame.n, 1))}% of ${tourFrame.n} samples at ${tourFrame.places.join(', ')}, the ship in the picture in ${Math.round(100*tourFrame.shipIn/Math.max(tourFrame.n, 1))}%`);
 
 // 6. arrows: from the Moon, "next" goes up the scale bar to Earth; the arrows beside the name step angles and the loop carries on;
 //    changing the travel speed mid-flight re-times the rest of the trip

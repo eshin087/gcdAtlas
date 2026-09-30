@@ -43,6 +43,32 @@ All notable changes, newest first. Dates are UTC.
 - `frel` gives the exact position when the focus circles the object (the ground moved thousands of kilometres a frame, seen from the station while the clock jumped).
 - The ground and sky shader compiles in 0.6 s on Direct3D, the rockets' in 1.0 and 1.2 s (in the background while the camera flies in).
 
+## 0.9.12 · 2026-09-30
+
+Built as 0.9.10 (PR #38); renumbered 0.9.12 when 0.9.11 (PR #36) merged first and was brought in.
+
+**The Halo tour shows the places** (owner, 2026-09-30: "the tour object should be the main focus of almost every shot and halo is more a bonus cool addon")
+- The Halo tour has shots of its own. Each frames the place first, through a long lens: the camera sits a few hundred to a few thousand km behind the ship, so the place fills a set share of the view (from all of it with room round it, to more than the view) and the Halo sits small in front of it, a few percent of the view. Up close to a planet or a star the place becomes a horizon across the lower part of the view, with the ship above it.
+- Seven shots and one for each job: the place whole as the ship arrives, the ship crossing in front of it, the place filling the view, the ship nearer with the place big beside it, over the horizon from the side and from behind, and a long way off with the ship a glint. The scan shows its hologram on the place, the weapons test is seen from behind the ship as it runs in, the skim and the signature moves over the horizon.
+- The lens eases in and out: riding starts with the plain view and zooms in while the camera backs away, so the ship keeps its size and the place grows. Between places (light speed, the fold) the camera goes back to the view behind the ship, as before.
+- Before, the ride camera sat a few ship lengths from the Halo: the ship covered 10 to 50% of the view and the place 0.2 to 3% (the Halo roams 8 to 20 radii out for most of a stay, and round a star 50 radii out, outside its glow). On the test's route (Saturn, Alpha Centauri, Betelgeuse) the place now covers 17 to 44% of the view on average in each kind of shot and the ship under 1% (the first seconds at a new place, while the camera comes out of the view behind the ship, 6%).
+- A click on the Halo during the Halo tour rides along again with these shots. It used to switch to the ship's own angles, which trail it: the place was behind the camera about 90% of the time.
+- The shots keep a steady roll while the ship turns and loops, and the ship can pass right over the place's centre without the picture turning. Before the ship leaves a place, the swing into the view behind it starts in the last 6 s of the stay and runs slower (the turn before a light-speed hop is often only 3 s).
+- On a phone the picture's shift into the free space above the card follows the lens (it lagged the zoom, and at 40 times it put Alpha Centauri off the screen).
+- Pip's show is left out of the Halo tour's jobs, and the ride camera's close-ups of Pip too: in these shots Pip would be a speck. Riding along without the tour is unchanged.
+
+**Places show whatever the camera is locked on**
+- Some places change their look with the camera's distance: the Crab Nebula fades round its pulsar, the Galactic Centre round Sgr A*, the Carina, Veil, Tarantula and Lagoon nebulae round the stars inside them, orbit lines and belts come and go, readouts switch to their close-up lines. They went by the distance to what the camera is locked on, which riding along is the ship itself, a few hundred km away: every such place took its closest form, the Crab Nebula faded to 4% and Saturn's readout said the camera was inside its rings. With the Halo they now go by the camera's distance to the place the ship is visiting (`viewDist`).
+
+**Fixes**
+- After you stop riding, Pip is no longer held to its calm bits: the ride camera's close-up of it was left half faded in, and it also changed when Pip came home and so when the ship jumped.
+- On the Halo tour Pip acts as when no one rides along while the tour's shots have the camera (they sit 15 to over 2,000 ship lengths away): it faced and waved at the camera only within 80, and each crossing in the middle of a bit made it jump.
+- The Halo tour's stay lengths draw from the ride camera's dice, so the motion test flies the same tour on every run (a check failed now and then).
+
+**Checked**
+- Pip smoothness test: the Halo tour's camera at most 66 degrees a second on a desk and a phone, no cuts.
+- Motion test: on the Halo tour from Saturn, at a place (a pass or a loop), the place's disc covers at least 4% of the view or is 3 times the ship's size in 85% of the samples or more, the ship stays in the picture and is never bigger than the place, and a click on the ship rides along again.
+
 ## 0.9.11 · 2026-09-30
 
 Built beside 0.9.10 (the Halo tour's camera, in review at the same time); whichever merges second renumbers.

@@ -5,7 +5,7 @@ function addScaleRings(o, rings, col = [0.45, 0.62, 1], far = 1){
   rings.forEach(([r, label], i) => {
     const ps = ringPS(160, col);
     o.particles.push({ ps, prog:'lnBasic', lines:true, mode:3, sb:0.3, size:1, rad:r, rot:() => o.R0,
-      vis:() => smooth(r*0.25, r*0.9, orbit.dist)*(1 - smooth(r*25*far, r*90*far, orbit.dist)) });
+      vis:() => smooth(r*0.25, r*0.9, viewDist())*(1 - smooth(r*25*far, r*90*far, viewDist())) });
     const a = 0.7 + i*0.45;
     addObj({ key:o.key + '-ring' + i, name:label, label, type:'', layer:3, parent:o, offset:M3.apply(o.R0, [r*Math.cos(a), 0, -r*Math.sin(a)]), rad:r/400, marker:true, noPick:true, noImpostor:true, atlas:false,
       labelMin:r*0.35, labelRange:r*40*far, labelClass:'ring' });
@@ -14,7 +14,7 @@ function addScaleRings(o, rings, col = [0.45, 0.62, 1], far = 1){
   const out = rings.filter(([r]) => r > o.rad*(o.solid || 1)), r0 = o.readout;
   if (!out.length) return;
   const names = out.map(([, l]) => l.replace(/'s orbit$/, "'s")), list = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
-  o.readout = () => (r0 ? r0() : '') + (smooth(out[0][0]*0.25, out[0][0]*0.9, orbit.dist) > 0.5 && orbit.lock === o.index ? `\nthe blue ${out.length > 1 ? 'rings are' : 'ring is'} ${list} orbit${out.length > 1 ? 's' : ''} around the Sun, drawn to scale for size` : '');
+  o.readout = () => (r0 ? r0() : '') + (smooth(out[0][0]*0.25, out[0][0]*0.9, viewDist()) > 0.5 && orbit.lock === o.index ? `\nthe blue ${out.length > 1 ? 'rings are' : 'ring is'} ${list} orbit${out.length > 1 ? 's' : ''} around the Sun, drawn to scale for size` : '');
 }
 const SS_RINGS = { earth:[AU_LY, "Earth's orbit"], mars:[1.524*AU_LY, "Mars's orbit"], jupiter:[5.2*AU_LY, "Jupiter's orbit"], saturn:[9.54*AU_LY, "Saturn's orbit"], neptune:[30.1*AU_LY, "Neptune's orbit"], voyager:[171*AU_LY, 'Voyager 1 today'], mercury:[0.387*AU_LY, "Mercury's orbit"] };
 // a star at its catalogue position; `R` solar radii, `T` kelvin
@@ -39,7 +39,7 @@ const alphaCen = namedStar('alphacen', 'Alpha Centauri', hms(14,39,36.5), dms(-6
   for (let i=0;i<n;i++) for (let k=0;k<2;k++){ const th = (i + k)/n*Math.PI*2; ps.a.set([Math.cos(th), Math.sin(th)*Math.sin(inc), -Math.sin(th)*Math.cos(inc), 1], (i*2 + k)*4); ps.c.set([1, 0.82, 0.55, 0], (i*2 + k)*4); }
   ps.upload('ac');
   alphaCen.particleVis = () => 1;
-  alphaCen.particles.push({ ps, prog:'lnBasic', lines:true, mode:3, sb:0.35, size:1, rad:23.5*AU_LY, rot:() => alphaCen.R0, vis:() => smooth(3*AU_LY, 15*AU_LY, orbit.dist)*(1 - smooth(3000*AU_LY, 20000*AU_LY, orbit.dist)) }); }
+  alphaCen.particles.push({ ps, prog:'lnBasic', lines:true, mode:3, sb:0.35, size:1, rad:23.5*AU_LY, rot:() => alphaCen.R0, vis:() => smooth(3*AU_LY, 15*AU_LY, viewDist())*(1 - smooth(3000*AU_LY, 20000*AU_LY, viewDist())) }); }
 const alphaCenB = addStar({ key:'alphacenb', name:'Alpha Centauri B', label:'α Cen B', parent:alphaCen, offset:[0, 0, 0], R:0.8632, T:5260, star:{ cells:36, act:0.5 }, atlas:false, labelRange:0.05, labelMin:1e-5, noImpostor:false, farLum:0.8,
   update:orbitAround(alphaCen, 23.5*AU_LY, 70, 0.3, 1), fact:'The smaller, oranger partner of Alpha Centauri A.', type:'K1 dwarf star', readout:() => '0.9 solar masses · 5,260 K' });
 const proxima = namedStar('proxima', 'Proxima Centauri', hms(14,29,43), dms(-62,40,46), 4.2465, 0.1542, 3042, { type:'red dwarf · the closest star to the Sun',
@@ -98,7 +98,7 @@ const epsEri = namedStar('epseri', 'Epsilon Eridani', hms(3,32,55.8), dms(-9,27,
 // (the belts are measured in units of the outer belt's radius, rad:RB: a point's brightness is spread over the size it is given, and over
 // the star's own tiny radius the belts were far too faint to show)
 { const n = Math.round(2500*QUALITY), RB = 64*AU_LY, ps = makePS(n); for (let i=0;i<n;i++){ const a = rnd()*6.283, r = (rnd() < 0.8 ? 64 + rndn()*5 : 3 + rndn()*0.3)*AU_LY/RB; ps.a.set([r*Math.cos(a), rndn()*0.3*AU_LY/RB, r*Math.sin(a), 0.6 + rnd()], i*4); ps.c.set([0.8, 0.72, 0.62, 0], i*4); } ps.upload('ac');
-  epsEri.particles.push({ ps, prog:'ptBasic', mode:0, sb:0.08, size:1.3, cap:0.5, rad:RB, vis:() => smooth(3*AU_LY, 20*AU_LY, orbit.dist) });
+  epsEri.particles.push({ ps, prog:'ptBasic', mode:0, sb:0.08, size:1.3, cap:0.5, rad:RB, vis:() => smooth(3*AU_LY, 20*AU_LY, viewDist()) });
   epsEri.particleVis = () => 1; epsEri.views = [{d:[0.3, 0.55, 1], k:1.3, hold:8, drift:0.04}, {d:[0.3, 0.9, 0.4], k:0.7*64*AU_LY/epsEri.rad*3, hold:9, drift:0.02}]; }
 namedStar('capella', 'Capella', hms(5,16,41.4), dms(45,59,53), 42.9, 11.98, 4970, { type:'pair of yellow giants', fact:'Two giant stars, each about 2.5 times the Sun\'s mass, circling each other every 104 days.',
   star:{ cells:14, act:0.1, corona:0.2 }, farLum:0.9, labelRange:1500, atlas:false, readout:() => '42.9 light-years · two giants 0.74 AU apart' });

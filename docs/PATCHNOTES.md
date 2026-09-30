@@ -12,6 +12,12 @@
 - Starbase as it looks now, from aerial photos taken in January 2026.
 - Starman's Roadster rebuilt: the real car's shape and size, with Starman at the wheel.
 
+## 0.9.12 · 30 Sep 2026 · The Halo tour shows the places
+- On the Halo tour every shot frames the place first, through a long lens, with the Halo small in front of it.
+- Close to a planet or a star the place becomes a horizon under the ship.
+- A click on the Halo during the tour keeps these shots.
+- The Crab Nebula and other places no longer fade away while you ride with the Halo.
+
 ## 0.9.11 · 30 Sep 2026 · A face for shared links
 - A link to gcdatlas now shows a picture when you paste it into a chat or a post: M87*, the black hole, drawn in ASCII.
 - Pictures you save in photo mode are signed gcdatlas.com.

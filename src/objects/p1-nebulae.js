@@ -224,7 +224,7 @@ const carina = (() => {
   return addObj({ key:'carina', name:'Carina Nebula', label:'Carina Nebula', type:'giant star-forming region · NGC 3372', group:'nebulae', sortKey:7500,
     fact:'Four times bigger than the Orion Nebula and home to some of the most massive stars known, including Eta Carinae. Its dust pillars, like Mystic Mountain, are being carved by their light.',
     pos, rad:150, R0:facingEarth(pos, [0, 0, 1], 25), prog:program(VS_RECT, FS_CARINA), minZoom:0.02, pxMin:6, farColor:[1, 0.6, 0.55], farLum:0.6, labelRange:3e5, labelMin:30, aka:'ngc 3372 eta carinae nebula mystic mountain keyhole trumpler',
-    visFn(rpx){ return smooth(6, 16, rpx)*(0.12 + 0.88*smooth(4, 60, orbit.dist)); },
+    visFn(rpx){ return smooth(6, 16, rpx)*(0.12 + 0.88*smooth(4, 60, viewDist())); },
     views:nebView(pos, [{ d:[0.2, -0.45, 0.85], k:0.85, off:[-0.45, -0.3, 0], hold:8, drift:0.02 }, { d:[-0.7, 0.3, 0.65], k:1.3, hold:8, drift:0.03 }]),
     particles:[{ ps:t14.ps, prog:'ptBasic', mode:1, sb:1.2, size:1.8 }, { ps:t16.ps, prog:'ptBasic', mode:1, sb:1.2, size:1.8 }, { ps:t14.spikes, prog:'spike', lines:true, mode:1, sb:1.2, size:1, len:0.03, q0:() => [1, 0, 0, 0] }],
     readout:() => '~7,500 light-years · about 300 light-years across\nits clusters hold dozens of stars over 50 times the Sun\'s mass' });
@@ -256,7 +256,7 @@ const veil = (() => {
   return addObj({ key:'veil', tags:['events'], name:'Veil Nebula', label:'Veil Nebula', type:'supernova remnant · the Cygnus Loop', group:'nebulae', sortKey:2400,
     fact:'The expanding wreckage of a star that exploded 10,000 to 20,000 years ago. The blast wave is still ploughing into surrounding gas, lighting it up in long twisted filaments.',
     pos, rad:65, R0:facingEarth(pos, [0, 0, 1], 0), prog:program(VS_RECT, FS_VEIL), minZoom:0.05, pxMin:6, farColor:[0.55, 0.9, 1], farLum:0.4, labelRange:1.5e5, labelMin:10, aka:'cygnus loop ngc 6960 ngc 6992 ngc 6995 ngc 6974 ngc 6979 ic 1340 witch broom supernova remnant',
-    visFn(rpx){ return smooth(6, 16, rpx)*(0.15 + 0.85*smooth(3, 40, orbit.dist)); },
+    visFn(rpx){ return smooth(6, 16, rpx)*(0.15 + 0.85*smooth(3, 40, viewDist())); },
     views:nebView(pos, [{ d:[0.9, 0.1, 0.4], k:0.45, off:[0.82, 0, 0], hold:8, drift:0.02 }, { d:[0.3, 0.6, 0.7], k:1.5, hold:8, drift:0.03 }]),
     readout:() => '2,400 light-years · about 110 light-years across\nthe shock is still racing outward at ~1.5 million km/h' });
 })();

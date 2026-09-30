@@ -184,7 +184,7 @@ const sun = (() => {
       gl.uniform4f(pr.u.uP1, 1/bound, 0, kc, kc);
       gl.uniform4f(pr.u.uP2, st.flareDir[0], st.flareDir[1], st.flareDir[2], st.flare);
       gl.uniform4f(pr.u.uP3, st.cmeDir[0], st.cmeDir[1], st.cmeDir[2], kc > 0.05 ? st.cme : 0);
-      gl.uniform4f(pr.u.uP4, clamp(1.5 - orbit.dist/(this.rad*1.2), 0, 1), 0.58, 0.5, -11);
+      gl.uniform4f(pr.u.uP4, clamp(1.5 - viewDist()/(this.rad*1.2), 0, 1), 0.58, 0.5, -11);
     },
     readout:() => st.cmeT < 10 ? 'coronal mass ejection: a billion tonnes of plasma\nleaving at ~1,000 km/s; it would reach Earth in ~2 days' :
       (st.flareT < 3 ? 'solar flare: magnetic loops snapping and reconnecting\nreleasing the energy of millions of nuclear bombs' : 'surface 5,500 °C, core 15 million °C · 1.39 million km across\nlight from its core takes ~100,000 years to reach the surface\ndrawn warm like a filtered photo · from space it looks white') });
@@ -649,7 +649,7 @@ const solarSystem = (() => {
   for (let i=0;i<nK;i++){ const sc = rnd() < 0.15, a = sc ? 50 + 60*rnd() : (rnd() < 0.3 ? 39.4 + rndn()*0.3 : 42 + 5*rnd());
     belt.a.set([a, sc ? 0.2 + 0.5*rnd() : rnd()*0.12, rnd()*6.283, rnd()*6.283], b*4); belt.c.set([0.6, 0.66, 0.78, Math.abs(rndn())*(sc ? 0.4 : 0.1)], b*4); b++; }
   belt.upload('ac');
-  const zoomVis = (lo, hi, lo2, hi2) => () => smooth(lo, hi, orbit.dist)*(1 - smooth(lo2, hi2, orbit.dist));
+  const zoomVis = (lo, hi, lo2, hi2) => () => smooth(lo, hi, viewDist())*(1 - smooth(lo2, hi2, viewDist()));
   const beltVis = zoomVis(3e-5, 1.5e-4, 0.03, 0.4);
   const o = addObj({ key:'solarsystem', name:'the Solar System', label:'Solar System', type:'our planetary system · 8 planets, 5 dwarf planets, millions of small bodies', group:'solar', sortKey:-2, layer:2,
     fact:'Planets shown where they are today, on their true orbits. The asteroid belt hides gaps carved by Jupiter; two swarms of Trojans share its orbit.',
@@ -660,7 +660,7 @@ const solarSystem = (() => {
     particles:[
       {ps, prog:'lnBasic', lines:true, mode:3, sb:0.4, size:1, rad:AU_LY, rot:() => I3, vis:zoomVis(2.5e-5, 1.2e-4, 0.02, 0.2)},
       // (seen from far out the belt is a few characters wide and its dots pile up into a solid blob: it dims as the view widens)
-      {ps:belt, prog:'ptKepler', mode:3, sb:0.35, size:1.6, rad:AU_LY, rot:() => ECL, q0:() => [jdNow() - JD_NOW, 0, 0, 0], vis:() => beltVis()*(1 - 0.85*smooth(8e-5, 4e-4, orbit.dist))},
+      {ps:belt, prog:'ptKepler', mode:3, sb:0.35, size:1.6, rad:AU_LY, rot:() => ECL, q0:() => [jdNow() - JD_NOW, 0, 0, 0], vis:() => beltVis()*(1 - 0.85*smooth(8e-5, 4e-4, viewDist()))},
     ],
     readout:() => `Neptune orbits 30 AU out · light takes 4 hours to get there` +
       (jdNow() >= VOY1.from ? `\nVoyager 1, our farthest probe, is ~${Math.round(V.len(voyager1At(jdNow()))/AU_LY)} AU away after ${Math.floor((jdNow() - VOY1.launch)/365.25)} years` : '') +
@@ -682,7 +682,7 @@ const oort = (() => {
     fact:'Trillions of comet nuclei surround the Sun out to a light-year or more, a third of the way to the nearest star. None has ever been seen directly.',
     pos:[0,0,0], rad:1.6, R0:ECL, minZoom:0.02, pxMin:3, noImpostor:true, labelRange:60, farLum:0, distEarth:'2,000 to 100,000 AU from the Sun', atlasDist:'all around us',
     views:[{d:[0.3, 0.45, 1], k:3.4, hold:9, drift:0.03}, {d:[0.9, 0.2, 0.3], k:1.3, hold:8, drift:0.03}],
-    particleVis:rpx => smooth(8, 40, rpx)*smooth(0.004, 0.03, orbit.dist),
+    particleVis:rpx => smooth(8, 40, rpx)*smooth(0.004, 0.03, viewDist()),
     particles:[{ps, prog:'ptBasic', mode:3, sb:0.4, size:1.6, rad:AU_LY}],
     readout:() => 'outer edge ~100,000 AU (1.6 light-years)\na comet from here takes millions of years per orbit' });
 })();
