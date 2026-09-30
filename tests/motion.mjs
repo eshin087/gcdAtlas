@@ -162,10 +162,10 @@ if (rideB.still.shipOut || rideB.still.bodyOut || rideB.still.shots.join() !== '
 if (!rideB.tour.on || !rideB.tour.epic || rideB.tour.start !== 'saturn' || rideB.tour.seen.join() !== rideB.tour.want.join() || rideB.tour.caps.join() !== rideB.tour.names.join() || !/^next stop/.test(rideB.tour.next) || !rideB.tour.off)
   fail('the Halo tour did not fly the grand tour from Saturn, stop by stop, naming each: ' + JSON.stringify(rideB.tour));
 
-// 5c. the Halo tour frames the place first (owner, 0.9.10: "the tour object should be the main focus of almost every shot and halo is more a
+// 5c. the Halo tour frames the place first (owner, 0.9.12: "the tour object should be the main focus of almost every shot and halo is more a
 // bonus cool addon"): at a place (a pass or a loop, the chase pose not holding the camera), the place's disc covers at least 4% of the view,
 // or is at least 3 times the ship's size on the screen, in 85% of the samples; the ship stays in the picture and is never bigger on the screen
-// than the place. Before 0.9.10 the ship covered 10 to 50% of the view and the place 0.2 to 3%, and a click on the ship lost the place
+// than the place. Before 0.9.12 the ship covered 10 to 50% of the view and the place 0.2 to 3%, and a click on the ship lost the place
 const tourFrame = await page.evaluate(seed => {
   const C = __cosmos, h = C.BYKEY.halo, D = h.dbg, S = h.S, W = innerWidth, H = innerHeight;
   C.stopShipCam(); if (C.HT.on) C.haloTourEnd(true); C.setDays(0); C.tick(0); D.reset(seed + 3, 'saturn'); C.ride.seed(seed + 3); for (let i = 0; i < 60*3; i++) C.tick(1/60);

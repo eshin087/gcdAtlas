@@ -12,7 +12,9 @@ More light means a denser character. Colour comes from the physics: the temperat
 
 No sign-up, nothing to install. It runs in any modern browser, on a desk or a phone.
 
-## 127 places to visit (more to come...)
+**What's new?** See the [patch notes](docs/PATCHNOTES.md) (short, for visitors) or the [changelog](docs/CHANGELOG.md) (every detail). The latest: Pip takes the stage, and SpaceX launches from real pads.
+
+## 140 places to visit (more to come...)
 
 <table>
 <tr>
@@ -37,11 +39,23 @@ Black holes bend light above the true shape of their curved space. Galaxies coll
 
 ## The Halo
 
-One thing here is invented: **the Halo**, a long-range cruiser with a captured star for a heart. It roams the atlas on its own, scanning planets, launching probes and crossing space at light speed. Follow behind it, or ride along from its bridge.
+One thing here is invented: **the Halo**, a long-range cruiser with a captured star for a heart. It roams the atlas on its own, about two minutes at each place, then crosses space at light speed or folds itself into embers and forms again somewhere else. Follow behind it, or ride along from its bridge.
 
 <img src="docs/media/clip-halo-chase.webp" alt="Riding behind the Halo as it jumps to light speed and drops out beside the Moon" width="100%">
 
 <sub>Riding behind the Halo as it jumps to light speed and drops out beside the Moon.</sub>
+
+- **A move for every place.** Through Saturn's Cassini Division, low over Jupiter's Great Red Spot, through a star's corona, through the hole of a ring nebula.
+- **Jobs.** A hologram scan that names real features with real numbers, a refuelling skim just above a gas giant's clouds or a star, and a weapons test: an attack run that fires a railgun straight along its heading.
+- **Pip**, the Halo's little two-eyed drone, is out for most of every stay. It plays peekaboo at the edge of your view, rides beside you, sits on the bow, and becomes the heart of the railgun.
+- **Ride along.** The camera keeps the place in view behind the ship and glides between angles, or holds still if you prefer.
+- **The Halo tour.** Flip the "Halo tour" switch beside tours and ride along while the Halo flies any tour's stops.
+
+## SpaceX launches
+
+Starship, Falcon 9, Falcon Heavy and Crew Dragon stand on their real pads at Starbase, Cape Canaveral and Vandenberg. Pick one and watch it launch by day, about 3 minutes a flight with one smooth camera, or press "real speed" to see every second. The Starship booster flies back and is caught by its tower. Real launches play live at their scheduled time.
+
+The ground round the pads is real: aerial photos, satellite images, the height of the land and the buildings. And Starman still drives his Tesla Roadster round the Sun, shown where he really is today.
 
 ## Things to do
 
@@ -52,7 +66,8 @@ One thing here is invented: **the Halo**, a long-range cruiser with a captured s
 </tr>
 </table>
 
-- **The atlas.** Search or browse every place by distance, size or kind, and see which ones you have not visited yet.
+- **The atlas.** Search or browse every place by kind, distance, size or name, and see which ones you have not visited yet. Search knows catalogue numbers too, such as M31 or NGC 1976.
+- **Random tour.** 12 places from the whole atlas, a new mix each time, the ones you have not seen first.
 - **Earth's story.** 4.54 billion years on one slider: magma ocean, snowball Earth, the first forests, the asteroid, today.
 - **Scale ladder.** Drag one marker from the Moon to the observable universe; let go near a name to fly there.
 - **Flybys** past the giants (the Sun, UY Scuti, TON 618, the Milky Way) that show just how big they are.
@@ -62,7 +77,8 @@ One thing here is invented: **the Halo**, a long-range cruiser with a captured s
 - **Photo mode** (`P`). Frame a shot, then save it as a picture or copy it as ASCII text.
 - **Today's discovery.** One object a day, the same for everyone, with a streak to keep.
 - **Collection log.** Ticks off what you have seen and hands out badges.
-- **Music.** gcd radio: 16 songs in six styles, from ambient and ambient piano to lofi and synthwave, made live in your browser. Pick a mood (mix, calm, beats, groove), skip a song or pick one from the list.
+- **Music.** gcd radio: 15 songs in six styles, from ambient and ambient piano to lofi and synthwave, made live in your browser. Pick a mood (mix, calm, beats, groove), skip a song or pick one from the list.
+- **What's new.** The button beside ? lists what changed in each version.
 - **Share.** A link takes a friend to your exact view, tour and date.
 - **Private.** Your settings, location and progress stay on your device.
 
@@ -81,7 +97,7 @@ A thumb-sized dock, an info card you can swipe away, and pinch to zoom. Works up
 
 These are plans and ideas, not promises. They will land one at a time.
 
-- **Earth, closer.** More detail as you fly down: iconic cities and landmarks, mountains, rivers and deserts, all still drawn in ASCII.
+- **Earth, closer.** The launch sites have real ground now; next, more detail everywhere as you fly down: iconic cities and landmarks, mountains, rivers and deserts, all still drawn in ASCII.
 - **More from the Halo.** New looks, new jobs and new effects for the ship, and more ways to ride along.
 - **Explore for yourself.** If it can be done well: land on worlds and look around, a little like *No Man's Sky*, in text.
 - **More destinations.** New stars, nebulae, galaxies, exoplanets and spacecraft.

@@ -203,7 +203,7 @@ $('#phSave').addEventListener('click', () => {
     x.font = `500 ${Math.round(15*s)}px "IBM Plex Mono", monospace`; x.fillStyle = 'rgba(226,232,245,0.85)'; x.textBaseline = 'bottom';
     x.fillText(OBJ[infoObj].name, pad, c.height - pad - 16*s);
     x.font = `${Math.round(11*s)}px "IBM Plex Mono", monospace`; x.fillStyle = 'rgba(255,179,92,0.8)';
-    x.fillText('gcdatlas.vercel.app', pad, c.height - pad);
+    x.fillText('gcdatlas.com', pad, c.height - pad);
     c.toBlob(b => { if (b){ download(b, shotName('png')); toast('picture saved'); } else toast('could not save the picture'); }, 'image/png');
   };
   flash();
@@ -214,7 +214,7 @@ $('#phText').addEventListener('click', () => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, RT.cellFBO); gl.readPixels(0, 0, cols, rows, gl.RGBA, gl.UNSIGNED_BYTE, buf); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     const lines = [];
     for (let y = rows - 1; y >= 0; y--){ let l = ''; for (let x = 0; x < cols; x++){ const gi = buf[(y*cols + x)*4 + 3]; l += gi === 255 ? ' ' : (atlas.chars[gi] || ' '); } lines.push(l.replace(/\s+$/, '')); }
-    const txt = lines.join('\n').replace(/^\n+|\n+$/g, '') + `\n\n${OBJ[infoObj].name} · gcdatlas.vercel.app\n`;
+    const txt = lines.join('\n').replace(/^\n+|\n+$/g, '') + `\n\n${OBJ[infoObj].name} · gcdatlas.com\n`;
     const fallback = () => { download(new Blob([txt], { type:'text/plain' }), shotName('txt')); toast('saved as a text file'); };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(() => toast(`copied ${cols} x ${rows} characters · paste into any monospaced text`), fallback);
     else fallback();

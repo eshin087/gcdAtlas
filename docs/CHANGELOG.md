@@ -4,7 +4,9 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
-## 0.9.10 · 2026-09-30
+## 0.9.12 · 2026-09-30
+
+Built as 0.9.10 (PR #38); renumbered 0.9.12 when 0.9.11 (PR #36) merged first and was brought in.
 
 **The Halo tour shows the places** (owner, 2026-09-30: "the tour object should be the main focus of almost every shot and halo is more a bonus cool addon")
 - The Halo tour has shots of its own. Each frames the place first, through a long lens: the camera sits a few hundred to a few thousand km behind the ship, so the place fills a set share of the view (from all of it with room round it, to more than the view) and the Halo sits small in front of it, a few percent of the view. Up close to a planet or a star the place becomes a horizon across the lower part of the view, with the ship above it.
@@ -27,6 +29,16 @@ All notable changes, newest first. Dates are UTC.
 **Checked**
 - Pip smoothness test: the Halo tour's camera at most 66 degrees a second on a desk and a phone, no cuts.
 - Motion test: on the Halo tour from Saturn, at a place (a pass or a loop), the place's disc covers at least 4% of the view or is 3 times the ship's size in 85% of the samples or more, the ship stays in the picture and is never bigger than the place, and a click on the ship rides along again.
+
+## 0.9.11 · 2026-09-30
+
+Built beside 0.9.10 (the Halo tour's camera, in review at the same time); whichever merges second renumbers.
+
+**Sharing and credit** (owner, 2026-09-30: make the site easier to share and say who made it, without anything personal)
+- Link previews: a shared link shows a 1200 x 630 picture (M87* at its third angle, with "gcdatlas", "the real universe, drawn in ASCII" and gcdatlas.com) in chats, X, Discord and the like. New meta tags: `og:image` (with size and alt text), `og:site_name`, `twitter:card` (large image) and its title, description and image. `tools/og-image.mjs` (`npm run og`) renders candidates on the GPU into tests/out/og/ and writes the chosen one to assets/og.jpg; build.mjs copies it to dist/og.jpg.
+- The site's address is gcdatlas.com: the canonical link, `og:url` and the preview point there (gcdatlas.vercel.app still works).
+- Photo mode signs its pictures and its copied text gcdatlas.com (was gcdatlas.vercel.app).
+- Help's last line: what's new · made by GCD · the code on GitHub · your settings, location and progress stay on your device. What's new ends with "Made by GCD; the code is on GitHub."
 
 ## 0.9.9 · 2026-09-30
 

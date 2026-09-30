@@ -5,11 +5,16 @@
      numbers with units. The newest version comes first and opens by itself; its number must match package.json (tests/smoke.mjs checks it).
      Every detail stays in docs/CHANGELOG.md, which the panel links to. -->
 
-## 0.9.10 · 30 Sep 2026 · The Halo tour shows the places
+## 0.9.12 · 30 Sep 2026 · The Halo tour shows the places
 - On the Halo tour every shot frames the place first, through a long lens, with the Halo small in front of it.
 - Close to a planet or a star the place becomes a horizon under the ship.
 - A click on the Halo during the tour keeps these shots.
 - The Crab Nebula and other places no longer fade away while you ride with the Halo.
+
+## 0.9.11 · 30 Sep 2026 · A face for shared links
+- A link to gcdatlas now shows a picture when you paste it into a chat or a post: M87*, the black hole, drawn in ASCII.
+- Pictures you save in photo mode are signed gcdatlas.com.
+- Help and what's new say who made it, and link to the code on GitHub.
 
 ## 0.9.9 · 30 Sep 2026 · Pip takes the stage
 - Pip, the Halo's drone, is out for most of every stay, moving smoothly: it plays peekaboo, rides beside you, sits on the bow and chases sparks.

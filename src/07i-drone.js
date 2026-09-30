@@ -154,7 +154,7 @@ const pipFace = (q, f) => q.hurry ? 'sad' : f === 'curious' && q.kind === 'near'
 // before (never the same one twice in a row); fin: this job's outing is over (the job is done); face: the face it shows (a name in FACES),
 // fc: its eyes' shape now, easing toward that face; wink: one eye shut (> 0 its right, < 0 its left), winkS: the eye a blink shuts (0 both)
 // is the camera close by, for Pip (who faces it, waves at it, flourishes in its axes)? As camNear, but not while the Halo tour's own shots have
-// the camera (0.9.10): they sit 15 to over 2,000 ship lengths away, crossing camNear's 80 in the middle of Pip's bits, and each crossing
+// the camera (0.9.12): they sit 15 to over 2,000 ship lengths away, crossing camNear's 80 in the middle of Pip's bits, and each crossing
 // made Pip jump. Through them Pip acts as when no one rides along; the switch comes as the chase pose takes over or lets go, with Pip aboard
 const pipNear = () => camNear() && !(shipCam.on && RIDE.fam === 'tour' && RIDE.wc < 0.5);
 const pipFresh = () => ({ st:'stowed', O:null, req:null, reqDone:null, nextBit:null, form:'pod', wantT:0, outAt:4, outN:0, kind:'land', plan:null, g:null, last:'', lastActs:'', fin:false, u:-9, pos:[0, 0, 0], pupil:[0, 1, 0], body:[0, 1, 0], bodyM:[0, 1, 0],
@@ -678,7 +678,7 @@ function pipBitNext(q){
   // (while the ride camera is close on Pip, only a calm bit, so the close-up can play out rather than glide away at once: the ones made for the
   // camera would take its place, and a fast one would leave it)
   // (only while riding: the close-up's blend is not moved after riding stops, and a stale one held Pip to calm bits and changed when it came
-  // home, and so when the ship jumped: 0.9.10)
+  // home, and so when the ship jumped: 0.9.12)
   const P = q.plan, r = P.r, close = shipCam.on && typeof RIDE !== 'undefined' && RIDE.pk > 0.05;
   // (the made-for-the-camera bits only with the camera close by, and riding along only over a close shot with no pull-back to come: a tour's
   // pull-back left Pip playing peekaboo with a camera far away)

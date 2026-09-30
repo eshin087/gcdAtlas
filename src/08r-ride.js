@@ -46,7 +46,7 @@ const rideOn = () => !RIDE_LAB;
 const rideStill = () => SET.rideCam === 'still';
 const bodyR = tg => tg ? (surfDrawn(tg) || tg.rad*0.6*magOf(tg)) : 0;
 
-// ---------------------------------------------------------------- the Halo tour's shots (0.9.10): the place first, the ship a bonus
+// ---------------------------------------------------------------- the Halo tour's shots (0.9.12): the place first, the ship a bonus
 // (owner, 2026-09-30: "the tour object should be the main focus of almost every shot and halo is more a bonus cool addon". The ride camera sat
 // a few ship lengths from the ship, which covered 10 to 50% of the view and the place 0.2 to 3%: the Halo roams 8 to 20 radii out for most of
 // a stay, and 50 radii out round a star, outside its glow. Locked on by a click, the camera trailed the ship, and the place was often behind it.)
@@ -177,7 +177,7 @@ function rideShots(dt){
   // (the chase pose between places: in light speed and the fold, for the last seconds before a jump, and while the hull forms after a fold.
   // A fold's wind-up (9 s) takes the last 7.5 of them: 0.9.9 review, it took the chase pose the moment the wind-up began, swinging round at up to
   // 180 degrees a second with 9 s still to go)
-  // (on the Halo tour earlier and slower, 0.9.10: its shots are far from the chase pose, a long way off and looking back at the place, and
+  // (on the Halo tour earlier and slower, 0.9.12: its shots are far from the chase pose, a long way off and looking back at the place, and
   // the swing between them ran at up to 115 degrees a second)
   // the swing between them ran at up to 115 degrees a second; the turn before a light-speed hop is often only 3 s long, so on the tour it starts
   // in the last 6 s of the stay's last pass, and once started it never turns back: RIDE.lv)

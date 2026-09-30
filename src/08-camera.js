@@ -5,7 +5,7 @@ const orbit = { yaw:0, pitch:0.1, dist:1, distT:1, lock:0, off:[0,0,0], offFn:nu
 // the distance a place's looks go by (what shows at which zoom: a nebula fading round the star inside it, orbit lines, the Crab round its
 // pulsar, a readout's close-up line): the camera's distance to what it is locked on; with the Halo, to the place the ship is visiting.
 // (Riding along, the lock is the ship a few hundred km away, and every such look took its closest form: the Crab Nebula faded to 4% and
-// Saturn's readout said the camera was inside its rings. Owner, 0.9.10: the place must show on the Halo tour)
+// Saturn's readout said the camera was inside its rings. Owner, 0.9.12: the place must show on the Halo tour)
 function viewDist(){ return orbit.lock >= 0 && OBJ[orbit.lock] === ship && ship.parent ? ship.parent.dist : orbit.dist; }
 let flight = null, tween = null;
 const tour = { on:true, obj:0, view:0, to:null, phase:'hold', t:0 };   // (to: the angle a swing is heading for)
@@ -30,7 +30,7 @@ function setBasis(fwd, up){
   if (V.len(r) < 1e-6) r = V.cross(cam.fwd, V.norm([up[1], up[2], up[0]]));
   cam.right = V.norm(r); cam.up = V.cross(cam.right, cam.fwd);
   // (viewShift is for the view without a long lens: through one, the same shift in pixels is a smaller turn. Worked out for the lens of the
-  // moment and eased, it lagged the Halo tour's zoom, and at 40 times it put Alpha Centauri off a phone's screen: 0.9.10)
+  // moment and eased, it lagged the Halo tour's zoom, and at 40 times it put Alpha Centauri off a phone's screen: 0.9.12)
   const lk = LENS.k || 1;
   let shX = Math.atan(Math.tan(viewShift.x)/lk), shY = Math.atan(Math.tan(viewShift.y)/lk);
   if ((leash.x || leash.y) && !SKYV.on){
@@ -570,7 +570,7 @@ function syncOrbitFromCam(){
 }
 function lockOn(i, viewIdx = 0, loop = true){
   // (on the Halo tour a click on the ship rides along again, with the tour's shots, rather than the ship's own angles, which trail it and
-  // leave the place behind the camera: owner, 0.9.10)
+  // leave the place behind the camera: owner, 0.9.12)
   if (HT.on && typeof ship !== 'undefined' && i === ship.index){ if (!shipCam.on && !shipCam.pending) startShipCam('chase'); return; }
   stopTour(false); orbit.offFn = null; show.on = false;
   const o = OBJ[i], vi = Math.min(viewIdx, o.views.length - 1);
