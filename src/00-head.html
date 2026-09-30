@@ -164,6 +164,14 @@ body.ui-idle .caption{background:rgba(5,7,14,.4);border-color:transparent;border
 .topr > *{pointer-events:auto}
 #btnRide{color:var(--ship)}
 #btnRide.following{color:var(--void);background:var(--ship);border-color:var(--ship)}
+/* the Halo tour (0.9.6): on the lower row beside play, lit while it plays; riding along, the camera switch (moving / still) joins the lower row */
+#btnHaloTour{color:var(--ship);border-color:rgba(143,230,255,.4)}
+#btnHaloTour[aria-pressed="true"]{color:var(--void);background:var(--ship);border-color:var(--ship)}
+.controls #rideCamSeg,.controls #btnHaloTour{order:9;margin-top:-6px}   /* (the lower row, beside play: the top row is full at 1280 px) */
+#rideCamSeg[hidden],.ht-note[hidden]{display:none}
+body.showcase #btnHaloTour{display:none}   /* (the showcase scripts the ship's route itself) */
+#rideCamSeg button[aria-checked="true"]{color:var(--ship)}
+.ht-note{color:var(--ship);padding:0 2px 8px}
 /* the flash when the Halo folds space with you aboard */
 .fold-flash{position:fixed;inset:0;pointer-events:none;z-index:1;opacity:0;background:radial-gradient(ellipse at 50% 50%,rgba(235,250,255,.95) 0%,rgba(143,230,255,.55) 35%,rgba(20,40,70,.0) 80%)}
 .fold-flash.go{animation:foldFlash 1.1s ease-out}
@@ -508,6 +516,7 @@ body.showcase .strip{padding-bottom:calc(124px + env(safe-area-inset-bottom,0px)
 .sm-row button{flex:1 1 0;min-width:0;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 4px;cursor:pointer;
   color:var(--ink);background:rgba(143,230,255,.06);border:1px solid var(--line);border-radius:10px;font:inherit}
 .sm-row button[hidden]{display:none}
+.sm-row2{margin-top:6px}
 .sm-row button b{font-weight:500}
 .sm-row button small{color:var(--faint);font-size:calc(10px*var(--ts));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .sm-row button[aria-checked="true"]{color:var(--void);background:var(--ship);border-color:var(--ship)}
@@ -538,6 +547,9 @@ body.saver #view{cursor:none}
 .sv-obj{margin-top:6px;font-size:calc(15px*var(--ts));color:var(--ink)}
 .sv-fact{margin-top:2px;font-size:calc(12px*var(--ts));color:var(--dim);max-width:60ch}
 .sv-np{margin-top:8px;font-size:calc(11px*var(--ts));color:var(--flare)}
+/* (the angle line moves under the name while the screensaver plays, and back into the info panel after: moveAngleLine in 09f-features.js) */
+.saver-hud .progress{margin-top:3px;opacity:1;pointer-events:none}
+.saver-hud .progress .anav{display:none!important}
 .btn.saver-go{width:100%;color:#a8f0b0;border-color:rgba(168,240,176,.5)}
 /* photo mode: the interface hides, a small bar stays */
 body.photo .info,body.photo .brand,body.photo .topr,body.photo .info-pill,body.photo .controls,body.photo .ladder,body.photo .strip,body.photo .caption,body.photo .daily,body.photo .atlas,body.photo .panel,body.photo .shipmark,body.photo .shiparrow,body.photo .backpill{opacity:0!important;pointer-events:none!important}
@@ -586,7 +598,7 @@ body.sky .info .acts,body.sky .ladder,body.sky .lad-chip,body.sky .progress{opac
   .controls .btn[aria-expanded="true"]{background:var(--flare-bg);color:var(--flare)}
   .controls #btnSound{min-width:0}
   .controls #btnSound.silent{color:var(--mute);box-shadow:inset 0 0 0 1px rgba(255,128,118,.55)}
-  .controls #btnRide{display:none}
+  .controls #btnRide,.controls #btnHaloTour,.controls #rideCamSeg{display:none}
   #btnShip[aria-pressed="true"]{background:rgba(143,230,255,.14);color:var(--ship)}
   #btnTours.touring{background:rgba(168,240,176,.1)}
   /* the info card */

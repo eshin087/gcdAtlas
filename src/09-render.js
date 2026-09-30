@@ -337,15 +337,17 @@ function syncWhere(){
 // the row above the name: "stop 3 / 31" on a tour; otherwise the kind of object ("gas giant"), shown while the type line is folded away
 // (it used to read "-- / 31" off the tour)
 function syncStop(){
-  const el = $('#stopInfo'), k = tour.on ? TOUR.indexOf(infoObj) : -1;
-  const t = k >= 0 ? 'stop ' + (k + 1) + ' / ' + TOUR.length : tour.on ? '' : (OBJ[infoObj].type || '').split(' · ')[0];
+  const el = $('#stopInfo'), k = tour.on ? TOUR.indexOf(infoObj) : HT.on ? HT.i : -1;
+  const t = k >= 0 ? 'stop ' + (k + 1) + ' / ' + (tour.on ? TOUR.length : HT.stops.length) : tour.on ? '' : (OBJ[infoObj].type || '').split(' · ')[0];
   if (el.textContent !== t) el.textContent = t;
   el.classList.toggle('kind', k < 0);
 }
 // the green button beside the name says where it goes: the next stop on a tour ("start again" on the last one); once you have left
 // a tour, back to the stop you left it at; paused on that stop (a drag, the pause button), on to the next stop. Hidden when no tour is involved.
 function goNextState(){
-  if (cmp || SKYV.on || TOUR.length < 2) return null;
+  if (cmp || SKYV.on) return null;
+  if (HT.on && !tour.on){ const o = htNextStop(); return o ? { kind:'halo', o } : null; }   // (the Halo tour: on to its next stop now)
+  if (TOUR.length < 2) return null;
   // (on the last stop of the random tour it deals 12 new places, starting from there: 'deal', o is that last stop)
   const nextOf = i => { const k = TOUR.indexOf(i); return k < TOUR.length - 1 ? { kind:'next', o:OBJ[TOUR[k + 1]] } : tourDeals() ? { kind:'deal', o:OBJ[i] } : { kind:'again', o:OBJ[TOUR[0]] }; };
   if (tour.on) return TOUR.includes(tour.obj) ? nextOf(tour.obj) : null;
@@ -360,22 +362,23 @@ function syncGoNext(){
   if (txt === goNextShown) return; goNextShown = txt;
   b.hidden = !s; if (!s) return;
   $('#goNextTxt').textContent = txt; b.classList.toggle('back', s.kind === 'back');
-  b.title = s.kind === 'again' ? 'Start the tour again from ' + name + ' (])' : s.kind === 'deal' ? RANDOM_N + ' new places picked at random, starting from here (])' : s.kind === 'back' ? 'Back to the tour, at ' + s.o.name : 'Fly on to the next stop: ' + s.o.name + ' (])';
+  b.title = s.kind === 'halo' ? 'The Halo flies on to its next stop now: ' + s.o.name : s.kind === 'again' ? 'Start the tour again from ' + name + ' (])' : s.kind === 'deal' ? RANDOM_N + ' new places picked at random, starting from here (])' : s.kind === 'back' ? 'Back to the tour, at ' + s.o.name : 'Fly on to the next stop: ' + s.o.name + ' (])';
 }
 function goNextClick(){
   const s = goNextState(); if (!s) return;
   hideHint(); if (cmp) endCompare(false);
   if (s.kind === 'back'){ setTour(true); return; }   // (picks the tour up at the stop you left)
+  if (s.kind === 'halo'){ haloTourSkip(); return; }
   tween = null; if (flight) finishFlightHere();
   if (!tour.on){ tour.on = true; shipCam.on = false; }
   if (s.kind === 'deal'){ tour.obj = s.o.index; tourGo(tourNext(1)); } else tourGo(s.o.index);
   updateModeUI();
 }
 function updateModeUI(){
-  const m = cmp ? 'size compare' : tour.on ? tourName() : (orbit.lock >= 0 || flight ? 'locked on' : 'free camera'), me = $('#mode'), mt = $('#modeTour');
-  // on a tour the name is a button that opens the list of tours ("GRAND TOUR ▾")
-  if (mt.hidden === tour.on){ mt.hidden = !tour.on; me.hidden = tour.on; }
-  if (tour.on){ if ($('#modeTourName').textContent !== m) $('#modeTourName').textContent = m; }
+  const ht = HT.on && !cmp && !tour.on, m = cmp ? 'size compare' : tour.on ? tourName() : ht ? 'halo tour · ' + htTour().name : (orbit.lock >= 0 || flight ? 'locked on' : 'free camera'), me = $('#mode'), mt = $('#modeTour');
+  // on a tour the name is a button that opens the list of tours ("GRAND TOUR ▾"; on the Halo tour "HALO TOUR · GRAND TOUR ▾")
+  const tb = tour.on || ht; if (mt.hidden === tb){ mt.hidden = !tb; me.hidden = tb; }
+  if (tb){ if ($('#modeTourName').textContent !== m) $('#modeTourName').textContent = m; }
   else if (me.textContent !== m){ me.textContent = m; me.className = 'mode ' + (m === 'free camera' ? 'm-free' : 'm-lock'); }
   mt.setAttribute('aria-expanded', String(!$('#tours').hidden));
   syncStop(); syncGoNext();
@@ -387,19 +390,23 @@ function updateModeUI(){
   }
   $('#btnPlay').lastChild.textContent = playing ? 'pause' : back ? 'back to ' + back.name : 'play';
   syncWhere();
-  const riding = shipCam.on || (shipCam.pending && !!flight), rb = $('#btnRide'), sb = $('#btnShip'), cpt = isCompact(); rb.classList.toggle('following', riding); rb.textContent = riding ? 'riding' : 'ride';
+  const riding = shipCam.on || (shipCam.pending && !!flight), rb = $('#btnRide'), sb = $('#btnShip'), cpt = isCompact(); rb.classList.toggle('following', riding); rb.setAttribute('aria-pressed', String(riding));   // (lit while riding; its word stays 'ride': 'riding' was wider and pushed ? onto a row of its own at 1280 px)
   // (a desk's ship button toggles the marker; a phone's opens the Halo's menu, and says "riding" while you ride)
   if (cpt){ sb.removeAttribute('aria-pressed'); sb.setAttribute('aria-haspopup', 'menu'); sb.setAttribute('aria-expanded', String(!shipMenuEl.hidden)); sb.title = 'The Halo: ride along, cockpit, marker'; }
   else { sb.setAttribute('aria-pressed', String(!!SET.haloMark)); sb.removeAttribute('aria-haspopup'); sb.removeAttribute('aria-expanded'); sb.title = 'Show where the Halo is (a blue marker)'; }
   sb.classList.toggle('following', cpt && riding); const st = cpt && riding ? 'riding' : 'ship'; if (sb.textContent !== st) sb.textContent = st;
   if (!shipMenuEl.hidden) syncShipMenu();
-  rb.title = riding ? 'Stop riding along (the camera stays with the ship)' : 'Ride along with the Halo: chase view behind the ship, C for the cockpit';
+  rb.title = riding ? 'Stop riding along (the camera stays with the ship)' : 'Ride along with the Halo, the place it visits in view: K holds the camera still, C for the cockpit';
+  // (the Halo tour's button, lit while it plays; the camera switch on the lower row while riding along outside the ship; the note in the tours list)
+  const hb = $('#btnHaloTour'); hb.setAttribute('aria-pressed', String(HT.on)); hb.textContent = HT.on ? 'halo tour ■' : 'halo tour';
+  hb.title = HT.on ? 'End the Halo tour (it roams on its own again; you keep riding)' : 'The Halo tour: ride along while the Halo flies the stops of a tour, with cinematic camera moves (pick the tour in tours)';
+  $('#rideCamSeg').hidden = !(riding && shipCam.mode === 'chase'); $('#htNote').hidden = !HT.on;
   const onShip = typeof ship !== 'undefined' && infoObj === ship.index;
   $('#btnRideI').hidden = !onShip; $('#btnRideI').textContent = riding ? 'stop riding' : 'ride along';
-  $('#btnCamI').hidden = !riding; $('#btnCamI').textContent = shipCam.mode === 'chase' ? 'cockpit view' : 'chase view';
+  $('#btnCamI').hidden = !riding; $('#btnCamI').textContent = shipCam.mode === 'chase' ? 'cockpit view' : 'outside view';
   $('#btnFree').setAttribute('aria-pressed', String(!tour.on && orbit.lock < 0 && !flight));
   $('#btnTour').setAttribute('aria-pressed', String(tour.on)); $('#btnTour').textContent = tour.on ? 'pause tour' : 'resume ' + tourName();
-  if (typeof tourRows !== 'undefined') tourRows.forEach(r => r.b.setAttribute('aria-current', String(tour.on && r.id === TOUR_ID)));
+  if (typeof tourRows !== 'undefined') tourRows.forEach(r => r.b.setAttribute('aria-current', String(HT.on ? r.id === HT.tourId : tour.on && r.id === TOUR_ID)));
 }
 function goTo(i){
   hideHint(); if (OBJ[i].marker) return;
@@ -503,6 +510,12 @@ function updateHUD(dt){
     } else if (show.on && OBJ[show.obj] && OBJ[show.obj].views.length > 1){
       const obj = OBJ[show.obj], n = obj.views.length, sw = show.phase === 'swing', cur = sw && show.to != null ? show.to : show.view; f = sw ? 0 : clamp(show.t/holdOf(obj.views[show.view]), 0, 1);
       p = `angle ${cur + 1}/${n}  ${bar(f)}`; ang = true;
+    } else if (shipCam.on && shipCam.mode === 'chase' && typeof ship !== 'undefined'){
+      // (riding along: on the Halo tour its stop and how long it stays, as a bar like the angles'; otherwise which camera, and the key)
+      const S = S_, st = S.stay;
+      if (HT.on && (S.phase === 'light' || S.phase === 'fold')) p = (S.phase === 'light' ? 'light speed ' : 'folding space ') + '>'.repeat(1 + Math.floor(performance.now()/250) % 3);
+      else if (HT.on && st){ f = clamp(st.t/st.dur, 0, 1); p = `${S.target.label || S.target.name} · ${HT.i + 1}/${HT.stops.length}  ${bar(f)}`; }
+      else p = (SET.rideCam === 'still' ? 'still camera' : 'moving camera') + (isCompact() ? ' · drag to take over' : ' · K switches · drag to take over');
     } else if (orbit.lock >= 0 && !flight && isCompact() && !isPlaying()){ p = 'drag to turn · pinch to zoom · double-tap to centre'; tip = true; }   // (paused on a phone: the gestures)
     else if (orbit.lock >= 0 || flight) p = 'drag to orbit · scroll out to the edge of the universe';
     else { const b = backTarget(); p = 'W A S D to fly · ' + (b ? 'space goes back to ' + b.name : 'tap an object to lock on'); }
@@ -733,7 +746,7 @@ function updateBackPill(dt){
 }
 backPillEl.addEventListener('click', () => { backPillEl.hidden = true; goBack(); });
 // ride along with the Halo (chase camera); the flash when it folds space with you aboard
-const followShip = () => { if (typeof ship === 'undefined') return; hideHint(); if (shipCam.on) return; startShipCam('chase'); toast('riding along with the Halo · chase view (C switches to the cockpit)'); };
+const followShip = () => { if (typeof ship === 'undefined') return; hideHint(); if (shipCam.on) return; startShipCam('chase'); toast(isCompact() ? 'riding along with the Halo · the place it visits in view' : 'riding along with the Halo · the place it visits in view (K holds the camera still, C for the cockpit)'); };
 const foldEl = $('#foldFlash');
 // (kinds: 'ls' the quicker, whiter flash of a jump to light speed; 'blink' a soft one; 'jump' / 'arrive' the fold's split second of white
 // over the whole screen as it jumps, and the softer one as its heart arrives)
@@ -744,7 +757,7 @@ shipArrowEl.addEventListener('click', followShip);
 
 // ---------------------------------------------------------------- settings
 function syncSettingsUI(){
-  const v = { detail:SET.detailAuto ? 'auto' : String(detailIdx), travel:SET.travel, time:String(timeScale), dwell:SET.dwell, musicStyle:SET.musicStyle, saverIdle:String(SET.saverIdle), fadeUI:SET.fadeUI };
+  const v = { detail:SET.detailAuto ? 'auto' : String(detailIdx), travel:SET.travel, time:String(timeScale), dwell:SET.dwell, musicStyle:SET.musicStyle, saverIdle:String(SET.saverIdle), fadeUI:SET.fadeUI, rideCam:SET.rideCam };
   document.querySelectorAll('.seg[data-key]').forEach(seg => { const k = seg.dataset.key; seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.v === v[k]))); });
   settingsEl.querySelectorAll('.tog button').forEach(b => b.setAttribute('aria-pressed', String(!!SET[b.dataset.key])));
   $('#volume').value = SET.volume; $('#moodNote').textContent = 'plays ' + music.moodText(SET.musicStyle);
@@ -788,6 +801,7 @@ function setOpt(key, v, quiet){
     case 'dwell': SET.dwell = v; if (!quiet) toast('tour stops: ' + v + (v === 'short' ? ' · quicker tour' : v === 'long' ? ' · lingers on each view' : '')); break;
     case 'textSize': SET.textSize = clamp(+v, 0.85, 1.6); applyTextSize(); break;
     case 'menuSize': SET.menuSize = clamp(+v, 0.9, 1.6); applyTextSize(); break;
+    case 'rideCam': SET.rideCam = v === 'still' ? 'still' : 'moving'; if (!quiet) toast(SET.rideCam === 'still' ? 'still camera · it holds one angle over the Halo\'s shoulder, the place it visits in view (K)' : 'moving camera · it glides round the Halo from angle to angle (K)'); updateModeUI(); break;
     case 'fadeUI': SET.fadeUI = v; if (!quiet) toast(v === 'off' ? 'the interface stays put' : 'the interface fades ' + (v === 'quick' ? 'after a few seconds (sooner on tours)' : 'after a while') + ' · touch or move to bring it back'); break;
   }
   saveSet(); syncSettingsUI();
@@ -1204,17 +1218,20 @@ $('#modeTour').addEventListener('click', () => { hideHint(); togglePanel('tours'
 $('#btnTour').addEventListener('click', () => { hideHint(); if (tour.on) stopTour(false); else setTour(true); });   // (pausing here remembers the stop, like the pause button: the green button then goes on from it)
 $('#btnFree').addEventListener('click', () => { hideHint(); unlock(); toast(isCompact() ? 'free camera · drag to look around · ⌂ for home' : 'free camera · W A S D to fly, drag to look around · H for home'); });
 $('#btnShip').addEventListener('click', () => { if (isCompact()) setShipMenu(shipMenuEl.hidden); else setOpt('haloMark', !SET.haloMark); });
-const toggleRide = () => { if (shipCam.on || (shipCam.pending && flight)){ if (flight) finishFlightHere(); shipCam.pending = false; stopShipCam(); toast('stopped riding · the camera stays with the Halo'); updateModeUI(); } else followShip(); };
+const toggleRide = () => { if (shipCam.on || (shipCam.pending && flight)){ if (flight) finishFlightHere(); shipCam.pending = false; stopShipCam(); haloTourEnd(true); toast('stopped riding · the camera stays with the Halo'); updateModeUI(); } else followShip(); };
 // phones: the dock's ship button opens a small menu over the dock (ride along, cockpit, the marker; while riding: chase, cockpit, stop).
 // Any choice closes it, and so does a tap anywhere else, Esc, or the layout changing to a desk's.
 const isRiding = () => shipCam.on || (shipCam.pending && !!flight);
 function setShipMenu(on){ shipMenuEl.hidden = !on; $('#btnShip').setAttribute('aria-expanded', String(on)); if (on){ syncShipMenu(); wakeUI(); } }
 function syncShipMenu(){
   const r = isRiding();
-  $('#smChase').firstChild.textContent = r ? 'chase view' : 'ride along';
+  $('#smChase').firstChild.textContent = r ? 'outside' : 'ride along';
   $('#smChase').setAttribute('aria-checked', String(r && shipCam.mode === 'chase'));
   $('#smCock').setAttribute('aria-checked', String(r && shipCam.mode === 'cockpit'));
   $('#smStop').hidden = !r; $('#smMark').hidden = r;
+  $('#smChase').lastChild.textContent = r ? 'place in view' : 'and see where';
+  $('#smTour').setAttribute('aria-checked', String(HT.on)); $('#smTour').lastChild.textContent = HT.on ? 'end it' : 'it flies a tour';
+  $('#smStill').hidden = !(r && shipCam.mode === 'chase'); $('#smStill').setAttribute('aria-checked', String(SET.rideCam === 'still')); $('#smStill').lastChild.textContent = SET.rideCam === 'still' ? 'still' : 'moving';
   $('#smMark').setAttribute('aria-checked', String(!!SET.haloMark)); $('#smMark').lastChild.textContent = SET.haloMark ? 'hide it' : 'show it';
 }
 const rideAs = m => { setShipMenu(false); if (typeof ship === 'undefined') return; hideHint(); if (isRiding()) setShipCamMode(m); else { startShipCam(m); toast(m === 'cockpit' ? 'riding along · on the bridge of the Halo' : 'riding along with the Halo · tap ship for the cockpit'); } };
@@ -1222,6 +1239,8 @@ $('#smChase').addEventListener('click', () => rideAs('chase'));
 $('#smCock').addEventListener('click', () => rideAs('cockpit'));
 $('#smStop').addEventListener('click', () => { setShipMenu(false); if (isRiding()) toggleRide(); });
 $('#smMark').addEventListener('click', () => { setShipMenu(false); setOpt('haloMark', !SET.haloMark); });
+$('#smTour').addEventListener('click', () => { setShipMenu(false); hideHint(); if (HT.on) haloTourEnd(); else haloTourStart(TOUR_ID); });
+$('#smStill').addEventListener('click', () => { setShipMenu(false); setOpt('rideCam', SET.rideCam === 'still' ? 'moving' : 'still'); });
 addEventListener('pointerdown', e => { if (!shipMenuEl.hidden && !(e.target.closest && e.target.closest('#shipMenu, #btnShip'))) setShipMenu(false); }, { capture:true });
 COMPACT_MQ.addEventListener('change', () => { if (!isCompact()) setShipMenu(false); });
 $('#btnRide').addEventListener('click', toggleRide);
@@ -1375,6 +1394,7 @@ const tourRows = TOURS.map(t => {
   $('#tourList').appendChild(b); return { b, id:t.id };
 }).filter(Boolean);
 function startTour(id){
+  if (HT.on){ hideHint(); togglePanel('tours', false); haloTourStart(id); return; }   // (the Halo tour flies the tour picked)
   hideHint(); if (cmp) endCompare(false);
   tween = null; if (flight) finishFlightHere();
   useTour(id);   // (after the flight stops: the random tour deals from where the camera is)

@@ -80,11 +80,14 @@ function trackYP(o, v){ const d = M3.applyT(o.R0, V.norm(v.track())); return [Ma
 // van Wijk & Nuij optimal zoom-and-pan path (numerically stable forms)
 function vwPath(u1, w0, w1, rho){
   // (peak: where along the path the view is widest; w rises to it and falls after it)
-  if (u1 < 1e-7*Math.min(w0, w1)){ const k = Math.log(w1/w0); return { S:Math.abs(k)/rho + 1e-6, u:() => 0, w:s => w0*Math.exp(Math.sign(k)*rho*s), peak:k > 0 ? Infinity : -Infinity }; }
+  // (rem: the distance still to go, u1 - u(s), worked out without that subtraction: near the end of a trip of millions of light-years it is
+  // a few kilometres, far below what the difference of two such numbers can hold)
+  if (u1 < 1e-7*Math.min(w0, w1)){ const k = Math.log(w1/w0); return { S:Math.abs(k)/rho + 1e-6, u:() => 0, rem:() => u1, w:s => w0*Math.exp(Math.sign(k)*rho*s), peak:k > 0 ? Infinity : -Infinity }; }
   const r4 = rho*rho*rho*rho;
   const b0 = (w1*w1 - w0*w0 + r4*u1*u1)/(2*w0*rho*rho*u1), b1 = (w1*w1 - w0*w0 - r4*u1*u1)/(2*w1*rho*rho*u1);
-  const r0 = -Math.asinh(b0), r1 = -Math.asinh(b1);
-  return { S:(r1 - r0)/rho, u:s => w0*Math.sinh(rho*s)/(rho*rho*Math.cosh(rho*s + r0)), w:s => w0*Math.cosh(r0)/Math.cosh(rho*s + r0), peak:-r0/rho };
+  const r0 = -Math.asinh(b0), r1 = -Math.asinh(b1), S = (r1 - r0)/rho, c0 = w0*Math.cosh(r0)/(rho*rho);
+  return { S, u:s => w0*Math.sinh(rho*s)/(rho*rho*Math.cosh(rho*s + r0)), rem:s => c0*Math.sinh(rho*(S - s))/(Math.cosh(r1)*Math.cosh(rho*s + r0)),
+    w:s => w0*Math.cosh(r0)/Math.cosh(rho*s + r0), peak:-r0/rho };
 }
 // the widest view on a trip's path, among 25 evenly spaced points (as isScenic has always measured it). The view widens up to the peak and
 // narrows after it, so the widest of those points is one of the two around the peak: two evaluations instead of 25.
@@ -248,21 +251,26 @@ function updateFlight(dt){
   const f = flight; f.t += dt;
   const x = clamp(f.t/f.dur, 0, 1);
   const e = flightE(f.prog, x), s = f.path.S*e;
+  // (the share of the trip still to go, by distance, as the path measures it: exact however long the trip)
+  const g = f.L0 > 0 ? clamp(f.path.rem(s)/f.L0, 0, 1) : 0, w = x >= 1 ? f.vp.dist : f.path.w(s);
+  // positions switch to being relative to the destination halfway by time, or sooner, halfway by distance, when the place it set off from
+  // is too far away to put the destination within a thousandth of the view's width (a float64 holds about 16 digits: from the observable
+  // universe that is thousands of kilometres, and the 2.5 km Halo was lost off the screen until the last frame, 0.9.6)
+  if (!f.switched){
+    const D = x > 0.5 || g < 0.5 ? frel(f.obj) : null;
+    if (D && (x > 0.5 || V.len(D)*2.3e-16 > 1e-3*w)){ f.A = V.sub(f.A, D); cam.focus = f.obj.index; f.switched = true; }
+  }
   // aim at where the destination is now, not where it was at take-off: planets and moons keep moving during the flight,
   // and aiming at a stale point meant closing in on empty space and then jumping to the real object in the last frame
   const Bnow = V.add(frel(f.obj), f.vp.offFn ? f.vp.offFn() : (f.vp.off || [0, 0, 0]));
-  const tgt = V.add(f.A, V.mul(V.sub(Bnow, f.A), f.L0 > 0 ? clamp(f.path.u(s)/f.L0, 0, 1) : 1));
+  // (measured from the nearer end: from where it set off in the first half of the way, back from the destination in the second, so rounding
+  // never moves it by more than a sliver of what is left to go)
+  const dAB = V.sub(Bnow, f.A), tgt = g > 0.5 ? V.add(f.A, V.mul(dAB, 1 - g)) : V.sub(Bnow, V.mul(dAB, g));
   if (f.pass){ const b = passBump(f.pass, e); tgt[0] += f.pass.bend[0]*b; tgt[1] += f.pass.bend[1]*b; tgt[2] += f.pass.bend[2]*b; }
-  const w = x >= 1 ? f.vp.dist : f.path.w(s);
   // flying up to the Halo: it turns as it goes, so the final framing follows its frame (no swing on landing)
   if (f.obj.camFrame){ f.dir1 = M3.apply(camFrameOf(f.obj), sphL(f.vp.yaw, f.vp.pitch)); f.up1 = f.vp.upFn ? f.vp.upFn() : M3.apply(camFrameOf(f.obj), [0, 1, 0]); }
   // flying to an angle that follows something moving (a planet's day side as it circles its star): the landing direction follows it too
   if (f.vp.track){ [f.vp.yaw, f.vp.pitch] = f.vp.track(); f.dir1 = M3.apply(camFrameOf(f.obj), sphL(f.vp.yaw, f.vp.pitch)); }
-  if (!f.switched && x > 0.5){
-    const D = frel(f.obj);
-    f.A = V.sub(f.A, D); tgt[0] -= D[0]; tgt[1] -= D[1]; tgt[2] -= D[2];
-    cam.focus = f.obj.index; f.switched = true;
-  }
   const [dir, up] = flightDir(f, x);
   orbit.target = tgt; orbit.dist = orbit.distT = w;
   cam.rel = V.add(tgt, V.mul(dir, w));
@@ -374,12 +382,18 @@ function shipPose(mode){
   const q = SHIP_POSE[mode], R = ship.R0, r = ship.rad;
   if (mode === 'turn'){ const T = shipCam.turn, eye = V.mul(M3.apply(R, T.eye), r), look = V.mul(M3.apply(R, T.look || [0, 0, 0]), r);
     return { eye, look, fwd:V.norm(V.sub(look, eye)), up:M3.apply(R, T.up || [-1, 0, 0]) }; }
-  // (ship.S.fz: closer in while the ship folds, and aimed a little more at the ship, so the break-up fills more of the screen; 07h-halo.js)
-  if (mode === 'chase'){ const Rv = ship.viewR || R, o = ship.chaseOff || [0, 0, 0], fz = ship.S.fz || 1;
-    const eye = V.mul(M3.apply(Rv, V.mul(q.eye, shipCam.zoom*fz)), r), look = V.mul(M3.apply(Rv, V.add(V.mul(q.look, fz*fz), o)), r);
-    return { eye, look, fwd:V.norm(V.sub(look, eye)), up:M3.apply(Rv, [-1, 0, 0]) }; }
+  // (riding along, 0.9.6: the camera shows the ship with the place it visits behind it, and moves between shots: ridePose in 08r-ride.js,
+  // which blends into chasePose between places)
+  if (mode === 'chase') return ridePose();
   const Rg = ship.gazeR || R, eye = V.mul(M3.apply(R, q.eye), r), look = V.add(eye, V.mul(M3.apply(Rg, V.sub(q.look, q.eye)), r));
   return { eye, look, fwd:V.norm(V.sub(look, eye)), up:M3.apply(Rg, [-1, 0, 0]) };
+}
+// the chase pose: low behind the ship, looking along its heading (riding along between places, and in the lab)
+// (ship.S.fz: closer in while the ship folds, and aimed a little more at the ship, so the break-up fills more of the screen; 07h-halo.js)
+function chasePose(){
+  const q = SHIP_POSE.chase, R = ship.R0, r = ship.rad, Rv = ship.viewR || R, o = ship.chaseOff || [0, 0, 0], fz = ship.S.fz || 1;
+  const eye = V.mul(M3.apply(Rv, V.mul(q.eye, shipCam.zoom*fz)), r), look = V.mul(M3.apply(Rv, V.add(V.mul(q.look, fz*fz), o)), r);
+  return { eye, look, fwd:V.norm(V.sub(look, eye)), up:M3.apply(Rv, [-1, 0, 0]) };
 }
 function shipCamSnap(p){ shipCam.eye = p.eye; shipCam.fwd = p.fwd; shipCam.up = p.up; }
 function startShipCam(mode){
@@ -388,10 +402,12 @@ function startShipCam(mode){
   shipCam.mode = mode || shipCam.mode; motion.last = 'ship';
   setInfo(ship.index);
   const near = cam.focus === ship.index && orbit.lock === ship.index && V.len(cam.rel) < ship.rad*30 && !flight;
+  rideStart();   // (the first shot, so the flight up to the ship lands on it)
   if (near){ shipCam.on = true; shipCam.eye = cam.rel.slice(); shipCam.fwd = cam.fwd.slice(); shipCam.up = cam.up.slice(); updateModeUI(); return; }
-  // fly in first, landing exactly on the chase pose, then take over (the ship keeps moving and turning: the flight follows its pose as it goes)
-  const p = shipPose('chase'), dl = M3.applyT(camFrameOf(ship), V.norm(V.sub(p.eye, p.look)));
-  const vp = { yaw:Math.atan2(dl[0], dl[2]), pitch:Math.asin(clamp(dl[1], -0.999, 0.999)), dist:V.len(V.sub(p.eye, p.look)), off:p.look, offFn:() => shipPose('chase').look, up:p.up, upFn:() => shipPose('chase').up };
+  // fly in first, landing exactly on the ride pose, then take over (the ship keeps moving and turning: the flight follows its pose as it goes,
+  // the place it visits turning round it too: rideFrame, and the landing direction by track)
+  const p = shipPose('chase'), yp = q => { const d = M3.applyT(camFrameOf(ship), V.norm(V.sub(q.eye, q.look))); return [Math.atan2(d[0], d[2]), Math.asin(clamp(d[1], -0.999, 0.999))]; }, [y0, p0] = yp(p);
+  const vp = { yaw:y0, pitch:p0, dist:V.len(V.sub(p.eye, p.look)), off:p.look, offFn:() => { rideFrame(0); return shipPose('chase').look; }, up:p.up, upFn:() => shipPose('chase').up, track:() => yp(shipPose('chase')) };
   startFlight(ship, vp, () => { shipCam.on = true; shipCam.pending = false; shipCamSnap(shipPose('chase')); updateShipCam(0); updateModeUI(); }, null, true);
   shipCam.pending = true;
   updateModeUI();
@@ -404,9 +420,10 @@ function stopShipCam(){
   syncOrbitFromCam(); updateModeUI();
   return true;
 }
-function setShipCamMode(m){ shipCam.mode = m; if (!shipCam.on) startShipCam(m); updateModeUI(); toast(m === 'cockpit' ? 'cockpit view · on the bridge of the Halo' : 'chase view · behind the Halo'); }
+function setShipCamMode(m){ shipCam.mode = m; if (!shipCam.on) startShipCam(m); updateModeUI(); toast(m === 'cockpit' ? 'cockpit view · on the bridge of the Halo' : rideStill() ? 'outside view · the Halo with the place it visits behind it' : 'outside view · the camera moves round the Halo and the place it visits'); }
 function updateShipCam(dt){
   if (cam.focus !== ship.index){ const D = frel(ship); cam.rel = V.sub(cam.rel, D); cam.focus = ship.index; if (shipCam.eye) shipCam.eye = cam.rel.slice(); }
+  if (shipCam.mode === 'chase') rideStep(dt);
   const p = shipPose(shipCam.mode), k = dt > 0 ? 1 - Math.exp(-dt*SHIP_POSE[shipCam.mode].lag) : 1;
   if (!shipCam.eye) shipCamSnap(p);
   shipCam.eye = V.lerp(shipCam.eye, p.eye, k); shipCam.fwd = V.norm(V.lerp(shipCam.fwd, p.fwd, k)); shipCam.up = V.norm(V.lerp(shipCam.up, p.up, k));
@@ -685,6 +702,7 @@ addEventListener('keydown', e => {
   if (k === 'escape'){ if (!closeOpen()) unlock(); return; }   // (an open panel closes first; with nothing open the camera lets go)
   if (k === ' '){ e.preventDefault(); togglePlay(); return; }
   if (k === '/' || k === 'o'){ e.preventDefault(); focusSearch(); return; }
+  if (k === 'k' && typeof ship !== 'undefined'){ setOpt('rideCam', SET.rideCam === 'still' ? 'moving' : 'still'); return; }   // (riding along: the camera moves, or holds one angle)
   if (k === 'c' && typeof ship !== 'undefined'){ setShipCamMode(shipCam.on && shipCam.mode === 'chase' ? 'cockpit' : 'chase'); return; }
   if (k === 'y'){ setOpt('travel', cycle(['quick', 'warp', 'cinematic'], SET.travel)); return; }
   if (k === 'm'){ toggleSound(); return; }

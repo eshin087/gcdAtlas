@@ -5,6 +5,13 @@
      numbers with units. The newest version comes first and opens by itself; its number must match package.json (tests/smoke.mjs checks it).
      Every detail stays in docs/CHANGELOG.md, which the panel links to. -->
 
+## 0.9.6 · 29 Sep 2026 · Ride the Halo, and its tour
+- Riding the Halo, the camera now keeps the place it is visiting in view behind the ship, and glides from angle to angle.
+- Like it still? The camera switch next to travel (or K) holds one angle, the place still in view.
+- New: the Halo tour. Press "halo tour" to ride along while the Halo flies a tour's stops, with a big camera move at every place.
+- Riding along from far away no longer loses the ship on the way in.
+- In the screensaver, the angle line sits under the name of the place.
+
 ## 0.9.4 · 29 Sep 2026 · Softer music, sharper planets, a fold cannon
 - The music's bass is much softer, above all in the calm songs, and the tunes are a little louder.
 - The planets look sharper up close: real features at their real places, richer colour and a clear line between day and night.

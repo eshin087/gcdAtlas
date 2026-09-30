@@ -4,6 +4,34 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.9.6 · 2026-09-29
+
+Built on the MacBook, on top of 0.9.4 (see `docs/SYNC.md`). Numbered 0.9.6 because 0.9.5 (SpaceX launches) was already open.
+
+**Riding along: the place in view** (owner: straight behind the ship the view missed the planet or star it was near, and a camera that never moves is dull)
+- Riding the Halo, the camera now sits on the far side of the ship from the place it is visiting, so the ship is in front and the planet, star, nebula or galaxy fills the view behind and below it. How far it tips follows the place's size on screen, so a near planet fills the lower half of the view and a far one sits under the ship.
+- It moves by itself: seven shots (over the shoulder, beside it, the front quarter, high with a roll, low along the horizon, wide, a slow orbit), each drifting round or dollying in or out, a new one every 10 to 18 s, gliding there in about 4 s. It keeps to the ship's side and front quarters: from straight behind, its needle points up the screen and it seems to climb.
+- While the ship works (a scan, the fold cannon, a skim) the camera moves to a shot made for the job and holds it until it is done. During Pip's half-minute outings it keeps moving, with close shots only.
+- Between places (light speed, the fold) and for the last seconds before a jump it blends back into the old chase view behind the ship, which the streaks and the fold are made for.
+- **Still camera**: the camera switch (moving / still) appears next to travel while you ride, in settings, and in the phone's ship menu; K switches too. Still holds one angle over the ship's shoulder, the place still in view. It is remembered, and it starts still for people whose computer asks for reduced motion.
+- On a phone the shot fits the space above the card.
+- The ride button keeps its word and lights up while you ride ("riding" was wider and pushed the ? button onto a row of its own at 1280 x 800). The chase view is called the outside view now.
+
+**The Halo tour**
+- A new "halo tour" button beside play (on a phone, in the ship menu). You ride along while the Halo flies the stops of the tour picked in tours, from the one the tour is on, or from where the ship is if that is a stop. Pick another tour while it plays and it switches.
+- It visits the places on its own list and any other real place at least 400 km across that is not a craft or a spot on a surface, and not too big to fly round (the grand tour: 26 places; life of a star: 17). A random tour gives it a shuffle of its places, dealt again at the end.
+- About a minute at each place, one job at most, then light speed or a fold to the next. The camera plays bigger moves: on arrival it pulls back until the whole place fits the view (or the ship is a speck), then pushes back in; sweeps round the ship, a crane over it, a low pass along the horizon, a charge toward the camera.
+- A caption names each place as the ship arrives, with the first sentence of its fact. The card says "stop 5 / 26 · HALO TOUR · GRAND TOUR", the angle line shows how long the ship stays ("Saturn · 5/26 [#####-----]"), and the green button says "next stop · Alpha Centauri" and sends it on at once.
+- A drag takes the camera and play rides along again (the ship flies on meanwhile). The button again, stop riding, a tour, the screensaver or picking something else ends it.
+
+**Fixes**
+- Riding along from far away (the observable universe, the cosmic web) no longer loses the ship. The flight up to it aimed at a point worked out as the difference of two numbers millions of light-years across, which rounding put thousands of kilometres off the 2.5 km ship: it sat 50 to 60 degrees off the view, its marker jumping at the edge of the screen, until it popped into place on the last frame. The flight now measures the point back from its end of the trip, and switches to working relative to the ship sooner when the place it set off from is that far away.
+- In the screensaver the angle line ("angle 2/4 [#####-----]") moves under the place's name, and back into the info panel when it ends.
+
+**Checked**
+- Motion test, new section 5b: riding from the observable universe to the Halo at Andromeda keeps the ship within 30 degrees of the middle of the view all the way (it was up to 60); 70 s of the moving camera at Saturn and at Earth keep the ship on the screen and the place's edge in the view every frame, with 3 shots or more; the still camera keeps one; the Halo tour flies the grand tour from Saturn stop by stop, naming each place.
+- Phone test: the ship menu's Halo tour and camera switch.
+
 ## 0.9.4 · 2026-09-29
 
 **A softer bass, and songs to review**
