@@ -7,7 +7,9 @@
 
 ## 0.9.8 · 29 Sep 2026 · SpaceX launches and Starman's Roadster
 - Starman and his Tesla Roadster, where they really are right now, 90 million km out on their orbit round the Sun.
-- Starship, Falcon 9, Falcon Heavy and Crew Dragon stand on their real pads. Pick one and watch it launch: the Starship booster flies back and is caught by its tower.
+- Starship, Falcon 9, Falcon Heavy and Crew Dragon stand on their real pads. Pick one and watch it launch by day: the Starship booster flies back and is caught by its tower.
+- The ground round the launch sites is real: aerial photos, satellite images, the land's height and the buildings of Starbase, Cape Canaveral and Vandenberg.
+- One smooth camera from start to finish, about 3 minutes a flight. Want every second? Press "real speed" in the caption.
 - Real SpaceX launches play live at their scheduled time. Now and then a replay lifts off while you look at Earth.
 
 ## 0.9.6 · 29 Sep 2026 · Ride the Halo, and its tour

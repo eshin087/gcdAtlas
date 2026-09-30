@@ -222,6 +222,8 @@ function render(){
   gcDir = V.norm(mw.rel); nearSun = 1 - smooth(4000, 15000, dSun);
   const outMW = 1 - mw.inside, farOut = smooth(1.5e5, 2e6, dGC);
   sky = [clamp(1 - outMW*0.8 - farOut, 0, 1), smooth(1.5e5, 2e6, dGC)*(1 - smooth(3e8, 3e9, span)), Math.exp(-dGC/5000)*mw.inside, mw.inside];
+  // (near the ground the air dims the stars and the Milky Way and hides the galaxies beyond it: ATM in s4-spacex-run.js)
+  if (ATM.k > 0){ sky[0] *= 1 - 0.5*ATM.k; sky[1] *= 1 - ATM.k; sky[3] *= 1 - 0.6*ATM.k; }
   gl.bindFramebuffer(gl.FRAMEBUFFER, RT.sceneFBO); gl.viewport(0, 0, sceneW, sceneH);
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_3D, noiseTex);
   gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_2D, TEX.mw);
@@ -240,6 +242,10 @@ function render(){
     if (o.inRange && !o.inRange()){ o.vis = 0; o.pvis = 0; continue; }
     const pmin = o.pxMin || 7;
     let vis = o.visFn ? o.visFn(rpx) : (o.alwaysFull ? 1 : smooth(pmin, pmin*2.6, rpx));
+    // near the ground, nothing beyond the Solar System shows through the air (the planetarium keeps the whole sky)
+    const deepK = ATM.k > 0.01 && !o.parent && o !== sun && o.dist > 0.01 ? 1 - ATM.k : 1;
+    if (deepK < 0.02){ o.vis = 0; o.pvis = 0; continue; }
+    vis *= deepK;
     if (cmp && (o === cmp.a || o === cmp.b)) vis = Math.max(vis, smooth(1, 3, rpx));
     if (o.mag > 1.5) vis = Math.max(vis, smooth(0.8, 2.2, rpx)*SYSMAG.k);   // enlarged planets are drawn as real discs even when only a few characters wide   // side by side, even tiny things are drawn for real
     // shaders compile on demand: until this object's are ready it keeps showing as a glowing dot
@@ -248,10 +254,11 @@ function render(){
     if (vis > 0.003){
       // farther glowing dots go down first, so a nearer opaque object (a black hole's shadow) covers them
       if (o.prog && ni){ imp.count = ni; imp.upload('ac'); drawParticles(null, impSpec); ni = 0; }
-      if (o.prog) o.onScreen = drawVolume(o, o.prog, o.rel, R, o.setU && (pr => o.setU(pr)), o.rot, vis);
+      // (volOff: something drawn after it covers it entirely this frame, such as the ground round a launch site over Earth)
+      if (o.prog) o.onScreen = o.volOff && o.volOff() ? true : drawVolume(o, o.prog, o.rel, R, o.setU && (pr => o.setU(pr)), o.rot, vis);
       if (o.drawBefore) o.drawBefore(vis);
     }
-    const pv = o.particleVis ? o.particleVis(rpxTrue) : smooth(pmin*0.4, pmin*1.4, rpxTrue);
+    const pv = (o.particleVis ? o.particleVis(rpxTrue) : smooth(pmin*0.4, pmin*1.4, rpxTrue))*deepK;
     o.pvis = pv;
     if (pv > 0.003) for (const s of o.particles) drawParticles(o, s, pv);
     if (vis > 0.003 && o.drawAfter) o.drawAfter(vis);
@@ -259,7 +266,7 @@ function render(){
     if (!o.noImpostor && (vis < 0.999 || o.mag > 1.5) && ni < imp.n){
       // (a dot only stands in for something small: once an object spans the screen, no dot at its centre)
       // (an enlarged planet keeps a soft glow at its centre too, so a disc a few characters wide still reads at a glance)
-      const b = (o.mag > 1.5 ? o.farLum*SYSMAG.k*(1 - smooth(8, 30, rpx))*1.1 : o.farLum*(1 - vis)*clamp(Math.pow(rpx/1.2, 0.33), 0, 1.2)*(1 - smooth(40, 120, rpx)))*(o.occ ?? 1);
+      const b = (o.mag > 1.5 ? o.farLum*SYSMAG.k*(1 - smooth(8, 30, rpx))*1.1 : o.farLum*(1 - vis)*clamp(Math.pow(rpx/1.2, 0.33), 0, 1.2)*(1 - smooth(40, 120, rpx)))*(o.occ ?? 1)*deepK;
       if (b > 0.015 && V.dot(o.rel, cam.fwd) > 0){ imp.a.set([o.rel[0], o.rel[1], o.rel[2], b], ni*4); imp.c.set([o.farColor[0], o.farColor[1], o.farColor[2], 0], ni*4); ni++; }
     }
   }
@@ -443,7 +450,8 @@ function updateLabels(){
     let pr = null;
     const zs = Math.max(orbit.dist, 1e-30);
     const inScale = o.marker ? (zs > o.labelMin && zs < o.labelRange && o.dist < zs*12) : (o.dist < o.labelRange && o.dist > (o.labelMin || 0) && (o.dist < zs*(o.layer < 3 ? 25 : 60) || (o.rpx > 6 && o.dist < zs*3000)));
-    if (labelsOn && !o.noLabel && !o.hidden && !(o.magHide > 0.5) && (inScale || (o.mag > 1.5 && SYSMAG.k > 0.5)) && (!o.inRange || o.inRange()) && i !== shipId) pr = projectCSS(o.rel);
+    const thinAir = ATM.k > 0.3 && !o.parent && o !== sun && o.dist > 0.01;   // (near the ground, no labels for what the air hides)
+    if (labelsOn && !thinAir && !o.noLabel && !o.hidden && !(o.magHide > 0.5) && (inScale || (o.mag > 1.5 && SYSMAG.k > 0.5)) && (!o.inRange || o.inRange()) && i !== shipId) pr = projectCSS(o.rel);
     if (pr){
       const rpx = o.rad*(o.solid && o.solid < 0.5 ? o.solid*1.3 : 1)*magOf(o)/(pr.z*tanY)*(viewHcss/2);
       let ok = pr.x > -40 && pr.x < innerWidth + 40 && pr.y > -20 && pr.y < innerHeight + 20 && (o.marker || rpx < viewHcss*0.3) && !(i === focus && rpx > 20);
@@ -794,6 +802,7 @@ function setOpt(key, v, quiet){
     case 'glow': SET.glow = glowOn = !!v; break;
     case 'labels': SET.labels = labelsOn = !!v; break;
     case 'twinkle': SET.twinkle = !!v; break;
+    case 'launchReal': SET.launchReal = !!v; break;
     case 'haloMark': SET.haloMark = !!v; if (!quiet) toast(v ? 'Halo indicator on · the ship is marked in blue (ride along from its card)' : 'Halo indicator off'); updateModeUI(); break;
     case 'sound': SET.sound = !!v; music.set(SET.sound); if (!quiet) toast(v ? 'music on' : 'music off'); break;
     case 'volume': SET.volume = clamp(+v, 0, 1); music.volume(); break;
@@ -1637,7 +1646,7 @@ tick(0);
 if (!applyHash()) tourGo(TOUR[0], true);
 tick(0);
 updateModeUI(); syncTimeUI();
-window.__cosmos = { startTour, playFlyby, setMove(o, v, f){ flight = null; tween = null; tourGo(o.index, true); tour.on = false; flyMove = { o, v, t:f*v.hold, frozen:true }; },  get flyMove(){ return flyMove; }, startCompare, endCompare, setDeep, viewHash, applyHash, get cmp(){ return cmp; }, get ssRate(){ return ssRate; }, dbg:{ imp, impSpec, atlas, sphereRect, get tan(){ return [tanX, tanY]; }, get cols(){ return cols; }, get sceneH(){ return sceneH; }, get LODK(){ return LODK; }, PROGS }, OBJ, BYKEY, tourGo, lockOn, setTour, cam, orbit, tour, TOUR, SET, setOpt, music, LADDER, goLadder,
+window.__cosmos = { startTour, playFlyby, setMove(o, v, f){ flight = null; tween = null; tourGo(o.index, true); tour.on = false; flyMove = { o, v, t:f*v.hold, frozen:true }; },  get flyMove(){ return flyMove; }, startCompare, endCompare, setDeep, viewHash, applyHash, get cmp(){ return cmp; }, get ssRate(){ return ssRate; }, set ssRate(v){ ssRate = v; }, dbg:{ imp, impSpec, atlas, sphereRect, get tan(){ return [tanX, tanY]; }, get cols(){ return cols; }, get sceneH(){ return sceneH; }, get LODK(){ return LODK; }, PROGS }, OBJ, BYKEY, tourGo, lockOn, setTour, cam, orbit, tour, TOUR, SET, setOpt, music, LADDER, goLadder,
   land:(extra = 0.2) => { let n = 0; while (flight && n < 60*180){ tick(1/60); n++; } for (let i=0;i<extra*60;i++) tick(1/60); return n/60; },
   setDays:d => { ssDays = d; }, stepObject, stepAngle, get tourId(){ return TOUR_ID; }, get tourGen(){ return TOUR_GEN; }, randomSeed:n => { RSEED = n >>> 0; }, samePlace, tourable, tourPool, tripClear, dealRandom, RANDOM_W, tripW:(a, b) => tripWeight(tripEnd(a), tripEnd(b)), get nextDeal(){ return nextDeal; }, get stepTarget(){ return flight ? (flight.dest || flight.obj).key : null; }, get via(){ return flight && flight.via ? flight.via.key : null; }, PASS,
   startShipCam, stopShipCam, setShipCamMode, get shipCam(){ return shipCam; }, SHIP_POSE, get show(){ return show; }, togglePlay, get flight(){ return flight; },

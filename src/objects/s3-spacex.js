@@ -15,24 +15,29 @@ const MET = 1e-3*KM, RE_KM = 6371;
 const llUnit = (la, lo) => [Math.cos(la*DEG)*Math.cos(lo*DEG), Math.sin(la*DEG), -Math.cos(la*DEG)*Math.sin(lo*DEG)];
 // a site's local axes in Earth-fixed coordinates, and its frame matrix (columns: x east, y up, z south)
 function enuOf(up){ const e = V.norm(V.cross([0, 1, 0], up)), n = V.cross(up, e); return { up, e, n, M:[...e, ...up, ...V.mul(n, -1)] }; }
-// ---------------------------------------------------------------- the sites (coast: the direction toward the sea in the site's x-z plane and the distance to the beach, m)
+// ---------------------------------------------------------------- the sites (coast: the direction toward the sea in the site's x-z plane and the distance to the beach, m;
+// air: where the countdown's aerial view starts and ends, m in the site's frame, x east, y up, z south: with the afternoon Sun behind or
+// beside the camera and the sea behind the rocket; the view starts high enough to see the shape of the place)
 const SXS = {
-  starbase:{ name:'Starbase, Texas', short:'Starbase', la:25.99677, lo:-97.15799, kind:1, coast:[1, 0, 1300] },   // (Pad 2, where Starship now flies from)
-  lc39a:{ name:'Launch Complex 39A, Kennedy Space Center, Florida', short:'Kennedy Space Center', la:28.60822, lo:-80.60428, kind:2.75, coast:[0.93, 0.36, 1250] },   // (its crew access arm came off in February 2026)
-  slc40:{ name:'Space Launch Complex 40, Cape Canaveral, Florida', short:'Cape Canaveral', la:28.56194, lo:-80.57735, kind:3, coast:[0.95, 0.3, 700] },
-  slc4e:{ name:'Space Launch Complex 4E, Vandenberg, California', short:'Vandenberg', la:34.63208, lo:-120.61074, kind:2, coast:[-0.98, -0.2, 700] },
+  starbase:{ name:'Starbase, Texas', short:'Starbase', la:25.99677, lo:-97.15799, kind:1, coast:[1, 0, 1300], air:{ a:[-1900, 1300, 1500], b:[-1100, 150, 300] } },   // (Pad 2, where Starship now flies from)
+  lc39a:{ name:'Launch Complex 39A, Kennedy Space Center, Florida', short:'Kennedy Space Center', la:28.60822, lo:-80.60428, kind:2.75, coast:[0.93, 0.36, 1250], air:{ a:[-2400, 2000, 2800], b:[-1000, 130, 450] } },   // (its crew access arm came off in February 2026)
+  slc40:{ name:'Space Launch Complex 40, Cape Canaveral, Florida', short:'Cape Canaveral', la:28.56194, lo:-80.57735, kind:3, coast:[0.95, 0.3, 700], air:{ a:[-1400, 1600, 2200], b:[-950, 120, 250] } },
+  slc4e:{ name:'Space Launch Complex 4E, Vandenberg, California', short:'Vandenberg', la:34.63208, lo:-120.61074, kind:2, coast:[-0.98, -0.2, 700], air:{ a:[1400, 1000, 2800], b:[480, 160, 900] } },
   lz:{ name:'Landing Zones 1 and 2, Cape Canaveral', short:'the Cape\'s landing zones', la:28.48575, lo:-80.54385, kind:5, coast:[0.95, 0.3, 1100] },
 };
-for (const k in SXS){ const S = SXS[k]; S.key = k; S.up = llUnit(S.la, S.lo); S.F = enuOf(S.up); S.p = V.mul(S.up, RE_KM); }
+// (each pad stands at the height of its ground above the sea, from the Earth detail's terrain: Vandenberg's is about 100 m up)
+for (const k in SXS){ const S = SXS[k], D = EARTH_DETAIL.sites.find(s => s.pads[k]); S.key = k; S.elev = D ? D.pads[k][2] || 0 : 0; S.up = llUnit(S.la, S.lo); S.F = enuOf(S.up); S.p = V.mul(S.up, RE_KM + S.elev/1000); }
 // along a launch azimuth: the point s km downrange, c km to the left, h km up, and the axes there (Earth-fixed)
-function azFrame(S, az){ const d = V.add(V.mul(S.F.n, Math.cos(az*DEG)), V.mul(S.F.e, Math.sin(az*DEG))); return { up:S.up, dir:d, left:V.cross(S.up, d) }; }
+function azFrame(S, az){ const d = V.add(V.mul(S.F.n, Math.cos(az*DEG)), V.mul(S.F.e, Math.sin(az*DEG))); return { up:S.up, dir:d, left:V.cross(S.up, d), h0:(S.elev || 0)/1000 }; }
 function trajPoint(A, s, c, h, pd){
   const a = s/RE_KM;
   let u = V.add(V.mul(A.up, Math.cos(a)), V.mul(A.dir, Math.sin(a)));
   const f0 = V.sub(V.mul(A.dir, Math.cos(a)), V.mul(A.up, Math.sin(a)));
   u = V.norm(V.add(u, V.mul(A.left, c/RE_KM)));
   const left = V.norm(V.cross(u, f0)), fwd = V.cross(left, u), pr = pd*DEG;
-  return { p:V.mul(u, RE_KM + h), up:u, fwd, left, axis:V.add(V.mul(u, Math.cos(pr)), V.mul(fwd, Math.sin(pr))) };
+  // (heights are above the sea; near the pad the pad's own height is added, so a launch from ground 100 m up starts on it)
+  const hh = h + (A.h0 || 0)*Math.max(0, 1 - Math.hypot(s, c)/3);
+  return { p:V.mul(u, RE_KM + hh), up:u, fwd, left, axis:V.add(V.mul(u, Math.cos(pr)), V.mul(fwd, Math.sin(pr))) };
 }
 // where a lat/lon lies from a site along an azimuth (small distances): [s, c] km
 function sxSC(S, az, la, lo){ const d = V.sub(V.mul(llUnit(la, lo), RE_KM), S.p), e = V.dot(d, S.F.e), n = V.dot(d, S.F.n), a = az*DEG;
@@ -79,7 +84,8 @@ const FAM = {
 // ---------------------------------------------------------------- the missions
 // stack: the path of the first part's base while the stack is whole. Each part: sep (when it flies on its own path), dy / dz (its base
 // above / beside the first part's base while stacked, m), path, thr (throttle, 0..1 of all engines), legs / fins (0..1 over time).
-// events: captions. rate: playback speed from each mission time (replays and clicks). shots: the camera (see shotPose).
+// events: captions ('@site': the place's name). rate: playback speed from each mission time (replays and clicks). shots: the camera
+// (see launchPose in s4-spacex-run.js).
 const LZ_SC = [sxSC(SXS.lc39a, 90, 28.48581, -80.54287), sxSC(SXS.lc39a, 90, 28.48569, -80.54484)];
 const MIS = {
   starship:{ fam:'star', name:'Starship', site:'starbase', az:97, end:560, h0:0.020,
@@ -91,21 +97,23 @@ const MIS = {
         thr:[[159.5,0],[160.5,1],[515,1],[516,0]] } },
     pad:{ chopH:[[-600,62],[380,62],[405,93],[900,93]], chopOpen:[[-600,1],[428,1],[431,0.16],[900,0.16]], qd:[[-600,0],[-7,0],[-4.5,-1.3],[900,-1.3]] },
     cloud:{ strength:[[-3.2,0],[-2.2,1],[40,1],[110,0.35],[220,0]], steam:0.85, vent:[[-60,1],[-3,0.5],[1,0]] },
-    events:[[-10,'final countdown'],[-6,'the quick-disconnect arm swings back'],[-3,'33 Raptor engines start'],[0,'liftoff'],[9,'clear of the tower'],[62,'max Q: the hardest push of the air'],[157,'the booster cuts its engines'],[160,'hot staging: the ship lights its engines while still attached'],[183,'boostback burn: the booster turns back for Texas'],[227,'boostback done: the booster coasts home'],[412,'landing burn: 13 engines, then 3'],[430,'caught by the tower\'s chopsticks'],[515,'ship engine cutoff'],[525,'the ship coasts on round the world']],
-    rate:[[-12,1],[20,2],[55,3],[150,1],[172,1.5],[185,2.5],[228,8],[385,2.5],[404,1],[440,4],[505,1.5],[560,1]],
+    events:[[-20,'@site'],[-10,'final countdown'],[-6,'the quick-disconnect arm swings back'],[-3,'33 Raptor engines start'],[0,'liftoff'],[9,'clear of the tower'],[62,'max Q: the hardest push of the air'],[157,'the booster cuts its engines'],[160,'hot staging: the ship lights its engines while still attached'],[183,'boostback burn: the booster turns back for Texas'],[227,'boostback done: the booster coasts home'],[412,'landing burn: 13 engines, then 3'],[430,'caught by the tower\'s chopsticks'],[515,'ship engine cutoff'],[525,'the ship coasts on round the world']],
+    rate:[[-12,1],[12,2.5],[55,4],[148,1.2],[170,3],[228,16],[390,1.6],[432,8],[515,3],[560,1]],
     shots:[
-      { t:-60, eye:['site', 'starbase', [-380, 4, 520]], look:['part', 'booster', 62], lens:['fit', 130, 0.62] },
+      { t:-60, eye:['site', 'SITE', 'a'], look:['part', 'booster', 60], lens:1, to:{ eye:['site', 'SITE', 'b'], lens:['fit', 130, 0.3] }, move:11, drift:0.012 },
+      { t:-9, eye:['site', 'starbase', [-380, 4, 520]], look:['part', 'booster', 62], lens:['fit', 130, 0.62] },
       { t:-4.5, eye:['site', 'starbase', [-72, 3, 96]], look:['part', 'booster', 16], lens:1.15 },
       { t:3, eye:['site', 'starbase', [62, 26, 48]], look:['part', 'booster', 4], lens:1 },
       { t:10, eye:['site', 'starbase', [-2400, 6, 1800]], look:['part', 'ship', 0], lens:['fit', 130, 0.55] },
-      { t:55, eye:['traj', 'ship', [-380, -70, 120]], look:['part', 'ship', 0], lens:['fit', 130, 0.5], lag:1 },
+      { t:30, eye:['body', 'booster', [6.5, 30, 0], 'sun'], look:['body', 'booster', [150, -300, 0], 'sun'], lens:1, up:'side', blend:4 },
+      { t:55, eye:['traj', 'ship', [380, -70, 120]], look:['part', 'ship', 0], lens:['fit', 130, 0.5], lag:1 },
       { t:150, eye:['traj', 'ship', [240, 28, -40]], look:['part', 'ship', -4], lens:['fit', 70, 0.8], lag:1 },
       { t:172, eye:['traj', 'booster', [300, 120, 180]], look:['part', 'booster', 36], lens:['fit', 80, 0.5], lag:0.8 },
-      { t:228, eye:['traj', 'booster', [330, -40, 170]], look:['part', 'booster', 36], lens:['fit', 80, 0.4], lag:0.6 },
-      { t:395, eye:['site', 'starbase', [900, 60, 300]], look:['part', 'booster', 36], lens:['fit', 90, 0.4] },
-      { t:414, eye:['site', 'starbase', [250, 92, -10]], look:['site', 'starbase', [0, 88, -12]], lens:['fit', 160, 0.9] },
-      { t:440, eye:['traj', 'ship', [110, -25, -150]], look:['part', 'ship', 30], lens:1.2, lag:1 },
-      { t:505, eye:['traj', 'ship', [190, -40, 60]], look:['part', 'ship', 25], lens:['fit', 55, 0.5], lag:1 } ] },
+      { t:228, eye:['traj', 'booster', [260, 170, 150]], look:['part', 'booster', 36], lens:['fit', 80, 0.35], lag:0.6 },
+      { t:395, eye:['site', 'starbase', [-900, 60, 300]], look:['part', 'booster', 36], lens:['fit', 90, 0.4] },
+      { t:414, eye:['site', 'starbase', [-250, 92, -10]], look:['site', 'starbase', [0, 88, -12]], lens:['fit', 160, 0.9] },
+      { t:440, eye:['traj', 'ship', [110, 60, -150]], look:['part', 'ship', 30], lens:1.2, lag:1 },
+      { t:505, eye:['traj', 'ship', [190, 60, 60]], look:['part', 'ship', 25], lens:['fit', 55, 0.5], lag:1 } ] },
   falcon9:{ fam:'f9', name:'Falcon 9', site:'slc40', az:45, end:565, h0:0.004, pay:0, dsS:465,
     stack:Kp([[0,0,0,0.004,0],[4,0,0,0.012,0],[8,0,0,0.045,0],[12,0,0,0.11,0],[18,0,0,0.26,1],[25,0.03,0,0.55,3],[35,0.25,0,1.3,8],[50,1.1,0,3.3,15],[72,3.5,0,8.6,27],[90,8,0,14.5,36],[110,17,0,24,44],[130,35,0,39,51],[148,62,0,58,56]]),
     parts:{
@@ -113,17 +121,19 @@ const MIS = {
         thr:[[-3.2,0],[-2.6,0.7],[0,1],[147.5,1],[148,0],[399,0],[400,0.33],[417,0.33],[418,0],[511,0],[512,0.11],[533,0.11],[534,0]], legs:[[526,0],[530,1]], fins:[[153,0],[163,1]] },
       s2:{ sep:151, dy:44.8, path:Kp([[148,62,0,58,56],[151,67,0,61,57],[160,80,0,69,60],[180,112,0,85,64],[220,190,0,112,70],[280,340,0,145,78],[360,610,0,176,85],[440,960,0,196,89],[522,1400,0,207,92],[565,1700,0,209,93]]),
         thr:[[156,0],[157.5,1],[522,1],[523,0]], pay:[[194,0],[195,2]] } },
-    events:[[-10,'final countdown'],[-3,'nine Merlin engines start'],[0,'liftoff'],[72,'max Q: the hardest push of the air'],[148,'main engine cutoff'],[151,'stage separation'],[157,'second stage engine start'],[195,'the fairing halves fall away'],[400,'entry burn'],[512,'landing burn'],[522,'second stage engine cutoff: in orbit'],[534,'landed on the droneship']],
-    rate:[[-12,1],[18,2.5],[65,3.5],[140,1],[175,3],[230,10],[390,1.5],[430,6],[505,1],[545,3],[565,1]],
+    events:[[-20,'@site'],[-10,'final countdown'],[-3,'nine Merlin engines start'],[0,'liftoff'],[72,'max Q: the hardest push of the air'],[148,'main engine cutoff'],[151,'stage separation'],[157,'second stage engine start'],[195,'the fairing halves fall away'],[400,'entry burn'],[512,'landing burn'],[522,'second stage engine cutoff: in orbit'],[534,'landed on the droneship']],
+    rate:[[-12,1],[12,3],[65,5],[140,1.2],[160,4],[230,16],[390,2.5],[420,8],[500,1.2],[540,3],[565,1]],
     shots:[
-      { t:-60, eye:['site', 'SITE', [-300, 3, 420]], look:['part', 'core', 36], lens:['fit', 72, 0.62] },
+      { t:-60, eye:['site', 'SITE', 'a'], look:['part', 'core', 30], lens:1, to:{ eye:['site', 'SITE', 'b'], lens:['fit', 72, 0.3] }, move:11, drift:0.012 },
+      { t:-9, eye:['site', 'SITE', [-300, 3, 420]], look:['part', 'core', 36], lens:['fit', 72, 0.62] },
       { t:-4.5, eye:['site', 'SITE', [-115, 3, 150]], look:['part', 'core', 22], lens:['fit', 75, 0.75] },
       { t:5, eye:['site', 'SITE', [26, 2, 30]], look:['part', 'core', 30], lens:1 },
       { t:12, eye:['site', 'SITE', [-2200, 5, 1400]], look:['part', 'core', 36], lens:['fit', 72, 0.5] },
-      { t:65, eye:['traj', 'core', [-230, -40, 80]], look:['part', 'core', 36], lens:['fit', 72, 0.5], lag:1 },
+      { t:32, eye:['body', 'core', [3.2, 20, 0], 'sun'], look:['body', 'core', [100, -220, 0], 'sun'], lens:1, up:'side', blend:4 },
+      { t:65, eye:['traj', 'core', [230, -40, 80]], look:['part', 'core', 36], lens:['fit', 72, 0.5], lag:1 },
       { t:140, eye:['traj', 'core', [45, -12, -8]], look:['part', 'core', 46], lens:1.3, lag:1 },
       { t:175, eye:['traj', 'core', [70, -20, 50]], look:['part', 'core', 24], lens:['fit', 50, 0.55], lag:0.8 },
-      { t:230, eye:['traj', 'core', [160, -30, 90]], look:['part', 'core', 24], lens:['fit', 50, 0.45], lag:0.6 },
+      { t:230, eye:['traj', 'core', [140, 110, 90]], look:['part', 'core', 24], lens:['fit', 50, 0.4], lag:0.6 },
       { t:390, eye:['traj', 'core', [160, -50, 40]], look:['part', 'core', 20], lens:['fit', 50, 0.45], lag:1 },
       { t:430, eye:['traj', 'core', [150, -30, 80]], look:['part', 'core', 20], lens:['fit', 50, 0.45], lag:1 },
       { t:505, eye:['site', 'DS', [-72, 7, 96]], look:['part', 'core', 22], lens:['fit', 60, 0.5] },
@@ -137,16 +147,18 @@ const MIS = {
       sideB:{ sep:152, dy:0, dz:-4.1, path:null, thr:null, legs:[[457.5,0],[461.5,1]], fins:[[155,0],[163,1]] },
       s2:{ sep:188, dy:44.8, path:Kp([[185,118,0,75,63],[188,124,0,78,64],[200,150,0,86,67],[240,245,0,112,73],[300,430,0,150,80],[380,740,0,183,86],[460,1110,0,203,90],[546,1560,0,212,92],[585,1860,0,213,93]]),
         thr:[[193,0],[195,1],[546,1],[547,0]], pay:[[219,0],[220,2]] } },
-    events:[[-10,'final countdown'],[-3,'27 Merlin engines start'],[0,'liftoff'],[72,'max Q: the hardest push of the air'],[150,'the side boosters cut off'],[152,'the side boosters separate'],[168,'the side boosters turn back to Florida'],[185,'centre core cutoff'],[188,'the centre core separates'],[195,'second stage engine start'],[220,'the fairing halves fall away'],[355,'side boosters: entry burns'],[440,'side boosters: landing burns'],[462,'both side boosters landed at Cape Canaveral, as on the first flight in 2018'],[540,'centre core: landing burn'],[547,'second stage engine cutoff'],[554,'the centre core landed on the droneship']],
-    rate:[[-12,1],[18,2.5],[65,3.5],[145,1],[160,3],[215,10],[345,2],[430,1],[470,4],[535,1],[560,3],[585,1]],
+    events:[[-20,'@site'],[-10,'final countdown'],[-3,'27 Merlin engines start'],[0,'liftoff'],[72,'max Q: the hardest push of the air'],[150,'the side boosters cut off'],[152,'the side boosters separate'],[168,'the side boosters turn back to Florida'],[185,'centre core cutoff'],[188,'the centre core separates'],[195,'second stage engine start'],[220,'the fairing halves fall away'],[355,'side boosters: entry burns'],[440,'side boosters: landing burns'],[462,'both side boosters landed at Cape Canaveral, as on the first flight in 2018'],[540,'centre core: landing burn'],[547,'second stage engine cutoff'],[554,'the centre core landed on the droneship']],
+    rate:[[-12,1],[12,3],[65,5],[145,1.5],[165,4],[215,14],[345,3.5],[430,2],[468,7],[530,2],[560,4],[585,1]],
     shots:[
-      { t:-60, eye:['site', 'lc39a', [-330, 3, 450]], look:['part', 'core', 36], lens:['fit', 72, 0.62] },
+      { t:-60, eye:['site', 'SITE', 'a'], look:['part', 'core', 30], lens:1, to:{ eye:['site', 'SITE', 'b'], lens:['fit', 72, 0.3] }, move:11, drift:0.012 },
+      { t:-9, eye:['site', 'lc39a', [-330, 3, 450]], look:['part', 'core', 36], lens:['fit', 72, 0.62] },
       { t:-4.5, eye:['site', 'lc39a', [-120, 3, 155]], look:['part', 'core', 22], lens:['fit', 75, 0.75] },
       { t:5, eye:['site', 'lc39a', [30, 2, 34]], look:['part', 'core', 30], lens:1 },
       { t:12, eye:['site', 'lc39a', [-2500, 5, 1300]], look:['part', 'core', 36], lens:['fit', 72, 0.5] },
-      { t:65, eye:['traj', 'core', [-240, -40, 90]], look:['part', 'core', 36], lens:['fit', 72, 0.5], lag:1 },
+      { t:32, eye:['body', 'sideA', [3.2, 20, 0], 'sunL'], look:['body', 'sideA', [100, -220, 0], 'sunL'], lens:1, up:'side', blend:4 },
+      { t:65, eye:['traj', 'core', [60, -30, -240]], look:['part', 'core', 36], lens:['fit', 72, 0.5], lag:1 },
       { t:145, eye:['traj', 'core', [10, -30, -170]], look:['part', 'core', 30], lens:['fit', 60, 0.7], lag:1 },
-      { t:160, eye:['traj', 'sideA', [140, 60, 60]], look:['part', 'sideA', 23], lens:['fit', 60, 0.5], lag:0.8 },
+      { t:160, eye:['traj', 'sideA', [330, 80, 60]], look:['part', 'sideA', 23], lens:['fit', 60, 0.5], lag:0.8 },
       { t:215, eye:['traj', 'sideA', [0, 350, 300]], look:['part', 'sideA', 23], lens:['fit', 50, 0.35], lag:0.6 },
       { t:345, eye:['traj', 'sideA', [180, -40, 60]], look:['part', 'sideA', 20], lens:['fit', 50, 0.45], lag:1 },
       { t:425, eye:['traj', 'sideA', [110, -12, 60]], look:['part', 'sideA', 20], lens:['fit', 50, 0.55], lag:1 },
@@ -157,14 +169,16 @@ const MIS = {
   dragon:{ fam:'f9', name:'Crew Dragon', site:'slc40', az:44, end:1175, realEnd:760, h0:0.004, pay:1, dsS:465, jump:[760, 1000],
     stack:null, parts:{ core:null, s2:null,
       dragon:{ sep:720, dy:57.4 } },
-    events:[[-10,'final countdown'],[-3,'nine Merlin engines start'],[0,'liftoff'],[72,'max Q: the hardest push of the air'],[148,'main engine cutoff'],[151,'stage separation'],[157,'second stage engine start'],[400,'the booster\'s entry burn'],[512,'the booster\'s landing burn'],[522,'second stage engine cutoff: in orbit'],[534,'the booster landed on the droneship'],[720,'Dragon separates from the second stage'],[1000,'about a day later: Dragon closes in on the space station'],[1045,'holding about 220 m out'],[1085,'holding about 20 m out'],[1150,'soft capture: docked']],
-    rate:[[-12,1],[18,2.5],[65,3.5],[140,1],[175,3],[230,10],[390,2],[505,1],[545,5],[700,1],[760,1],[1000,1.5],[1030,4],[1045,2],[1060,4],[1085,1.5],[1100,3],[1130,1],[1175,1]],
+    events:[[-20,'@site'],[-10,'final countdown'],[-3,'nine Merlin engines start'],[0,'liftoff'],[72,'max Q: the hardest push of the air'],[148,'main engine cutoff'],[151,'stage separation'],[157,'second stage engine start'],[400,'the booster\'s entry burn'],[512,'the booster\'s landing burn'],[522,'second stage engine cutoff: in orbit'],[534,'the booster landed on the droneship'],[720,'Dragon separates from the second stage'],[1000,'about a day later: Dragon closes in on the space station'],[1045,'holding about 220 m out'],[1085,'holding about 20 m out'],[1150,'soft capture: docked']],
+    rate:[[-12,1],[12,3],[65,5],[140,1.2],[160,14],[505,2.5],[540,14],[700,4],[760,1],[1000,4.5],[1045,5],[1060,6],[1085,3],[1100,4.5],[1140,1.6],[1175,1]],
     shots:[
-      { t:-60, eye:['site', 'SITE', [-300, 3, 420]], look:['part', 'core', 36], lens:['fit', 72, 0.62] },
+      { t:-60, eye:['site', 'SITE', 'a'], look:['part', 'core', 30], lens:1, to:{ eye:['site', 'SITE', 'b'], lens:['fit', 72, 0.3] }, move:11, drift:0.012 },
+      { t:-9, eye:['site', 'SITE', [-300, 3, 420]], look:['part', 'core', 36], lens:['fit', 72, 0.62] },
       { t:-4.5, eye:['site', 'SITE', [-115, 3, 150]], look:['part', 'core', 22], lens:['fit', 75, 0.75] },
       { t:5, eye:['site', 'SITE', [26, 2, 30]], look:['part', 'core', 30], lens:1 },
       { t:12, eye:['site', 'SITE', [-2200, 5, 1400]], look:['part', 'core', 36], lens:['fit', 72, 0.5] },
-      { t:65, eye:['traj', 'core', [-230, -40, 80]], look:['part', 'core', 36], lens:['fit', 72, 0.5], lag:1 },
+      { t:32, eye:['body', 'core', [3.2, 20, 0], 'sun'], look:['body', 'core', [100, -220, 0], 'sun'], lens:1, up:'side', blend:4 },
+      { t:65, eye:['traj', 'core', [230, -40, 80]], look:['part', 'core', 36], lens:['fit', 72, 0.5], lag:1 },
       { t:140, eye:['traj', 'core', [45, -12, -8]], look:['part', 'core', 46], lens:1.3, lag:1 },
       { t:175, eye:['traj', 's2', [60, 18, -90]], look:['part', 's2', 14], lens:['fit', 30, 0.5], lag:1 },
       { t:505, eye:['site', 'DS', [-72, 7, 96]], look:['part', 'core', 22], lens:['fit', 60, 0.5] },
@@ -245,14 +259,14 @@ placeDS(SX_DS.f9, SXS.slc40, 45, 465); placeDS(SX_DS.fh, SXS.lc39a, 90, 585);
 const siteOf = (key, run) => key === 'SITE' ? SXS[run.site] : key === 'DS' ? SX_DS[run.mis.fam === 'fh' ? 'fh' : 'f9'] : SXS[key];
 
 // ---------------------------------------------------------------- runs: one mission flying, with its clock
-// mode: 'real' (the clock is the wall clock against the scheduled time), 'click' (waits on the pad at T-10 s until the camera has arrived),
+// mode: 'real' (the clock is the wall clock against the scheduled time), 'click' (waits on the pad at T-20 s until the camera has arrived),
 // 'replay' (starts at T-10 s wherever the camera is). Ended runs keep their last frame until the camera has left them.
 function newRun(key, mode, opt = {}){
   const mis = MIS[key]; if (!mis) return null;
   const pend = SX.pend;
   for (const r of SX.runs.filter(r => r.mis.fam === mis.fam)) endRun(r);
   SX.pend = pend;
-  const run = { key, mis, mode, site:opt.site || mis.site, az:opt.az ?? mis.az, mt:opt.mt ?? (mode === 'real' ? -90 : -10.5), t0:opt.t0 || 0, label:opt.label || '', hold:mode === 'click', ended:false, born:GT, idleT:0, seen:false };
+  const run = { key, mis, mode, site:opt.site || mis.site, az:opt.az ?? mis.az, mt:opt.mt ?? (mode === 'real' ? -90 : mode === 'click' ? -20.5 : -10.5), t0:opt.t0 || 0, label:opt.label || '', hold:mode === 'click', ended:false, born:GT, idleT:0, seen:false };
   if (mis.dsS) placeDS(SX_DS[mis.fam === 'fh' ? 'fh' : 'f9'], SXS[run.site], run.az, mis.dsS);
   run.A = azFrame(SXS[run.site], run.az);
   SX.runs.push(run);
@@ -418,12 +432,14 @@ for (const o of [...Object.values(SX.parts), ...Object.values(SXS).map(S => S.o)
 // only clusters that could cover more than a character or so are drawn
 function sxCamNear(c){ const rel = V.add(earth.rel, V.mul(M3.apply(earth.rot, c.C), KM)), d = V.len(rel)/MET; return c.R/Math.max(d, 1) > 0.0015; }
 // the ground and sky near a launch site, drawn just after Earth
-const SXENV = { on:false };
+const SXENV = { on:false, cover:false };
 { const prev = earth.drawAfter; earth.drawAfter = vis => { if (prev) prev(vis); if (FLAGS.spacex) drawEnv(); }; }
+// (while the ground and a nearly opaque sky cover the whole screen, Earth's own volume under them is not drawn: it cost as much again)
+earth.volOff = () => FLAGS.spacex && SXENV.cover;
 function camFixed(){ return M3.applyT(earth.rot, V.mul(earth.rel, -1/KM)); }
 function drawEnv(){
   const cf = camFixed(), alt = V.len(cf) - RE_KM;
-  SXENV.on = false; if (alt > 90 || alt < -1) return;
+  SXENV.on = SXENV.cover = false; if (alt > 90 || alt < -1) return;
   let best = null, bd = 1e9;
   for (const S of SITE_LIST()){ const d = V.len(V.sub(cf, S.p)); if (d < bd){ bd = d; best = S; } }
   if (!best || bd > 700) return;
@@ -431,13 +447,16 @@ function drawEnv(){
   if (fade < 0.01) return;
   SXENV.on = true; SXENV.site = best; SXENV.alt = alt;
   const Rw = M3.mul(earth.rot, best.F.M), cl = M3.applyT(best.F.M, V.mul(V.sub(cf, best.p), 1000)), L = M3.applyT(best.F.M, sunFixed()), day = smooth(-0.12, 0.12, L[1]);
+  // (the sky's opacity overhead, as FS_SX_ENV works it out: by day at the height of a plane or lower, Earth's volume would not show)
+  SXENV.cover = fade > 0.999 && (0.25 + 0.74*day)*(0.35 + 0.65*Math.exp(-alt*1000/8500)) > 0.85;
   let pl = [0, 0, 0], plI = 0;
   for (const k in SX.parts){ const st = SX.parts[k].sx.st; if (!st || !st.on || SX.parts[k].hidden || !(st.thr > plI) || st.alt > 20) continue; plI = st.thr; pl = M3.applyT(best.F.M, V.mul(V.sub(st.base, best.p), 1000)); }
-  const rel = V.add(earth.rel, V.mul(M3.apply(earth.rot, best.p), KM));
+  const rel = V.add(earth.rel, V.mul(M3.apply(earth.rot, best.p), KM)), ED = best.kind === 4 ? null : EDT.siteOfPad(best.key);
   drawVolume(earth, P.sxEnv, rel, V.len(rel)*4 + 1e-3, p => {
+    EDT.bind(p, ED, { M:best.F.M, p:best.p });
     gl.uniform4f(p.u.uP0, cl[0], cl[1], cl[2], fade); gl.uniform4f(p.u.uP1, L[0], L[1], L[2], day);
     gl.uniform4f(p.u.uP2, best.coast[0], best.coast[1], best.coast[2], best.kind === 4 ? 1 : 0);
-    gl.uniform4f(p.u.uP3, pl[0], pl[1], pl[2], plI*(0.4 + 1.6*(1 - day))); gl.uniform4f(p.u.uP4, GT, 0, 0, 0);
+    gl.uniform4f(p.u.uP3, pl[0], pl[1], pl[2], plI*(0.4 + 1.6*(1 - day))); gl.uniform4f(p.u.uP4, GT, best.elev || 0, 0, 0);
   }, Rw, 1);
 }
 // ---------------------------------------------------------------- seen from far away: the trail of a flight, glowing where the exhaust is in sunlight (the "jellyfish" of

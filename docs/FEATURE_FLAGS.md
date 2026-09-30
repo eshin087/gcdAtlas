@@ -21,7 +21,7 @@ const FLAGS = (() => {
 | `backyard` | on | *your sky* (planetarium) |
 | `earthStory` | on | *Earth's story* |
 | `social` | off | reserved for comments / likes / listings (not built yet) |
-| `spacex` | on | SpaceX rockets on their pads, their flights (real, clicked and replays), the launch camera and the ground near a pad (`src/objects/s2-spacex-gl.js` to `s4-spacex-run.js`) |
+| `spacex` | on | SpaceX rockets on their pads, their flights (real, clicked and replays), the launch camera and the ground near a pad (`src/objects/s2-spacex-gl.js` to `s4-spacex-run.js`), and the real ground round the launch sites (`e2-earth-detail-data.js`, `e3-earth-detail.js`: the only part that fetches, our own images under `/earth/`) |
 
 ## Turning a flag on or off for yourself
 

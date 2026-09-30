@@ -2,7 +2,7 @@
 // ================================================================ Earth (real coastlines, weather, city lights, aurora), the Moon, the ISS and the satellite swarm
 // local units: bounding sphere 1, solid Earth radius RP. uTex: R land, G ice sheet (B: old city glows, unused). uTex2: city lights at night
 // from NASA's Black Marble 2016 (05l-lights.js, made by tools/earth-lights.mjs). Both equirectangular.
-const FS_EARTH = COMMON + `
+const FS_EARTH = COMMON + '#ifdef ED_ON\n#define ED_N 2\n' + ED_GLSL + '#endif\n' + `
 const float RP = 0.893;
 uniform sampler2D uTex2;
 vec2 euv(vec3 n){ float lat = asin(clamp(n.y, -1., 1.)), lon = atan(-n.z, n.x); return vec2(lon*0.15915494 + 0.5, 0.5 - lat*0.31830989); }
@@ -81,6 +81,20 @@ void main(){
     float mu = max(dot(n, -d), 0.), sdot = dot(n, L), day = smoothstep(-0.08, 0.12, sdot), dif = max(sdot, 0.);
     vec3 ocean = mix(vec3(0.02, 0.075, 0.2), vec3(0.04, 0.24, 0.32), coast*0.8);
     vec3 surf = mix(ocean, landCol(n, lat, tx.g)*1.7, land);
+    // round the launch sites, real images of the ground (Sentinel-2 and aerial photos, e3-earth-detail.js) replace the painted land and sea
+    // (only in P.earthEd, the copy used near a site whose images are loaded: the one drawn at start-up compiles as quickly as before)
+#ifdef ED_ON
+    if(uEdS.x > 0.5){
+      float cov, edge, fp = hs.x*uPix*uEdS.y/max(mu, 0.25);
+      vec4 img = edColour(n*RP, fp, cov);
+      if(cov > 0.001){
+        // (toward the edge of the regional image its broad colours become the painted map's, so from space it has no edge)
+        vec4 wd = edWide(n*RP, edge);
+        vec3 im = edLin(img.rgb)*mix(clamp((surf + 0.003)/(edLin(wd.rgb) + 0.003), 0.25, 4.), vec3(1.), edge);
+        im = mix(im, mix(mix(ocean, im, 0.55), ocean, wd.a), step(0.5, img.a));
+        surf = mix(surf, im, cov); land = mix(land, mix(land, 1. - img.a, edge), cov); }
+    }
+#endif
     // Earth's story: 1 bare rock before land plants, 2 snowball Earth, 3 an ocean world under an orange haze, 4 molten
     float era = uP1.w;
     if(era > 0.001){
@@ -157,6 +171,7 @@ void main(){
   outCol(col, alpha);
 }`;
 P.earth = program(VS_RECT, FS_EARTH);
+P.earthEd = program(VS_RECT, FS_EARTH.replace('#version 300 es\n', '#version 300 es\n#define ED_ON\n'));
 loadTex('earth', EARTH_PNG); loadTex('lights', LIGHTS_PNG);
 loadTex('mw', MW_PNG);
 const earth = (() => {

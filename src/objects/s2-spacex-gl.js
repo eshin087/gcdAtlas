@@ -238,7 +238,6 @@ float site(vec3 p, out float m){
       float tw = lattice(cq, 5., 80., 8., 0.45); if(tw < d){ d = tw; m = 11.; }
       if(k > 2.9){ float arm = sdBox(q - vec3(0., 66., -9.5), vec3(1.4, 1.6, 7.5)); if(arm < d){ d = arm; m = 11.; } }
     }
-    float gr = sdCylY(q, 60., -1., 0.); if(gr < d){ d = gr; m = 10.; }
   } else if(k < 4.5){
     // the droneship: a 91 x 52 m deck with walls along its long sides and a thruster pod at each corner
     float dk = sdBox(q - vec3(0., 1., 0.), vec3(45.5, 2., 26.)); d = dk; m = 14.;
@@ -333,66 +332,146 @@ void main(){
 P.sxStar = program(VS_RECT, FS_SX_STAR + SX_MAIN);
 P.sxFal = program(VS_RECT, FS_SX_FAL + SX_MAIN);
 
-// ---------------------------------------------------------------- the ground and the sky round a launch site, seen from near the ground
+/// ---------------------------------------------------------------- the ground and the sky round a launch site, seen from near the ground
 // Drawn right after Earth (earth.drawAfter), over the whole screen, while the camera is within a few tens of kilometres of the surface:
-// Earth's own shader is a planet seen from space (a coarse map with clouds painted on it), so close to the pad this takes over. The
-// ground is a paraboloid (the Earth's curve, fine for hundreds of km) in metres round an anchor: land and sea split along a coastline,
-// the pad's concrete, a few lights at night, sun glint and ripples on the sea, haze toward the horizon. Above it the sky: blue by day,
-// an orange band at twilight, dark at night (stars show through), and the Sun's glow.
-// uP0 = camera (m, anchor frame), fade;  uP1 = sun direction (anchor frame), daylight;  uP2 = coast normal (x, z), coast distance (m),
-//   site kind (0 land pad, 1 open sea);  uP3 = plume light: position (m), strength;  uP4 = time, 0, 0, 0
-const FS_SX_ENV = COMMON + `
+// Earth's own shader is a planet seen from space, so close to the pad this takes over. In metres, in the frame of the site the camera is
+// nearest (x east, y up, z south, the pad at the origin, the sea uP4.y below it), the ground follows the Earth's curve. Where the site's
+// images are loaded (ED_GLSL, e3-earth-detail.js) it is the real ground: near the camera the heights (terrain and buildings from
+// OpenStreetMap) are ray-marched, so hills, hangars and the Vehicle Assembly Building stand up and cast shadows; further off the images lie
+// flat on the curve. Elsewhere, and without the images (offline, the artifact page), a sketch: land and sea split along a straight coastline.
+// Colours are worked out as they should show on screen (after FS_CELL's tone map, which unTone undoes, as the planets do): the images a
+// little richer in colour and contrast, so tidal flats, marsh, sand and roofs land on different characters. Water reflects the sky (more at
+// a glancing angle), glints in the Sun and takes the plume's light; the open sea is one colour. Distant ground fades into the haze of the
+// horizon. The sky: blue by day, darkening to black as the camera climbs, an orange band at twilight, the Sun.
+// uP0 = camera (m), fade;  uP1 = sun direction, daylight;  uP2 = coast normal (x, z), coast distance (m), open sea (1);
+// uP3 = plume light: position (m), strength;  uP4 = time, the height of the pad above the sea (m), 0, ZI (0)
+const FS_SX_ENV = COMMON + '#define ED_GRAD\n' + ED_GLSL + `
 const float RE = 6371000.;
-float groundT(vec3 o, vec3 d){
+int ZI = 0;   // (a 0 the compiler cannot see, set in main from a uniform, so the loops stay loops)
+float CALT = 0., DIP = 0.;   // the height of the camera above the sea (m), and how far below level the horizon lies (radians, about)
+vec3 unTone(vec3 c){ return -log(1. - clamp(c, 0., 0.985)); }
+// where a ray meets the sea-level curve (y = -e - r^2/2R), or -1
+float curveT(vec3 o, vec3 d, float e){
+  o.y += e;
   float A = dot(d.xz, d.xz)/(2.*RE), B = d.y + dot(o.xz, d.xz)/RE, C = o.y + dot(o.xz, o.xz)/(2.*RE);
   float D = B*B - 4.*A*C; if(D < 0.) return -1.;
-  float q = -0.5*(B + sign(B)*sqrt(D)); float t1 = q/max(A, 1e-20), t2 = C/q;
-  if(A < 1e-18) t1 = -1.;
+  float q = -0.5*(B + sign(B)*sqrt(D)); float t1 = A > 1e-18 ? q/A : -1., t2 = C/q;
   float t = 1e30; if(t1 > 0.) t = t1; if(t2 > 0.) t = min(t, t2);
   return t < 1e29 ? t : -1.;
 }
+// a point of the ground plane at (x, z): its place on the sea-level sphere, in the layers' frame
+vec3 seaPt(vec2 xz){ return vec3(xz.x, -uP4.y - dot(xz, xz)/(2.*RE), xz.y); }
+// the height of whatever is at (x, z), as a y in this frame
+float groundY(vec2 xz, out float water, out float ok){ vec3 P = seaPt(xz); float h = edHeight(P, water, ok); return P.y + max(h, 0.); }
+// the sky as it shows in direction r (day 0..1): deep blue overhead, paler toward the horizon, both fading as the air thins below the camera
+vec3 skyCol(vec3 r, vec3 L, float day){
+  float thin = exp(-CALT/8500.), el = r.y - DIP, mu = max(dot(r, L), 0.), sunE = L.y;
+  float hb = exp(-max(el, 0.)*mix(22., 3.2, thin));
+  vec3 c = mix(vec3(0.07, 0.15, 0.36)*mix(0.03, 1., thin), vec3(0.36, 0.47, 0.62)*mix(0.4, 1., thin), hb)*day;
+  float tw = smoothstep(-0.2, 0., sunE)*smoothstep(0.3, 0.02, sunE);
+  c += vec3(0.62, 0.3, 0.1)*tw*hb*(0.25 + 0.75*pow(mu, 4.));
+  c += vec3(1., 0.93, 0.8)*(pow(mu, 16.)*0.1*(0.3 + 0.7*thin) + pow(mu, 1500.)*1.5)*smoothstep(-0.04, 0.02, sunE);
+  return c;
+}
+// the images as shown near the ground: a little more colour and contrast than the photo, so scrub, marsh, sand and concrete land on
+// different characters
+vec3 grade(vec3 c){ float l = dot(c, vec3(0.2126, 0.7152, 0.0722)); c = mix(vec3(l), c, 1.3); return clamp((c - 0.45)*1.2 + 0.45, 0., 1.); }
+// and as Earth's own shader shows them from space (FS_EARTH: edLin, times the light of the Sun, through the tone map), for the handover
+vec3 fromSpace(vec3 lin, float sunE){ return 1. - exp(-lin*1.25*max(sunE, 0.)); }
 void main(){
+  ZI = int(uP4.w);
   vec3 d = rayDir()*uRot, o = uP0.xyz, L = uP1.xyz;
-  float day = uP1.w, fade = uP0.w;
-  vec3 col = vec3(0.); float a = 0.;
-  float sunE = L.y;
-  // the sky: brighter toward the horizon, an orange band round the Sun at twilight
-  float el = max(d.y, 0.), mu = max(dot(d, L), 0.);
-  // (kept dim: in characters a bright sky is a wall of glyphs; the rocket must stand out against it)
-  vec3 zen = vec3(0.02, 0.035, 0.08)*day, hor = mix(vec3(0.35, 0.45, 0.62), vec3(0.5, 0.58, 0.72), day)*(0.012 + 0.075*day);
-  vec3 sky = mix(hor, zen, pow(el, 0.45));
-  float tw = smoothstep(-0.18, 0.02, sunE)*smoothstep(0.25, 0.0, sunE);
-  sky += vec3(1., 0.45, 0.15)*tw*exp(-el*9.)*(0.25 + 0.75*pow(mu, 3.))*0.12;
-  sky += vec3(1., 0.9, 0.7)*(pow(mu, 400.)*3. + pow(mu, 30.)*0.03)*smoothstep(-0.05, 0.02, sunE);
-  float skyA = clamp(0.25 + 0.72*day + 0.3*tw, 0., 0.97);
-  float t = d.y < 0.05 ? groundT(o, d) : -1.;
-  if(t > 0.){
-    vec3 p = o + d*t; float dist = t;
-    float sd = dot(p.xz, uP2.xy) - uP2.z + 180.*(fbm3(vec3(p.xz*0.0004, 1.)) - 0.5);
-    bool sea = uP2.w > 0.5 || sd > 0.;
-    vec3 n = vec3(0., 1., 0.), g;
-    if(sea){
-      vec2 w = p.xz*0.02 + vec2(uP4.x*0.3, uP4.x*0.17);
-      n = normalize(vec3((noise(vec3(w, 3.)) - 0.5)*0.35, 1., (noise(vec3(w.yx, 7.)) - 0.5)*0.35));
-      float spec = pow(max(dot(reflect(d, n), L), 0.), 60.)*smoothstep(-0.05, 0.05, sunE);
-      g = vec3(0.01, 0.03, 0.05)*(0.2 + 0.9*day) + vec3(1., 0.9, 0.75)*spec*0.9;
-      // the plume shines on the water
-      vec3 lv = uP3.xyz - p; g += vec3(1., 0.55, 0.22)*uP3.w*pow(max(dot(reflect(d, n), normalize(lv)), 0.), 20.)*0.6/(1. + dot(lv, lv)*2e-7);
-    } else {
-      float h = fbm3(vec3(p.xz*0.004, 2.)), h2 = noise(vec3(p.xz*0.03, 5.));
-      g = mix(vec3(0.32, 0.29, 0.2), vec3(0.2, 0.24, 0.13), smoothstep(0.4, 0.6, h))*(0.8 + 0.4*h2);
-      if(sd > -120.) g = mix(g, vec3(0.62, 0.56, 0.44), smoothstep(-120., -40., sd));   // the beach
-      float pad = smoothstep(90., 70., length(p.xz));
-      g = mix(g, vec3(0.34, 0.33, 0.31), pad);
-      g *= (max(L.y, 0.)*0.32*smoothstep(-0.02, 0.1, sunE) + 0.015*day + 0.004);
-      // lights round the site at night
-      vec2 c = floor(p.xz/35.); float hl = hash12(c);
-      if(hl > 0.93 && length(p.xz) < 1400.){ vec2 f = fract(p.xz/35.) - 0.5; g += vec3(1., 0.7, 0.35)*exp(-dot(f, f)*60.)*(1. - day)*0.6; }
-      vec3 lv = uP3.xyz - p; g += vec3(1., 0.55, 0.22)*uP3.w*0.35*max(dot(n, normalize(lv)), 0.)/(1. + dot(lv, lv)*4e-6);
+  float day = uP1.w, fade = uP0.w, e = uP4.y, sunE = L.y;
+  CALT = o.y + e + dot(o.xz, o.xz)/(2.*RE); DIP = -sqrt(2.*max(CALT, 0.)/RE);
+  float thin = exp(-CALT/8500.);
+  float lit = 0.04 + 0.96*smoothstep(-0.08, 0.35, sunE);   // how bright the day is: full with the Sun 20 degrees up, dim at night
+  float near = smoothstep(30000., 8000., CALT);   // (above 30 km the ground shows as Earth's shader shows it, below 8 km brighter and richer)
+  vec3 col; float a;
+  // the ground: march the heights near the camera (then halve the last step a few times), else the sea-level curve
+  float t = -1., water = 0., ok = 0.;
+  bool det = uEdS.x > 0.5;
+  // (the march starts where the ray comes down to the highest ground near the site: from a plane's height it skips most of the way)
+  float hTop = uEdS.z - e + 5.;
+  if(det && d.y < 0.3 && (o.y < hTop || d.y < 0.)){
+    float tt = o.y > hTop ? (o.y - hTop)/max(-d.y, 1e-5) : 0., tp = tt, lo = 0., hi = 0.; int nb = -1;
+    for(int i=ZI;i<86;i++){
+      float tm = nb < 0 ? tt : 0.5*(lo + hi), w, k;
+      vec3 p = o + d*tm; float dh = p.y - groundY(p.xz, w, k);
+      if(nb < 0){
+        if(dh < 0.){ nb = 0; lo = tp; hi = tt; continue; }
+        tp = tt; tt += clamp(dh*0.55, 0.25 + tt*0.003, 25. + tt*0.04);
+        if(tt > 40000. || (k < 0.5 && tt > 200.)) break;
+      } else { if(dh < 0.) hi = tm; else lo = tm; nb++; if(nb >= 6) break; }
     }
-    float haze = 1. - exp(-dist/45000.);
-    col = mix(g, hor, haze); a = 1.;
-  } else { col = sky; a = skyA; }
+    if(nb >= 0) t = hi;
+  }
+  float tc = curveT(o, d, e);
+  if(t < 0. && tc > 0.) t = tc;
+  if(t > 0.){
+    vec3 p = o + d*t;
+    float fp = max(t*uPix, 0.05), cov = 0., wall = 0., sh = 1.;
+    vec3 n = vec3(0., 1., 0.), g;
+    // (a pixel's footprint on the ground: stretched along the view by the glancing angle, up to 16 times)
+    vec3 hd = normalize(vec3(d.x, 0., d.z) + vec3(1e-5, 0., 0.)), g1 = hd*fp/max(abs(d.y), 0.0625), g2 = vec3(-hd.z, 0., hd.x)*fp;
+    vec3 img = det ? edColourG(seaPt(p.xz), g1, g2, cov).rgb : vec3(0.);
+    float gy = det ? groundY(p.xz, water, ok) : -e;
+    if(det && ok > 0.5 && water < 0.5){
+      // the slope from the heights a little east and south (a wall where it changes by more than a storey in a pixel or two)
+      float s = max(fp*1.5, 0.8), hx = gy, hz = gy;
+      for(int j=ZI;j<2;j++){ float w1, k1, h = groundY(p.xz + (j == 0 ? vec2(s, 0.) : vec2(0., s)), w1, k1); if(j == 0) hx = h; else hz = h; }
+      n = normalize(vec3(gy - hx, s, gy - hz)); wall = 1. - smoothstep(0.35, 0.75, n.y);
+      // shadows of buildings and hills near the camera: march toward the Sun over the heights
+      if(sunE > 0.02 && t < 5000.){
+        float st = 1.5, w1, k1; vec3 q0 = vec3(p.x, gy, p.z) + n*0.4;
+        for(int j=ZI;j<24;j++){ vec3 q = q0 + L*st; float hh = q.y - groundY(q.xz, w1, k1); sh = min(sh, clamp(6.*hh/st + 0.5, 0., 1.));
+          st += max(hh*0.6, 1.5 + st*0.08); if(sh < 0.05 || st > 900. || hh > 400.) break; }
+        sh = mix(1., sh, smoothstep(5000., 2500., t));
+      }
+    }
+    // (outside the images: the sketch, sea past a straight coastline)
+    float sd = dot(p.xz, uP2.xy) - uP2.z + 180.*(fbm3(vec3(p.xz*0.0004, 1.)) - 0.5);
+    bool sea = cov > 0.5 ? water > 0.5 : (uP2.w > 0.5 || sd > 0.);
+    vec3 haze = skyCol(normalize(vec3(d.x, DIP + 0.015, d.z)), L, day);
+    if(sea){
+      vec2 wv = p.xz*0.02 + vec2(uP4.x*0.3, uP4.x*0.17);
+      vec3 nw = normalize(vec3((noise(vec3(wv, 3.)) - 0.5)*0.3, 1., (noise(vec3(wv.yx, 7.)) - 0.5)*0.3));
+      // (waves tilt the water: it mirrors a higher, darker part of the sky than a flat mirror would, and never all of it, so the sea stays
+      // darker than the sky at the horizon)
+      vec3 rr = reflect(d, nw); rr.y = max(abs(rr.y), 0.12); rr = normalize(rr);
+      float F = min(0.02 + 0.98*pow(1. - max(-dot(d, nw), 0.), 5.), 0.35);
+      // (the water's own colour: the photo's, turned bluer, so a murky coast still reads as sea and a dark lagoon never as a hole; one colour on the open sea)
+      float eg, op = cov > 0.5 ? edWide(seaPt(p.xz), eg).a : 1.;
+      vec3 deep = vec3(0.03, 0.1, 0.2), ocn = vec3(0.03, 0.12, 0.24), wi = mix(img*vec3(0.7, 0.85, 1.05), vec3(0.04, 0.13, 0.25), 0.55);
+      vec3 wc = mix(fromSpace(mix(mix(ocn, edLin(img), 0.55*step(0.5, cov)), ocn, op), sunE), mix(cov > 0.5 ? wi : deep, deep, op)*lit, near);
+      g = mix(wc, skyCol(rr, L, day)*0.95, F);
+      g += vec3(1., 0.9, 0.75)*pow(max(dot(rr, L), 0.), 80.)*smoothstep(-0.05, 0.05, sunE)*0.8;
+      vec3 lv = uP3.xyz - p; g += vec3(1., 0.55, 0.22)*uP3.w*pow(max(dot(rr, normalize(lv)), 0.), 20.)*0.3/(1. + dot(lv, lv)*2e-7);
+    } else {
+      vec3 base;
+      // (near the ground a little darker than the rockets and towers, so they stand out; from a kilometre or more up, where the view is
+      // about the land, brighter)
+      if(cov > 0.5) base = mix(fromSpace(edLin(img), sunE), grade(img)*mix(0.6, 0.9, smoothstep(300., 1500., CALT))*lit, near);
+      else {
+        float h = fbm3(vec3(p.xz*0.004, 2.)), h2 = noise(vec3(p.xz*0.03, 5.));
+        base = mix(vec3(0.5, 0.45, 0.33), vec3(0.3, 0.36, 0.2), smoothstep(0.4, 0.6, h))*(0.8 + 0.4*h2);
+        if(sd > -120.) base = mix(base, vec3(0.75, 0.7, 0.58), smoothstep(-120., -40., sd));
+        base = mix(base, vec3(0.5, 0.49, 0.47), smoothstep(90., 70., length(p.xz)))*lit;
+      }
+      // (the photo already holds the light on flat ground; slopes, walls and shadows change it by their share of the light of the Sun)
+      float fl = max(sunE, 0.) + 0.3, here = max(dot(n, L), 0.)*sh + 0.3*(0.6 + 0.4*n.y);
+      g = base*clamp(here/fl, 0.15, 1.6)*mix(1., 0.8, wall);
+      // lights round the site at night
+      vec2 cl = floor(p.xz/35.); float hl = hash12(cl);
+      if(hl > 0.93 && length(p.xz) < 1400.){ vec2 f = fract(p.xz/35.) - 0.5; g += vec3(1., 0.7, 0.35)*exp(-dot(f, f)*60.)*(1. - day)*0.5; }
+      vec3 lv = uP3.xyz - p; g += base*vec3(1., 0.55, 0.22)*uP3.w*1.5*max(dot(n, normalize(lv)), 0.)/(1. + dot(lv, lv)*4e-6);
+    }
+    g = mix(g, haze, (1. - exp(-t/mix(90000., 40000., thin)))*mix(0.5, 0.85, thin));
+    col = unTone(g); a = 1.;
+  } else {
+    col = unTone(skyCol(d, L, day));
+    float tw = smoothstep(-0.18, 0.02, sunE)*smoothstep(0.25, 0.0, sunE);
+    a = clamp((0.25 + 0.74*day)*mix(0.35, 1., thin) + 0.3*tw, 0., 0.99);
+  }
   outCol(col*fade, a*fade);
 }`;
 P.sxEnv = program(VS_RECT, FS_SX_ENV);
