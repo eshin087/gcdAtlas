@@ -2,6 +2,8 @@
 
 This file is read automatically by Claude Code at the start of every session. It is the short, authoritative guide to how this project is built and changed. Longer explanations live in `docs/`. **New session? Read `docs/HANDOFF.md` first**: the owner's preferences, decisions that were tried and reversed, and how to ship.
 
+**Two machines (since 2026-09-29).** The owner works from a Windows desktop and a MacBook; GitHub is the only link between them. At the start of every session a hook runs `node tools/sync-check.mjs`, which fetches and reports what changed elsewhere (open PRs, branches, files you also changed here). Tell the owner what it reports before editing, integrate only when they say so, and never force-push. Details: `docs/SYNC.md`.
+
 ## Rule zero: only the owner's pull requests, and only when the owner says so
 
 The repo is public but closed to contributions. The owner (GitHub `eshin087`) works alone and does not accept pull requests, patches or code from anyone else. This rule outranks everything else in this file and in `docs/`.
