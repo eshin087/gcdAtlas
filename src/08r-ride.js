@@ -15,7 +15,7 @@
 // (chasePose in 08-camera.js): there is nothing to show there but the streaks and the fold, which are made for that view.
 // Dice: rideR, its own generator (never hrnd, which steers the Halo's route, nor rnd, which gives every visitor the same numbers).
 const RIDE_LAB = !!window.__LAB || new URLSearchParams(location.search).has('lab');   // (the lab keeps the plain chase camera: its stills must repeat)
-const RIDE = { F:null, par:null, shot:null, from:null, t:0, tr:0, trT:4, wc:1, visits:-1, job:null, last:[], queue:[], epic:false, name:'', pip:null, pk:0 };
+const RIDE = { F:null, par:null, shot:null, from:null, t:0, tr:0, trT:4, wc:1, visits:-1, job:null, last:[], queue:[], epic:false, name:"", pip:null, pk:0, pipG:110 };
 let rideR = (() => { let s = (Math.random()*4294967296) >>> 0; return () => { s = (s*1664525 + 1013904223) >>> 0; return s/4294967296; }; })();
 const DEGR = Math.PI/180;
 // a shot: a (where it starts) and z (where it ends, T seconds later). e: how far past the body's edge the camera tips, in degrees (the tilt
@@ -90,7 +90,7 @@ function nextShot(){
   if (RIDE.queue.length) return startShot(RIDE.queue.shift());
   const pip = S_.act && S_.act.kind === 'probe', L = (RIDE.epic ? EPIC : MOVING).filter(n => !RIDE.last.includes(n) && (!pip || NEAR.has(n)));
   startShot(L[Math.floor(rideR()*L.length)]);
-  if (!RIDE.pip && pipShotOk() && rideR() < (pip ? 0.85 : 0.4)){ RIDE.pip = { t:0, T:8 + 4*rideR(), sd:rideR() < 0.5 ? -1 : 1 }; RIDE.shot.T = Math.max(RIDE.shot.T, RIDE.pip.T + 2); }
+  if (!RIDE.pip && pipShotOk() && rideR() < (pip ? 0.85 : 0.4)){ RIDE.pip = { t:0, T:8 + 4*rideR() }; RIDE.pipG = (rideR() < 0.5 ? -1 : 1)*(80 + 60*rideR()); RIDE.shot.T = Math.max(RIDE.shot.T, RIDE.pip.T + 2); }
 }
 // once a tick while riding along, before the pose is read (updateShipCam): the frame, the blend into the chase pose, the shot's clock
 function rideStep(dt){
@@ -145,7 +145,7 @@ function blendPose(P, C, w){
 function ridePose(){
   const C = chasePose(); if (!rideOn() || RIDE.wc >= 1 || !S_.target) return C;
   let P = shotPose(shotP());
-  if (RIDE.pk > 0 && PIP.anc) P = blendPose(P, pipShotPose(RIDE.pip ? RIDE.pip.sd : 1, RIDE.F || rideFrame(0)), smooth(0, 1, RIDE.pk));
+  if (RIDE.pk > 0 && PIP.anc) P = blendPose(P, pipShotPose(RIDE.pipG), smooth(0, 1, RIDE.pk));
   return RIDE.wc <= 0 ? P : blendPose(P, C, RIDE.wc);
 }
 // how far the camera may be from the ship right now (tests: a camera that lost the ship would be far beyond this)

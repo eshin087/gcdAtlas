@@ -332,8 +332,8 @@ function beginVisit(tg, plan, how){
   for (let i = 0, n = forced ? (hrnd() < 0.5 ? 1 : 0) : (hrnd() < 0.55 ? 1 : 2); i < n; i++) jobs.push(chooseAct(tg));
   S_.stay = { tg, t:0, dur:HALO.STAY[0] + (HALO.STAY[1] - HALO.STAY[0])*hrnd(), n:0, jobs, jobAt:forced ? 2 : 1, leave:false };
   S_.next = { tg:C, mode:travelMode(tg, C) };
-  // (not while a showcase's caption says what happens: on a phone the two would sit on top of each other)
-  if (riding() && S_.visits > 1 && !SHOWCAP.txt) toast((how === 'fold' ? 'the Halo folds space · ' : 'out of light speed · ') + 'at ' + tg.name);
+  // (not while a showcase's caption or the Halo tour's says what happens: on a phone the two would sit on top of each other)
+  if (riding() && S_.visits > 1 && !SHOWCAP.txt && !HT.on) toast((how === 'fold' ? 'the Halo folds space · ' : 'out of light speed · ') + 'at ' + tg.name);
   beginPass(plan);
 }
 // one pass by the body, with its job if it has one (a job still under way from before, Pip out, carries on: that pass has none of its own)
@@ -685,7 +685,8 @@ ACT.probe = pl => {
   A.update = (dt, tau) => { A.tau = tau; };
   A.env = () => A.fin ? Math.max(0, 1 - (A.tau - A.finT)/2) : env(A.tau, T + 60);
   A.line = () => pipLine(A);
-  A.done = () => (A.fin && A.tau - A.finT > 1) || A.tau > T + 90;
+  // (Pip sent home before the show is over, when the stay ends, ends it too)
+  A.done = () => { if (!A.fin && A.tau > 2 && !pipOut() && !pipWant()){ A.fin = true; A.finT = A.tau; } return (A.fin && A.tau - A.finT > 1) || A.tau > T + 90; };
   A.draw = () => {};
   A.end = () => {};
   return A;

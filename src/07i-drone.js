@@ -495,16 +495,13 @@ PIPB.buddy = P => {
     say:(u, g) => lk(u - g.t0) === 1 ? `Pip rides along beside you, looking at ${P.nm}` : 'Pip rides along beside you' });
   mv(P, 1.1, { at, look:'cam', face:'happy', wink:(u, g) => u - g.t0 > 0.2 && u - g.t0 < 0.75 ? 1 : 0, thr:0.3, say:'Pip winks at you', fl:(u, g) => ({ hop:0.3*Math.sin(Math.PI*clamp((u - g.t0)/0.5, 0, 1))**2 }) });
 };
-// the ride camera's close-up of Pip (08r-ride.js): a little way from it, on the side away from the ship's middle and up from the place it
-// visits (F.u), looking past it at the ship, so Pip fills a good part of the view with the ship behind it. World axes, relative to the ship's
-// middle, like shotPose
-function pipShotPose(sd, F){
-  const q = PIP, A = q.anc || [0, 0.3, 0.3], la = V.len(A), o = la > 0.12 ? V.mul(A, 1/la) : [0, 0.6, 0.8*sd];
-  const uL = M3.applyT(ship.R0, F.u), sL = V.norm(V.cross(o, uL)), dir = V.norm(V.add(V.add(V.mul(o, 0.8), V.mul(uL, 0.5)), V.mul(sL, 0.35*sd)));
-  const eL = hullOut(V.add(A, V.mul(dir, 0.4)), 0.12), lL = V.mul(A, 0.72);
-  const eye = localPt(eL), look = localPt(lL), fwd = V.norm(V.sub(look, eye));
-  let up = perpTo(F.u, fwd); up = V.len(up) > 1e-3 ? V.norm(up) : M3.apply(ship.R0, [-1, 0, 0]);
-  return { eye, look, fwd, up };
+// the ride camera's close-up of Pip (08r-ride.js): the ride's own framing (shotPose: the place's near edge in the view) from g degrees round,
+// only much closer, and centred between Pip and the ship's middle, near enough that both fill a good part of the view and far enough that both
+// stay in it. World axes, relative to the ship's middle, like shotPose
+function pipShotPose(g){
+  const A = PIP.anc || [0, 0.3, 0.3], L = V.len(A), M = localPt(V.mul(A, 0.5));
+  const p = shotPose({ e:6, g, d:Math.max(0.95, 0.35 + 0.75*L/Math.max(tanY, 0.3)), roll:0 });
+  return { eye:V.add(p.eye, M), look:V.add(p.look, M), fwd:p.fwd, up:p.up };
 }
 // (a close-up of Pip suits it now: out, itself, not heading home, near the ship and not doing something made for the camera where it is)
 const PIP_CAMBITS = new Set(['peek', 'buddy', 'heart', 'photo', 'launch', 'home']);

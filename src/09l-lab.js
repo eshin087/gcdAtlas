@@ -35,7 +35,7 @@ if (LAB.on){
   // 'Pip': the ride camera's close-up of Pip (pipShotPose, 07i-drone.js), in the ship's frame, every frame; the chase pose while it is aboard
   function pipTurn(){
     if (!PIP.anc || PIP.st !== 'out') return pose(24, 55, 2.1);
-    const R = ship.R0, r = ship.rad, p = pipShotPose(1, rideFrame(0));
+    rideFrame(0); const R = ship.R0, r = ship.rad, p = pipShotPose(110);
     return { eye:V.mul(M3.applyT(R, p.eye), 1/r), look:V.mul(M3.applyT(R, p.look), 1/r), up:M3.applyT(R, p.up) };
   }
   function setCam(c){
