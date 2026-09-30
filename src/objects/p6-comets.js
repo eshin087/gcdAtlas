@@ -226,7 +226,7 @@ function addComet(def){
     } });
   // its orbit, while you visit it
   o.particles.push({ ps:orbitTrace(def.el, 300, [0.5, 0.72, 0.95], def.from ?? 0, def.to ?? 1), prog:'lnBasic', lines:true, mode:3, sb:0.3, size:1, rad:1, rel:() => sun.rel, rot:() => I3,
-    vis:() => o.present*smooth(0.02*AU_LY, 0.3*AU_LY, orbit.dist) });
+    vis:() => o.present*smooth(0.02*AU_LY, 0.3*AU_LY, viewDist()) });
   o.particleVis = () => 1;
   o.tail = tail; o.F = F; o.el = def.el; o.elNow = def.elNow || def.el; o.jd = def.jd;
   // it is drawn where it was then, but its distance in the info panel and the atlas is where it is now

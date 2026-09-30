@@ -2,6 +2,11 @@
 // ================================================================ camera: focus-relative, orbiting in the locked object's frame, zoom-pan flights
 const cam = { focus:0, rel:[0,0,1], fwd:[0,0,-1], right:[1,0,0], up:[0,1,0], fovY:55*DEG };
 const orbit = { yaw:0, pitch:0.1, dist:1, distT:1, lock:0, off:[0,0,0], offFn:null, target:[0,0,0], frame:M3.I() };
+// the distance a place's looks go by (what shows at which zoom: a nebula fading round the star inside it, orbit lines, the Crab round its
+// pulsar, a readout's close-up line): the camera's distance to what it is locked on; with the Halo, to the place the ship is visiting.
+// (Riding along, the lock is the ship a few hundred km away, and every such look took its closest form: the Crab Nebula faded to 4% and
+// Saturn's readout said the camera was inside its rings. Owner, 0.9.10: the place must show on the Halo tour)
+function viewDist(){ return orbit.lock >= 0 && OBJ[orbit.lock] === ship && ship.parent ? ship.parent.dist : orbit.dist; }
 let flight = null, tween = null;
 const tour = { on:true, obj:0, view:0, to:null, phase:'hold', t:0 };   // (to: the angle a swing is heading for)
 const keys = new Set();
@@ -24,7 +29,10 @@ function setBasis(fwd, up){
   let r = V.cross(cam.fwd, up);
   if (V.len(r) < 1e-6) r = V.cross(cam.fwd, V.norm([up[1], up[2], up[0]]));
   cam.right = V.norm(r); cam.up = V.cross(cam.right, cam.fwd);
-  let shX = viewShift.x, shY = viewShift.y;
+  // (viewShift is for the view without a long lens: through one, the same shift in pixels is a smaller turn. Worked out for the lens of the
+  // moment and eased, it lagged the Halo tour's zoom, and at 40 times it put Alpha Centauri off a phone's screen: 0.9.10)
+  const lk = LENS.k || 1;
+  let shX = Math.atan(Math.tan(viewShift.x)/lk), shY = Math.atan(Math.tan(viewShift.y)/lk);
   if ((leash.x || leash.y) && !SKYV.on){
     // after the turn below the target sits at X = tan(shX)/cos(shY), Y = tan(shY) on screen (in units of tanX, tanY per half screen):
     // move it by the leash's pixels exactly
@@ -425,7 +433,11 @@ function setShipCamMode(m){ shipCam.mode = m; if (!shipCam.on) startShipCam(m); 
 function updateShipCam(dt){
   if (cam.focus !== ship.index){ const D = frel(ship); cam.rel = V.sub(cam.rel, D); cam.focus = ship.index; if (shipCam.eye) shipCam.eye = cam.rel.slice(); }
   if (shipCam.mode === 'chase') rideStep(dt);
-  const p = shipPose(shipCam.mode), k = dt > 0 ? 1 - Math.exp(-dt*SHIP_POSE[shipCam.mode].lag) : 1;
+  // (the lag in step with the Halo tour's lens: through a long lens the same lag moves the picture as many times further, and at 40 times
+  // it lost Alpha Centauri from a view a degree and a half high. The tour's own shots are smooth already, every change eased or on a
+  // spring, and follow closely: on a low pass the view swings fast, and a quarter of a second behind, the horizon fell out of the picture)
+  const ride = shipCam.mode === 'chase', lag = SHIP_POSE[shipCam.mode].lag*(ride ? Math.max(RIDE.fam === 'tour' ? 4 : 1, Math.exp(RIDE.lk)) : 1);
+  const p = shipPose(shipCam.mode), k = dt > 0 ? 1 - Math.exp(-dt*lag) : 1;
   if (!shipCam.eye) shipCamSnap(p);
   shipCam.eye = V.lerp(shipCam.eye, p.eye, k); shipCam.fwd = V.norm(V.lerp(shipCam.fwd, p.fwd, k)); shipCam.up = V.norm(V.lerp(shipCam.up, p.up, k));
   cam.rel = shipCam.eye.slice(); setBasis(shipCam.fwd, shipCam.up);
@@ -557,6 +569,9 @@ function syncOrbitFromCam(){
   const n = M3.applyT(orbit.frame, V.norm(d)); orbit.yaw = Math.atan2(n[0], n[2]); orbit.pitch = Math.asin(clamp(n[1], -0.999, 0.999));
 }
 function lockOn(i, viewIdx = 0, loop = true){
+  // (on the Halo tour a click on the ship rides along again, with the tour's shots, rather than the ship's own angles, which trail it and
+  // leave the place behind the camera: owner, 0.9.10)
+  if (HT.on && typeof ship !== 'undefined' && i === ship.index){ if (!shipCam.on && !shipCam.pending) startShipCam('chase'); return; }
   stopTour(false); orbit.offFn = null; show.on = false;
   const o = OBJ[i], vi = Math.min(viewIdx, o.views.length - 1);
   const vp = viewParams(o, vi);
@@ -625,7 +640,7 @@ function clampLeash(){
   const A = leash.avoid; if (!A) return;
   // where the object rests (the middle of the free space) and where the leash puts it; a centre that would sit on the card goes over its nearer free edge
   const X0 = Math.tan(viewShift.x)/Math.cos(viewShift.y), Y0 = Math.tan(viewShift.y);
-  const rx = viewWcss/2*(1 + X0/tanX), ry = canvasHcss - viewHcss/2*(1 + Y0/tanY), px = rx + leash.x, py = ry + leash.y;
+  const rx = viewWcss/2*(1 + X0/tanX0), ry = canvasHcss - viewHcss/2*(1 + Y0/tanY0), px = rx + leash.x, py = ry + leash.y;
   if (px <= A.left || px >= A.right || py <= A.top || py >= A.bottom) return;
   const toTop = A.top - ry, toRight = A.right - rx, okTop = toTop >= -leash.by, okRight = toRight <= leash.bx;
   if (okTop && (!okRight || py - A.top <= A.right - px)) leash.y = toTop; else if (okRight) leash.x = toRight;

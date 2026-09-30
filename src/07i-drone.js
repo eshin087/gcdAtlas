@@ -153,6 +153,10 @@ const pipFace = (q, f) => q.hurry ? 'sad' : f === 'curious' && q.kind === 'near'
 // (bp from u0 at rate), its cells' size (cs), the way to the bay in its own frame (bayL) and its cells (cells); last, lastActs: the outing
 // before (never the same one twice in a row); fin: this job's outing is over (the job is done); face: the face it shows (a name in FACES),
 // fc: its eyes' shape now, easing toward that face; wink: one eye shut (> 0 its right, < 0 its left), winkS: the eye a blink shuts (0 both)
+// is the camera close by, for Pip (who faces it, waves at it, flourishes in its axes)? As camNear, but not while the Halo tour's own shots have
+// the camera (0.9.10): they sit 15 to over 2,000 ship lengths away, crossing camNear's 80 in the middle of Pip's bits, and each crossing
+// made Pip jump. Through them Pip acts as when no one rides along; the switch comes as the chase pose takes over or lets go, with Pip aboard
+const pipNear = () => camNear() && !(shipCam.on && RIDE.fam === 'tour' && RIDE.wc < 0.5);
 const pipFresh = () => ({ st:'stowed', O:null, req:null, reqDone:null, nextBit:null, form:'pod', wantT:0, outAt:4, outN:0, kind:'land', plan:null, g:null, last:'', lastActs:'', fin:false, u:-9, pos:[0, 0, 0], pupil:[0, 1, 0], body:[0, 1, 0], bodyM:[0, 1, 0],
   ax:[1, 0, 0], open:1, blinkIn:3, blinkT:9, glow:1, flash:0, thr:0, face:'curious', fc:{ ...FACES.curious }, wink:0, wkF:0, winkS:0, unfold:0, scale:1, shots:0, lamp:0, px:0, pz:0, ant:0, iris:ICE_P.slice(), trail:[],
   trAcc:0, vis:0, pose:null, anc:null, ancV:[0, 0, 0], err:[0, 0, 0], errV:[0, 0, 0], Tp:null, spot:null, hurry:false, home:false, bk:null, bp:0, dg:0, dm:0, pres:1, cs:0.27, bayL:[0, 0, 1],
@@ -356,7 +360,7 @@ function pipActivate(P, u){
 function pipAt(P, u){
   let i = P.k; while (i > 0 && u < P.segs[i].t0) i--;
   const g = P.segs[i]; let p = g.at(u, g);
-  if (camNear()){ const c = camL(), d = V.sub(p, c), l = V.len(d); if (l < 0.3) p = V.add(c, V.mul(d, 0.3/Math.max(l, 1e-6))); }
+  if (pipNear()){ const c = camL(), d = V.sub(p, c), l = V.len(d); if (l < 0.3) p = V.add(c, V.mul(d, 0.3/Math.max(l, 1e-6))); }
   return p;
 }
 // it keeps to the plan exactly (T0, T1: where the plan puts it a step ago and now). When the plan jumps (cut short by a hurry, or pushed by a
@@ -442,7 +446,7 @@ PIPA.photo = (P, k3) => {
   const K = near ? [-0.34, 0.8, 0.2*sd] : [-0.5 - 0.12*r(), 1.1 + 0.25*r(), (0.2 + 0.18*r())*sd], K2 = [K[0] + 0.12, K[1] - 0.2, K[2] - sd*0.32];
   // (0.9.9 review: with the camera near, as the flight out starts, the spot ahead of the ship that shows best: right of the middle on a desk, where
   // the info panel is not, the upper part on a phone, over the card; ahead of the ship alone it often came out under the panel)
-  const pick = () => { if (!camNear()) return;
+  const pick = () => { if (!pipNear()) return;
     const tx = isCompact() ? 0 : 0.35, ty = isCompact() ? 0.35 : 0.15, s0 = near ? 0.7 : 1; let best = null, bs = 1e9;
     for (const y of [1.15, 0.75]) for (const x of [-0.5, -0.3]) for (const z of [-0.55, -0.3, 0.3, 0.55]){
       const k = [x*s0, y*s0, z*s0], p = shipPt(k), f = V.dot(p, cam.fwd); if (!(f > 0)) continue;
@@ -459,8 +463,8 @@ PIPA.photo = (P, k3) => {
   // (in front of the camera, riding along with it as it moves (the right on a desk); by the bridge when no one rides along. Which of the two
   // is decided as the flight there starts and kept: switching halfway, as the ride camera pulled back past 6 ship radii, made Pip jump)
   const ws = !isCompact() ? 1 : sd, wat = (u, g) => g.cam ? pipCamSpot(near ? 0.9 : 1.05, 0.38*ws, isCompact() ? 0.15 : -0.1) : g.W;
-  const wcam = () => camNear() && V.len(cam.rel) < ship.rad*6;
-  const w = mv(P, 2.2*k3 + 0.2, { prep:g => { g.W = pipWaveSpot(near, sd); g.cam = g.live = wcam(); }, at:wat, look:'cam', wave:true, face:'happy', thr:0.2, say:() => camNear() ? 'Pip waves at you' : 'Pip waves at the bridge' });
+  const wcam = () => pipNear() && V.len(cam.rel) < ship.rad*6;
+  const w = mv(P, 2.2*k3 + 0.2, { prep:g => { g.W = pipWaveSpot(near, sd); g.cam = g.live = wcam(); }, at:wat, look:'cam', wave:true, face:'happy', thr:0.2, say:() => pipNear() ? 'Pip waves at you' : 'Pip waves at the bridge' });
   w.W = pipWaveSpot(near, sd); w.cam = w.live = wcam();
 };
 // -- play: loops round the needle, races along one side with a barrel roll, rests on the hull, in an order of its own (near a black hole or a
@@ -502,7 +506,7 @@ PLAY.rest = (P, r) => {
 // down, or (near a black hole or a magnetar) a slow glide and a nod
 PIPR.wave = (P, D) => {
   fly(P, { say:'Pip heads home' });
-  mv(P, 2, { at:hold(D), look:'cam', wave:true, face:'happy', thr:0.2, say:() => camNear() ? 'Pip waves goodbye' : 'Pip heads home' });
+  mv(P, 2, { at:hold(D), look:'cam', wave:true, face:'happy', thr:0.2, say:() => pipNear() ? 'Pip waves goodbye' : 'Pip heads home' });
 };
 PIPR.zip = (P, D) => {
   fly(P, { sp:1.1, thr:1, trail:true, face:'happy', say:'Pip zips home' });
@@ -523,12 +527,12 @@ PIPR.glide = (P, D) => {
 // it shows from above and behind (where the chase camera rides) and from below; on the given side unless the camera sees only the other
 function pipSpot(sd){
   const c = [0.1, -0.2, 0.47*sd], o = [0.1, -0.2, -0.47*sd];
-  return camNear() && behindHull(shipPt(c)) && !behindHull(shipPt(o)) ? o : c;
+  return pipNear() && behindHull(shipPt(c)) && !behindHull(shipPt(o)) ? o : c;
 }
 // where it waves from: between the ship and the camera, a little to one side (1 to 2 ship radii from the ship, well clear of the camera); on the
 // bridge, just ahead of the window; with no one riding along, above the bridge (it waves at the pilot)
 function pipWaveSpot(near, sd){
-  if (!camNear()) return [-0.5, 0.2, 0.2*sd];
+  if (!pipNear()) return [-0.5, 0.2, 0.2*sd];
   const c = camL(), d = V.len(c), rt = M3.applyT(ship.R0, cam.right), up = M3.applyT(ship.R0, cam.up), fw = M3.applyT(ship.R0, cam.fwd);
   if (d < 1.1) return hullOut(V.add(V.add(c, V.mul(fw, 0.6)), V.mul(up, 0.05)), 0.08);
   const k = clamp(d - 1.25, 0.6, near ? 0.9 : 1.9);
@@ -540,7 +544,7 @@ function pipWaveSpot(near, sd){
 // after it, and the next bit once that has lasted its while (wait).
 const PIPB = {}, PIPJ = {};
 // where the camera is, in ship axes: which side of the plates it sees (-1 the top, 1 the belly)
-const camSideX = () => camNear() ? (camL()[0] > 0 ? 1 : -1) : -1;
+const camSideX = () => pipNear() ? (camL()[0] > 0 ? 1 : -1) : -1;
 // an idle stretch: flying alongside the bow, a little above the plates and out to one side (the other side each time), drifting a little and
 // looking round: ahead, at the place, at you. Endless: the scheduler cuts it after `wait` s
 function pipIdle(P, wait){
@@ -592,7 +596,7 @@ PIPB.buddy = P => {
   const lk = t => { const c = (t + ph) % 7; return c < 2.6 ? 0 : c < 3.5 ? 1 : c < 5.4 ? 0 : c < 6.2 ? 2 : 3; };
   // (its little drift runs on the outing's clock, u, so it carries on unbroken from one of these moves to the next)
   const at = u => V.add(pipCamSpot(D, x, y), [0.006*Math.sin(u*1.3), 0.004*Math.sin(u*0.9), 0.006*Math.sin(u*1.1 + 1)]);
-  fly(P, { sp:0.8, thr:0.8, say:() => camNear() ? 'Pip flies over to you' : 'Pip flies alongside the Halo' });
+  fly(P, { sp:0.8, thr:0.8, say:() => pipNear() ? 'Pip flies over to you' : 'Pip flies alongside the Halo' });
   mv(P, T, { live:true, at, bodyT:1.1, thr:0.3, look:(u, g) => ['cam', 'tg', 'ship', { dir:[-0.15, 1, 0] }][lk(u - g.t0)], face:(u, g) => { const c = (u - g.t0 + ph) % 7; return c > 1.2 && c < 2.2 ? 'happy' : 'curious'; },
     say:(u, g) => lk(u - g.t0) === 1 ? `Pip rides along beside you, looking at ${P.nm}` : 'Pip rides along beside you' });
   mv(P, 1.1, { live:true, at, look:'cam', face:'happy', wink:(u, g) => u - g.t0 > 0.2 && u - g.t0 < 0.75 ? 1 : 0, thr:0.3, say:'Pip winks at you', fl:(u, g) => ({ hop:0.3*Math.sin(Math.PI*clamp((u - g.t0)/0.5, 0, 1))**2 }) });
@@ -621,7 +625,7 @@ PIPB.bow = P => {
   mv(P, T, { at:hold(S), rest:true, thr:0, face:(u, g) => ((u - g.t0) % 5) < 3.6 ? 'happy' : 'curious', say:'Pip rides on the bow, enjoying the view',
     look:(u, g) => { const c = (u - g.t0) % 5; return c < 3.6 ? { dir:[-0.12, 1, 0.12*Math.sin(u*0.7)] } : 'tg'; },
     fl:(u, g) => { const t = u - g.t0, k = envW(0, g.dur, t, 0.4); return { roll:0.16*Math.sin(t*1.9)*k, nod:0.07*Math.sin(t*3.1)*k }; } });
-  mv(P, 1.4, { at:hold(S), rest:true, thr:0, look:'cam', wave:true, face:'happy', say:() => camNear() ? 'Pip waves at you from the bow' : 'Pip waves from the bow' });
+  mv(P, 1.4, { at:hold(S), rest:true, thr:0, look:'cam', wave:true, face:'happy', say:() => pipNear() ? 'Pip waves at you from the bow' : 'Pip waves from the bow' });
   mv(P, 0.6, { at:(u, g) => V.lerp(S, U, ease(sOf(u, g))), look:'cam', thr:0.6, face:'happy', say:'Pip hops off the bow' });
 };
 // (the twirl's sparkles: white and a soft pink)
@@ -673,11 +677,13 @@ const PIP_BITS = ['hull', 'engine', 'photo', 'play', 'peek', 'bow', 'mote', 'bud
 function pipBitNext(q){
   // (while the ride camera is close on Pip, only a calm bit, so the close-up can play out rather than glide away at once: the ones made for the
   // camera would take its place, and a fast one would leave it)
-  const P = q.plan, r = P.r, close = typeof RIDE !== 'undefined' && RIDE.pk > 0.05;
+  // (only while riding: the close-up's blend is not moved after riding stops, and a stale one held Pip to calm bits and changed when it came
+  // home, and so when the ship jumped: 0.9.10)
+  const P = q.plan, r = P.r, close = shipCam.on && typeof RIDE !== 'undefined' && RIDE.pk > 0.05;
   // (the made-for-the-camera bits only with the camera close by, and riding along only over a close shot with no pull-back to come: a tour's
   // pull-back left Pip playing peekaboo with a camera far away)
   const rideOk = !shipCam.on || typeof RIDE === 'undefined' || (!RIDE.queue.length && (!RIDE.shot || NEAR.has(RIDE.shot.name) || RIDE.shot.name === 'still'));
-  const camOk = camNear() && V.len(cam.rel) < ship.rad*6 && rideOk;
+  const camOk = pipNear() && V.len(cam.rel) < ship.rad*6 && rideOk;
   const ok = b => (camOk || !(b === 'peek' || b === 'buddy')) && !(close && !PIP_CALM.has(b)) && b !== P.lastBit && !(P.near && b === 'mote');
   for (let k=0;k<2;k++){
     if (!P.bag.length){ const b = PIP_BITS.slice(); for (let i=b.length - 1;i>0;i--){ const j = Math.floor(r()*(i + 1)); [b[i], b[j]] = [b[j], b[i]]; } P.bag.push(...b); }
@@ -969,7 +975,7 @@ drone.ctl = dt => {
   if (q.st === 'stowed'){ q.st = 'out'; q.wasOut = true; q.anc = null; q.open = 0; q.unfold = 0; q.fc = { ...FACES.curious }; q.flash = 0; q.thr = 0.15; }
   pipAnchor(q, dt, T0, T1);
   const cl = hullDp(q.anc) - PIP_R, fr = V.len(q.anc); q.clr = Math.min(q.clr, cl); q.far = Math.max(q.far, fr); q.clrNow = cl; q.farNow = fr;
-  const near = camNear(), upW = near ? cam.up : localDir([-1, 0, 0]), rightW = near ? cam.right : localDir([0, 0, 1]), rad = drone.rad, spd = V.len(q.ancV);
+  const near = pipNear(), upW = near ? cam.up : localDir([-1, 0, 0]), rightW = near ? cam.right : localDir([0, 0, 1]), rad = drone.rad, spd = V.len(q.ancV);
   let pos = localPt(q.anc), roll = f.roll || 0, spin = f.spin || 0, nod = f.nod || 0, lift = f.hop ? 0.9*f.hop : 0, side = 0;
   // its flourishes, smooth functions of the clock that start and end at nothing: hovering, it bobs a little; hops; a wave, a wiggle toward you
   q.bobK += ((g.rest ? 0 : 1 - clamp(spd/0.2, 0, 1)) - q.bobK)*(1 - Math.exp(-dt*5));
@@ -1095,7 +1101,7 @@ function pipOrient(q, up, fx){
   drone.rot = drone.R0 = R;
   const lp = M3.applyT(R, q.pupil); q.px = clamp(lp[0]/0.55, -1, 1); q.pz = clamp(lp[2]/0.55, -1, 1);
 }
-const near3 = q => camNear() ? cam.right : localPt([0, 0, 1]).map(x => x/ship.rad);
+const near3 = q => pipNear() ? cam.right : localPt([0, 0, 1]).map(x => x/ship.rad);
 // held still for a test or a screenshot: at a spot in the ship's frame (at, ship radii) or in the camera's (cam: right, up, ahead, ship radii),
 // looking at the camera (look: a turn of the gaze right and up; eyes: only the pupil turns; away: from the camera), with a given face (face,
 // open, wink: FACES)

@@ -291,8 +291,8 @@ const earth = (() => {
       gl.uniform4f(pr.u.uP2, magN[0], magN[1], magN[2], 0);
       earthWeather.set(pr, this.t); },
     particleVis:rpx => smooth(3, 12, rpx),
-    particles:[{ps:sats, prog:'ptSat', mode:3, sb:0.4, size:1.6, rot:() => o.R0, rad:R*bound, q0:() => [(jdNow() - JD_NOW)*86400, 0, 0, 0], vis:() => 1 - smooth(1.5e-8, 6e-8, orbit.dist)}],
-    readout:() => { const d = orbit.dist/(R*bound), wx = earthWeather.summary(); return (d < 2 ? 'the ISS orbits 420 km up at 28,000 km/h\none lap every 93 minutes, 16 sunrises a day' :
+    particles:[{ps:sats, prog:'ptSat', mode:3, sb:0.4, size:1.6, rot:() => o.R0, rad:R*bound, q0:() => [(jdNow() - JD_NOW)*86400, 0, 0, 0], vis:() => 1 - smooth(1.5e-8, 6e-8, viewDist())}],
+    readout:() => { const d = viewDist()/(R*bound), wx = earthWeather.summary(); return (d < 2 ? 'the ISS orbits 420 km up at 28,000 km/h\none lap every 93 minutes, 16 sunrises a day' :
       (d > 20 ? 'the Moon is 384,400 km away: 30 Earths could fit in between\nlight crosses that gap in 1.3 seconds' : 'radius 6,371 km · 71% ocean · 1 day = 23 h 56 min\n~10,000 satellites now circle it')) + (wx && d <= 20 ? '\n' + wx : ''); } });
   o.weather = earthWeather;
   return o;

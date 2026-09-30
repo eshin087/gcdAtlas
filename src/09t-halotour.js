@@ -4,8 +4,9 @@
 // switches to it). Its stops are the ones the Halo can fly past (haloCan: the places on its own list, SHIP_TARGETS, and any other real place
 // at least 80 ship radii (200 km) in radius that is not a craft, a spot on a surface or too big to fly round), from the one the tour is on; a random tour
 // gives it a shuffle of its own places. At each stop it stays about a minute (HT.STAY), with one job at most and only at a place on its own
-// list, then goes on by light speed or a fold (travelMode). The camera plays the ride's bigger moves (RIDE.epic, 08r-ride.js) and a caption
-// names each place as the ship arrives. The green button beside the name sends it on at once; a drag takes the camera (play rides along
+// list, then goes on by light speed or a fold (travelMode). The camera plays the tour's own shots (RIDE.epic, TSHOTS in 08r-ride.js: the place
+// first, the ship small in front of it, with a long lens) and a caption names each place as the ship arrives. A click on the ship rides along
+// again (lockOn), so the place stays in the picture. The green button beside the name sends it on at once; a drag takes the camera (play rides along
 // again, the ship flying on meanwhile); the Halo tour switch right of tours (0.9.9; on a phone the ship menu or the top of the list of
 // tours), stop riding, a tour, the screensaver or picking something else ends it.
 const HT_SKIP = new Set(['solarsystem', 'oort', 'universe', 'cosmicweb', 'bootesvoid', 'gw170817', 'gw150914', 'tde', 'sstars', 'm87jet']);
@@ -29,14 +30,14 @@ function haloTourStart(id = TOUR_ID){
   let L = haloStops(id);
   if (L.length < 2){ toast('the Halo cannot fly ' + (TOURS.find(t => t.id === id) || TOURS[0]).name + ' · the grand tour instead'); id = 'grand'; L = haloStops(id); }
   if (tour.on) stopTour(false);
-  const was = HT.on; Object.assign(HT, { on:true, tourId:id, stops:L, visits:S_.visits, want:null });
+  Object.assign(HT, { on:true, tourId:id, stops:L, visits:S_.visits, want:null });
   // (from the stop the tour is on, or the place the ship is at, when that is one of them; otherwise the first)
   const k = L.indexOf(S_.target), kt = TOUR_ID === id ? L.indexOf(OBJ[tour.obj]) : -1;
   HT.i = k >= 0 ? k : kt >= 0 ? kt : 0;
   RIDE.epic = true;
   if (k >= 0) htArrive(); else HT.want = L[HT.i];
+  // (already riding: the camera glides from the ride's shot into the tour's, rideStep)
   if (!shipCam.on && !shipCam.pending) startShipCam('chase');
-  else if (!was){ RIDE.queue = rideStill() ? [] : ['reveal', 'pushin']; RIDE.job = null; if (RIDE.wc < 1) nextShot(); }
   toast('the Halo tour · ' + htTour().name + ' · ' + L.length + ' places · ' + (k >= 0 ? 'at ' : 'first ') + L[HT.i].name);
   updateModeUI();
 }
@@ -53,8 +54,9 @@ function haloTourEnd(quiet){
 // arrived at stop HT.i: its stay (about a minute), at most one job, and where next; the caption names the place
 function htArrive(){
   const st = S_.stay, o = HT.stops[HT.i], n = HT.stops.length; if (!st || !o) return;
-  st.dur = HT.STAY[0] + (HT.STAY[1] - HT.STAY[0])*Math.random();
-  if (!SHIP_TARGETS.includes(o.key)) st.jobs.length = 0; else if (st.jobs.length > 1) st.jobs.length = 1;
+  st.dur = HT.STAY[0] + (HT.STAY[1] - HT.STAY[0])*rideR();   // (the ride camera's dice: random on the site, seeded in tests)
+  // (not Pip's show: the tour's shots frame the place, and Pip would be a speck in them)
+  st.jobs = SHIP_TARGETS.includes(o.key) ? st.jobs.filter(j => j !== 'probe').slice(0, 1) : [];
   // (a random tour's shuffle is dealt again at its end, so it never loops)
   if (HT.i === n - 1 && htTour().deal){ const L = haloStops(HT.tourId).filter(x => x !== o); L.unshift(o); HT.stops = L; HT.i = 0; }
   const nx = HT.stops[(HT.i + 1) % HT.stops.length];
@@ -95,6 +97,7 @@ function htSeek(){
   if (S.phase === 'light' || S.phase === 'fold' || (S.phase === 'align' && S.next && S.next.tg === w)) return;
   ship.demo.leaveNow(w, travelMode(S.target, w));
 }
+TICKS.push(rideLensIdle);
 TICKS.push(dt => {
   if (!HT.on) return;
   // (ended by something else: a tour, the screensaver, the camera locked on something other than the ship)
@@ -115,4 +118,4 @@ TICKS.push(dt => {
 // test hooks. Off, it ends the Halo tour and you keep riding
 for (const b of HT_SW) b.addEventListener('click', () => { hideHint(); if (HT.on) haloTourEnd(); else haloTourStart(TOUR_ID); updateModeUI(); });
 Object.assign(window.__cosmos, { haloTourStart, haloTourEnd, haloTourSkip, haloStops, haloCan, HT, htPlace, htDoing,
-  ride:{ RIDE, SHOTS, get shot(){ return RIDE.shot ? RIDE.shot.name : null; }, reach:rideReach, seed:n => { let s = n >>> 0; rideR = () => { s = (s*1664525 + 1013904223) >>> 0; return s/4294967296; }; }, start:startShot } });
+  ride:{ RIDE, SHOTS, TSHOTS, frame:frameR, get shot(){ return RIDE.shot ? RIDE.shot.name : null; }, reach:rideReach, seed:n => { let s = n >>> 0; rideR = () => { s = (s*1664525 + 1013904223) >>> 0; return s/4294967296; }; }, start:startShot } });
