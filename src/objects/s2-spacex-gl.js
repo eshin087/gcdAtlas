@@ -20,6 +20,8 @@
 const SX_GLSL = `
 uniform vec4 uPt[4]; uniform vec4 uPa[4]; uniform vec4 uPb[4]; uniform vec4 uPc[4];
 uniform vec4 uSo; uniform vec4 uSt; uniform vec4 uLt; uniform vec4 uPl; uniform vec4 uCl; uniform vec4 uCl2; uniform vec4 uDim;
+uniform vec4 uVc;   // the vapour cone: strength, part index, the collar's height up the part (m), length (m)
+uniform mat3 uCm; uniform vec4 uCo;   // this frame to the frame the clouds are in (the site's): p_site = uCm p + uCo.xyz; uCo.w: that site's height above the sea
 #define ZI int(uDim.z)
 float sdBox(vec3 p, vec3 b){ vec3 q = abs(p) - b; return length(max(q, 0.)) + min(max(q.x, max(q.y, q.z)), 0.); }
 float sdCylY(vec3 p, float r, float y0, float y1){ vec2 d = vec2(length(p.xz) - r, abs(p.y - (y0 + y1)*0.5) - (y1 - y0)*0.5); return min(max(d.x, d.y), 0.) + length(max(d, 0.)); }
@@ -78,32 +80,45 @@ vec3 plumes(vec3 ro, vec3 rd, float tMax){
   return acc;
 }
 // the ground cloud (exhaust and steam from the sound-suppression water) and venting before launch: front-to-back, returns colour and
-// transmittance (xyz, w)
+// transmittance (xyz, w). Since 0.9.9 (owner: more smoke, as in a real launch) it billows out to about 500 m round Starbase's pad within
+// 45 s and rises to about 170 m, its lobes rolling outward, with a ring of dust and spray thrown out at ignition by the blast (the first
+// 4 s). Lit by the Sun (brighter on its sunward side), the sky from above, and the plume from inside while the engines are near
 vec4 cloud(vec3 ro, vec3 rd, float tMax){
   vec3 col = vec3(0.); float T = 1.;
   float age = uCl.w;
   if(age >= 0. && uCl2.x > 0.01){
-    float S = uCl2.z, ag = min(max(age, 0.), 45.), Rr = S*(28. + 26.*pow(ag, 0.55)), H = S*(12. + 9.*pow(ag, 0.6));
+    float S = uCl2.z, ag = min(max(age, 0.), 60.), Rr = S*(30. + 40.*pow(ag, 0.62)), H = S*(14. + 13.*pow(ag, 0.62));
+    // (the shock ring: out at 150 m/s at first, slowing, 4 s)
+    float ra = age, rr = S*(12. + 150.*pow(ra, 0.72)), rth = S*(7. + ra*5.), rk = ra < 4. ? (1. - ra/4.)*(1. - ra/4.) : 0.;
+    float Rb = max(Rr, rk > 0. ? rr + 2.2*rth : 0.);
     vec3 c0 = uCl.xyz;
     // bounding cylinder round the pad
-    vec3 w = ro - c0; float A = dot(rd.xz, rd.xz), B = 2.*dot(w.xz, rd.xz), C = dot(w.xz, w.xz) - Rr*Rr, D = B*B - 4.*A*C;
+    vec3 w = ro - c0; float A = dot(rd.xz, rd.xz), B = 2.*dot(w.xz, rd.xz), C = dot(w.xz, w.xz) - Rb*Rb, D = B*B - 4.*A*C;
     if(D > 0. && A > 1e-8){
       float sq = sqrt(D), t0 = max((-B - sq)/(2.*A), 0.), t1 = min((-B + sq)/(2.*A), tMax);
       if(abs(rd.y) > 1e-5){ float ta = (-w.y - 2.)/rd.y, tb = (H*1.6 - w.y)/rd.y; t0 = max(t0, min(ta, tb)); t1 = min(t1, max(ta, tb)); }
       if(t1 > t0){
-        float dt = (t1 - t0)/18.;
+        float dt = (t1 - t0)/26.;
         vec3 steam = mix(vec3(0.62, 0.5, 0.4), vec3(0.92, 0.93, 0.95), uCl2.y);
-        for(int k=ZI;k<18;k++){
-          vec3 p = w + rd*(t0 + dt*(float(k) + 0.5)); float r = length(p.xz)/Rr, y = p.y/H;
-          float shape = smoothstep(1., 0.45, r)*smoothstep(1.5, 0.2, y + 0.3*r)*smoothstep(-0.2, 0.15, y);
-          if(shape < 0.01) continue;
-          vec3 q = p/(S*9.) + vec3(0., -age*0.05, age*0.02);
-          float n = fbm3(q + vec3(uDim.w)) - 0.5 + 0.3*shape;
-          float dens = clamp(n*3., 0., 1.)*shape*uCl2.x*0.06*dt;
+        vec3 Ls = normalize(vec3(uLt.x, max(uLt.y, 0.05), uLt.z));
+        for(int k=ZI;k<26;k++){
+          vec3 p = w + rd*(t0 + dt*(float(k) + 0.5)); float rl = length(p.xz), r = rl/Rr, y = p.y/H;
+          float shape = smoothstep(1., 0.4, r)*smoothstep(1.5, 0.15, y + 0.35*r)*smoothstep(-0.2, 0.12, y);
+          float ring = rk > 0. ? rk*exp(-pow((rl - rr)/rth, 2.))*smoothstep(S*(10. + ra*6.), 0., p.y)*smoothstep(-2., 1., p.y) : 0.;
+          if(shape + ring < 0.01) continue;
+          // (the billows roll outward from the pad as they grow: the noise is carried out along the ground and up)
+          vec2 out2 = rl > 1. ? p.xz/rl : vec2(0.);
+          vec3 q = p/(S*13.) - vec3(out2.x, 0., out2.y)*age*0.045 + vec3(0., -age*0.04, 0.);
+          float n = fbm3(q + 0.55*noise(q*1.9 + vec3(uDim.w)) + vec3(uDim.w)) - 0.48 + 0.3*shape;
+          float dens = 1. - exp(-(clamp(n*3., 0., 1.)*shape*uCl2.x + ring*clamp(0.6 + (noise(p/(S*5.)) - 0.5)*2., 0., 1.))*0.055*dt);   // (Beer-Lambert: never more than all of the light)
           if(dens < 1e-4) continue;
-          // lit by the Sun from above and, while the engines are near, by the plume from inside
+          // (its sunward side brighter: the cloud's own shape toward the Sun stands in for a shadow ray)
+          vec3 ps = p + Ls*S*30.; float rs = length(ps.xz)/Rr, ys = ps.y/H;
+          float shd = smoothstep(1., 0.4, rs)*smoothstep(1.5, 0.15, ys + 0.35*rs)*smoothstep(-0.2, 0.12, ys);
           vec3 wp = p + c0; float lp = uPl.w/(1. + dot(wp - uPl.xyz, wp - uPl.xyz)/(900.*S*S));
-          vec3 L = steam*(0.04 + 0.32*uLt.w*(0.4 + 0.6*clamp(y, 0., 1.))) + vec3(1., 0.55, 0.22)*lp*0.7*(1. - 0.5*clamp(y, 0., 1.));
+          float yy = clamp(y, 0., 1.);
+          // (bright: sunlit steam is the whitest thing at a launch, brighter than the ground round it)
+          vec3 L = steam*(0.05 + uLt.w*(0.3 + 0.8*(1. - 0.65*shd))*(0.6 + 0.4*yy) + uLt.w*0.16*vec3(0.8, 0.88, 1.)) + vec3(1., 0.55, 0.22)*lp*0.7*(1. - 0.5*yy);
           col += T*L*dens; T *= 1. - dens; if(T < 0.04) break;
         }
       }
@@ -123,10 +138,35 @@ vec4 cloud(vec3 ro, vec3 rd, float tMax){
   }
   return vec4(col, T);
 }
+// the vapour cone: going through the speed of sound in damp air a stage wears a thin conical sheet of condensation, flaring back from its
+// shoulder (the collar uVc.z up part uVc.y) over uVc.w m, flickering as it forms and clears. Front-to-back like the cloud
+vec4 vcone(vec3 ro, vec3 rd, float tMax){
+  vec3 col = vec3(0.); float T = 1.;
+  if(uVc.x < 0.01) return vec4(col, T);
+  int i = int(uVc.y); float yc = uVc.z, L = uVc.w, ta = 0.8, hr = uPt[i].w < 2.5 ? 4.6 : 1.9;
+  // (the stretch of the ray within the cylinder round the axis that holds the cone)
+  vec3 ax = uPa[i].xyz, e = uPt[i].xyz + ax*(yc - L*0.5); float Rc = hr + L*ta + 1.;
+  vec3 w = ro - e; float ea = dot(rd, ax), wa = dot(w, ax); vec3 dd = rd - ax*ea, ww = w - ax*wa;
+  float A = dot(dd, dd), B = 2.*dot(dd, ww), C = dot(ww, ww) - Rc*Rc, D = B*B - 4.*A*C;
+  if(D <= 0. || A < 1e-8) return vec4(col, T);
+  float sq = sqrt(D), t0 = max((-B - sq)/(2.*A), 0.), t1 = min((-B + sq)/(2.*A), tMax);
+  if(abs(ea) > 1e-5){ float tA = (-L*0.5 - 2. - wa)/ea, tB = (L*0.5 + 2. - wa)/ea; t0 = max(t0, min(tA, tB)); t1 = min(t1, max(tA, tB)); }
+  if(t1 <= t0) return vec4(col, T);
+  float dt = (t1 - t0)/18.;
+  for(int k=ZI;k<18;k++){
+    vec3 q = toPart(ro + rd*(t0 + dt*(float(k) + 0.5)), i); float s = yc + 1.5 - q.y;
+    if(s < 0. || s > L) continue;
+    float rho = length(q.xz), dc = rho - (hr + s*ta), th = 0.5 + s*0.05;
+    float fl = 0.55 + 0.45*noise(vec3(atan(q.z, q.x)*2.5, s*0.35 - uDim.y*3., uDim.y*5.));
+    float dens = 1. - exp(-exp(-dc*dc/(th*th))*smoothstep(0., 2.5, s)*smoothstep(L, L*0.5, s)*fl*uVc.x*0.5*dt);
+    col += T*vec3(0.95, 0.96, 1.)*(0.15 + 1.1*uLt.w)*dens; T *= 1. - dens;
+  }
+  return vec4(col, T);
+}
 `;
 
 // ---------------------------------------------------------------- Starship: Super Heavy, the ship, the tower and the launch mount
-const FS_SX_STAR = COMMON + SX_GLSL + `
+const FS_SX_STAR = COMMON + CLOUD_GLSL + SX_GLSL + `
 float booster(vec3 q, out float m){
   float d = sdCylY(q, 4.5, 2.4, 69.); m = 1.;
   float sk = sdCylY(q, 4.25, 0., 2.4); if(sk < d){ d = sk; m = 3.; }
@@ -190,7 +230,7 @@ float map(vec3 p, out float m){
 }
 `;
 // ---------------------------------------------------------------- Falcon 9 and Falcon Heavy, the second stage, Dragon, the pads, the droneship and the landing zone
-const FS_SX_FAL = COMMON + SX_GLSL + `
+const FS_SX_FAL = COMMON + CLOUD_GLSL + SX_GLSL + `
 float core(vec3 q, float legs, float fins, float nose, out float m){
   if(length(q - vec3(0., 23., 0.)) > 34.){ m = 7.; return length(q - vec3(0., 23., 0.)) - 30.; }
   float d = sdCylY(q, 1.83, 1.1, 41.2); m = 7.;
@@ -325,12 +365,79 @@ void main(){
   }
   vec4 cl = cloud(ro, d, tHit);
   col = col*cl.w + cl.xyz;
+  vec4 vk = vcone(ro, d, tHit);
+  col = col*vk.w + vk.xyz;
   col += plumes(ro, d, tHit)*mix(1., 0.6, 1. - cl.w);
-  a = 1. - (1. - a)*cl.w;
+  a = 1. - (1. - a)*cl.w*vk.w;
+  // (the low cloud between the camera and what the ray met: a stage climbing through the deck fades into it; the ground and sky behind
+  // already show the cloud)
+  if(uWx0.x > 0.01){
+    vec3 so = uCm*ro + uCo.xyz, sdir = uCm*d; float tcl = hit ? tHit : tEnd;
+    float alt0 = so.y + uCo.w + dot(so.xz, so.xz)/12742000., ta = (uWx1.x - alt0)/(abs(sdir.y) > 1e-5 ? sdir.y : 1e-5), tb = (uWx1.y - alt0)/(abs(sdir.y) > 1e-5 ? sdir.y : 1e-5);
+    float c0 = max(min(ta, tb), 0.), c1 = min(max(ta, tb), tcl);
+    if(c1 > c0){ float Tc = 1., dc = (c1 - c0)/8.;
+      for(int k=ZI;k<8;k++){ vec3 q = so + sdir*(c0 + dc*(float(k) + 0.5)); Tc *= exp(-cloudLowCheap(q, q.y + uCo.w + dot(q.xz, q.xz)/12742000.)*dc*0.012); }
+      col *= Tc; a *= Tc; }
+  }
   outCol(col, a);
 }`;
 P.sxStar = program(VS_RECT, FS_SX_STAR + SX_MAIN);
 P.sxFal = program(VS_RECT, FS_SX_FAL + SX_MAIN);
+
+// ---------------------------------------------------------------- the smoke column a flight leaves (0.9.9, owner: more smoke, as in a real launch)
+// A chain of capsules along the stack's path from the pad up through the lower air (to about 14 km), each widening with its age and drifting
+// with the wind (s3-spacex.js, smokeUpdate), filled with turbulence at the column's own scale, lit by the Sun through the smoke above each
+// point, by the sky, and a little from the ground. White steam from Starship's methane, greyer from Falcon's kerosene. In metres, in the
+// pad's frame round the volume's centre. uK[k] = centre, radius; uKd[k] = density, age (s), soot 0..1; uSm = count, 0, 0, ZI (0);
+// uLtS = sun direction, daylight; uDimS = bounding radius (m), time (s)
+const FS_SX_SMOKE = COMMON + `
+uniform vec4 uK[16]; uniform vec4 uKd[16]; uniform vec4 uSm; uniform vec4 uLtS; uniform vec4 uDimS;
+#define ZI int(uSm.w)
+// the smoke at p: its density, the column's radius and soot there (out), and how far p lies outside the column (for skipping empty air)
+float smokeAt(vec3 p, out float rad, out float soot, out float outside){
+  float best = 0.; rad = 4.; soot = 0.; outside = 1e9;
+  int n = int(uSm.x);
+  for(int k=ZI;k<15;k++){
+    if(k + 1 >= n) break;
+    vec3 a = uK[k].xyz, ba = uK[k + 1].xyz - a; float h = clamp(dot(p - a, ba)/max(dot(ba, ba), 1e-6), 0., 1.);
+    float r = mix(uK[k].w, uK[k + 1].w, h), q = length(p - a - ba*h);
+    outside = min(outside, q - r);
+    if(q >= r) continue;
+    float dn = mix(uKd[k].x, uKd[k + 1].x, h)*smoothstep(1., 0.3, q/r);
+    if(dn > best){ best = dn; rad = r; soot = mix(uKd[k].z, uKd[k + 1].z, h); }
+  }
+  return best;
+}
+void main(){
+  vec3 o, d; localRay(o, d);
+  vec2 hb = sphIsect(o, d, vec3(0.), 1.);
+  if(hb.y < 0.) discard;
+  float R = uDimS.x; vec3 ro = o*R; float t = max(hb.x, 0.)*R, tEnd = hb.y*R;
+  vec3 L = uLtS.xyz; float day = uLtS.w;
+  vec3 col = vec3(0.); float T = 1.;
+  int steps = int(mix(28., 56., clamp(uLod, 0., 1.)));
+  for(int i=ZI;i<56;i++){
+    if(i >= steps || t > tEnd || T < 0.03) break;
+    vec3 p = ro + d*t; float rad, soot, outside;
+    float base = smokeAt(p, rad, soot, outside);
+    if(base <= 0.){ t += max(outside, 1.5 + t*0.002); continue; }
+    float st = max(rad*0.16, 1.2);
+    // (turbulence at the column's own scale, rising slowly)
+    vec3 q = p/(rad*0.85) + vec3(0., -uDimS.y*0.05, 0.);
+    float dens = clamp((fbm3(q) - 0.42 + base*0.45)*2.4, 0., 1.)*base;
+    if(dens > 0.002){
+      float r2, s2, o2; float sh = smokeAt(p + L*rad*0.8, r2, s2, o2);
+      float lit = exp(-sh*2.4)*smoothstep(-0.1, 0.15, L.y)*day;
+      vec3 c = mix(vec3(0.96, 0.95, 0.92), vec3(0.4, 0.36, 0.32), soot);
+      vec3 li = c*(lit*1.05 + day*0.26*vec3(0.78, 0.86, 1.) + 0.015);
+      float a = 1. - exp(-dens*st*0.04);
+      col += T*li*a; T *= 1. - a;
+    }
+    t += st;
+  }
+  outCol(col, 1. - T);
+}`;
+P.sxSmoke = program(VS_RECT, FS_SX_SMOKE);
 
 /// ---------------------------------------------------------------- the ground and the sky round a launch site, seen from near the ground
 // Drawn right after Earth (earth.drawAfter), over the whole screen, while the camera is within a few tens of kilometres of the surface:
@@ -345,7 +452,7 @@ P.sxFal = program(VS_RECT, FS_SX_FAL + SX_MAIN);
 // horizon. The sky: blue by day, darkening to black as the camera climbs, an orange band at twilight, the Sun.
 // uP0 = camera (m), fade;  uP1 = sun direction, daylight;  uP2 = coast normal (x, z), coast distance (m), open sea (1);
 // uP3 = plume light: position (m), strength;  uP4 = time, the height of the pad above the sea (m), 0, ZI (0)
-const FS_SX_ENV = COMMON + '#define ED_GRAD\n' + ED_GLSL + `
+const FS_SX_ENV = COMMON + '#define ED_GRAD\n' + ED_GLSL + CLOUD_GLSL + `
 const float RE = 6371000.;
 int ZI = 0;   // (a 0 the compiler cannot see, set in main from a uniform, so the loops stay loops)
 float CALT = 0., DIP = 0.;   // the height of the camera above the sea (m), and how far below level the horizon lies (radians, about)
@@ -363,15 +470,74 @@ float curveT(vec3 o, vec3 d, float e){
 vec3 seaPt(vec2 xz){ return vec3(xz.x, -uP4.y - dot(xz, xz)/(2.*RE), xz.y); }
 // the height of whatever is at (x, z), as a y in this frame
 float groundY(vec2 xz, out float water, out float ok){ vec3 P = seaPt(xz); float h = edHeight(P, water, ok); return P.y + max(h, 0.); }
-// the sky as it shows in direction r (day 0..1): deep blue overhead, paler toward the horizon, both fading as the air thins below the camera
+// the sky as it shows in direction r (day 0..1): deep blue overhead, paler toward the horizon (whiter when the air is hazy), both fading as
+// the air thins below the camera; gold round a low Sun and along that side of the horizon; at dusk and dawn, the Earth's grey-blue shadow
+// low on the far side with the pink band above it (the Belt of Venus); the Sun, in a halo that grows with haze
 vec3 skyCol(vec3 r, vec3 L, float day){
-  float thin = exp(-CALT/8500.), el = r.y - DIP, mu = max(dot(r, L), 0.), sunE = L.y;
-  float hb = exp(-max(el, 0.)*mix(22., 3.2, thin));
-  vec3 c = mix(vec3(0.07, 0.15, 0.36)*mix(0.03, 1., thin), vec3(0.36, 0.47, 0.62)*mix(0.4, 1., thin), hb)*day;
-  float tw = smoothstep(-0.2, 0., sunE)*smoothstep(0.3, 0.02, sunE);
-  c += vec3(0.62, 0.3, 0.1)*tw*hb*(0.25 + 0.75*pow(mu, 4.));
-  c += vec3(1., 0.93, 0.8)*(pow(mu, 16.)*0.1*(0.3 + 0.7*thin) + pow(mu, 1500.)*1.5)*smoothstep(-0.04, 0.02, sunE);
+  float thin = exp(-CALT/8500.), el = r.y - DIP, mu = dot(r, L), mz = max(mu, 0.), sunE = L.y;
+  float hazy = clamp(1. - uWx0.w/40000., 0., 0.8);
+  float hb = exp(-max(el, 0.)*mix(22., mix(3.2, 2.3, hazy), thin));
+  vec3 zen = vec3(0.08, 0.19, 0.46)*mix(0.03, 1., thin), hor = mix(vec3(0.42, 0.53, 0.67), vec3(0.62, 0.67, 0.72), hazy)*mix(0.4, 1., thin);
+  vec3 c = mix(zen, hor, hb)*day;
+  vec2 rh = normalize(r.xz + vec2(1e-5, 0.)), lh = normalize(L.xz + vec2(1e-5, 0.));
+  float toward = pow(max(dot(rh, lh), 0.), 2.), away = pow(max(-dot(rh, lh), 0.), 1.5);
+  float low = smoothstep(0.35, 0.02, sunE)*smoothstep(-0.18, 0., sunE);
+  c += vec3(0.78, 0.4, 0.13)*low*hb*(0.15 + 0.85*toward)*0.85*thin;
+  float dusk = smoothstep(0.12, 0., sunE)*smoothstep(-0.2, -0.02, sunE);
+  c += vec3(0.55, 0.3, 0.38)*dusk*away*smoothstep(0., 0.04, el)*exp(-max(el - 0.04, 0.)*12.)*0.55*thin;
+  c *= 1. - 0.35*dusk*away*smoothstep(0.03, 0., el);   // (the Earth's shadow)
+  // (the Sun: a disc about 1.2 degrees across, twice the real one so it reads as more than a character)
+  c += vec3(1., 0.93, 0.8)*(pow(mz, 16.)*(0.08 + 0.3*hazy)*(0.3 + 0.7*thin) + pow(mz, 300.)*0.22 + pow(mz, 12000.)*3.)*smoothstep(-0.04, 0.02, sunE);
   return c;
+}
+// ---------------------------------------------------------------- the clouds (CLOUD_GLSL) as this shader sees them
+float altOf(vec3 p, float e){ return p.y + e + dot(p.xz, p.xz)/(2.*RE); }
+// how much of the air's haze lies between the camera and a point t away (the real visibility, uWx0.w)
+float hazeF(float t, float thin){ return (1. - exp(-t*0.7/max(uWx0.w, 3000.)*mix(0.35, 1., thin)))*0.92; }
+// the low layer along a ray up to tMax: marched in 16 steps within the slab, the light that reaches each sample worked out from the cloud
+// between it and the Sun (two coarse samples), bright edges toward the Sun (the silver lining), dark undersides, hazed with distance
+vec4 layerLow(vec3 o, vec3 d, float e, float tMax, vec3 L, float lit, vec3 sunC, vec3 hz, float thin, out float tIn){
+  tIn = 1e9; vec3 col = vec3(0.); float T = 1.;
+  if(uWx0.x < 0.01) return vec4(col, T);
+  float b = uWx1.x, tp = uWx1.y, tB = curveT(o, d, e - b), tT = curveT(o, d, e - tp), t0, t1;
+  if(CALT < b){ t0 = tB; t1 = tT; } else if(CALT > tp){ t0 = tT; t1 = tB > 0. ? tB : t0 + 40000.; } else { t0 = 0.; t1 = min(tB > 0. ? tB : 1e9, tT > 0. ? tT : 1e9); }
+  if(t0 < 0. || t0 > min(tMax, 90000.)) return vec4(col, T);
+  if(t1 < 0.) t1 = t0 + 40000.;
+  t1 = min(min(t1, tMax), t0 + 40000.);
+  if(t1 <= t0) return vec4(col, T);
+  tIn = t0;
+  float dt = (t1 - t0)/16., ph = 0.6 + 1.3*pow(max(dot(d, L), 0.), 8.);
+  for(int i=ZI;i<16;i++){
+    float t = t0 + dt*(float(i) + 0.5); vec3 p = o + d*t; float al = altOf(p, e);
+    // (a camera inside the layer flies in clear air between the clouds, as a camera plane would: no fog round it)
+    float dn = cloudLow(p, al)*(CALT > b && CALT < tp ? smoothstep(150., 700., t) : 1.); if(dn < 0.01) continue;
+    // (the light through the cloud toward the Sun, gentler than physics would have it: in characters a cloud reads by its bright sunlit
+    // side against the blue, and a physically deep cloud came out as a grey veil)
+    float od = cloudLowC(p + L*140.)*0.8 + cloudLowC(p + L*450.)*1.0, hN = clamp((al - b)/max(tp - b, 50.), 0., 1.);
+    vec3 cc = sunC*exp(-od*0.5)*ph + vec3(0.62, 0.68, 0.78)*(0.3 + 0.32*hN)*lit;
+    cc *= mix(1., 0.55, clamp(uWx1.w*0.4, 0., 1.));   // (rain clouds are dark)
+    cc = mix(cc, hz, hazeF(t, thin));
+    float a = 1. - exp(-dn*dt*0.012);
+    col += T*cc*a; T *= 1. - a; if(T < 0.03) break;
+  }
+  return vec4(col, T);
+}
+// a sheet (kind 0: the altocumulus at 4.5 km, 1: the cirrus at 9 km) where the ray crosses it, if nearer than tMax
+vec4 sheet(vec3 o, vec3 d, float e, float H, float tMax, int kind, vec3 L, float lit, vec3 sunC, vec3 hz, float thin, out float tS){
+  tS = curveT(o, d, e - H);
+  if(tS <= 0. || tS > min(tMax, 150000.)){ tS = 1e9; return vec4(0., 0., 0., 1.); }
+  vec3 p = o + d*tS; float dn = kind == 0 ? cloudMid(p.xz) : cloudHigh(p.xz);
+  float a = dn*(kind == 0 ? 0.85 : 0.55)*(1. - smoothstep(70000., 150000., tS));
+  vec3 cc = sunC*(kind == 0 ? 0.85 : 1.)*(0.7 + 0.5*pow(max(dot(d, L), 0.), 6.)) + vec3(0.55, 0.62, 0.74)*0.2*lit;
+  cc = mix(cc, hz, hazeF(tS, thin)*0.8);
+  return vec4(cc*a, 1. - a);
+}
+// the shadow the clouds cast on the ground at p: their big shapes where the Sun's ray crosses the low layer and the mid sheet
+float cloudShadow(vec3 p, float e, vec3 L){
+  if(L.y < 0.03) return 1.;
+  float al = altOf(p, e), mid = 0.5*(uWx1.x + uWx1.y);
+  float s = 1. - 0.62*cloudLowC(p + L*max(mid - al, 0.)/L.y)*smoothstep(0.02, 0.2, uWx0.x);
+  return s*(1. - 0.3*cloudMid((p + L*max(4500. - al, 0.)/L.y).xz));
 }
 // the images as shown near the ground: a little more colour and contrast than the photo, so scrub, marsh, sand and concrete land on
 // different characters
@@ -428,6 +594,7 @@ void main(){
         sh = mix(1., sh, smoothstep(5000., 2500., t));
       }
     }
+    float csh = cloudShadow(p, e, L);
     // (outside the images: the sketch, sea past a straight coastline)
     float sd = dot(p.xz, uP2.xy) - uP2.z + 180.*(fbm3(vec3(p.xz*0.0004, 1.)) - 0.5);
     bool sea = cov > 0.5 ? water > 0.5 : (uP2.w > 0.5 || sd > 0.);
@@ -443,8 +610,8 @@ void main(){
       float eg, op = cov > 0.5 ? edWide(seaPt(p.xz), eg).a : 1.;
       vec3 deep = vec3(0.03, 0.1, 0.2), ocn = vec3(0.03, 0.12, 0.24), wi = mix(img*vec3(0.7, 0.85, 1.05), vec3(0.04, 0.13, 0.25), 0.55);
       vec3 wc = mix(fromSpace(mix(mix(ocn, edLin(img), 0.55*step(0.5, cov)), ocn, op), sunE), mix(cov > 0.5 ? wi : deep, deep, op)*lit, near);
-      g = mix(wc, skyCol(rr, L, day)*0.95, F);
-      g += vec3(1., 0.9, 0.75)*pow(max(dot(rr, L), 0.), 80.)*smoothstep(-0.05, 0.05, sunE)*0.8;
+      g = mix(wc*mix(0.72, 1., csh), skyCol(rr, L, day)*0.95, F);
+      g += vec3(1., 0.9, 0.75)*pow(max(dot(rr, L), 0.), 80.)*smoothstep(-0.05, 0.05, sunE)*0.8*csh;
       vec3 lv = uP3.xyz - p; g += vec3(1., 0.55, 0.22)*uP3.w*pow(max(dot(rr, normalize(lv)), 0.), 20.)*0.3/(1. + dot(lv, lv)*2e-7);
     } else {
       vec3 base;
@@ -458,20 +625,31 @@ void main(){
         base = mix(base, vec3(0.5, 0.49, 0.47), smoothstep(90., 70., length(p.xz)))*lit;
       }
       // (the photo already holds the light on flat ground; slopes, walls and shadows change it by their share of the light of the Sun)
-      float fl = max(sunE, 0.) + 0.3, here = max(dot(n, L), 0.)*sh + 0.3*(0.6 + 0.4*n.y);
+      float fl = max(sunE, 0.) + 0.3, here = max(dot(n, L), 0.)*sh*csh + 0.3*(0.6 + 0.4*n.y);
       g = base*clamp(here/fl, 0.15, 1.6)*mix(1., 0.8, wall);
       // lights round the site at night
       vec2 cl = floor(p.xz/35.); float hl = hash12(cl);
       if(hl > 0.93 && length(p.xz) < 1400.){ vec2 f = fract(p.xz/35.) - 0.5; g += vec3(1., 0.7, 0.35)*exp(-dot(f, f)*60.)*(1. - day)*0.5; }
       vec3 lv = uP3.xyz - p; g += base*vec3(1., 0.55, 0.22)*uP3.w*1.5*max(dot(n, normalize(lv)), 0.)/(1. + dot(lv, lv)*4e-6);
     }
-    g = mix(g, haze, (1. - exp(-t/mix(90000., 40000., thin)))*mix(0.5, 0.85, thin));
-    col = unTone(g); a = 1.;
+    g = mix(g, haze, hazeF(t, thin));
+    col = g; a = 1.;
   } else {
-    col = unTone(skyCol(d, L, day));
+    col = skyCol(d, L, day);
     float tw = smoothstep(-0.18, 0.02, sunE)*smoothstep(0.25, 0.0, sunE);
     a = clamp((0.25 + 0.74*day)*mix(0.35, 1., thin) + 0.3*tw, 0., 0.99);
   }
-  outCol(col*fade, a*fade);
+  // the clouds in front of what the ray met, in the order it meets them (the sunlight warm when the Sun is low)
+  { vec3 sunC = mix(vec3(1., 0.97, 0.92), vec3(1., 0.62, 0.36), smoothstep(0.3, 0.02, sunE))*lit*smoothstep(-0.06, 0.04, sunE);
+    vec3 hz = skyCol(normalize(vec3(d.x, DIP + 0.015, d.z)), L, day);
+    float tB = t > 0. ? t : 1e9, tL, tM, tH;
+    vec4 A1 = layerLow(o, d, e, tB, L, lit, sunC, hz, thin, tL), A2 = sheet(o, d, e, 4500., tB, 0, L, lit, sunC, hz, thin, tM), A3 = sheet(o, d, e, 9000., tB, 1, L, lit, sunC, hz, thin, tH);
+    vec4 X; float y;
+    if(tM < tL){ X = A1; A1 = A2; A2 = X; y = tL; tL = tM; tM = y; }
+    if(tH < tM){ X = A2; A2 = A3; A3 = X; y = tM; tM = tH; tH = y; }
+    if(tM < tL){ X = A1; A1 = A2; A2 = X; }
+    vec3 cc = A1.rgb + A1.a*(A2.rgb + A2.a*A3.rgb); float Tc = A1.a*A2.a*A3.a;
+    col = col*Tc + cc; a = 1. - (1. - a)*Tc; }
+  outCol(unTone(col)*fade, a*fade);
 }`;
 P.sxEnv = program(VS_RECT, FS_SX_ENV);

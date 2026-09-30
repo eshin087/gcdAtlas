@@ -5,6 +5,13 @@
      numbers with units. The newest version comes first and opens by itself; its number must match package.json (tests/smoke.mjs checks it).
      Every detail stays in docs/CHANGELOG.md, which the panel links to. -->
 
+## 0.10.0 · 30 Sep 2026 · Launches you can hear, under real skies
+- Pick a rocket and the camera comes down from space onto the pad in one smooth move, with no jumps or odd angles all the way to orbit.
+- Hear the launch: a deep rumble and the crackle of the exhaust, arriving at the speed of sound. The camera shakes near the pad.
+- More smoke: a billowing ground cloud, a smoke column drifting in the wind, and a vapour cone as the rocket goes supersonic.
+- Real weather over the pads: clouds, wind and haze as they are there, with cloud shadows moving over the ground.
+- Starbase as it looks now, from aerial photos taken in January 2026.
+
 ## 0.9.11 · 30 Sep 2026 · A face for shared links
 - A link to gcdatlas now shows a picture when you paste it into a chat or a post: M87*, the black hole, drawn in ASCII.
 - Pictures you save in photo mode are signed gcdatlas.com.

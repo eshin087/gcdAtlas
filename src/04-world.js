@@ -196,6 +196,9 @@ function addObj(o){
 function frel(o){
   const F = OBJ[cam.focus];
   if (o === F) return [0,0,0];
+  // (the focus circles o: exactly minus its own offset. Walking o's chain instead went through absolute positions, which fall out of step
+  // with the offsets while the clock jumps: the ground under a rocket moved by thousands of kilometres a frame, seen from the station)
+  if (F.parent === o) return V.mul(F.offset, -1);
   if (o.parent){
     // walk both chains to the nearest common ancestor so nearby bodies never lose precision
     if (F.parent === o.parent) return V.sub(o.offset, F.offset);

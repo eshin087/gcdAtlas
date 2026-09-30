@@ -4,6 +4,36 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.10.0 · 2026-09-30
+
+**Watching a launch: one take from space to the pad** (owner: picking a rocket, the camera zoomed in at weird angles, under the Earth or behind a rock, clipped, and some transitions were abrupt)
+- Picking a rocket flies straight there (no detour past anything else) and comes down from space onto the pad: over the flight the view turns, never fast, to look straight down on the site, then tilts to the countdown's first angle as it descends. The picture's up is carried along and rolled evenly. It takes at least 9 s (6 s on quick travel). Setting off far away, it heads for where the pad will be once it is day; from the space station it goes round the Earth, not through it.
+- It never goes underground, never looks at the pad through the Earth, and keeps a twentieth of its distance clear of the ground; checked frame by frame from Earth, the Moon, Saturn, Andromeda, the Sun and the station at both travel speeds (at most 3.6 degrees of turn a frame on the cinematic setting).
+- During a flight no shot change jolts: a chase-plane view before each camera on a hull (the move from the ground went 2 km in 4 s and swung 120 degrees in one frame); the station's camera moves with the station; the picture never flips over (its up turns at most 90 degrees a second); a blend turns at most 100 degrees a second. Checked for all four flights: at most 4.5 degrees of turn and 4.8 of roll a frame.
+- Cameras near the ground stand at least 2.5 m above whatever is under them and see over dunes, hangars and berms to what they film (a Falcon Heavy camera passed 2 m into a berm).
+- The countdown's aerial view starts high over the pad, where the descent ends, and glides down.
+
+**The launch you can hear and feel** (owner: more effects, like the smoke, vibration and pressure of a real launch, and a cool rocket sound)
+- Sound: a deep rumble, the roar and the crackle of a big rocket's exhaust. It comes from each burning stage as it was when the sound left it, at 343 m/s, so from the far cameras the roar arrives seconds after the flame; it fades with distance and thinner air, and there is none in near-vacuum, except on a camera fixed to a hull, where the structure carries a muffled roar. The music dips under it (owner's choice). It plays when the sound is on.
+- The camera shakes near the pad, up to about half a degree, 10 to 20 times a second with a slower sway, and buzzes on a hull. None for people who ask their computer for reduced motion.
+- The ground cloud billows out to about 500 m round Starbase's pad and rises to about 170 m, its lobes rolling outward, brighter on its sunward side; at ignition a ring of dust and spray races out from the pad.
+- A smoke column rises from the pad to about 14 km behind the rocket, widening, fading over a couple of minutes and drifting with the real wind at its height.
+- A vapour cone forms round the rocket near the speed of sound, below about 13 km.
+
+**Real skies and weather** (owner: a more beautiful sky with dynamic clouds and realistic weather; picked: real weather)
+- A new function, /api/weather, gets the weather over the three launch sites from Open-Meteo, hour by hour from three days ago to two days ahead: cloud cover low, mid and high, wind at 10 m and at about 1.5 km, visibility, rain and humidity. It uses the pads' coordinates only.
+- Three cloud layers from it: low cumulus (or flat stratus when the sky is nearly covered), their base worked out from the humidity, with bright sunlit tops and grey undersides; altocumulus puffs at 4.5 km; cirrus streaks along the wind at 9 km. They drift with the wind at the flight's pace and slowly change shape, cast shadows that move over the ground, and a rocket climbing through the deck fades into it.
+- The haze follows the real visibility. The sky is a richer blue, gold round a low Sun, with the Earth's shadow and the pink band above it at dusk and dawn.
+- Without the weather (offline, the artifact page) a fair day with a few clouds.
+
+**Starbase as it is now**
+- The ground round Starbase's pads is from NOAA's aerial photos of 18 January 2026 (0.3 m a pixel), with the finished Pad 2, the tank farm and the new buildings; USDA's October 2024 photos fill what NOAA did not fly. The 2022 photo showed marsh where Pad 2 now stands. NOAA flies at an angle, so the photo's towers lean across the ground like long shadows; the page's own towers stand at the pads.
+- OpenStreetMap entries that do not belong in a height map are left out: an underground flame trench mapped with its tower's height, and lattice towers that turned into blocks floating in the sky.
+
+**Under the hood**
+- `frel` gives the exact position when the focus circles the object (the ground moved thousands of kilometres a frame, seen from the station while the clock jumped).
+- The ground and sky shader compiles in 0.6 s on Direct3D, the rockets' in 1.0 and 1.2 s (in the background while the camera flies in).
+
 ## 0.9.11 · 2026-09-30
 
 Built beside 0.9.10 (the Halo tour's camera, in review at the same time); whichever merges second renumbers.

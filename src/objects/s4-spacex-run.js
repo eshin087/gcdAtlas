@@ -35,10 +35,20 @@ function bodyAxes(o, sun){
 const shotIndex = run => { const S = run.mis.shots; let i = 0; for (let j=0;j<S.length;j++) if (run.mt >= S[j].t) i = j; return i; };
 function shotFocus(run, sh){ if (sh.focus) return famPart(run.mis.fam, sh.focus); return specPart(run, sh.look) || specPart(run, sh.eye) || (run.mis.fam === 'f9' && run.key === 'dragon' ? SX.parts.dragon : SX.parts[FAM[run.mis.fam].parts[0].key]); }
 const watchPart = run => shotFocus(run, run.mis.shots[shotIndex(run)]);
+// a camera standing near the ground stays at least 2.5 m above whatever is under it (a dune, a roof, the terrain of the real ground,
+// EDT.heightAt) and sees over everything between it and its subject: the line of sight is sampled, and the eye rises until every sample
+// clears the ground by a metre (owner, 0.9.9: a low camera looked at the rocket from behind a dune, "behind a rock")
+function groundClear(eye, look){
+  const r = V.len(eye), alt = (r - RE_KM)*1000; if (alt > 500) return eye;
+  let need = 0; const g = EDT.heightAt(eye); if (g != null) need = g + 2.5 - alt;
+  for (let i=1;i<24;i++){ const t = i/24, p = V.lerp(eye, look, t), h = EDT.heightAt(p); if (h == null) continue;
+    const lack = h + 1 - (V.len(p) - RE_KM)*1000; if (lack > 0) need = Math.max(need, lack/(1 - t)); }   // (raising the eye by d raises this point by d(1 - t))
+  return need > 0 ? V.mul(eye, (r + need*1e-3)/r) : eye;
+}
 // a shot's pose now: eye, aim (Earth-fixed km), up and lens. Up is the local vertical at the eye, or for a camera on a hull looking down
 // along it (up 'side') across the hull, so the hull runs down the right of the picture, clear of the info panel
 function launchPose(run, sh){
-  const eye = specPoint(run, sh.eye), look = specPoint(run, sh.look), dist = Math.max(V.len(V.sub(look, eye))*1000, 1);
+  const look = specPoint(run, sh.look), eye0 = specPoint(run, sh.eye), eye = sh.eye[0] === 'site' ? groundClear(eye0, look) : eye0, dist = Math.max(V.len(V.sub(look, eye))*1000, 1);
   const lens = clamp(typeof sh.lens === 'number' ? sh.lens : Array.isArray(sh.lens) ? sh.lens[2]*2*Math.tan(cam.fovY/2)*dist/sh.lens[1] : 1, 1, 16);
   const up = sh.up === 'side' ? V.mul(bodyAxes(shotFocus(run, sh), sh.eye[3]).X, -1) : V.norm(eye);
   return { eye, look, up, lens };
@@ -62,6 +72,22 @@ function camPose(){
 }
 const slerpN = (a, b, e) => { const d = clamp(V.dot(a, b), -1, 1), w = Math.acos(d); if (w < 1e-4) return V.norm(V.lerp(a, b, e)); const s = Math.sin(w); return V.norm(V.add(V.mul(a, Math.sin((1 - e)*w)/s), V.mul(b, Math.sin(e*w)/s))); };
 const smoother = x => x*x*x*(x*(x*6 - 15) + 10);
+// turn the unit direction a toward b by the fraction t of the angle between them, frame after frame without flipping: about the axis a x b,
+// or, while b is nearly opposite to a, about the last good axis, the angle unwrapped from one frame to the next (st keeps both). A plain
+// slerp picks a new way round every frame when the two point nearly opposite ways, and the view flipped over (from the space station)
+function turnTo(a, b, t, st){
+  const c = V.cross(a, b), s = V.len(c), d = clamp(V.dot(a, b), -1, 1);
+  if (s < 0.15 && d > 0) return V.norm(V.lerp(a, b, t));
+  let ax = st.ax;
+  if (s >= 0.15 || !ax){ let nx = s >= 0.15 ? V.mul(c, 1/s) : V.norm(V.cross(a, Math.abs(a[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]));
+    if (ax && V.dot(nx, ax) < 0) nx = V.mul(nx, -1);   // (the same way round as before: the angle, unwrapped, carries on past half a turn)
+    ax = nx; st.ax = ax; }
+  let th = Math.atan2(V.dot(V.cross(a, b), ax), d);
+  if (st.th != null){ while (th - st.th > Math.PI) th -= 2*Math.PI; while (th - st.th < -Math.PI) th += 2*Math.PI; }
+  st.th = th;
+  const g = th*t, cg = Math.cos(g), sg = Math.sin(g);
+  return V.norm(V.add(V.add(V.mul(a, cg), V.mul(V.cross(ax, a), sg)), V.mul(ax, V.dot(ax, a)*(1 - cg))));
+}
 function blendPose(A, B, e){
   const dA = V.sub(A.eye, A.look), dB = V.sub(B.eye, B.look), la = Math.max(V.len(dA), 1e-6), lb = Math.max(V.len(dB), 1e-6);
   const look = V.lerp(A.look, B.look, e), gap = V.len(V.sub(A.look, B.look)), hA = V.len(A.eye) - RE_KM, hB = V.len(B.eye) - RE_KM;
@@ -94,7 +120,7 @@ function startLaunchCam(run){
   LCAM.from = { F:watchPart(run), rel:null }; LCAM.from.pose = camPose();   // (the blend in starts from the camera as it is)
   LCAM.from.eo = V.sub(LCAM.from.pose.eye, center(LCAM.from.F)); LCAM.from.lo = V.sub(LCAM.from.pose.look, center(LCAM.from.F));
   LCAM.bt = 0; LCAM.bT = 3.2;
-  LCAM.on = true; LCAM.run = run; LCAM.shot = shotIndex(run); LCAM.focus = null; LCAM.eo = LCAM.lo = null; LCAM.endT = 0; LCAM.st = 0; run.hold = false; run.seen = true; motion.last = 'launch';
+  LCAM.on = true; LCAM.run = run; LCAM.shot = shotIndex(run); LCAM.focus = null; LCAM.eo = LCAM.lo = null; LCAM.endT = 0; LCAM.st = 0; LCAM.upW = LCAM.fwW = null; run.hold = false; run.seen = true; motion.last = 'launch';
   stopTour(false); pauseShow(); tween = null; flyMove = null; shipCam.on = shipCam.pending = false;
   if (run.mode === 'real') dayTo(realJD() - JD_NOW, 2.5);   // (a live launch is lit by the real Sun: the atlas clock goes to now)
   updateLaunchCam(0); updateModeUI();
@@ -119,8 +145,8 @@ function updateLaunchCam(dt){
   const Fc = center(F), raw = movePose(run, sh, LCAM.st);
   // a new shot: blend from the camera's last pose, carried along with the stage it was framing
   if (i !== LCAM.shot && LCAM.focus){
-    // (a camera standing on the ground or on the station stays where it stands; one flying beside a stage goes on with it)
-    const pf = LCAM.focus, pc = center(pf), q = LCAM.pose, ps = run.mis.shots[LCAM.shot], stays = ps && (ps.eye[0] === 'site' || ps.eye[0] === 'iss');
+    // (a camera standing on the ground stays where it stands; one flying beside a stage, or on the station, which orbits at 7.7 km/s, goes on with it)
+    const pf = LCAM.focus, pc = center(pf), q = LCAM.pose, ps = run.mis.shots[LCAM.shot], stays = ps && ps.eye[0] === 'site';
     LCAM.from = { F:pf, eo:V.sub(q.eye, pc), lo:V.sub(q.look, pc), pose:q, stays, body:ps && ps.eye[0] === 'body' }; LCAM.bt = 0; LCAM.bT = sh.blend || 3;
     if (sh.cut){ LCAM.from = null; foldFlash('blink'); }
     LCAM.eo = LCAM.lo = null;
@@ -140,24 +166,120 @@ function updateLaunchCam(dt){
     const e = smoother(clamp(LCAM.bt/LCAM.bT, 0, 1)), R = sh.eye[0] === 'body' ? F : f.body ? f.F : null;
     if (A && e < 1) pose = R && R.sx.st ? blendRound(A, pose, e, center(R), R.sx.st.axis) : blendPose(A, pose, e); else LCAM.from = null;
   }
+  // (between two cameras standing near the ground the eye stays above the ground and roofs and sees over them, as each camera does)
+  if (LCAM.from) pose.eye = groundClear(pose.eye, pose.look);
+  // (the up made square to the view, and turning at most 90 degrees a second: where the view and the wanted up nearly line up, looking
+  // straight down or up during a blend, the last frame's up is kept, so the picture never flips over)
+  { const fw = V.norm(V.sub(pose.look, pose.eye)), sq = u => V.sub(u, V.mul(fw, V.dot(u, fw)));
+    let want = sq(pose.up); const prev = LCAM.upW ? sq(LCAM.upW) : null;
+    if (V.len(want) < 0.25 && prev && V.len(prev) > 1e-6) want = prev;
+    want = V.norm(want);
+    if (prev && V.len(prev) > 1e-6 && dt > 0){ const pv = V.norm(prev), a = Math.acos(clamp(V.dot(pv, want), -1, 1)), lim = Math.PI/2*dt;
+      if (a > lim){ const ax = V.norm(V.cross(pv, want)), cs = Math.cos(lim), sn = Math.sin(lim); want = V.norm(V.add(V.mul(pv, cs), V.mul(V.cross(ax, pv), sn))); } }
+    pose.up = want; LCAM.upW = want; }
+  // (during a blend the view turns at most 100 degrees a second: a blend that would swing faster, through a near miss of its aim, eases instead)
+  if (LCAM.from && LCAM.fwW && dt > 0){ const fw = V.norm(V.sub(pose.look, pose.eye)), a = Math.acos(clamp(V.dot(fw, LCAM.fwW), -1, 1)), lim = 100*DEG*dt;
+    if (a > lim){ const ax = V.cross(LCAM.fwW, fw), al = V.len(ax); if (al > 1e-9){ const u = V.mul(ax, 1/al), cs = Math.cos(lim), sn = Math.sin(lim), nf = V.norm(V.add(V.mul(LCAM.fwW, cs), V.mul(V.cross(u, LCAM.fwW), sn)));
+      pose.look = V.add(pose.eye, V.mul(nf, V.len(V.sub(pose.look, pose.eye)))); } } }
+  LCAM.fwW = V.norm(V.sub(pose.look, pose.eye));
   LCAM.pose = pose;
   if (F !== LCAM.focus && infoObj !== F.index) setInfo(F.index);
   LCAM.focus = F;
   LENS.k = LENS.want = pose.lens;
   cam.focus = F.index;
   cam.rel = V.mul(M3.apply(earth.rot, V.sub(pose.eye, Fc)), KM);
-  setBasis(M3.apply(earth.rot, V.norm(V.sub(pose.look, pose.eye))), M3.apply(earth.rot, pose.up));
+  // (the shake: near the pad the air and the ground shake the camera 10 to 20 times a second, with a slower sway, up to about half a degree;
+  // on a hull a steady buzz; none for people who ask for reduced motion. The pose itself stays still, so blends are not shaken off course)
+  let fw = M3.apply(earth.rot, V.norm(V.sub(pose.look, pose.eye))); const upw = M3.apply(earth.rot, pose.up);
+  const shk = reduceMotion ? 0 : (HEAR.onboard ? 0.005 : 0.008)*HEAR.total;
+  if (shk > 1e-5){ const t = GT, rt = V.norm(V.cross(fw, upw)), uu = V.cross(rt, fw);
+    const nx = Math.sin(t*71.3)*0.55 + Math.sin(t*113.9 + 1.3)*0.3 + Math.sin(t*19.1 + 0.7)*0.4, ny = Math.sin(t*83.7 + 2.1)*0.5 + Math.sin(t*127.3 + 0.4)*0.3 + Math.sin(t*23.3 + 1.9)*0.4;
+    fw = V.norm(V.add(fw, V.add(V.mul(rt, nx*shk), V.mul(uu, ny*shk)))); }
+  setBasis(fw, upw);
   orbit.lock = F.index; orbit.frame = camFrameOf(F); orbit.off = V.mul(M3.apply(earth.rot, V.sub(pose.look, Fc)), KM); orbit.offFn = null; orbit.target = orbit.off.slice();
   orbit.dist = orbit.distT = Math.max(V.len(V.sub(cam.rel, orbit.target)), F.rad*0.3);
 }
 // the flight to a rocket lands on its first shot: the pose a flight needs (yaw, pitch, distance and aim in the stage's frame, the up at the eye),
 // worked out again every frame of the flight, as the Earth turns
+// The approach is one take (owner, 0.9.9: the flight dipped under the Earth, passed behind things and jumped at the end). Over the whole
+// flight, by time, the view turns from where it looked at the start to straight down on what it aims at (so it never swings fast), and from
+// 1.5 Earth radii in it tilts, in the vertical plane of the first shot, from straight down to the first shot's angle, by the log of the
+// distance: a descent from space onto the real ground, the pad growing in the middle of the view. Starting on the far side of the Earth (from
+// the station), the aim goes round the Earth, not through it (tgtAt); and whatever the start, the view turns up whenever the camera would
+// come within a twentieth of its distance of the ground (dirAt). No scenic detour past anything else.
 function shotVP(run){
-  const F = watchPart(run), toW = x => V.mul(M3.apply(earth.rot, x), KM);
+  const F = watchPart(run), toW = x => V.mul(M3.apply(earth.rot, x), KM), S = siteOf('SITE', run), RE = RE_KM*KM;
   const now = () => movePose(run, run.mis.shots[shotIndex(run)], 0);
   const yp = () => { const q = now(), d = M3.applyT(camFrameOf(F), V.norm(toW(V.sub(q.eye, q.look)))); return [Math.atan2(d[0], d[2]), Math.asin(clamp(d[1], -0.999, 0.999))]; };
   const q = now(), [yaw, pitch] = yp(), off = () => toW(V.sub(now().look, center(F)));
-  return { F, vp:{ yaw, pitch, dist:V.len(V.sub(q.eye, q.look))*KM, off:off(), offFn:off, up:toW(q.up), upFn:() => V.norm(toW(now().up)), track:yp } };
+  const vp = { yaw, pitch, dist:V.len(V.sub(q.eye, q.look))*KM, off:off(), offFn:off, up:toW(q.up), upFn:() => V.norm(toW(now().up)), track:yp, minDur:9 };
+  const qn0 = () => { const t = GT; if (qn0.t !== t){ qn0.t = t; qn0.v = now(); } return qn0.v; };   // (the first shot's pose, once a frame)
+  // (the aim, once it is within 4 Earth radii of the centre, goes round the Earth to the pad when its straight way would pass through it:
+  // along a great circle from where it was to the pad, turned toward the pad as it is now (the Earth turns under a flight, fast while the
+  // day comes), its height easing from where it was to the pad's, by time; decided once, the first time)
+  let arc = null;
+  vp.tgtAt = (tgt, A, B, g, w, x) => {
+    const E = frel(earth), s = 1 - g, t0 = V.sub(tgt, E), rt = V.len(t0), b = V.sub(B, E), rb = V.len(b);
+    // (an aim that starts inside the Earth, at its centre when you were looking at the whole planet, rises straight to the pad: no arc)
+    if (arc === null && rt < 4*RE && s < 0.995){ if (rt < RE*1.01){ arc = false; return tgt; }
+      const seg = V.sub(b, t0), L2 = V.dot(seg, seg), tt = L2 > 0 ? clamp(-V.dot(t0, seg)/L2, 0, 1) : 0;
+      arc = V.len(V.add(t0, V.mul(seg, tt))) < RE*1.05 ? { s0:s, x0:x, a0:V.mul(t0, 1/rt), ra:rt, st:{} } : false;
+    }
+    if (!arc) return tgt;
+    // (by time from where it began, over at least 55% of the flight: the path itself would sweep round the Earth in half a second)
+    const q = Math.min(smooth(arc.x0, arc.x0 + Math.max(0.55, (1 - arc.x0)*0.6), x), 1);
+    const p = V.add(E, V.mul(turnTo(arc.a0, V.mul(b, 1/rb), q, arc.st), arc.ra + (rb - arc.ra)*q));
+    return V.lerp(p, B, smooth(0.9, 1, q));   // (landing exactly on the aim)
+  };
+  // (the turn to straight over the aim is timed by the flight's own path, worked out on its first frame: it is done by the time the camera
+  // comes within 20 Earth radii of what it aims at, so it happens while the Earth is still small in the view and never needs to be fast)
+  let uEnd = null, mPrev = 0, xPrev = 0, lastDir = null, lastUp = null, xUp = 0, rollSign = 0, rotEnd, farStart = false; const tdir = {};
+  // (the picture's up is carried along as the view turns, then rolled toward the up it lands with, spread evenly over the flight up to 92%
+  // of the way: turned together with the view it spun at 200 degrees a second as the view came round to look straight down)
+  const carry = (a, b, v) => { const ax = V.cross(a, b), sn = V.len(ax), cs = V.dot(a, b); if (sn < 1e-9) return v;
+    const u = V.mul(ax, 1/sn); return V.add(V.add(V.mul(v, cs), V.mul(V.cross(u, v), sn)), V.mul(u, V.dot(u, v)*(1 - cs))); };
+  vp.dirAt = (x, w, dDef, uDef, tgt, f) => {
+    if (uEnd === null){ let last = 0; for (let i=0;i<=200;i++){ const xx = i/200; if (f.path.w(f.path.S*flightE(f.prog, xx)) >= 20*RE) last = xx; } uEnd = clamp(last + 0.05, 0.5, 0.8); }
+    // (while the clock eases to the afternoon the Earth spins under the flight, up to half a turn in a few seconds. Setting off far from the
+    // Earth, the view heads for where the pad will be once it is day, and the pad turns into place under it, or it whipped round at 10
+    // degrees a frame from Saturn; setting off close to it, the view follows the pad round, a time-lapse under the camera. Decided once)
+    if (rotEnd === undefined){ rotEnd = DAY.T > 0 ? earthRotAt(DAY.to) : null; farStart = V.len(V.sub(cam.rel, frel(earth))) > 8*RE; }
+    const kEnd = DAY.T > 0 && rotEnd && farStart ? 1 : 0, dN = V.sub(qn0().eye, qn0().look);
+    const Unow = V.norm(M3.apply(earth.rot, S.up)), Dnow = V.norm(M3.apply(earth.rot, dN));
+    const U = kEnd > 0 ? V.norm(slerpDir(Unow, V.norm(M3.apply(rotEnd, S.up)), kEnd)) : Unow, D1 = kEnd > 0 ? V.norm(slerpDir(Dnow, V.norm(M3.apply(rotEnd, dN)), kEnd)) : Dnow;
+    const E = frel(earth), t0 = V.sub(tgt, E), rt = V.len(t0);
+    // (the vertical over the aim while it goes round the Earth from a start close by, the station; otherwise the pad's: an arc that begins
+    // on the way in from far out would swing it round in one frame)
+    const Ut = arc && arc.s0 < 0.02 && rt > RE*1e-6 ? V.mul(t0, 1/rt) : U;   // (world units are light-years: a 'small' length is a fraction of RE)
+    // (the first shot's angle at the pad, elevation e1 and horizontal H, carried to that vertical)
+    const e1 = Math.asin(clamp(V.dot(D1, U), -1, 1)), hz = V.sub(D1, V.mul(Ut, V.dot(D1, Ut))), Ht = V.len(hz) > 1e-6 ? V.norm(hz) : V.norm(V.cross(Ut, [0, 0, 1]));
+    // (the tilt: 0 at the first shot's distance, 1 from 1.5 Earth radii out)
+    const fr = smoother(clamp(Math.log(Math.max(w, vp.dist)/vp.dist)/Math.log(1.5*RE/vp.dist), 0, 1)), el = e1 + (Math.PI/2 - e1)*fr;
+    const Dn = V.add(V.mul(Ut, Math.sin(el)), V.mul(Ht, Math.cos(el))), Un = V.sub(V.mul(Ut, Math.cos(el)), V.mul(Ht, Math.sin(el)));
+    const u = smooth(0.02, uEnd, x);
+    let dir = turnTo(f.dir0, Dn, u, tdir);
+    // (a safety net: never within a twentieth of its distance of the ground, and never looking at the aim through the Earth. If either would
+    // happen the view turns toward straight over the aim, just as far as it must, and lets go of that turn gently)
+    const minH = clamp(0.05*w, 0.3*KM, 50*KM);
+    const ok = d => { const C = V.add(t0, V.mul(d, w)); if (V.len(C) - RE < minH) return false;
+      if (rt < RE*1.0005) return true;
+      const sg = V.sub(t0, C), L2 = V.dot(sg, sg), tt = L2 > 0 ? clamp(-V.dot(C, sg)/L2, 0, 0.97) : 0; return V.len(V.add(C, V.mul(sg, tt))) > RE*0.999; };
+    let m = 0;
+    // (the shortest way up, worked out afresh each frame: its start moves every frame, so there is no turn to keep going the same way round)
+    if (!ok(dir)){ let lo = 0, hi = 1; for (let i=0;i<14;i++){ const mm = (lo + hi)/2; if (ok(V.norm(slerpDir(dir, Ut, mm)))) hi = mm; else lo = mm; } m = hi; }
+    m = Math.max(m, mPrev - Math.max(x - xPrev, 0)*f.dur*1.2); mPrev = m; xPrev = x;
+    if (m > 0) dir = V.norm(slerpDir(dir, Ut, m));
+    const sq = v => V.norm(V.sub(v, V.mul(dir, V.dot(v, dir))));
+    let upC = lastDir ? sq(carry(lastDir, dir, lastUp)) : sq(f.up0);
+    const want = sq(Un); let ang = Math.atan2(V.dot(V.cross(upC, want), dir), clamp(V.dot(upC, want), -1, 1));
+    if (Math.abs(ang) > 170*DEG && rollSign && Math.sign(ang) !== rollSign) ang += rollSign > 0 ? 2*Math.PI : -2*Math.PI;   // (keep the way round)
+    rollSign = Math.sign(ang) || rollSign;
+    const k = x >= 0.92 ? 1 : clamp((x - xUp)/Math.max(0.92 - xUp, 1e-3), 0, 1), g = ang*k, cg = Math.cos(g), sg = Math.sin(g);
+    upC = V.norm(V.add(V.mul(upC, cg), V.mul(V.cross(dir, upC), sg)));
+    lastDir = dir; lastUp = upC; xUp = x;
+    return [dir, upC];
+  };
+  return { F, vp };
 }
 // ---------------------------------------------------------------- picking a rocket: fly to it, then watch (a stage that is not flying starts a countdown on its pad)
 { const prev = lockOn; lockOn = function(i, vi = 0, loop = true){
@@ -168,10 +290,11 @@ function shotVP(run){
     if (run) endRun(run);
     run = newRun(o.sx.fam === 'star' ? 'starship' : o.sx.fam === 'fh' ? 'falconheavy' : o.key === 'dragon' ? 'dragon' : 'falcon9', 'click');
     buildClusters();
-    dayTo(afternoonAt(SXS[run.site]), 4);   // (clicked flights are flown by day, owner 0.9.8: the clock eases to the nearest afternoon at the pad)
+    run.day = true;   // (clicked flights are flown by day, owner 0.9.8: the clock eases to the nearest afternoon at the pad, while the camera is still far out)
   }
-  for (const pr of [P.sxStar, P.sxFal, P.sxEnv]) progReady(pr);   // (start compiling now, in the background, so the pad is ready when the camera lands)
-  { const D = EDT.siteOfPad(run.site); if (D) EDT.want(D.key); }   // (and fetch the images of the ground there)
+  for (const pr of [P.sxStar, P.sxFal, P.sxEnv, P.sxSmoke]) progReady(pr);   // (start compiling now, in the background, so the pad is ready when the camera lands)
+  { const D = EDT.siteOfPad(run.site); if (D) EDT.want(D.key); }   // (and fetch the images of the ground there, and the weather)
+  wxWant();
   sxFly(run);
 }; }
 // the flight itself: what lockOn does, but landing on the shot's pose, and the launch camera takes over when it lands
@@ -180,7 +303,10 @@ function sxFly(run){
   stopTour(false); orbit.offFn = null; show.on = show.pending = false;
   setInfo(F.index);
   SX.pend = { run, part:F, at:GT };
-  flyTo(F, vp, () => { if (SX.pend && SX.pend.run === run){ SX.pend = null; startLaunchCam(run); } });
+  // (straight there: no detour past anything on the way, which took the camera behind the Moon)
+  startFlight(F, vp, () => { if (SX.pend && SX.pend.run === run){ SX.pend = null; startLaunchCam(run); } });
+  // (the day comes during the first half of the flight, a time-lapse seen from far out, never during the descent)
+  if (run.day){ run.day = false; dayTo(afternoonAt(SXS[run.site]), Math.max(1.5, (flight ? flight.dur : 3)*0.5)); }
   motion.last = 'launch';
   updateModeUI();
 }
@@ -195,6 +321,8 @@ function sxResume(){
 // ---------------------------------------------------------------- daylight: the atlas clock eases to a moment (days from the page's start), over a few seconds
 const DAY = { from:0, to:0, t:0, T:0 };
 function dayTo(target, T){ DAY.from = ssDays; DAY.to = target; DAY.t = 0; DAY.T = Math.max(T, 0.01); }
+// the Earth's rotation matrix at a moment of the atlas clock (the clock put back after)
+function earthRotAt(days){ const d0 = ssDays; ssDays = days; earth.update(0); const R = earth.rot.slice(); ssDays = d0; earth.update(0); return R; }
 function sunUpAt(S, days){ const d0 = ssDays; ssDays = days; earth.update(0); const e = V.dot(sunFixed(), S.up); ssDays = d0; earth.update(0); return e; }
 // the moment nearest the atlas clock's (within half a day either way) when the Sun stands about 35 degrees up in the afternoon at a site
 function afternoonAt(S){
@@ -302,12 +430,42 @@ function sxTick(dt){
   if (!LCAM.on){ const lk = 1 - Math.exp(-dt*2); LENS.k = Math.exp(Math.log(LENS.k)*(1 - lk)); }
   // the atmosphere over the camera
   { const cf = camFixed(), alt = V.len(cf) - RE_KM; ATM.k = SKYV.on || !(alt < 120) ? 0 : 1 - smooth(25, 90, alt); }
-  buildClusters(); updateTrail();
+  wxTick(dt); buildClusters(); updateTrail(); smokeUpdate(); sxHear();
   for (const k in SX.parts) SX.parts[k].noLabel = LCAM.on;   // (a clean picture while the launch camera plays)
   // locked on a rocket or a pad, the camera turns with the Earth under it (their frames turn with it)
   if (!LCAM.on && !flight && OBJ[orbit.lock] && (OBJ[orbit.lock].sx || OBJ[orbit.lock].sxSite)) orbit.frame = camFrameOf(OBJ[orbit.lock]);
   // a shared link straight to a rocket starts its countdown
   if (!SX.hashDone && GT > 0.3){ SX.hashDone = true; const o = OBJ[orbit.lock]; if (o && o.sx && /[#&]o=/.test(location.hash) && !famRun(o.sx.fam)) lockOn(o.index); }
+}
+// ---------------------------------------------------------------- what the camera hears and feels, while you watch a flight (music.rocket; the shake in updateLaunchCam)
+// Each burning stage as it was when its sound left it (the speed of sound, 343 m/s, in mission time: from the far cameras the roar comes
+// seconds after the flame), fainter with distance ((150 m / d)^0.6: a big rocket's roar carries for kilometres) and with thinner air round
+// the stage as it climbs; nothing at a camera in near-vacuum, except on a hull, where the structure carries a muffled roar. The engines'
+// shares: 33 Raptors 1, a Starship 0.35, a Falcon 9 core 0.6, a side booster 0.45, a vacuum engine 0.2.
+const HEAR = { total:0, d:1e9, onboard:false };
+const ENG_LOUD = { booster:1, ship:0.35, core:0.6, sideA:0.45, sideB:0.45, s2:0.2 };
+function sxHear(){
+  HEAR.total = 0; HEAR.d = 1e9; HEAR.onboard = false;
+  const run = LCAM.on ? LCAM.run : null;
+  SX.snd = null;
+  if (!run || typeof music === 'undefined' || !music.rocket){ if (typeof music !== 'undefined' && music.rocket) music.rocket(null); return; }
+  const cf = camFixed(), camAlt = (V.len(cf) - RE_KM)*1000, sh = run.mis.shots[LCAM.shot] || {}, onF = sh.eye && sh.eye[0] === 'body' ? shotFocus(run, sh) : null;
+  const air = Math.exp(-Math.max(camAlt, 0)/8500);
+  let tot = 0, dmin = 1e9;
+  for (const id in run.mis.parts){
+    const P = run.mis.parts[id]; if (!P || !P.thr) continue;
+    const o = famPart(run.mis.fam, id), st = o && o.sx.st; if (!st || !st.on || o.hidden) continue;
+    const dm = V.len(V.sub(cf, st.base))*1000, on = o === onF, thr = lin(P.thr, on ? run.mt : run.mt - dm/343);
+    if (thr <= 0.005) continue;
+    tot += (ENG_LOUD[id] || 0.4)*thr*(on ? 0.85 : Math.pow(150/Math.max(dm, 150), 0.6)*air*Math.exp(-Math.max(st.alt, 0)/15));
+    if (on) HEAR.onboard = true; else dmin = Math.min(dmin, dm);
+  }
+  HEAR.total = Math.min(tot, 1.3); HEAR.d = dmin;
+  const d = HEAR.onboard ? 20 : dmin;
+  // (SX.snd: this tick's sound, which a recording renders offline with music.rocketRender)
+  SX.snd = tot < 0.002 ? null : { roar:tot*(HEAR.onboard ? 0.7 : 1 - 0.55*smooth(3000, 20000, d)), rumble:Math.min(1, tot*(0.7 + 0.5*smooth(800, 8000, d))),
+    crackle:HEAR.onboard ? 0 : tot*smooth(120, 450, d)*(1 - smooth(3500, 12000, d)), lp:HEAR.onboard ? 420 : 250 + 7000/(1 + d/900), duck:tot*2.5 };
+  music.rocket(SX.snd);
 }
 // Dragon docks "about a day later": the Solar System clock moves on a day, then on to a moment when the station is in sunlight for the
 // next few minutes, so the docking can be seen (it is dark for about 35 of every 93 minutes)
@@ -345,7 +503,7 @@ function sxReadout0(o){
   const altS = alt < 1 ? Math.round(alt*1000) + ' m' : (alt < 10 ? alt.toFixed(1) : Math.round(alt)) + ' km';
   return `${clk(mt)}${ev ? ' · ' + ev : ''}\naltitude ${altS} · ${Math.round(sp).toLocaleString('en-US')} km/h · ${Math.round(Math.max(st.s || 0, 0)).toLocaleString('en-US')} km downrange\n${hon}`;
 }
-const SXDBG = { SX, MIS, LCAM, LENS, ATM, DAY, EDT, shotVP, launchPose, camPose, famRun, newRun, endRun, sxEval, buildClusters, plumeOf, watch:sxWatch, rd:roadsterEq, afternoonAt:k => afternoonAt(SXS[k]),
+const SXDBG = { SX, MIS, LCAM, LENS, ATM, DAY, EDT, WX, HEAR, SMK, wxAt, shotVP, launchPose, camPose, famRun, newRun, endRun, sxEval, buildClusters, plumeOf, watch:sxWatch, rd:roadsterEq, afternoonAt:k => afternoonAt(SXS[k]),
   // (tests: move the Solar System clock until the Sun stands at elevation el degrees over a site, rising (am) or setting)
   sunAt(site, el, am = true){ DAY.T = 0; const S = SXS[site] || SX_DS[site]; let best = 0, bd = 1e9; for (let h=0;h<24*4;h++){ ssDays = realJD() - JD_NOW + h/96; earth.update(0); const e = Math.asin(V.dot(sunFixed(), S.up))/DEG, e2 = (ssDays += 0.01, earth.update(0), Math.asin(V.dot(sunFixed(), S.up))/DEG); ssDays -= 0.01; const d = Math.abs(e - el) + ((e2 > e) === am ? 0 : 100); if (d < bd){ bd = d; best = ssDays; } } ssDays = best; earth.update(0); return +(Math.asin(V.dot(sunFixed(), S.up))/DEG).toFixed(1); },
   start(key, mode = 'replay', mt = 0, opt = {}){ const r = newRun(key, mode, Object.assign({ mt }, opt)); r.hold = false; buildClusters(); return r; },

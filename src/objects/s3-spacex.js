@@ -16,13 +16,14 @@ const llUnit = (la, lo) => [Math.cos(la*DEG)*Math.cos(lo*DEG), Math.sin(la*DEG),
 // a site's local axes in Earth-fixed coordinates, and its frame matrix (columns: x east, y up, z south)
 function enuOf(up){ const e = V.norm(V.cross([0, 1, 0], up)), n = V.cross(up, e); return { up, e, n, M:[...e, ...up, ...V.mul(n, -1)] }; }
 // ---------------------------------------------------------------- the sites (coast: the direction toward the sea in the site's x-z plane and the distance to the beach, m;
-// air: where the countdown's aerial view starts and ends, m in the site's frame, x east, y up, z south: with the afternoon Sun behind or
-// beside the camera and the sea behind the rocket; the view starts high enough to see the shape of the place)
+// air: where the countdown's aerial view starts and ends, m in the site's frame, x east, y up, z south: it starts high over the pad, looking
+// steeply down, where the descent from space ends, and glides down to the low view b, with the afternoon Sun behind or beside the camera
+// and the sea behind the rocket)
 const SXS = {
-  starbase:{ name:'Starbase, Texas', short:'Starbase', la:25.99677, lo:-97.15799, kind:1, coast:[1, 0, 1300], air:{ a:[-1900, 1300, 1500], b:[-1100, 150, 300] } },   // (Pad 2, where Starship now flies from)
-  lc39a:{ name:'Launch Complex 39A, Kennedy Space Center, Florida', short:'Kennedy Space Center', la:28.60822, lo:-80.60428, kind:2.75, coast:[0.93, 0.36, 1250], air:{ a:[-2400, 2000, 2800], b:[-1000, 130, 450] } },   // (its crew access arm came off in February 2026)
-  slc40:{ name:'Space Launch Complex 40, Cape Canaveral, Florida', short:'Cape Canaveral', la:28.56194, lo:-80.57735, kind:3, coast:[0.95, 0.3, 700], air:{ a:[-1400, 1600, 2200], b:[-950, 120, 250] } },
-  slc4e:{ name:'Space Launch Complex 4E, Vandenberg, California', short:'Vandenberg', la:34.63208, lo:-120.61074, kind:2, coast:[-0.98, -0.2, 700], air:{ a:[1400, 1000, 2800], b:[480, 160, 900] } },
+  starbase:{ name:'Starbase, Texas', short:'Starbase', la:25.99677, lo:-97.15799, kind:1, coast:[1, 0, 1300], air:{ a:[-1150, 1900, 320], b:[-1100, 150, 300] } },   // (Pad 2, where Starship now flies from)
+  lc39a:{ name:'Launch Complex 39A, Kennedy Space Center, Florida', short:'Kennedy Space Center', la:28.60822, lo:-80.60428, kind:2.75, coast:[0.93, 0.36, 1250], air:{ a:[-1050, 1900, 470], b:[-1000, 130, 450] } },   // (its crew access arm came off in February 2026)
+  slc40:{ name:'Space Launch Complex 40, Cape Canaveral, Florida', short:'Cape Canaveral', la:28.56194, lo:-80.57735, kind:3, coast:[0.95, 0.3, 700], air:{ a:[-1000, 1900, 260], b:[-950, 120, 250] } },
+  slc4e:{ name:'Space Launch Complex 4E, Vandenberg, California', short:'Vandenberg', la:34.63208, lo:-120.61074, kind:2, coast:[-0.98, -0.2, 700], air:{ a:[520, 1950, 980], b:[480, 160, 900] } },
   lz:{ name:'Landing Zones 1 and 2, Cape Canaveral', short:'the Cape\'s landing zones', la:28.48575, lo:-80.54385, kind:5, coast:[0.95, 0.3, 1100] },
 };
 // (each pad stands at the height of its ground above the sea, from the Earth detail's terrain: Vandenberg's is about 100 m up)
@@ -105,7 +106,8 @@ const MIS = {
       { t:-4.5, eye:['site', 'starbase', [-72, 3, 96]], look:['part', 'booster', 16], lens:1.15 },
       { t:3, eye:['site', 'starbase', [62, 26, 48]], look:['part', 'booster', 4], lens:1 },
       { t:10, eye:['site', 'starbase', [-2400, 6, 1800]], look:['part', 'ship', 0], lens:['fit', 130, 0.55] },
-      { t:30, eye:['body', 'booster', [6.5, 30, 0], 'sun'], look:['body', 'booster', [150, -300, 0], 'sun'], lens:1, up:'side', blend:4 },
+      { t:22, eye:['traj', 'booster', [70, -45, 40]], look:['part', 'booster', 45], lens:1, lag:0.7, blend:3.5 },
+      { t:31, eye:['body', 'booster', [6.5, 30, 0], 'sun'], look:['body', 'booster', [150, -300, 0], 'sun'], lens:1, up:'side', blend:3.5 },
       { t:55, eye:['traj', 'ship', [380, -70, 120]], look:['part', 'ship', 0], lens:['fit', 130, 0.5], lag:1 },
       { t:150, eye:['traj', 'ship', [240, 28, -40]], look:['part', 'ship', -4], lens:['fit', 70, 0.8], lag:1 },
       { t:172, eye:['traj', 'booster', [300, 120, 180]], look:['part', 'booster', 36], lens:['fit', 80, 0.5], lag:0.8 },
@@ -129,7 +131,8 @@ const MIS = {
       { t:-4.5, eye:['site', 'SITE', [-115, 3, 150]], look:['part', 'core', 22], lens:['fit', 75, 0.75] },
       { t:5, eye:['site', 'SITE', [26, 2, 30]], look:['part', 'core', 30], lens:1 },
       { t:12, eye:['site', 'SITE', [-2200, 5, 1400]], look:['part', 'core', 36], lens:['fit', 72, 0.5] },
-      { t:32, eye:['body', 'core', [3.2, 20, 0], 'sun'], look:['body', 'core', [100, -220, 0], 'sun'], lens:1, up:'side', blend:4 },
+      { t:24, eye:['traj', 'core', [45, -30, 25]], look:['part', 'core', 30], lens:1, lag:0.7, blend:3.5 },
+      { t:33, eye:['body', 'core', [3.2, 20, 0], 'sun'], look:['body', 'core', [100, -220, 0], 'sun'], lens:1, up:'side', blend:3.5 },
       { t:65, eye:['traj', 'core', [230, -40, 80]], look:['part', 'core', 36], lens:['fit', 72, 0.5], lag:1 },
       { t:140, eye:['traj', 'core', [45, -12, -8]], look:['part', 'core', 46], lens:1.3, lag:1 },
       { t:175, eye:['traj', 'core', [70, -20, 50]], look:['part', 'core', 24], lens:['fit', 50, 0.55], lag:0.8 },
@@ -155,7 +158,8 @@ const MIS = {
       { t:-4.5, eye:['site', 'lc39a', [-120, 3, 155]], look:['part', 'core', 22], lens:['fit', 75, 0.75] },
       { t:5, eye:['site', 'lc39a', [30, 2, 34]], look:['part', 'core', 30], lens:1 },
       { t:12, eye:['site', 'lc39a', [-2500, 5, 1300]], look:['part', 'core', 36], lens:['fit', 72, 0.5] },
-      { t:32, eye:['body', 'sideA', [3.2, 20, 0], 'sunL'], look:['body', 'sideA', [100, -220, 0], 'sunL'], lens:1, up:'side', blend:4 },
+      { t:24, eye:['traj', 'sideA', [55, -30, 25]], look:['part', 'sideA', 30], lens:1, lag:0.7, blend:3.5 },
+      { t:33, eye:['body', 'sideA', [3.2, 20, 0], 'sunL'], look:['body', 'sideA', [100, -220, 0], 'sunL'], lens:1, up:'side', blend:3.5 },
       { t:65, eye:['traj', 'core', [60, -30, -240]], look:['part', 'core', 36], lens:['fit', 72, 0.5], lag:1 },
       { t:145, eye:['traj', 'core', [10, -30, -170]], look:['part', 'core', 30], lens:['fit', 60, 0.7], lag:1 },
       { t:160, eye:['traj', 'sideA', [330, 80, 60]], look:['part', 'sideA', 23], lens:['fit', 60, 0.5], lag:0.8 },
@@ -177,7 +181,8 @@ const MIS = {
       { t:-4.5, eye:['site', 'SITE', [-115, 3, 150]], look:['part', 'core', 22], lens:['fit', 75, 0.75] },
       { t:5, eye:['site', 'SITE', [26, 2, 30]], look:['part', 'core', 30], lens:1 },
       { t:12, eye:['site', 'SITE', [-2200, 5, 1400]], look:['part', 'core', 36], lens:['fit', 72, 0.5] },
-      { t:32, eye:['body', 'core', [3.2, 20, 0], 'sun'], look:['body', 'core', [100, -220, 0], 'sun'], lens:1, up:'side', blend:4 },
+      { t:24, eye:['traj', 'core', [45, -30, 25]], look:['part', 'core', 30], lens:1, lag:0.7, blend:3.5 },
+      { t:33, eye:['body', 'core', [3.2, 20, 0], 'sun'], look:['body', 'core', [100, -220, 0], 'sun'], lens:1, up:'side', blend:3.5 },
       { t:65, eye:['traj', 'core', [230, -40, 80]], look:['part', 'core', 36], lens:['fit', 72, 0.5], lag:1 },
       { t:140, eye:['traj', 'core', [45, -12, -8]], look:['part', 'core', 46], lens:1.3, lag:1 },
       { t:175, eye:['traj', 's2', [60, 18, -90]], look:['part', 's2', 14], lens:['fit', 30, 0.5], lag:1 },
@@ -367,7 +372,7 @@ function buildClusters(){
     let C = pts[0][0], R = pts[0][1];
     for (const [p, r] of pts.slice(1)){ const d = V.len(V.sub(p, C))*1000; if (d + r <= R) continue; if (R + d <= r){ C = p; R = r; continue; } const nr = (R + d + r)/2; C = V.add(C, V.mul(V.sub(p, C), (nr - R)/d)); R = nr; }
     // (the ground cloud round a pad, while a flight is on)
-    if (c.site && SX.runs.some(r => r.site === c.site.key)) R = Math.max(R, c.site.kind === 1 ? 290 : 200);
+    if (c.site && SX.runs.some(r => r.site === c.site.key)) R = Math.max(R, c.site.kind === 1 ? 560 : 380);
     c.C = C; c.R = R*1.04;
   }
   SX.clusters = cl;
@@ -411,6 +416,18 @@ function drawCluster(c, vis){
     if (cd){ const cc = toL(cd.at); gl.uniform4f(p.u.uCl, cc[0], cc[1], cc[2], cd.age); gl.uniform4f(p.u.uCl2, cd.k, cd.steam, cd.size, cd.vent); }
     else { gl.uniform4f(p.u.uCl, 0, 0, 0, -1); gl.uniform4f(p.u.uCl2, 0, 1, 1, 0); }
     gl.uniform4f(p.u.uDim, c.R, GT, 0, 0.37);
+    // (the vapour cone round the stack near the speed of sound: Mach 0.85 to 1.3, below about 12 km; illustrative, real flights show it
+    // only when the air is damp enough)
+    let vk = [0, 0, 0, 0];
+    c.parts.forEach((o, i) => { const st = o.sx.st, d = o.sx.def; if (!st || o !== SX.parts[FAM[o.sx.fam].parts[0].key]) return;
+      const a = 340 - 4*Math.min(st.alt, 11), M = st.speed*1000/a, k = smooth(0.82, 0.95, M)*(1 - smooth(1.2, 1.4, M))*(1 - smooth(9, 13, st.alt));
+      if (k > 0.01) vk = [k, i, d.type <= 2 ? 71 : 46, d.type <= 2 ? 26 : 16]; });
+    gl.uniform4f(p.u.uVc, vk[0], vk[1], vk[2], vk[3]);
+    // (the low cloud between the camera and the stage: the frame of the site the ground and sky are drawn round)
+    const ES = SXENV.on && SXENV.site ? SXENV.site : null;
+    if (ES && p.u.uCm){ const Mt = transposeRot(ES.F.M), o = M3.apply(Mt, V.mul(V.sub(c.C, ES.p), 1000));
+      gl.uniformMatrix3fv(p.u.uCm, false, M3.mul(Mt, c.F.M)); gl.uniform4f(p.u.uCo, o[0], o[1], o[2], ES.elev || 0); wxUniforms(p); }
+    else if (p.u.uWx0) gl.uniform4f(p.u.uWx0, 0, 0, 0, 30000);
   }, Rw, vis);
 }
 // the ground cloud: at the pad from engine start, at the landing site as the booster comes down
@@ -457,6 +474,97 @@ function drawEnv(){
     gl.uniform4f(p.u.uP0, cl[0], cl[1], cl[2], fade); gl.uniform4f(p.u.uP1, L[0], L[1], L[2], day);
     gl.uniform4f(p.u.uP2, best.coast[0], best.coast[1], best.coast[2], best.kind === 4 ? 1 : 0);
     gl.uniform4f(p.u.uP3, pl[0], pl[1], pl[2], plI*(0.4 + 1.6*(1 - day))); gl.uniform4f(p.u.uP4, GT, best.elev || 0, 0, 0);
+    wxUniforms(p);
+  }, Rw, 1);
+}
+// ---------------------------------------------------------------- the smoke column a flight leaves near the ground (FS_SX_SMOKE), from the pad to about 14 km: 16 keyframes along
+// the stack's path, denser near the ground, each drifting with the wind since the stack passed it (WX.wind, m/s east and north: the real
+// wind at the pad when the weather is known, else a light breeze), widening (7 m, then about 2.6 m x the square root of its age in seconds,
+// more high up where the air is thin) and fading over a couple of minutes. Drawn while the camera is near enough to see it
+// ---------------------------------------------------------------- the weather over the launch sites (0.9.9, owner: dynamic clouds, real weather): /api/weather, Open-Meteo's hour by hour
+// cloud cover (low, mid, high), wind at 10 m and at about 1.5 km (850 hPa), visibility, rain and humidity for Starbase, the Cape and
+// Vandenberg from three days ago to two days ahead, fetched when a rocket is picked or the camera comes near a site, again every 30 minutes
+// while in use. wxAt gives the weather at a moment (the nearest hour; outside the data, the nearest end). The low clouds' base is worked out
+// from the humidity (about 25 m for every point below 100%, the height where rising air starts to condense), their depth from how much of the
+// sky they cover. Without the data (offline, the artifact page, the file on disk) a fair day: a few clouds, light wind (illustrative)
+const WX = { data:null, state:0, last:-1e9, now:null, key:null, wind:{ e:-3, n:2 }, wind850:{ e:-5, n:3 }, off:[0, 0], offH:[0, 0], t:0 };
+const WX_SITE = { starbase:'starbase', lc39a:'cape', slc40:'cape', lz:'cape', slc4e:'vandenberg', 'ds-f9':'cape', 'ds-fh':'cape' };
+const WX_FAIR = { low:0.28, mid:0.08, high:0.22, ws:4, wd:135, ws850:7, wd850:150, vis:22000, rain:0, code:2, rh:72, real:false };
+function wxWant(){
+  if (WX.state === 1 || !/^https?:$/.test(location.protocol) || typeof fetch !== 'function') return;
+  if ((WX.state === 2 || WX.state === 3) && GT - WX.last < (WX.state === 2 ? 1800 : 300)) return;
+  WX.state = 1;
+  fetch('/api/weather').then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(j => { if (!j || !j.sites || !j.t0) throw 'no data'; WX.data = j; WX.state = 2; WX.last = GT; })
+    .catch(e => { WX.state = 3; WX.last = GT; console.info('weather unavailable, a fair day instead (' + e + ')'); });
+}
+function wxAt(padKey, ms){
+  const key = WX_SITE[padKey] || 'cape', d = WX.data && WX.data.sites && WX.data.sites[key];
+  if (!d || !d.low || !d.low.length) return Object.assign({ key }, WX_FAIR);
+  const i = clamp(Math.round((ms/1000 - WX.data.t0)/(WX.data.step || 3600)), 0, d.low.length - 1), g = k => (d[k] && d[k][i] != null) ? d[k][i] : WX_FAIR[k];
+  return { key, low:g('low')/100, mid:g('mid')/100, high:g('high')/100, ws:g('ws'), wd:g('wd'), ws850:g('ws850'), wd850:g('wd850'), vis:g('vis'), rain:g('rain'), code:g('code'), rh:g('rh'), real:true };
+}
+// (the wind blows toward: meteorology gives where it comes from)
+const windTo = (ws, wd) => ({ e:-ws*Math.sin(wd*DEG), n:-ws*Math.cos(wd*DEG) });
+// once a tick: the weather at the site nearest the camera (or the one whose flight you watch) at the atlas clock's moment, and how far the
+// wind has carried the clouds (at the flight's own pace while you watch one, so they drift faster in its sped-up parts)
+function wxTick(dt){
+  const S = LCAM.on ? SXS[LCAM.run.site] : SXENV.on && SXENV.site ? SXENV.site : null;
+  if (!S){ WX.now = null; return; }
+  wxWant();
+  const jd = jdNow(), ms = (jd - 2440587.5)*86400000, w = wxAt(S.key, ms);
+  WX.now = w; WX.key = S.key;
+  WX.wind = windTo(w.ws, w.wd); WX.wind850 = windTo(w.ws850, w.wd850);
+  const k = dt*(LCAM.on && LCAM.run ? runRate(LCAM.run) : 1);
+  // (in the site's frame x is east, z south: the low layer rides the 850 hPa wind, the high one about twice as fast)
+  WX.off[0] -= WX.wind850.e*k; WX.off[1] += WX.wind850.n*k; WX.offH[0] -= WX.wind850.e*2*k; WX.offH[1] += WX.wind850.n*2*k; WX.t += k;
+}
+// the cloud uniforms (CLOUD_GLSL) for the site S's frame
+function wxUniforms(p){
+  if (!p.u.uWx0) return;
+  const w = WX.now;
+  if (!w){ gl.uniform4f(p.u.uWx0, 0, 0, 0, 30000); gl.uniform4f(p.u.uWx1, 1000, 2000, 0, 0); gl.uniform4f(p.u.uWx2, 0, 0, 0, 0); return; }
+  const base = clamp(25*(100 - w.rh), 300, 2500), top = base + 450 + 1500*w.low;
+  gl.uniform4f(p.u.uWx0, w.low, w.mid, w.high, clamp(w.vis, 2000, 80000));
+  gl.uniform4f(p.u.uWx1, base, top, WX.t, w.rain);
+  gl.uniform4f(p.u.uWx2, WX.off[0], WX.off[1], WX.offH[0], WX.offH[1]);
+}
+const SMK = { on:false, K:new Float32Array(64), Kd:new Float32Array(64), n:0, C:[0, 0, 0], R:1, S:null };
+SMK.o = addObj({ key:'sx-smoke', name:'launch smoke', label:'', type:'', group:'travel', parent:earth, offset:[0, 0, 0], rad:1*MET, layer:3, noPick:true, atlas:false, noLabel:true, noTour:true,
+  noImpostor:true, pxMin:1, visFn:() => SMK.on ? 1 : 0, labelRange:0 });
+SMK.o.drawBefore = () => { if (FLAGS.spacex && SMK.on) drawSmoke(); };
+function smokeUpdate(){
+  SMK.on = false;
+  const run = LCAM.on ? LCAM.run : SX.runs.find(r => r.mt > 0 && !r.ended);
+  if (!run || run.mt <= 0.3 || !run.mis.stack) return;
+  const mis = run.mis, K = mis.stack, P0 = mis.parts[FAM[mis.fam].parts[0].id];
+  if (mis._tTop == null){ mis._tTop = K.T[K.T.length - 1]; for (let t=0;t<=K.T[K.T.length - 1];t+=0.5) if (kAt(K, t).v[2] > 14){ mis._tTop = t; break; } }
+  const S = SXS[run.site], A = run.A, tMax = Math.min(run.mt, mis._tTop), N = 16, soot = mis.fam === 'star' ? 0.05 : 0.32;
+  const dr = w => V.add(V.mul(S.F.e, w.e*1e-3), V.mul(S.F.n, w.n*1e-3)), d10 = dr(WX.wind), d850 = dr(WX.wind850);
+  const pts = [];
+  for (let k=0;k<N;k++){
+    const tk = tMax*Math.pow(k/(N - 1), 1.5), kv = kAt(K, tk).v, age = Math.max(run.mt - tk, 0), h = kv[2];
+    const p = V.add(trajPoint(A, kv[0], kv[1], h, 0).p, V.mul(V.lerp(d10, d850, smooth(0.1, 1.5, h)), age*(1 + 0.12*Math.max(h - 1.5, 0))));   // (the wind at its height, stronger aloft)
+    const r = 12 + 6*Math.sqrt(age)*(1 + h*0.3) + age*0.6;
+    const dens = 0.85*lin(P0.thr || [[0, 1]], tk)*Math.exp(-age/110)*smooth(0.04, 0.25, h)*(1 - smooth(8, 14, h));
+    pts.push({ p, r, dens, age });
+  }
+  if (!pts.some(q => q.dens > 0.01)) return;
+  // (the bounding sphere: from the middle of the keyframes out to the farthest edge)
+  let C = [0, 0, 0]; for (const q of pts) C = V.add(C, q.p); C = V.mul(C, 1/N);
+  let R = 1; for (const q of pts) R = Math.max(R, V.len(V.sub(q.p, C))*1000 + q.r);
+  R *= 1.05;
+  const cf = camFixed(); if (V.len(V.sub(cf, C))*1000 > R*400) return;   // (too far away to see)
+  pts.forEach((q, k) => { const L = M3.applyT(S.F.M, V.mul(V.sub(q.p, C), 1000)); SMK.K.set([L[0], L[1], L[2], q.r], k*4); SMK.Kd.set([q.dens, q.age, soot, 0], k*4); });
+  SMK.n = N; SMK.C = C; SMK.R = R; SMK.S = S; SMK.on = true;
+  SMK.o.offset = V.mul(M3.apply(earth.rot, C), KM); SMK.o.pos = V.add(earth.pos, SMK.o.offset); SMK.o.rad = R*MET;
+}
+function drawSmoke(){
+  const S = SMK.S, Rw = M3.mul(earth.rot, S.F.M), rel = V.add(earth.rel, V.mul(M3.apply(earth.rot, SMK.C), KM));
+  const L = M3.applyT(S.F.M, sunFixed()), day = smooth(-0.12, 0.12, V.dot(sunFixed(), S.up));
+  drawVolume(SMK.o, P.sxSmoke, rel, SMK.R*MET, p => {
+    gl.uniform4fv(p.u.uK, SMK.K); gl.uniform4fv(p.u.uKd, SMK.Kd);
+    gl.uniform4f(p.u.uSm, SMK.n, 0, 0, 0); gl.uniform4f(p.u.uLtS, L[0], L[1], L[2], day); gl.uniform4f(p.u.uDimS, SMK.R, GT, 0, 0);
   }, Rw, 1);
 }
 // ---------------------------------------------------------------- seen from far away: the trail of a flight, glowing where the exhaust is in sunlight (the "jellyfish" of

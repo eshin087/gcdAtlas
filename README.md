@@ -12,7 +12,7 @@ More light means a denser character. Colour comes from the physics: the temperat
 
 No sign-up, nothing to install. It runs in any modern browser, on a desk or a phone.
 
-**What's new?** See the [patch notes](docs/PATCHNOTES.md) (short, for visitors) or the [changelog](docs/CHANGELOG.md) (every detail). The latest: Pip takes the stage, and SpaceX launches from real pads.
+**What's new?** See the [patch notes](docs/PATCHNOTES.md) (short, for visitors) or the [changelog](docs/CHANGELOG.md) (every detail). The latest: launches you can hear, under the real weather of the pads; Pip takes the stage.
 
 ## 140 places to visit (more to come...)
 
@@ -55,7 +55,9 @@ One thing here is invented: **the Halo**, a long-range cruiser with a captured s
 
 Starship, Falcon 9, Falcon Heavy and Crew Dragon stand on their real pads at Starbase, Cape Canaveral and Vandenberg. Pick one and watch it launch by day, about 3 minutes a flight with one smooth camera, or press "real speed" to see every second. The Starship booster flies back and is caught by its tower. Real launches play live at their scheduled time.
 
-The ground round the pads is real: aerial photos, satellite images, the height of the land and the buildings. And Starman still drives his Tesla Roadster round the Sun, shown where he really is today.
+Picking a rocket brings the camera down from space onto its pad in one smooth move. You hear the launch (the roar arrives at the speed of sound) and see its smoke drift in the real wind, under the clouds and haze the weather at the pad has today.
+
+The ground round the pads is real: aerial photos (Starbase as of January 2026), satellite images, the height of the land and the buildings. And Starman still drives his Tesla Roadster round the Sun, shown where he really is today.
 
 ## Things to do
 
@@ -127,4 +129,5 @@ These are plans and ideas, not promises. They will land one at a time.
 - Earth's coastlines: [Natural Earth](https://www.naturalearthdata.com/) via [world-atlas](https://github.com/topojson/world-atlas)
 - Planet orbits: JPL approximate Keplerian elements; body orientations: IAU WGCCRE
 - Satellites: [CelesTrak](https://celestrak.org/) general perturbations data; launches: [The Space Devs](https://thespacedevs.com/) Launch Library 2
+- The ground round the launch sites: NOAA NGS and USDA NAIP aerial photos, Copernicus Sentinel-2 satellite images, AWS Terrain Tiles, buildings © OpenStreetMap contributors; the weather there: [Open-Meteo](https://open-meteo.com/)
 - Object facts and measurements: NASA, ESA, ESO and the published literature (see [docs/ACCURACY.md](docs/ACCURACY.md))
