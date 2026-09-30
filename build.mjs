@@ -37,6 +37,9 @@ catch (e) { console.error('Syntax error in the bundled script:\n' + e.stack.spli
   if (fs.existsSync(src)){ fs.mkdirSync(dst, { recursive:true });
     const want = new Set(fs.readdirSync(src)); for (const f of fs.readdirSync(dst)) if (!want.has(f)) fs.unlinkSync(path.join(dst, f));
     for (const f of want){ const a = path.join(src, f), b = path.join(dst, f); if (!fs.existsSync(b) || fs.statSync(b).size !== fs.statSync(a).size) fs.copyFileSync(a, b); } } }
+// the link preview (og:image, 1200 x 630, made by tools/og-image.mjs): what a shared link shows in a chat or a post
+fs.mkdirSync(DIST, { recursive: true });
+fs.copyFileSync(path.join(ROOT, 'assets', 'og.jpg'), path.join(DIST, 'og.jpg'));
 const head = read('00-head.html');
 // what's new: docs/PATCHNOTES.md ("## version · date · title", then "- " bullets) as the panel's HTML, newest first and open
 const esc = t => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -57,10 +60,19 @@ const meta = `<meta charset="utf-8">
 <meta name="description" content="An explorable universe drawn entirely in ASCII: real planets, stars, nebulae, black holes and galaxies at their true positions, with seamless zoom from Earth to the edge of the observable universe.">
 <meta name="theme-color" content="#04050a">
 <meta property="og:title" content="gcdatlas">
+<meta property="og:site_name" content="gcdatlas">
 <meta property="og:description" content="The real universe, drawn entirely in ASCII. Zoom from Earth to the edge of the observable universe.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://gcdatlas.vercel.app/">
-<link rel="canonical" href="https://gcdatlas.vercel.app/">
+<meta property="og:url" content="https://gcdatlas.com/">
+<meta property="og:image" content="https://gcdatlas.com/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="M87*, a black hole with its glowing disc bent round its shadow, drawn in ASCII characters">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="gcdatlas">
+<meta name="twitter:description" content="The real universe, drawn entirely in ASCII. Zoom from Earth to the edge of the observable universe.">
+<meta name="twitter:image" content="https://gcdatlas.com/og.jpg">
+<link rel="canonical" href="https://gcdatlas.com/">
 <link rel="icon" href="data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="#04050a"/><text x="16" y="23" font-family="monospace" font-size="22" font-weight="700" text-anchor="middle" fill="#ffb35c">*</text></svg>')}">
 `;
 
