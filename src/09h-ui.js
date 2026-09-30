@@ -39,7 +39,7 @@ infoEl.addEventListener('touchend', e => {
 }, { passive:true });
 addEventListener('keydown', e => {
   if (e.target.closest && e.target.closest('input')) return;
-  if (e.ctrlKey || e.metaKey || e.altKey || e.key.toLowerCase() !== 'i' || !$('#help').hidden) return;
+  if (e.ctrlKey || e.metaKey || e.altKey || e.key.toLowerCase() !== 'i' || modalOpen()) return;
   const s = infoState(); setInfoState(s === 'full' ? 'compact' : s === 'compact' ? 'hidden' : 'full');
 });
 
@@ -89,7 +89,7 @@ function idleAfter(){
   return tour.on ? base*0.7 : base*1.4;
 }
 function idleBlocked(){
-  return !atlasEl.hidden || !settingsEl.hidden || !$('#tours').hidden || !$('#timem').hidden || !$('#story').hidden || !$('#help').hidden
+  return !atlasEl.hidden || !settingsEl.hidden || !$('#tours').hidden || !$('#timem').hidden || !$('#story').hidden || modalOpen() || !shipMenuEl.hidden
     || bodyCL.contains('photo') || bodyCL.contains('saver') || bodyCL.contains('sky') || bodyCL.contains('lad-open')
     || IDLE.hover || !!ladDrag || cmpPick || (document.activeElement && document.activeElement.tagName === 'INPUT');
 }

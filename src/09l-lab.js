@@ -1,7 +1,7 @@
 // ================================================================ the lab (/lab, or ?lab): a small stage for trying the Halo's looks quickly, without waiting for the ship
 // to get round to them on the site. The ship is parked by one place (S_.park: its route and every effect run on as usual, only its position is
 // held), the lab runs its own frame loop (slow motion, pause, single steps) and its buttons do things at once: a teleport out and back to the
-// same place, Pip's outing, a scan, a weapons test, the shield's load by hand, and Pip held up close in front of the camera with any of its
+// same place, Pip's outing, a scan, a weapons test (the fold cannon; the aim camera looks over the gun at where it fires), the shield's load by hand, and Pip held up close in front of the camera with any of its
 // faces (FACES in 07i-drone.js). It is the same page and engine as the site, so what it shows is
 // what the site shows. build.mjs writes it as dist/lab.html (window.__LAB set before the page's script).
 const LAB = { on:!!window.__LAB || new URLSearchParams(location.search).has('lab'), speed:1, paused:false, step:0, last:0, cam:'side', place:'saturn', load:null, face:null, panel:null };
@@ -9,11 +9,21 @@ if (LAB.on){
   window.__freeze = true;   // (the site's own frame loop stands aside)
   const PLACES = [['saturn', 'Saturn'], ['jupiter', 'Jupiter'], ['earth', 'Earth'], ['mars', 'Mars'], ['sgra', 'Sgr A*'], ['crab', 'Crab Nebula']];
   const SPEEDS = [0.1, 0.25, 0.5, 1, 2];
-  const CAMS = [['side', 'side'], ['top', 'top'], ['chase', 'chase'], ['bridge', 'bridge'], ['orbit', 'drag']];
+  const CAMS = [['side', 'side'], ['top', 'top'], ['aim', 'aim'], ['chase', 'chase'], ['bridge', 'bridge'], ['orbit', 'drag']];
   // a fixed camera round the parked ship, in its own frame (as the showcase's turn): elevation and bearing in degrees, distance in ship radii
   function pose(el, phi, dist){
     const D = Math.PI/180, e = el*D, f = phi*D, dir = [-Math.sin(e), -Math.cos(e)*Math.cos(f), Math.cos(e)*Math.sin(f)];
     return { eye:V.mul(dir, dist*Math.max(1, 0.62/tanX)), look:[0, 0, 0], up:V.norm(V.sub([-1, 0, 0], V.mul(dir, Math.sin(e)))) };
+  }
+  // 'aim': over the ship's shoulder toward the place, so the fold cannon and where its shots land are both in the picture: behind the gun, a
+  // little above and to one side, looking along its axis (along the way to the place's middle when there is no gun), updated every frame
+  function aimPose(){
+    const g = FX.find(e => e.kind === 'gun'), tg = S_.park ? S_.park.tg : S_.target;
+    let a = g ? g.ax : tg ? M3.applyT(ship.R0, V.norm(V.sub(tg.rel, ship.rel))) : [1, 0, 0];
+    const c = g ? gunMid(g) : GUN_C;
+    let up = perpTo([-1, 0, 0], a); up = V.len(up) > 0.2 ? V.norm(up) : V.norm(perpTo([0, 1, 0], a));
+    const sd = V.cross(a, up), k = Math.max(1, 0.62/tanX);
+    return { eye:V.add(c, V.add(V.mul(a, -2.4*k), V.add(V.mul(up, 0.75*k), V.mul(sd, 0.55*k)))), look:V.add(c, V.mul(a, 2.5)), up };
   }
   function setCam(c){
     LAB.cam = c;
@@ -23,7 +33,7 @@ if (LAB.on){
       shipCam.pending = false;
       if (c === 'chase') shipCam.mode = 'chase';
       else if (c === 'bridge') shipCam.mode = 'cockpit';
-      else { shipCam.mode = 'turn'; shipCam.turn = c === 'top' ? pose(89.5, 90, 1.9) : pose(24, 55, 2.1); }
+      else { shipCam.mode = 'turn'; shipCam.turn = c === 'top' ? pose(89.5, 90, 1.9) : c === 'aim' ? aimPose() : pose(24, 55, 2.1); }
       updateModeUI();
     }
     sync();
@@ -105,6 +115,7 @@ if (LAB.on){
     // (in steps of at most 1/20 s, as the site's loop takes them)
     do { const d = Math.min(dt, 0.05); tick(d); dt -= d; } while (dt > 1e-9);
     if (S_.visits !== LAB.visits){ LAB.visits = S_.visits; keep(); }
+    if (LAB.cam === 'aim' && shipCam.on && shipCam.mode === 'turn') shipCam.turn = aimPose();
     SHOWCAP.txt = (ship.readout ? ship.readout().split('\n')[0] : '') + (LAB.paused ? ' · paused' : LAB.speed !== 1 ? ` · ${LAB.speed}x` : '');
     render(); updateHUD(dtR); updateCaption(dtR);
   }

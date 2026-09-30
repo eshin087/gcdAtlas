@@ -248,7 +248,7 @@ const SCAN_SPOTS = {
   jupiter:[{ name:'Great Red Spot', r:0.11, at:tg => [-22.4*DEG, 1.1 - tg.t*0.0015] }],
   // (the hexagon, 76 to 78 degrees north round the pole: FS_PLANET's `lat > 0.85`, hexR = 0.2/cos)
   saturn:[{ name:'the hexagon', r:0.22, at:() => [Math.PI/2, 0] }],
-  mars:[{ name:'Olympus Mons', r:0.07, at:() => [asinS(0.31), -2.34] }, { name:'Valles Marineris', r:0.16, at:() => [asinS(-0.24), -1.4] },
+  mars:[{ name:'Olympus Mons', r:0.07, at:() => [18.65*DEG, -2.335] }, { name:'Valles Marineris', r:0.16, at:() => [asinS(-0.24), -1.4] },
     { name:'Syrtis Major', r:0.12, at:() => [asinS(0.15), 1.22] }, { name:'north polar cap', r:0.2, at:() => [Math.PI/2, 0] }, { name:'south polar cap', r:0.16, at:() => [-Math.PI/2, 0] }],
   moon:[{ name:'Tycho', r:0.05, at:() => [-0.76, -0.19] }, { name:'Copernicus', r:0.05, at:() => [0.17, -0.35] }, { name:'Mare Imbrium', r:0.18, at:() => [asinS(0.56), -0.28] },
     { name:'Mare Tranquillitatis', r:0.13, at:() => [asinS(0.15), 0.54] }, { name:'Mare Crisium', r:0.08, at:() => [asinS(0.28), 1.03] }, { name:'Oceanus Procellarum', r:0.3, at:() => [asinS(0.2), -0.95] }],

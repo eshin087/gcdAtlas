@@ -47,12 +47,21 @@
   <button class="btn" data-ico="&#9656;" id="btnTours" aria-expanded="false" aria-controls="tours">tours</button>
   <button class="btn" data-ico="&#9719;" id="btnTime" aria-expanded="false" aria-controls="timem">time</button>
   <div class="seg mini" data-key="travel" role="radiogroup" aria-label="Travel speed" title="How fast you fly between objects (Y)"><span class="seg-l">travel</span><button data-v="cinematic" role="radio">slow</button><button data-v="quick" role="radio">quick</button><button data-v="warp" role="radio">warp</button></div>
-  <button class="btn" data-ico="&#9790;" id="btnShip" aria-pressed="false" title="Show where the Halo is (a blue marker)">ship</button><button class="btn ride" id="btnRide" title="Ride along with the Halo: chase view behind the ship, C for the cockpit">ride</button>
+  <!-- riding along: the camera moves between angles, or holds one (K); only while riding -->
+  <div class="seg mini" data-key="rideCam" id="rideCamSeg" role="radiogroup" aria-label="Ride camera" title="Riding along: the camera moves round the ship, or holds one angle (K)" hidden><span class="seg-l">camera</span><button data-v="moving" role="radio">moving</button><button data-v="still" role="radio">still</button></div>
+  <button class="btn" data-ico="&#9790;" id="btnShip" aria-pressed="false" title="Show where the Halo is (a blue marker)">ship</button><button class="btn ride" id="btnRide" title="Ride along with the Halo, the place it visits in view: K holds the camera still, C for the cockpit">ride</button><button class="btn ride halo-tour" id="btnHaloTour" aria-pressed="false" title="The Halo tour: ride along while the Halo flies the stops of a tour, with cinematic camera moves (pick the tour in tours)">halo tour</button>
   <button class="btn" data-ico="&#9834;" id="btnSound" aria-pressed="true" title="Background music (M)">sound</button>
   <button class="btn" data-ico="&#8943;" id="btnSettings" aria-expanded="false" aria-controls="settings">settings</button>
+  <button class="btn" id="btnNotes" aria-label="What's new: the patch notes" title="What's new: the patch notes">new</button>
   <button class="btn" id="btnHelp" aria-label="Controls help (?)" title="Controls help (?)">?</button>
   <button class="btn play" id="btnPlay" aria-pressed="false" title="Pause the camera (space)"><b aria-hidden="true"></b><span>pause</span></button>
 </nav>
+<!-- phones: the dock's ship button opens this (ride along, cockpit, the marker, the Halo tour); while riding: outside, cockpit, stop, the Halo tour and the camera. On a desk the ship button only toggles the marker. -->
+<div id="shipMenu" class="ship-menu" role="menu" aria-label="The Halo" hidden>
+  <div class="sm-head">the Halo <span>a made-up ship</span></div>
+  <div class="sm-row"><button role="menuitemradio" aria-checked="false" id="smChase"><b>ride along</b><small>and see where</small></button><button role="menuitemradio" aria-checked="false" id="smCock"><b>cockpit</b><small>on its bridge</small></button><button role="menuitem" id="smStop" hidden><b>stop riding</b><small>stay by it</small></button><button role="menuitemcheckbox" aria-checked="false" id="smMark"><b>marker</b><small>show it</small></button></div>
+  <div class="sm-row sm-row2"><button role="menuitemcheckbox" aria-checked="false" id="smTour"><b>halo tour</b><small>it flies a tour</small></button><button role="menuitemcheckbox" aria-checked="false" id="smStill" hidden><b>camera</b><small>moving</small></button></div>
+</div>
 
 <aside id="atlas" class="atlas" aria-label="Universe atlas" hidden>
   <div class="atlas-head">
@@ -97,6 +106,7 @@
       <button data-v="short" role="radio">short</button><button data-v="normal" role="radio">normal</button><button data-v="long" role="radio">long</button>
     </div>
   </div>
+  <div class="opt-note ht-note" id="htNote" hidden>the Halo flies the tour you pick here · halo tour again to stop</div>
   <div id="tourList" class="tour-list"></div>
   <div class="opt"><button class="btn saver-go" id="btnSaver">&#9635; screensaver mode</button><div class="opt-note tm-sub">full screen, the interface fades away and an endless shuffled tour plays with the music (Z). Move the mouse or press a key to come back.</div></div>
   <div class="panel-foot">space pauses or resumes · [ ] step between stops</div>
@@ -151,11 +161,11 @@
 <div id="skyBar" class="photo-bar sky-bar" hidden><span class="pb-l">your sky</span><span id="skyWhere" class="sky-where"></span><button class="btn" data-dir="0">north</button><button class="btn" data-dir="90">east</button><button class="btn" data-dir="180">south</button><button class="btn" data-dir="270">west</button><button class="btn" data-dir="up">overhead</button><button class="btn" id="skyExit">done</button></div>
 
 <aside id="settings" class="panel" aria-label="Settings" hidden>
-  <div class="panel-head"><span class="ptitle">settings</span><button class="btn" id="settingsHelp">help</button><button class="btn" id="settingsClose">close</button></div>
+  <div class="panel-head"><span class="ptitle">settings</span><button class="btn" id="settingsNotes">what's new</button><button class="btn" id="settingsHelp">help</button><button class="btn" id="settingsClose">close</button></div>
   <div class="opt">
     <div class="opt-l">detail <span id="detailInfo" class="opt-note"></span></div>
     <div class="seg" data-key="detail" role="radiogroup" aria-label="Detail">
-      <button data-v="0" role="radio">ultra</button><button data-v="1" role="radio">fine</button><button data-v="2" role="radio">normal</button><button data-v="3" role="radio">bold</button>
+      <button data-v="auto" role="radio" title="Fine, and ultra when the screen is sharp and there is time to spare">auto</button><button data-v="0" role="radio">ultra</button><button data-v="1" role="radio">fine</button><button data-v="2" role="radio">normal</button><button data-v="3" role="radio">bold</button>
     </div>
   </div>
   <div class="opt">
@@ -211,12 +221,18 @@
     <div class="song-list" id="songList" hidden></div>
   </div>
   <div class="opt">
+    <div class="opt-l">riding the Halo <span class="opt-note">the camera while you ride along (K)</span></div>
+    <div class="seg" data-key="rideCam" role="radiogroup" aria-label="Ride camera">
+      <button data-v="moving" role="radio">moving</button><button data-v="still" role="radio">still</button>
+    </div>
+  </div>
+  <div class="opt">
     <div class="opt-l">screensaver <span class="opt-note">start by itself when nobody touches anything</span></div>
     <div class="seg" data-key="saverIdle" role="radiogroup" aria-label="Start the screensaver after">
       <button data-v="0" role="radio">never</button><button data-v="2" role="radio">2 min</button><button data-v="5" role="radio">5 min</button><button data-v="10" role="radio">10 min</button>
     </div>
   </div>
-  <div class="panel-foot">keys: H home · ? help · V detail · Y travel · T time · G glow · L labels · M music · C ship camera</div>
+  <div class="panel-foot">keys: H home · ? help · V detail · Y travel · T time · G glow · L labels · M music · C cockpit · K still camera</div>
 </aside>
 
 <div id="ladder" class="ladder" aria-label="Scale ladder: drag to zoom, click a name to travel there">
@@ -244,35 +260,51 @@
 
 <div id="help" class="help" hidden>
   <div class="help-card" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
-    <h2 id="helpTitle">controls</h2>
-    <p>Every frame is drawn only with printable ASCII characters. Denser glyphs mean more light; colour comes from the physics (blackbody temperature, Doppler shift, emission lines).</p>
-    <dl>
-      <dt>drag</dt><dd>orbit the camera</dd>
-      <dt>scroll / pinch / + -</dt><dd>zoom, all the way from a moon to the observable universe</dd>
-      <dt>scale ladder (right)</dt><dd>drag the marker to zoom; let go near a name, or click one, to travel there (on a phone: tap the scale chip at the top right)</dd>
-      <dt>ruler (top left)</dt><dd>at the distance of the object you are looking at, the bar's length equals the distance written beside it</dd>
-      <dt>click or tap</dt><dd>fly to an object and lock onto it</dd>
-      <dt>two fingers</dt><dd>on a touch screen: pinch to zoom; slide both fingers to move the object across the screen (the camera stays on it); double-tap the sky to centre it again</dd>
-      <dt>/ or the search box</dt><dd>search everything in the atlas by name or by catalogue number (M31, NGC 1976); arrow keys and Enter pick a result</dd>
-      <dt>right-drag / shift-drag</dt><dd>pan: the camera lets go of the object (free camera); play, space or the "back to" pill flies back to it</dd>
-      <dt>next stop · Moon ›</dt><dd>the green button beside the name: on a tour, fly on to the next stop ("start again" on the last one; on the random tour, "new random tour" picks 12 new places); after you leave a tour, "back to the tour" picks it up where you left it</dd>
-      <dt>GRAND TOUR ▾</dt><dd>the tour's name above the object's name opens the list of tours</dd>
-      <dt>[ ]</dt><dd>on a tour: previous / next stop; otherwise down / up the scale bar (Moon, Earth, Jupiter, the Sun, ...)</dd>
-      <dt>‹ angle 1/5 ›</dt><dd>the arrows on the angle line: previous / next camera angle of the object in view (every tap moves one angle)</dd>
-      <dt>W A S D · R F</dt><dd>fly freely, within reach of the nearest object (scroll out to go further)</dd>
-      <dt>space · &#10074;&#10074; / &#9654;&#xFE0E;</dt><dd>pause or play: the tour, or the angles of an object you picked (they loop until you take the camera); in free camera, back to the object you left</dd>
-      <dt>H · Home · &#8962; home · the logo</dt><dd>home: fly back to Earth; a running tour pauses and "back to the tour" picks it up again</dd>
-      <dt>esc</dt><dd>close what is open first (help, search, the atlas, tours, time, settings, photo mode); with nothing open, let go of the object (free camera)</dd>
-      <dt>V · Y · T</dt><dd>detail · travel speed · time speed</dd>
-      <dt>G · L · M</dt><dd>glow · labels · music</dd>
-      <dt>Z · P</dt><dd>screensaver · photo mode</dd>
-      <dt>I</dt><dd>info panel: full, compact or hidden</dd>
-      <dt>?</dt><dd>this help (? or esc closes it)</dd>
-      <dt>ship · ride · C</dt><dd>ship shows where the Halo is; ride follows it from behind (scroll to move nearer or further); C switches between the chase view and the cockpit</dd>
-      <dt>idle</dt><dd>the interface fades after a few seconds (sooner during a tour); move the mouse or tap to bring it back</dd>
-    </dl>
-    <p class="note">Everything sits at its real position and real size: the planets where they are today, 1,982 naked-eye stars at their measured distances, the Milky Way, its neighbours and the cosmic web out to the edge of the observable universe. Brightness is compressed so faint things stay visible, stars twinkle gently for life, and fast processes (orbits, explosions, mergers) are sped up. The few objects too small to see next to their surroundings (a quasar's engine, a kilonova) are drawn magnified, and the ruler shows their true size. The music is generated in your browser as you listen. The Halo, a long-range cruiser that wanders between wonders, and Pip, its little drone, are the only invented things here. The Sun is drawn warm yellow-orange, like a filtered solar photo; from space its light is white.</p>
-    <p><button class="btn" id="helpClose">close</button></p>
+    <!-- short on purpose (owner, 0.9.4: the old help was too long). Rows marked kb only show with a mouse, rows marked touch only on a touch screen. -->
+    <div class="help-top"><h2 id="helpTitle">controls</h2><button class="btn" id="helpClose">close</button></div>
+    <p class="lede">The real universe at real sizes, drawn only in ASCII. Denser characters mean more light.</p>
+    <div class="help-cols">
+      <section><h3>look</h3><dl>
+        <dt>drag</dt><dd>turn round it</dd>
+        <dt class="kb">scroll · + -</dt><dd class="kb">zoom, a moon to the universe</dd>
+        <dt class="touch">pinch</dt><dd class="touch">zoom, a moon to the universe</dd>
+        <dt class="touch">two fingers</dt><dd class="touch">slide it across the screen</dd>
+        <dt class="touch">double-tap</dt><dd class="touch">centre it again</dd>
+        <dt class="kb">right-drag</dt><dd class="kb">let go and pan freely</dd>
+        <dt class="kb">W A S D R F</dt><dd class="kb">fly freely</dd>
+        <dt>‹ angle ›</dt><dd>next camera angle</dd>
+      </dl></section>
+      <section><h3>go</h3><dl>
+        <dt class="kb">click</dt><dd class="kb">fly there and lock on</dd>
+        <dt class="touch">tap</dt><dd class="touch">fly there and lock on</dd>
+        <dt><span class="kb">/ · </span>search</dt><dd>names or numbers (M31)</dd>
+        <dt>scale</dt><dd>pick a size to travel to</dd>
+        <dt>next stop ›</dt><dd>the green button: on with the tour</dd>
+        <dt class="kb">halo tour</dt><dd class="kb">a tour flown by the Halo</dd>
+        <dt><span class="kb">space · </span>play</dt><dd>pause or play</dd>
+        <dt><span class="kb">H · </span>&#8962; home</dt><dd>back to Earth</dd>
+        <dt class="kb">[ ]</dt><dd class="kb">previous / next stop</dd>
+      </dl></section>
+      <section><h3>more</h3><dl>
+        <dt class="kb">ride · C K</dt><dd class="kb">ride the Halo · cockpit · still</dd>
+        <dt class="touch">ship</dt><dd class="touch">ride the Halo, or its tour</dd>
+        <dt class="kb">V Y T</dt><dd class="kb">detail · travel · time</dd>
+        <dt class="kb">G L M</dt><dd class="kb">glow · labels · music</dd>
+        <dt class="kb">Z P I</dt><dd class="kb">screensaver · photo · info</dd>
+        <dt class="kb">esc</dt><dd class="kb">close, then let go</dd>
+        <dt class="touch">settings</dt><dd class="touch">detail, music, time, photo</dd>
+      </dl></section>
+    </div>
+    <p class="note">Fast things like orbits are sped up, and a few tiny things are drawn magnified (the ruler shows their true size). The Halo and its drone Pip are made up. The Sun is drawn warm; its real light is white. The music is made live in your browser.</p>
+    <p class="note help-new"><button class="linkish" id="helpNotes">what's new</button> · every update, newest first</p>
+  </div>
+</div>
+<!-- what's new: the patch notes, written for visitors in docs/PATCHNOTES.md; build.mjs puts them in place of the marker below (newest open) -->
+<div id="notes" class="help notes" hidden>
+  <div class="help-card notes-card" role="dialog" aria-modal="true" aria-labelledby="notesTitle">
+    <div class="help-top"><h2 id="notesTitle">what's new</h2><button class="btn" id="notesClose">close</button></div>
+    <div id="notesList" class="notes-list"><!--PATCHNOTES--></div>
+    <p class="note">Every change in detail: <a href="https://github.com/eshin087/gcdatlas/blob/main/docs/CHANGELOG.md" target="_blank" rel="noopener">the full changelog</a>.</p>
   </div>
 </div>
 <div id="nogl" class="nogl" hidden>This needs WebGL 2, which this browser or device has turned off.</div>

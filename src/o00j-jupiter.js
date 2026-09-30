@@ -14,6 +14,9 @@ float belt(float la){   // latitude (deg) -> darkness of the cloud band
   return b;
 }
 float wind(float la){ return 0.9*exp(-pow((la - 23.)/2., 2.)) - 0.35*exp(-pow((la - 17.)/2., 2.)) + 0.4*exp(-pow((la + 7.)/3., 2.)) + 0.4*exp(-pow((la - 7.)/3., 2.)) - 0.3*exp(-pow((la + 18.)/2., 2.)) + 0.35*exp(-pow((la + 26.)/2., 2.)); }
+// (drawn display-referred, like the Solar System's bodies in FS_PLANETG: the colours are what a cell shows in full sunlight after FS_CELL's tone
+// map, and main undoes that map, so cream zones and brown belts land on different characters instead of all saturating)
+vec3 unTone(vec3 c){ return -log(1. - clamp(c, 0., 0.985)); }
 vec3 clouds(vec3 n, out float grs){
   float lat = asin(clamp(n.y, -1., 1.)), la = lat*57.296, lon = atan(-n.z, n.x);
   float w = wind(la);
@@ -23,30 +26,35 @@ vec3 clouds(vec3 n, out float grs){
   float streak = fbm(vec3(cos(ls)*4., la*0.55 + turb*0.9, sin(ls)*4.) + vec3(0., 0., uTime*0.002));
   float lw = la + turb*2.2 + (streak - 0.5)*3.;
   float b = belt(lw);
-  vec3 zone = vec3(0.96, 0.91, 0.8), dark = vec3(0.62, 0.43, 0.3);
-  vec3 c = mix(zone, dark, clamp(b*(0.7 + 0.6*streak), 0., 1.));
-  c = mix(c, vec3(0.93, 0.8, 0.62), exp(-la*la/40.)*0.35);                     // ochre equatorial zone
+  // cream zones, red-brown belts (the North Equatorial Belt the darkest), an ochre equatorial zone, grey-brown towards the poles
+  vec3 zone = vec3(0.76, 0.72, 0.62), dark = mix(vec3(0.46, 0.3, 0.2), vec3(0.4, 0.26, 0.17), exp(-pow((la - 12.)/5., 2.)));
+  vec3 c = mix(zone, dark, clamp(b*(0.85 + 0.6*streak), 0., 1.));
+  c = mix(c, vec3(0.74, 0.62, 0.44), exp(-la*la/40.)*0.45);                     // ochre equatorial zone
+  c = mix(c, vec3(0.5, 0.48, 0.46), smoothstep(45., 68., abs(la))*0.6);         // the greyer high latitudes
+  c *= 0.93 + 0.14*streak;
   // festoons: blue-grey plumes trailing from the NEB's southern edge
   float fest = smoothstep(0.62, 0.8, noise(vec3(ls*9., la*0.9, 1.)))*exp(-pow((la - 7.)/2., 2.));
-  c = mix(c, vec3(0.35, 0.42, 0.5), fest*0.6);
+  c = mix(c, vec3(0.3, 0.36, 0.44), fest*0.7);
   // white ovals in the southern temperate belts
   float ov = smoothstep(0.83, 0.9, noise(vec3(ls*6., la*0.35, 7.)))*exp(-pow((la + 33.)/3., 2.));
-  c = mix(c, vec3(1.), ov*0.8);
-  // Great Red Spot: an anticyclone twice Earth's width at 22 deg S, drifting slowly against System III
+  c = mix(c, vec3(0.86, 0.85, 0.82), ov*0.85);
+  // Great Red Spot: an anticyclone about 16,000 km wide (wider than Earth) at 22 deg S, drifting slowly against System III; the South Equatorial
+  // Belt bends round it in a pale bay (the Red Spot Hollow)
   float glon = lon + uTime*0.0015 - 1.1;
-  vec2 g = vec2(atan(sin(glon), cos(glon))*cos(lat)/0.19, (la + 22.4)/5.2);
+  vec2 g = vec2(atan(sin(glon), cos(glon))*cos(lat)/0.14, (la + 22.4)/5.);
   float gr = length(g);
   vec2 gs = rot2(3.2/(gr + 0.25) + uTime*0.25)*g;
-  grs = smoothstep(1.05, 0.55, gr);
+  c = mix(c, zone*1.03, smoothstep(1.9, 1.15, length(g*vec2(0.85, 1.)))*0.75);
+  grs = smoothstep(1.05, 0.6, gr);
   float gt = fbm3(vec3(gs*2.2, 3.));
-  c = mix(c, mix(vec3(0.78, 0.36, 0.2), vec3(0.9, 0.55, 0.36), gt), grs*0.92);
-  c = mix(c, vec3(0.98, 0.93, 0.85), exp(-pow((gr - 1.12)/0.1, 2.))*0.5);        // the pale collar around it
+  c = mix(c, mix(vec3(0.74, 0.34, 0.2), vec3(0.8, 0.46, 0.3), gt), grs*0.95);
+  c = mix(c, vec3(0.84, 0.76, 0.66), exp(-pow((gr - 1.12)/0.1, 2.))*0.5);        // the pale collar around it
   // polar cyclones (Juno): clusters of vortices around each pole
   if(abs(la) > 70.){
     vec2 pp = n.xz/max(abs(n.y), 0.2)*3.;
     float v = 0.;
     for(int k=0;k<6;k++){ float a = float(k)*1.047 + (la > 0. ? 0. : 0.5); vec2 cc = k == 5 ? vec2(0.) : 1.1*vec2(cos(a), sin(a)); vec2 dd = pp - cc; float r = length(dd); v += exp(-r*r*5.)*(0.5 + 0.5*sin(atan(dd.y, dd.x)*2. + r*14. - uTime*0.2)); }
-    c = mix(c, vec3(0.5, 0.55, 0.62)*(0.7 + 0.5*v), smoothstep(70., 80., abs(la))*0.8);
+    c = mix(c, vec3(0.38, 0.42, 0.48)*(0.7 + 0.6*v), smoothstep(70., 80., abs(la))*0.8);
   }
   return c;
 }
@@ -70,8 +78,10 @@ void main(){
       vec3 q = m.xyz - p; float tq = dot(q, L); if(tq <= 0.) continue;
       float dq = length(q - L*tq); sh *= smoothstep(m.w*0.8, m.w*1.25, dq);
     }
-    col = base*(pow(dif, 0.9)*sh*1.3 + 0.004);
-    col *= 0.78 + 0.22*pow(mu, 0.35);                                  // limb darkening
+    // the light rises quickly past the line between day and night and stays nearly level across the lit side, darkening towards the edge
+    // (limb darkening), so the belts and zones make the picture rather than the fall-off of the light
+    float lam = (1. - exp(-dif*3.6))/(1. - exp(-3.6))*(0.6 + 0.4*sqrt(mu));
+    col = unTone(base*lam*sh);
     col += vec3(0.55, 0.6, 0.8)*pow(1. - mu, 3.)*dif*0.25;            // high haze
     // ultraviolet-bright aurora ovals (shown as a violet glow on the night side)
     float al = abs(n.y), lon = atan(-n.z, n.x);

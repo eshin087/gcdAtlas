@@ -1,6 +1,7 @@
 
 // ================================================================ render targets
 const DETAIL = [{name:'ultra', w:4}, {name:'fine', w:5}, {name:'normal', w:6.5}, {name:'bold', w:9}];
+if (SET.detailAuto) SET.detail = 1;   // (auto starts on fine; see AUTO_D in the main loop)
 let detailIdx = clamp(SET.detail | 0, 0, DETAIL.length - 1), glowOn = SET.glow, labelsOn = SET.labels;
 let dpr = 1, cellW = 6, cellH = 11, cols = 1, rows = 1, sceneW = 2, sceneH = 2;
 let tanY = Math.tan(cam.fovY/2), tanX = tanY, viewWcss = 1, viewHcss = 1, canvasHcss = 1;
@@ -297,7 +298,7 @@ function render(){
 
 // ================================================================ HUD
 let infoObj = 0, toastTimer = 0, roTimer = 0, hintHidden = false;
-const infoEl = $('.info'), atlasEl = $('#atlas'), settingsEl = $('#settings'), ladderEl = $('#ladder'), controlsEl = $('.controls'), brandEl = $('.brand'), ladChipEl = $('#ladChip'), infoPillEl = $('#infoPill');
+const infoEl = $('.info'), atlasEl = $('#atlas'), settingsEl = $('#settings'), ladderEl = $('#ladder'), controlsEl = $('.controls'), brandEl = $('.brand'), ladChipEl = $('#ladChip'), infoPillEl = $('#infoPill'), shipMenuEl = $('#shipMenu');
 // panels and the ladder sit just below the toolbar, however many rows it wraps onto
 const syncCtl = () => { const b = controlsEl.getBoundingClientRect(); document.documentElement.style.setProperty('--ctl-b', (isCompact() ? 54 : Math.round(b.bottom)) + 'px'); };
 if (typeof ResizeObserver !== 'undefined') new ResizeObserver(syncCtl).observe(controlsEl); syncCtl();
@@ -337,15 +338,17 @@ function syncWhere(){
 // the row above the name: "stop 3 / 31" on a tour; otherwise the kind of object ("gas giant"), shown while the type line is folded away
 // (it used to read "-- / 31" off the tour)
 function syncStop(){
-  const el = $('#stopInfo'), k = tour.on ? TOUR.indexOf(infoObj) : -1;
-  const t = k >= 0 ? 'stop ' + (k + 1) + ' / ' + TOUR.length : tour.on ? '' : (OBJ[infoObj].type || '').split(' · ')[0];
+  const el = $('#stopInfo'), k = tour.on ? TOUR.indexOf(infoObj) : HT.on ? HT.i : -1;
+  const t = k >= 0 ? 'stop ' + (k + 1) + ' / ' + (tour.on ? TOUR.length : HT.stops.length) : tour.on ? '' : (OBJ[infoObj].type || '').split(' · ')[0];
   if (el.textContent !== t) el.textContent = t;
   el.classList.toggle('kind', k < 0);
 }
 // the green button beside the name says where it goes: the next stop on a tour ("start again" on the last one); once you have left
 // a tour, back to the stop you left it at; paused on that stop (a drag, the pause button), on to the next stop. Hidden when no tour is involved.
 function goNextState(){
-  if (cmp || SKYV.on || TOUR.length < 2) return null;
+  if (cmp || SKYV.on) return null;
+  if (HT.on && !tour.on){ const o = htNextStop(); return o ? { kind:'halo', o } : null; }   // (the Halo tour: on to its next stop now)
+  if (TOUR.length < 2) return null;
   // (on the last stop of the random tour it deals 12 new places, starting from there: 'deal', o is that last stop)
   const nextOf = i => { const k = TOUR.indexOf(i); return k < TOUR.length - 1 ? { kind:'next', o:OBJ[TOUR[k + 1]] } : tourDeals() ? { kind:'deal', o:OBJ[i] } : { kind:'again', o:OBJ[TOUR[0]] }; };
   if (tour.on) return TOUR.includes(tour.obj) ? nextOf(tour.obj) : null;
@@ -360,22 +363,23 @@ function syncGoNext(){
   if (txt === goNextShown) return; goNextShown = txt;
   b.hidden = !s; if (!s) return;
   $('#goNextTxt').textContent = txt; b.classList.toggle('back', s.kind === 'back');
-  b.title = s.kind === 'again' ? 'Start the tour again from ' + name + ' (])' : s.kind === 'deal' ? RANDOM_N + ' new places picked at random, starting from here (])' : s.kind === 'back' ? 'Back to the tour, at ' + s.o.name : 'Fly on to the next stop: ' + s.o.name + ' (])';
+  b.title = s.kind === 'halo' ? 'The Halo flies on to its next stop now: ' + s.o.name : s.kind === 'again' ? 'Start the tour again from ' + name + ' (])' : s.kind === 'deal' ? RANDOM_N + ' new places picked at random, starting from here (])' : s.kind === 'back' ? 'Back to the tour, at ' + s.o.name : 'Fly on to the next stop: ' + s.o.name + ' (])';
 }
 function goNextClick(){
   const s = goNextState(); if (!s) return;
   hideHint(); if (cmp) endCompare(false);
   if (s.kind === 'back'){ setTour(true); return; }   // (picks the tour up at the stop you left)
+  if (s.kind === 'halo'){ haloTourSkip(); return; }
   tween = null; if (flight) finishFlightHere();
   if (!tour.on){ tour.on = true; shipCam.on = false; }
   if (s.kind === 'deal'){ tour.obj = s.o.index; tourGo(tourNext(1)); } else tourGo(s.o.index);
   updateModeUI();
 }
 function updateModeUI(){
-  const m = cmp ? 'size compare' : tour.on ? tourName() : (orbit.lock >= 0 || flight ? 'locked on' : 'free camera'), me = $('#mode'), mt = $('#modeTour');
-  // on a tour the name is a button that opens the list of tours ("GRAND TOUR ▾")
-  if (mt.hidden === tour.on){ mt.hidden = !tour.on; me.hidden = tour.on; }
-  if (tour.on){ if ($('#modeTourName').textContent !== m) $('#modeTourName').textContent = m; }
+  const ht = HT.on && !cmp && !tour.on, m = cmp ? 'size compare' : tour.on ? tourName() : ht ? 'halo tour · ' + htTour().name : (orbit.lock >= 0 || flight ? 'locked on' : 'free camera'), me = $('#mode'), mt = $('#modeTour');
+  // on a tour the name is a button that opens the list of tours ("GRAND TOUR ▾"; on the Halo tour "HALO TOUR · GRAND TOUR ▾")
+  const tb = tour.on || ht; if (mt.hidden === tb){ mt.hidden = !tb; me.hidden = tb; }
+  if (tb){ if ($('#modeTourName').textContent !== m) $('#modeTourName').textContent = m; }
   else if (me.textContent !== m){ me.textContent = m; me.className = 'mode ' + (m === 'free camera' ? 'm-free' : 'm-lock'); }
   mt.setAttribute('aria-expanded', String(!$('#tours').hidden));
   syncStop(); syncGoNext();
@@ -387,15 +391,23 @@ function updateModeUI(){
   }
   $('#btnPlay').lastChild.textContent = playing ? 'pause' : back ? 'back to ' + back.name : 'play';
   syncWhere();
-  $('#btnShip').setAttribute('aria-pressed', String(!!SET.haloMark));
-  const riding = shipCam.on || (shipCam.pending && !!flight), rb = $('#btnRide'); rb.classList.toggle('following', riding); rb.textContent = riding ? 'riding' : 'ride';
-  rb.title = riding ? 'Stop riding along (the camera stays with the ship)' : 'Ride along with the Halo: chase view behind the ship, C for the cockpit';
+  const riding = shipCam.on || (shipCam.pending && !!flight), rb = $('#btnRide'), sb = $('#btnShip'), cpt = isCompact(); rb.classList.toggle('following', riding); rb.setAttribute('aria-pressed', String(riding));   // (lit while riding; its word stays 'ride': 'riding' was wider and pushed ? onto a row of its own at 1280 px)
+  // (a desk's ship button toggles the marker; a phone's opens the Halo's menu, and says "riding" while you ride)
+  if (cpt){ sb.removeAttribute('aria-pressed'); sb.setAttribute('aria-haspopup', 'menu'); sb.setAttribute('aria-expanded', String(!shipMenuEl.hidden)); sb.title = 'The Halo: ride along, cockpit, marker'; }
+  else { sb.setAttribute('aria-pressed', String(!!SET.haloMark)); sb.removeAttribute('aria-haspopup'); sb.removeAttribute('aria-expanded'); sb.title = 'Show where the Halo is (a blue marker)'; }
+  sb.classList.toggle('following', cpt && riding); const st = cpt && riding ? 'riding' : 'ship'; if (sb.textContent !== st) sb.textContent = st;
+  if (!shipMenuEl.hidden) syncShipMenu();
+  rb.title = riding ? 'Stop riding along (the camera stays with the ship)' : 'Ride along with the Halo, the place it visits in view: K holds the camera still, C for the cockpit';
+  // (the Halo tour's button, lit while it plays; the camera switch on the lower row while riding along outside the ship; the note in the tours list)
+  const hb = $('#btnHaloTour'); hb.setAttribute('aria-pressed', String(HT.on)); hb.textContent = HT.on ? 'halo tour ■' : 'halo tour';
+  hb.title = HT.on ? 'End the Halo tour (it roams on its own again; you keep riding)' : 'The Halo tour: ride along while the Halo flies the stops of a tour, with cinematic camera moves (pick the tour in tours)';
+  $('#rideCamSeg').hidden = !(riding && shipCam.mode === 'chase'); $('#htNote').hidden = !HT.on;
   const onShip = typeof ship !== 'undefined' && infoObj === ship.index;
   $('#btnRideI').hidden = !onShip; $('#btnRideI').textContent = riding ? 'stop riding' : 'ride along';
-  $('#btnCamI').hidden = !riding; $('#btnCamI').textContent = shipCam.mode === 'chase' ? 'cockpit view' : 'chase view';
+  $('#btnCamI').hidden = !riding; $('#btnCamI').textContent = shipCam.mode === 'chase' ? 'cockpit view' : 'outside view';
   $('#btnFree').setAttribute('aria-pressed', String(!tour.on && orbit.lock < 0 && !flight));
   $('#btnTour').setAttribute('aria-pressed', String(tour.on)); $('#btnTour').textContent = tour.on ? 'pause tour' : 'resume ' + tourName();
-  if (typeof tourRows !== 'undefined') tourRows.forEach(r => r.b.setAttribute('aria-current', String(tour.on && r.id === TOUR_ID)));
+  if (typeof tourRows !== 'undefined') tourRows.forEach(r => r.b.setAttribute('aria-current', String(HT.on ? r.id === HT.tourId : tour.on && r.id === TOUR_ID)));
 }
 function goTo(i){
   hideHint(); if (OBJ[i].marker) return;
@@ -499,6 +511,12 @@ function updateHUD(dt){
     } else if (show.on && OBJ[show.obj] && OBJ[show.obj].views.length > 1){
       const obj = OBJ[show.obj], n = obj.views.length, sw = show.phase === 'swing', cur = sw && show.to != null ? show.to : show.view; f = sw ? 0 : clamp(show.t/holdOf(obj.views[show.view]), 0, 1);
       p = `angle ${cur + 1}/${n}  ${bar(f)}`; ang = true;
+    } else if (shipCam.on && shipCam.mode === 'chase' && typeof ship !== 'undefined'){
+      // (riding along: on the Halo tour its stop and how long it stays, as a bar like the angles'; otherwise which camera, and the key)
+      const S = S_, st = S.stay;
+      if (HT.on && (S.phase === 'light' || S.phase === 'fold')) p = (S.phase === 'light' ? 'light speed ' : 'folding space ') + '>'.repeat(1 + Math.floor(performance.now()/250) % 3);
+      else if (HT.on && st){ f = clamp(st.t/st.dur, 0, 1); p = `${S.target.label || S.target.name} · ${HT.i + 1}/${HT.stops.length}  ${bar(f)}`; }
+      else p = (SET.rideCam === 'still' ? 'still camera' : 'moving camera') + (isCompact() ? ' · drag to take over' : ' · K switches · drag to take over');
     } else if (orbit.lock >= 0 && !flight && isCompact() && !isPlaying()){ p = 'drag to turn · pinch to zoom · double-tap to centre'; tip = true; }   // (paused on a phone: the gestures)
     else if (orbit.lock >= 0 || flight) p = 'drag to orbit · scroll out to the edge of the universe';
     else { const b = backTarget(); p = 'W A S D to fly · ' + (b ? 'space goes back to ' + b.name : 'tap an object to lock on'); }
@@ -729,7 +747,7 @@ function updateBackPill(dt){
 }
 backPillEl.addEventListener('click', () => { backPillEl.hidden = true; goBack(); });
 // ride along with the Halo (chase camera); the flash when it folds space with you aboard
-const followShip = () => { if (typeof ship === 'undefined') return; hideHint(); if (shipCam.on) return; startShipCam('chase'); toast('riding along with the Halo · chase view (C switches to the cockpit)'); };
+const followShip = () => { if (typeof ship === 'undefined') return; hideHint(); if (shipCam.on) return; startShipCam('chase'); toast(isCompact() ? 'riding along with the Halo · the place it visits in view' : 'riding along with the Halo · the place it visits in view (K holds the camera still, C for the cockpit)'); };
 const foldEl = $('#foldFlash');
 // (kinds: 'ls' the quicker, whiter flash of a jump to light speed; 'blink' a soft one; 'jump' / 'arrive' the fold's split second of white
 // over the whole screen as it jumps, and the softer one as its heart arrives)
@@ -740,14 +758,14 @@ shipArrowEl.addEventListener('click', followShip);
 
 // ---------------------------------------------------------------- settings
 function syncSettingsUI(){
-  const v = { detail:String(detailIdx), travel:SET.travel, time:String(timeScale), dwell:SET.dwell, musicStyle:SET.musicStyle, saverIdle:String(SET.saverIdle), fadeUI:SET.fadeUI };
+  const v = { detail:SET.detailAuto ? 'auto' : String(detailIdx), travel:SET.travel, time:String(timeScale), dwell:SET.dwell, musicStyle:SET.musicStyle, saverIdle:String(SET.saverIdle), fadeUI:SET.fadeUI, rideCam:SET.rideCam };
   document.querySelectorAll('.seg[data-key]').forEach(seg => { const k = seg.dataset.key; seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.v === v[k]))); });
   settingsEl.querySelectorAll('.tog button').forEach(b => b.setAttribute('aria-pressed', String(!!SET[b.dataset.key])));
   $('#volume').value = SET.volume; $('#moodNote').textContent = 'plays ' + music.moodText(SET.musicStyle);
   syncSoundBtn(true);
   $('#textSize').value = SET.textSize; $('#tsTxt').textContent = Math.round(SET.textSize*100) + '%';
   $('#menuSize').value = SET.menuSize; $('#msTxt').textContent = Math.round(SET.menuSize*100) + '%';
-  $('#detailInfo').textContent = `${cols} x ${rows} characters`;
+  $('#detailInfo').textContent = (SET.detailAuto ? DETAIL[detailIdx].name + ' now · ' : '') + `${cols} x ${rows} characters`;
 }
 // the sound button shows whether music really plays: a soft red "sound off" (on phones "muted") while it is off,
 // and also while the browser still holds it back before the first click, although the setting is on
@@ -768,7 +786,9 @@ function syncSoundBtn(force){
 function toggleSound(){ if (soundSilentAtInput) setOpt('sound', true); else setOpt('sound', !SET.sound); soundSilentAtInput = false; }
 function setOpt(key, v, quiet){
   switch (key){
-    case 'detail': detailIdx = SET.detail = clamp(v | 0, 0, DETAIL.length - 1); adaptCount = 0; resize(); if (!quiet) toast(`detail: ${DETAIL[detailIdx].name} (${cols} x ${rows} characters)`); break;
+    case 'detail':
+      if (v === 'auto'){ SET.detailAuto = true; SET.detail = detailIdx = 1; Object.assign(AUTO_D, { up:0, slow:0, tries:0, off:autoDetailOff() }); adaptCount = 0; resize(); if (!quiet) toast('detail: auto · fine, and ultra when the screen is sharp and there is time to spare'); break; }
+      SET.detailAuto = false; detailIdx = SET.detail = clamp(v | 0, 0, DETAIL.length - 1); adaptCount = 0; resize(); if (!quiet) toast(`detail: ${DETAIL[detailIdx].name} (${cols} x ${rows} characters)`); break;
     case 'travel': SET.travel = v; retimeFlight(); if (!quiet) toast('travel: ' + v + (v === 'warp' ? ' · near-instant' : v === 'cinematic' ? ' · slow and scenic' : '')); break;
     case 'time': timeScale = +v; if (!quiet) toast(timeScale ? 'time ' + timeScale + 'x' : 'time paused'); break;
     case 'glow': SET.glow = glowOn = !!v; break;
@@ -782,6 +802,7 @@ function setOpt(key, v, quiet){
     case 'dwell': SET.dwell = v; if (!quiet) toast('tour stops: ' + v + (v === 'short' ? ' · quicker tour' : v === 'long' ? ' · lingers on each view' : '')); break;
     case 'textSize': SET.textSize = clamp(+v, 0.85, 1.6); applyTextSize(); break;
     case 'menuSize': SET.menuSize = clamp(+v, 0.9, 1.6); applyTextSize(); break;
+    case 'rideCam': SET.rideCam = v === 'still' ? 'still' : 'moving'; if (!quiet) toast(SET.rideCam === 'still' ? 'still camera · it holds one angle over the Halo\'s shoulder, the place it visits in view (K)' : 'moving camera · it glides round the Halo from angle to angle (K)'); updateModeUI(); break;
     case 'fadeUI': SET.fadeUI = v; if (!quiet) toast(v === 'off' ? 'the interface stays put' : 'the interface fades ' + (v === 'quick' ? 'after a few seconds (sooner on tours)' : 'after a while') + ' · touch or move to bring it back'); break;
   }
   saveSet(); syncSettingsUI();
@@ -1181,6 +1202,7 @@ function closeOpen(){
   if (!settingsEl.hidden || !$('#tours').hidden || !$('#timem').hidden){ togglePanel(null, false); return true; }
   if (!atlasEl.hidden){ if (!trayEl.hidden) setBadgeTray(false, true); else closeAtlas(); return true; }   // (the badge tray first, then the atlas)
   if (b.contains('lad-open')){ setLadOpen(false); return true; }
+  if (!shipMenuEl.hidden){ setShipMenu(false); return true; }
   return false;
 }
 for (const el of [searchEl, atlasSearch]){ el.addEventListener('input', onSearchInput); el.addEventListener('keydown', onSearchKey); }
@@ -1196,8 +1218,32 @@ $('#goNext').addEventListener('click', goNextClick);
 $('#modeTour').addEventListener('click', () => { hideHint(); togglePanel('tours', $('#tours').hidden); });
 $('#btnTour').addEventListener('click', () => { hideHint(); if (tour.on) stopTour(false); else setTour(true); });   // (pausing here remembers the stop, like the pause button: the green button then goes on from it)
 $('#btnFree').addEventListener('click', () => { hideHint(); unlock(); toast(isCompact() ? 'free camera · drag to look around · ⌂ for home' : 'free camera · W A S D to fly, drag to look around · H for home'); });
-$('#btnShip').addEventListener('click', () => setOpt('haloMark', !SET.haloMark));
-const toggleRide = () => { if (shipCam.on || (shipCam.pending && flight)){ if (flight) finishFlightHere(); shipCam.pending = false; stopShipCam(); toast('stopped riding · the camera stays with the Halo'); updateModeUI(); } else followShip(); };
+$('#btnShip').addEventListener('click', () => { if (isCompact()) setShipMenu(shipMenuEl.hidden); else setOpt('haloMark', !SET.haloMark); });
+const toggleRide = () => { if (shipCam.on || (shipCam.pending && flight)){ if (flight) finishFlightHere(); shipCam.pending = false; stopShipCam(); haloTourEnd(true); toast('stopped riding · the camera stays with the Halo'); updateModeUI(); } else followShip(); };
+// phones: the dock's ship button opens a small menu over the dock (ride along, cockpit, the marker; while riding: chase, cockpit, stop).
+// Any choice closes it, and so does a tap anywhere else, Esc, or the layout changing to a desk's.
+const isRiding = () => shipCam.on || (shipCam.pending && !!flight);
+function setShipMenu(on){ shipMenuEl.hidden = !on; $('#btnShip').setAttribute('aria-expanded', String(on)); if (on){ syncShipMenu(); wakeUI(); } }
+function syncShipMenu(){
+  const r = isRiding();
+  $('#smChase').firstChild.textContent = r ? 'outside' : 'ride along';
+  $('#smChase').setAttribute('aria-checked', String(r && shipCam.mode === 'chase'));
+  $('#smCock').setAttribute('aria-checked', String(r && shipCam.mode === 'cockpit'));
+  $('#smStop').hidden = !r; $('#smMark').hidden = r;
+  $('#smChase').lastChild.textContent = r ? 'place in view' : 'and see where';
+  $('#smTour').setAttribute('aria-checked', String(HT.on)); $('#smTour').lastChild.textContent = HT.on ? 'end it' : 'it flies a tour';
+  $('#smStill').hidden = !(r && shipCam.mode === 'chase'); $('#smStill').setAttribute('aria-checked', String(SET.rideCam === 'still')); $('#smStill').lastChild.textContent = SET.rideCam === 'still' ? 'still' : 'moving';
+  $('#smMark').setAttribute('aria-checked', String(!!SET.haloMark)); $('#smMark').lastChild.textContent = SET.haloMark ? 'hide it' : 'show it';
+}
+const rideAs = m => { setShipMenu(false); if (typeof ship === 'undefined') return; hideHint(); if (isRiding()) setShipCamMode(m); else { startShipCam(m); toast(m === 'cockpit' ? 'riding along · on the bridge of the Halo' : 'riding along with the Halo · tap ship for the cockpit'); } };
+$('#smChase').addEventListener('click', () => rideAs('chase'));
+$('#smCock').addEventListener('click', () => rideAs('cockpit'));
+$('#smStop').addEventListener('click', () => { setShipMenu(false); if (isRiding()) toggleRide(); });
+$('#smMark').addEventListener('click', () => { setShipMenu(false); setOpt('haloMark', !SET.haloMark); });
+$('#smTour').addEventListener('click', () => { setShipMenu(false); hideHint(); if (HT.on) haloTourEnd(); else haloTourStart(TOUR_ID); });
+$('#smStill').addEventListener('click', () => { setShipMenu(false); setOpt('rideCam', SET.rideCam === 'still' ? 'moving' : 'still'); });
+addEventListener('pointerdown', e => { if (!shipMenuEl.hidden && !(e.target.closest && e.target.closest('#shipMenu, #btnShip'))) setShipMenu(false); }, { capture:true });
+COMPACT_MQ.addEventListener('change', () => { if (!isCompact()) setShipMenu(false); });
 $('#btnRide').addEventListener('click', toggleRide);
 $('#btnRideI').addEventListener('click', toggleRide);
 $('#btnCamI').addEventListener('click', () => setShipCamMode(shipCam.mode === 'chase' ? 'cockpit' : 'chase'));
@@ -1252,7 +1298,23 @@ $('#btnSound').addEventListener('click', toggleSound);
 $('#btnHelp').addEventListener('click', () => toggleHelp(true));
 $('#helpClose').addEventListener('click', () => toggleHelp(false));
 $('#help').addEventListener('click', e => { if (e.target.id === 'help') toggleHelp(false); });
-function toggleHelp(on){ $('#help').hidden = !on; if (on) $('#helpClose').focus(); else canvas.focus({preventScroll:true}); }
+function toggleHelp(on){ $('#help').hidden = !on; if (on){ $('#notes').hidden = true; $('#helpClose').focus(); } else canvas.focus({preventScroll:true}); }
+// what's new: the patch notes (docs/PATCHNOTES.md, put in the page by build.mjs). The button shows a dot until you have seen the newest
+// version's notes; someone here for the first time has nothing to catch up on, so their first visit counts as seen.
+const NOTES_V = ($('#notesList').querySelector('details') || { dataset:{} }).dataset.v || '';
+const notesSeen = () => { try { return localStorage.getItem('gcdatlas.notesSeen'); } catch (e) { return NOTES_V; } };
+const notesDot = on => { for (const b of [$('#btnNotes'), $('#settingsNotes')]) b.classList.toggle('has-new', on); document.body.classList.toggle('notes-unseen', on); };
+const markNotesSeen = () => { try { localStorage.setItem('gcdatlas.notesSeen', NOTES_V); } catch (e) {} notesDot(false); };
+try { if (!localStorage.getItem('gcdatlas.settings') && !notesSeen()) markNotesSeen(); } catch (e) {}
+notesDot(!!NOTES_V && notesSeen() !== NOTES_V);
+function toggleNotes(on){ $('#notes').hidden = !on; if (on){ $('#help').hidden = true; markNotesSeen(); $('#notesClose').focus(); } else canvas.focus({preventScroll:true}); }
+$('#btnNotes').addEventListener('click', () => toggleNotes(true));
+$('#helpNotes').addEventListener('click', () => toggleNotes(true));
+$('#settingsNotes').addEventListener('click', () => { togglePanel('settings', false); toggleNotes(true); });
+$('#notesClose').addEventListener('click', () => toggleNotes(false));
+$('#notes').addEventListener('click', e => { if (e.target.id === 'notes') toggleNotes(false); });
+const modalOpen = () => !$('#help').hidden || !$('#notes').hidden;
+const closeModals = () => { toggleHelp(false); toggleNotes(false); };
 // browsers that block sound on load accept a click, tap or key press as permission (pointerup and touchend count on phones)
 // (first note whether the music was silent, before this very press lets it start: see toggleSound)
 for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => { soundSilentAtInput = !(SET.sound && music.audible); }, { capture:true, passive:true });
@@ -1260,6 +1322,26 @@ for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown', 'w
 
 // ================================================================ main loop
 let tmT = 0, last = performance.now(), ema = 16, adaptCount = 0, raised = 0, calmT = 0, runTime = 0, resizePending = false, refocusT = 0, lodT = 0;
+// Auto detail (the default since 0.9.4): fine, stepping up to ultra where ultra's characters are still at least 6 pixels wide (a sharp screen;
+// on an ordinary one they would be 4 x 7 pixels, too small to read as letters) once frames have had room to spare for a few seconds, and back
+// to fine after 3 slow seconds. Ultra draws about 1.6 times the characters and ray-marched pixels of fine. After two steps back it stops
+// trying, and remembers that on this device for 14 days (gcdatlas.autoDetail).
+const autoDetailOff = () => { try { const a = JSON.parse(localStorage.getItem('gcdatlas.autoDetail') || 'null'); return !!a && Date.now() - a.fine < 14*864e5; } catch (e) { return false; } };
+const AUTO_D = { up:0, slow:0, tries:0, off:autoDetailOff() };
+const ultraSharp = () => Math.round(DETAIL[0].w*dpr) >= 6;
+function autoDetail(){
+  if (!SET.detailAuto || AUTO_D.off) return;
+  if (detailIdx === 1 && ultraSharp()){
+    AUTO_D.up = runTime > 3 && ema < 19 && LODK >= 1 ? AUTO_D.up + 1 : 0;
+    if (AUTO_D.up >= 4){ AUTO_D.up = 0; AUTO_D.tries++; detailIdx = 0; runTime = 0; ema = 16; calmT = 0; resize(); syncSettingsUI(); }
+  } else if (detailIdx === 0){
+    AUTO_D.slow = ema > 24 ? AUTO_D.slow + 1 : 0;
+    if (AUTO_D.slow >= 3){
+      AUTO_D.slow = 0; detailIdx = 1; runTime = 0; ema = 20; calmT = 0; resize(); syncSettingsUI();
+      if (AUTO_D.tries >= 2){ AUTO_D.off = true; try { localStorage.setItem('gcdatlas.autoDetail', JSON.stringify({ fine:Date.now() })); } catch (e) {} }
+    }
+  }
+}
 addEventListener('resize', () => { if (resizePending) return; resizePending = true; requestAnimationFrame(() => { resizePending = false; resize(); ladTitles(); }); });
 // when zooming out from inside the galaxy, rise gently above the disk so the Milky Way unfolds instead of staying edge-on
 function riseAboveDisk(dt){
@@ -1313,6 +1395,7 @@ const tourRows = TOURS.map(t => {
   $('#tourList').appendChild(b); return { b, id:t.id };
 }).filter(Boolean);
 function startTour(id){
+  if (HT.on){ hideHint(); togglePanel('tours', false); haloTourStart(id); return; }   // (the Halo tour flies the tour picked)
   hideHint(); if (cmp) endCompare(false);
   tween = null; if (flight) finishFlightHere();
   useTour(id);   // (after the flight stops: the random tour deals from where the camera is)
@@ -1532,6 +1615,7 @@ function frame(now){
   if (!window.__noAdapt && lodT > 1 && document.visibilityState === 'visible'){
     lodT = 0;
     if (ema > 38) LODK = Math.max(0.5, LODK - 0.1); else if (ema < 24) LODK = Math.min(1, LODK + 0.05);
+    autoDetail();
     if (runTime > 10 && ema > 48 && LODK <= 0.5 && adaptCount < 2 && detailIdx < DETAIL.length - 1){
       adaptCount++; runTime = 0; ema = 20; calmT = 0; detailIdx++; resize(); toast('detail lowered to ' + DETAIL[detailIdx].name + ' for smoother motion');
     }
