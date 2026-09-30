@@ -1079,7 +1079,7 @@ function thrustDraw(){
     // the wake's length (ship radii): 0.1 to 0.2 of the ship's radius, never under Lc characters on screen; a ring's radius, never under
     // about two thirds of a character, so far away each ring is a pulse of light sliding aft
     const Lc = ls ? 6 : 2.4 + 1.4*thr, L0 = ls ? 0.5 : 0.09 + 0.1*thr, Ls = Math.min(Math.max(L0, Lc*cw/fs/s_), 5);
-    const r0 = Math.max(0.03, 0.7*cw/s_), rc = r0*s_/cw, n = rc < 1.1 ? 6 : rc < 2.5 ? 10 : 16;
+    const r0 = Math.max(0.021, 0.7*cw/s_), rc = r0*s_/cw, n = rc < 1.1 ? 6 : rc < 2.5 ? 10 : 16;
     const B = (0.8 + 0.7*thr)*vis*(ls ? 1.25 : 1), bx = tl[0]*0.35*Ls, bz = tl[2]*0.35*Ls;
     // (a ring every P s, each living LIFE s: about three at once cruising, a stream of them at light speed)
     const P = reduceMotion ? 0.7 : ls ? 0.1 : 0.42/(0.55 + 0.6*Math.min(thr, 1)), LIFE = reduceMotion ? 1.4 : ls ? 0.5 : 3*P + 0.1;
@@ -1087,7 +1087,7 @@ function thrustDraw(){
     for (let k=0;k<m;k++){
       const age = (fr + k)*P, u = age/LIFE; if (u >= 1) continue;
       // (pushed off fast, then drifting; growing a little as it leaves, then shrinking away)
-      const s = 1 - Math.pow(1 - u, 1.7), rr = r0*(1 + 0.35*smooth(0, 0.15, u) - 0.8*u), id = id0 - k;
+      const s = 1 - Math.pow(1 - u, 1.7), rr = r0*(1 + 0.2*smooth(0, 0.15, u) - 0.75*u), id = id0 - k;
       const b = B*Math.pow(1 - u, 1.3)*smooth(0, 0.08, u), ph = foldHash(id, e*7 + 3)*6.2832 + (reduceMotion ? 0 : GT*(4 + 3*thr))*(e ? 1 : -1);
       if (b < 0.01) continue;
       if (u < 0.3) mix3(ECOL, WHITE, ICE_, u/0.3); else mix3(ECOL, ICE_, DEEP_, (u - 0.3)/0.7);

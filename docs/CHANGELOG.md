@@ -4,6 +4,39 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.9.7 · 2026-09-29
+
+**The info panel** (owner, 2026-09-29)
+- The grey angle line ("‹ angle 1/4 [#####-----] ›", "en route", the Halo tour's stop) now sits right under the name, not at the bottom of the info panel, on a desk and on the phone card.
+- The "halo tour" button is gone. Tours is split in two: "▸ tours" opens the list, and a switch beside it, "☾ halo ○──", in Halo blue, flies the tour you picked with the Halo (lit while on). While it is on, the list of tours says "flown by the Halo" and picking a tour starts it with the Halo. On a phone the ship menu still has the Halo tour.
+- To make room on the desk's top row, ship and ride moved to the lower row beside play. The ride camera switch joins them while riding.
+- On the Halo tour the info panel shows the place, not the ship: its name, fact and numbers, with one blue line over the name saying what the ship is doing ("with the Halo · a wide pass round Saturn") or where it is going ("→ Jupiter · light speed"). It moves on to the next stop as soon as the ship sets course, and back to the Halo when the tour ends. The ruler, share, compare size and the seen marks follow the place; flyby is hidden.
+- On a phone the Halo's "out of light speed" toast no longer sits on the Halo tour's caption.
+
+**Pip is out for most of every stay** (owner: it rarely came out; "make the viewer love Pip")
+- Pip comes out a few seconds after the Halo arrives somewhere and stays out until the stay is nearly over; it flies home as embers before the ship jumps, and the jump waits for it.
+- Between things to do it flies alongside the bow, looking round. Its bits: peekaboo from the right edge of your view, riding along beside you (a close-up of its face, glancing at the place and back at you), sitting on the bow in the wind, drawing a pink heart in front of you, chasing a spark that drifts off the ship's heart and putting it back, a happy twirl, and its four old outings (a hull check, the engines, photos and a wave, play). Never the same one twice running.
+- It helps with every job: it gathers the scan's readings (motes of light rising to it from the body), braces at the bow scoop through a skim, and becomes the fold cannon (below). Its show (the old outing) is still a job now and then, with the cameras turned to it.
+- Pip is a third bigger (0.08 of the ship's radius, about 200 m across), so it shows beside the ship.
+- The ride camera now and then gives Pip a close-up for 8 to 12 s, the ship and the place still in view. Its lines show in the readout.
+
+**The weapons test: Pip becomes the fold cannon** (owner: the ring gun "spawns meh and unnatural"; picked from three with options)
+- Pip flies to the tip of the needle, settles there facing ahead and winks. Its shell breaks into cells that stream along the needle and lock into a long barrel pivoted on the tip, its two eyes glowing at the muzzle. Light runs from the heart down the hull into it.
+- A volley of three plasma bolts (a bright head and a short streak, a flash, sparks and a glowing crater each), then a charged finale: a ball of folded space, dark in a bright rim with starlight bent round it, that blooms on impact into two shock rings across the surface.
+- The barrel vents steam, glows hot and cools, and its cells stream back into Pip, who does a happy twirl.
+- The craters cool from white to orange to red and dark, and are gone within 7 s. By a black hole the shots fall in: they redden, stretch and fade at the shadow's edge, and a faint ring of light runs out from it (the owner's 2026-09-27 request). Nothing is ever drawn inside the shadow.
+- Replaces the 0.9.4 ring gun and its three shots (fold lance, singularity round, time echo).
+
+**The engines** (owner: the trail "looks like some kind of water")
+- Each engine now has a short white-blue core and small rings of bent space that pulse out of its nozzle and slide aft, shrinking and fading: the fold drive nudging space. About a tenth of the ship long (never under a few characters on screen, so a far ship still shows it is moving); quicker and further at speed, a stream of rings at light speed.
+
+**The lab** (`/lab`)
+- New buttons for each of Pip's bits, an engines camera and a Pip camera (the ride camera's close-up).
+
+**Checked**
+- Motion test: Pip is out for most of a stay at Mars (167 of 176 s on the test's route), in the picture, doing several bits with several faces, never inside the hull, below the surface or more than 3.2 ship radii out, home as embers before the jump; called home early it is back within 1.7 s and sad; the weapons test turns Pip into the barrel, fires 3 bolts and a ball, leaves 4 craters on the Moon and nothing after; at Sgr A* the shots fall in and nothing is drawn in its shadow. The ride camera's close-up keeps the ship and the place in view.
+- Smoke test: the halo switch starts and ends the Halo tour, sits flush with tours, the note shows, the top row is one line at 1280 px, and the Halo tour's panel shows the place. Phone test: the angle line sits under the name, and the card shows the place on the Halo tour.
+
 ## 0.9.6 · 2026-09-29
 
 Built on the MacBook, on top of 0.9.4 (see `docs/SYNC.md`). Numbered 0.9.6 because 0.9.5 (SpaceX launches) was already open.

@@ -368,7 +368,9 @@ PIPA.photo = (P, k3) => {
   snap(K);
   if (two){ mv(P, 1.2, { at:(u, g) => V.lerp(K, K2, ease(sOf(u, g))), look:'ship', thr:0.4, say:'Pip moves for another photo' }); snap(K2); }
   fly(P, { sp:near ? 0.32 : 0.95, thr:0.7, say:'Pip comes back to wave' });
-  const w = mv(P, 2.2*k3 + 0.2, { prep:g => { g.W = pipWaveSpot(near, sd); }, at:(u, g) => g.W, look:'cam', wave:true, face:'happy', thr:0.2, say:() => camNear() ? 'Pip waves at you' : 'Pip waves at the bridge' });
+  // (in front of the camera, riding along with it as it moves (the right on a desk); by the bridge when no one rides along)
+  const ws = !isCompact() ? 1 : sd, wat = (u, g) => camNear() && V.len(cam.rel) < ship.rad*6 ? pipCamSpot(near ? 0.9 : 1.05, 0.38*ws, isCompact() ? 0.15 : -0.1) : g.W;
+  const w = mv(P, 2.2*k3 + 0.2, { prep:g => { g.W = pipWaveSpot(near, sd); }, at:wat, look:'cam', wave:true, face:'happy', thr:0.2, say:() => camNear() ? 'Pip waves at you' : 'Pip waves at the bridge' });
   w.W = pipWaveSpot(near, sd);
 };
 // -- play: loops round the needle, races along one side with a barrel roll, rests on the hull, in an order of its own (near a black hole or a
@@ -488,10 +490,11 @@ PIPB.peek = P => {
 PIPB.buddy = P => {
   // (on a desk the right side: the info panel covers the left)
   const r = P.r, sd = !isCompact() || r() < 0.5 ? 1 : -1, D = 0.85 + 0.3*r(), x = 0.5*sd, y = isCompact() ? 0.05 : -0.32, T = 6 + 3*r(), ph = r()*5;
-  const lk = t => { const c = (t + ph) % 6.5; return c < 1.6 ? 0 : c < 3.4 ? 1 : c < 4.6 ? 2 : 3; };
+  // (mostly at you, with quick glances at the place, the ship and ahead: its eyes dart there and its body barely turns)
+  const lk = t => { const c = (t + ph) % 7; return c < 2.6 ? 0 : c < 3.5 ? 1 : c < 5.4 ? 0 : c < 6.2 ? 2 : 3; };
   const at = (u, g) => { const t = u - g.t0; return V.add(pipCamSpot(D, x, y), [0.006*Math.sin(t*1.3), 0.004*Math.sin(t*0.9), 0.006*Math.sin(t*1.1 + 1)]); };
   fly(P, { sp:0.9, thr:0.8, say:() => camNear() ? 'Pip flies over to you' : 'Pip flies alongside the Halo' });
-  mv(P, T, { at, bodyT:0.3, thr:0.3, look:(u, g) => ['cam', 'tg', 'ship', { dir:[-0.15, 1, 0] }][lk(u - g.t0)], face:(u, g) => lk(u - g.t0) === 0 ? 'happy' : 'curious',
+  mv(P, T, { at, bodyT:1.1, thr:0.3, look:(u, g) => ['cam', 'tg', 'ship', { dir:[-0.15, 1, 0] }][lk(u - g.t0)], face:(u, g) => { const c = (u - g.t0 + ph) % 7; return c > 1.2 && c < 2.2 ? 'happy' : 'curious'; },
     say:(u, g) => lk(u - g.t0) === 1 ? `Pip rides along beside you, looking at ${P.nm}` : 'Pip rides along beside you' });
   mv(P, 1.1, { at, look:'cam', face:'happy', wink:(u, g) => u - g.t0 > 0.2 && u - g.t0 < 0.75 ? 1 : 0, thr:0.3, say:'Pip winks at you', fl:(u, g) => ({ hop:0.3*Math.sin(Math.PI*clamp((u - g.t0)/0.5, 0, 1))**2 }) });
 };
@@ -521,13 +524,14 @@ PIPB.bow = P => {
 // one side, then winks. The heart stays for a moment and fades (pipHeartFx)
 const heartXY = t => { const a = 2*Math.PI*t, s = Math.sin(a); return [16*s*s*s/17, (13*Math.cos(a) - 5*Math.cos(2*a) - 2*Math.cos(3*a) - Math.cos(4*a))/17]; };
 PIPB.heart = P => {
-  const r = P.r, sd = r() < 0.5 ? -1 : 1, C = pipWaveSpot(P.near, sd), c = camL(), dc = Math.max(V.len(V.sub(C, c)), 0.2);
-  const rt = M3.applyT(ship.R0, cam.right), up = M3.applyT(ship.R0, cam.up), sz = clamp(0.22*tanY*dc, 0.06, 0.3);
-  const at = t => { const [x, y] = heartXY(t); return hullOut(V.add(C, V.add(V.mul(rt, x*sz), V.mul(up, (y - 0.1)*sz))), 0.06); };
-  fly(P, { say:'Pip gets ready to draw something' });
+  // (in front of the camera, to one side (the right on a desk, where the info panel is not), about a third of the view's half height tall;
+  // worked out every tick like the peekaboo's spots, so the heart stays where you see it while the ride camera moves)
+  const r = P.r, sd = !isCompact() || r() < 0.5 ? 1 : -1, D = 1 + 0.2*r(), x0 = 0.42*sd, y0 = isCompact() ? 0.2 : 0.08, hs = 0.34;
+  const at = t => { const [x, y] = heartXY(t); return pipCamSpot(D, x0 + x*hs*tanY/tanX, y0 + (y - 0.1)*hs); };
+  fly(P, { sp:0.9, thr:0.7, say:'Pip gets ready to draw something' });
   const g = mv(P, 2.6, { at:(u, g) => at(ease(sOf(u, g))), look:'cam', face:'happy', thr:0.7, trail:false, say:() => camNear() ? 'Pip draws a heart for you' : 'Pip draws a heart',
     on:g => pipHeartFx(g, at) });
-  mv(P, 1.3, { at:hold(at(1)), look:'cam', face:'happy', wink:(u, g) => u - g.t0 > 0.25 && u - g.t0 < 0.95 ? 1 : 0, thr:0.2, say:() => camNear() ? 'Pip draws a heart for you' : 'Pip draws a heart',
+  mv(P, 1.3, { at:() => at(1), look:'cam', face:'happy', wink:(u, g) => u - g.t0 > 0.25 && u - g.t0 < 0.95 ? 1 : 0, thr:0.2, say:() => camNear() ? 'Pip draws a heart for you' : 'Pip draws a heart',
     fl:(u, g) => ({ hop:0.4*Math.sin(Math.PI*clamp((u - g.t0 - 0.1)/0.4, 0, 1))**2 }) });
   return g;
 };
@@ -535,11 +539,11 @@ PIPB.heart = P => {
 // Relative to the ship, like Pip)
 const PINK_ = [1, 0.5, 0.72], PINKW_ = [1, 0.82, 0.9];
 function pipHeartFx(g, at){
-  const T = g.dur, N = 44, pts = []; for (let i=0;i<=N;i++) pts.push(at(i/N));
+  const T = g.dur, N = 44;
   fxAdd({ kind:'pip-heart', T:T + 2.6, draw(e){
     const t = e.t, w = ease(clamp(t/T, 0, 1)), f = 1 - smooth(T + 1.3, T + 2.6, t), n = Math.floor(w*N); if (f <= 0) return;
     let prev = null, pv = false;
-    for (let i=0;i<=Math.min(n + 1, N);i++){ const l = i <= n ? pts[i] : at(w), p = shipPt(l), v = !behindHull(p) && V.dot(p, cam.fwd) > 0;
+    for (let i=0;i<=Math.min(n + 1, N);i++){ const p = shipPt(at(i <= n ? i/N : w)), v = !behindHull(p) && V.dot(p, cam.fwd) > 0;
       if (prev && v && pv) L_(prev, p, PINK_, 0.32*f, PINK_, 0.32*f);
       prev = p; pv = v; if (i > n) break; }
     for (let k=0;k<4;k++){ const s = ((t*0.45 + k/4) % 1)*w, p = shipPt(at(s)); if (!behindHull(p)) P_(p, PINKW_, 0.9*f*Math.sin(Math.PI*((t*1.7 + k*0.37) % 1)), -3); }
