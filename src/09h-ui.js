@@ -136,7 +136,7 @@ function shiftTarget(){
     if (!els.length) els.push(infoState() === 'hidden' ? infoPillEl : infoEl);
     for (const el of els){ const r = el.getBoundingClientRect(); if (r.height > 0) bottom = Math.min(bottom, r.top); }
     const s = Math.max(0, (H - bottom - top)/2);
-    shiftTx = 0; shiftTy = Math.atan(2*s/Math.max(viewHcss, 1)*tanY);
+    shiftTx = 0; shiftTy = Math.atan(2*s/Math.max(viewHcss, 1)*tanY0);   // (for the view without a lens: setBasis scales it by LENS.k)
     leash.by = 0.35*Math.max(bottom - top, 0.2*viewHcss);   // (so it stays clear of the card and the dock)
   } else {
     // on its side: panels open on the right, the card sits on the left; move the object into the free middle
@@ -148,8 +148,8 @@ function shiftTarget(){
     // a compact card that fills most of the free width pushes the object up instead
     if (card && card.width && infoState() !== 'full' && card.right - left > 0.5*(right - left)) bottom = Math.min(bottom, card.top);
     const sx = (left + right)/2 - W/2, sy = (H - bottom - top)/2;
-    shiftTx = Math.atan(2*sx/Math.max(viewWcss, 1)*tanX);
-    shiftTy = Math.atan(2*Math.max(0, sy)/Math.max(viewHcss, 1)*tanY);
+    shiftTx = Math.atan(2*sx/Math.max(viewWcss, 1)*tanX0);
+    shiftTy = Math.atan(2*Math.max(0, sy)/Math.max(viewHcss, 1)*tanY0);
     leash.bx = 0.35*Math.max(right - left, 0.2*viewWcss); leash.by = 0.35*Math.max(bottom - top, 0.2*viewHcss);
     if (card && card.width) leash.avoid = { left:card.left, top:card.top, right:card.right, bottom:card.bottom };   // (the card sits beside the free middle: never slide the object under it)
   }

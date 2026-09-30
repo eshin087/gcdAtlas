@@ -5,12 +5,12 @@ const m87 = (() => {
   const o = addGalaxy({ key:'m87', name:'M87', label:'M87', type:'giant elliptical galaxy at the heart of the Virgo Cluster', sortKey:53.5e6,
     fact:'One of the most massive galaxies nearby, swarming with some 12,000 globular clusters. From its core a jet of plasma shoots out at nearly the speed of light.',
     pos:M87_POS, rad:120000, incl:0, stars:9000, g:{ ell:0.12, Rd:0.3, starGain:1.2 }, farLum:1, labelRange:4e8, aka:'virgo a m87 ngc 4486 elliptical',
-    visFn(rpx){ return smooth(7, 18, rpx)*(0.1 + 0.9*smooth(200, 20000, orbit.dist)); },
+    visFn(rpx){ return smooth(7, 18, rpx)*(0.1 + 0.9*smooth(200, 20000, viewDist())); },
     readout:() => '53.5 million light-years · about 2.4 trillion solar masses\nits black hole weighs 6.5 billion Suns' });
   const n = Math.round(4000*QUALITY), gc = makePS(n);
   for (let i=0;i<n;i++){ const d = randDir(), r = 0.03 + 0.9*Math.pow(rnd(), 1.8); gc.a.set([d[0]*r, d[1]*r*0.9, d[2]*r, 0.6 + 0.8*rnd()], i*4); const c = blackbodyJS(4400 + 1500*rnd()); gc.c.set([...c, 0], i*4); }
   gc.upload('ac');
-  o.particles.push({ ps:gc, prog:'ptBasic', mode:1, sb:0.5, size:1.6, vis:() => smooth(300, 20000, orbit.dist) });
+  o.particles.push({ ps:gc, prog:'ptBasic', mode:1, sb:0.5, size:1.6, vis:() => smooth(300, 20000, viewDist()) });
   return o;
 })();
 const JET_AXIS = V.norm([Math.sin(17*DEG), Math.cos(17*DEG), 0]);
@@ -29,7 +29,7 @@ void main(){
 const m87jet = addObj({ key:'m87jet', name:'the M87 jet', label:'M87 jet', type:'relativistic jet · 5,000 light-years long', group:'galaxies', sortKey:53.5e6 + 1,
   fact:'Electrons spiral in magnetic fields at 99% of the speed of light. Blobs in the jet appear to move up to six times faster than light, an illusion caused by their speed toward us.',
   parent:m87, offset:[0, 0, 0], rad:5500, R0:M87_R0, prog:program(VS_RECT, FS_M87JET), minZoom:0.01, pxMin:6, noImpostor:true, labelRange:1e6, labelMin:300, aka:'jet superluminal hst-1',
-  visFn:rpx => smooth(6, 16, rpx)*(0.15 + 0.85*smooth(0.5, 30, orbit.dist)),
+  visFn:rpx => smooth(6, 16, rpx)*(0.15 + 0.85*smooth(0.5, 30, viewDist())),
   views:[{d:[0.9, 0.35, 0.3], k:0.9, off:[0, 0.45, 0], hold:9, drift:0.02}, {dirFn:() => V.norm(V.mul(M87_POS, -1)), k:1.6, off:[0, 0.3, 0], hold:8, drift:0.02}],
   readout:() => 'apparent speed up to 6c: the blobs almost keep pace with their own light\nbeamed toward us, so the far-side counter-jet is invisible' });
 const m87bh = (() => {

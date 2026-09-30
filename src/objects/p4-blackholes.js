@@ -22,7 +22,7 @@ function quietHole(def){
       { track:() => { const a = V.norm(V.sub(bh.pos, star.pos)), n = V.norm(V.cross(a, M3.apply(bh.R0, [0, 1, 0]))); return V.norm(V.add(a, V.mul(n, 0.03*Math.sin(GT*0.45)))); }, k:1.7, hold:12 },
       { d:[0.05, 0.08, 1], k:0.3, hold:8, drift:0.01 }],
     particleVis:rpx => smooth(4, 14, rpx*A/(rs*RB)),
-    particles:[{ ps:orbitLine(A/(rs*RB), E), prog:'lnBasic', lines:true, mode:3, sb:def.lineSb ?? 0.25, size:1, vis:() => smooth(A*0.2, A*0.8, orbit.dist) }],
+    particles:[{ ps:orbitLine(A/(rs*RB), E), prog:'lnBasic', lines:true, mode:3, sb:def.lineSb ?? 0.25, size:1, vis:() => smooth(A*0.2, A*0.8, viewDist()) }],
     readout:() => orbit.lock === bh.index && V.len(bh.rel) < bh.rad*0.4 ? bhReadout(bh, M, '')() : def.readout() }, def.obj));
   var star = addStar(Object.assign({ parent:bh, offset:[A, 0, 0], atlas:false, noImpostor:false, farLum:0.8, labelRange:A*40, labelMin:A*0.05,
     update(){ const Mn = this.t*2*Math.PI/PER, Ea = keplerE(Mn, E); this.offset = M3.apply(bh.R0, [A*(Math.cos(Ea) - E), 0, -A*Math.sqrt(1 - E*E)*Math.sin(Ea)]); } }, def.star));
@@ -65,8 +65,8 @@ const cygx1 = (() => {
     update(dt){ st.ph += dt*2*Math.PI/PER; },
     views:[{ d:[0.3, 0.5, 1], k:AL*1.45, hold:10, drift:0.02 }, { d:[0, 0.22, 1], k:1.5, hold:9, drift:0.03 }, { d:[0.9, 0.3, 0.3], k:AL*0.9, off:[AL*0.35, 0, 0], hold:8, drift:0.02 }],
     particles:[
-      { ps:disk, prog:'ptKepDisk', mode:3, sb:0.55, size:1.6, q0:() => [0.21*Math.pow(AL*0.3, 1.5), AL*0.03, 0, 0], vis:() => smooth(rad*0.8, rad*2.5, orbit.dist) },
-      { ps:stream, prog:'ptBasic', mode:3, sb:0.7, size:1.5, rot:() => M3.mul(R0, M3.rotY(st.ph)), vis:() => smooth(rad*40, rad*400, orbit.dist) },
+      { ps:disk, prog:'ptKepDisk', mode:3, sb:0.55, size:1.6, q0:() => [0.21*Math.pow(AL*0.3, 1.5), AL*0.03, 0, 0], vis:() => smooth(rad*0.8, rad*2.5, viewDist()) },
+      { ps:stream, prog:'ptBasic', mode:3, sb:0.7, size:1.5, rot:() => M3.mul(R0, M3.rotY(st.ph)), vis:() => smooth(rad*40, rad*400, viewDist()) },
     ],
     readout:() => orbit.lock === bh.index && V.len(bh.rel) < bh.rad*0.4 ? bhReadout(bh, M, '')() : 'the two orbit 0.2 AU apart, half of Mercury\'s distance from the Sun\nX-rays come from gas at millions of degrees just before it falls in' });
   const star = addStar({ key:'cygx1-star', name:'HDE 226868', label:'HDE 226868', parent:bh, offset:[A, 0, 0], R:22.9, T:28500, bound:1.25, star:{ cells:48, act:0, corona:0, chromo:0, obl:0.08 }, atlas:false, noImpostor:false, farLum:1, labelRange:A*60, labelMin:A*0.1,

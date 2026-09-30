@@ -132,7 +132,7 @@ const sstars = (() => {
     particleVis:rpx => smooth(4, 16, rpx),
     particles:[
       ...systems.map(s => ({ ps:s.ps, prog:'ptSStar', mode:3, sb:1.1, size:2.2, mat:() => s.m, q0:() => [clock(), 0, 0, 0] })),
-      { ps:tr, prog:'lnBasic', lines:true, mode:3, sb:0.18, size:1, vis:() => smooth(8*AU_LY, 60*AU_LY, orbit.dist) },
+      { ps:tr, prog:'lnBasic', lines:true, mode:3, sb:0.18, size:1, vis:() => smooth(8*AU_LY, 60*AU_LY, viewDist()) },
     ],
     readout:() => { const ph = ((clock() + 0.2/6.283*16.05)/16.05) % 1; return `S2: 16-year orbit shown in 20 seconds (year ${(ph*16.05).toFixed(1)})\nat closest approach 7,650 km/s; its light is visibly reddened by gravity`; } });
   return o;
@@ -180,10 +180,10 @@ const galCentre = (() => {
   return addObj({ key:'galcentre', name:'the Galactic Centre', label:'Galactic Centre', type:'the crowded core of the Milky Way', group:'galaxies', sortKey:26669,
     fact:'Millions of stars packed within a few light-years of Sgr A*, the magnetised threads of the Radio Arc, and the Central Molecular Zone, the densest gas in the galaxy.',
     parent:sgra, offset:[0, 0, 0], rad:RAD, R0:milkyway.R0, prog:program(VS_RECT, FS_GALCENTRE), minZoom:0.004, pxMin:5, noImpostor:true, labelRange:3e4, labelMin:30,
-    visFn:rpx => smooth(5, 13, rpx)*(0.08 + 0.92*smooth(0.02, 2, orbit.dist)),
+    visFn:rpx => smooth(5, 13, rpx)*(0.08 + 0.92*smooth(0.02, 2, viewDist())),
     aka:'cmz radio arc sgr b2 arches quintuplet',
     views:[{d:[0.35, 0.55, 1], k:1.9, hold:9, drift:0.02}, {d:[0.2, 0.18, 1], k:0.2, hold:8, drift:0.025}, {d:[0.1, 1, 0.3], k:0.045, hold:8, drift:0.03}],
-    particleVis:rpx => smooth(4, 16, rpx)*(0.1 + 0.9*smooth(0.01, 1, orbit.dist)),
+    particleVis:rpx => smooth(4, 16, rpx)*(0.1 + 0.9*smooth(0.01, 1, viewDist())),
     particles:[{ps, prog:'ptBasic', mode:0, sb:0.5, size:1.4, cap:0.8}],
     readout:() => 'star density here is a million times the Sun\'s neighbourhood\nthe night sky would hold thousands of stars brighter than Sirius' });
 })();

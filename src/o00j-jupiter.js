@@ -121,7 +121,7 @@ const jupiter = (() => {
       gl.uniformMatrix3fv(pr.u.uM0, false, [ms[3][0], ms[3][1], ms[3][2], ms[3][3], 0, 0, 0, 0, 0]); },
     particleVis:rpx => smooth(4, 14, rpx),
     particles:[{ps:torus, prog:'ptBasic', mode:0, sb:0.012, size:1.2, cap:0.5, rot:() => o.R0}],
-    readout:() => orbit.dist/o.rad > 12 ? 'the four Galilean moons, found by Galileo in 1610\nIo whips around in 1.8 days, Callisto takes 16.7' : 'radius 71,492 km · a day lasts 9 h 56 min\nwinds up to 600 km/h between the bands' });
+    readout:() => viewDist()/o.rad > 12 ? 'the four Galilean moons, found by Galileo in 1610\nIo whips around in 1.8 days, Callisto takes 16.7' : 'radius 71,492 km · a day lasts 9 h 56 min\nwinds up to 600 km/h between the bands' });
   return o;
 })();
 jupiter.bodyFrac = 0.9;

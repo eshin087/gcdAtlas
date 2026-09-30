@@ -129,7 +129,7 @@ const saturn = (() => {
     update(){ const jd = jdNow(); this.offset = planetPos(PLANET_EL.saturn, jd); this.pos = V.add(this.parent.pos, this.offset); this.rot = bodyFrame(40.589, 83.537, 38.90 + 810.7939024*(jd - 2451545)); },
     setU(pr){ const L = sunDirFrom(this); gl.uniform4f(pr.u.uP1, L[0], L[1], L[2], 0); },
     particles:[{ps:ring, prog:'ptRing', mode:2, sb:0.0025, size:0.0016, rot:() => o.R0}],
-    readout:() => orbit.dist/o.rad < 0.2 ? 'inside the rings: countless chunks of water ice\nfrom dust grains to boulders the size of houses' : 'rings reach 137,000 km from the centre, ~10 m thick\nwinds up to 1,800 km/h · hexagon storm at the north pole' });
+    readout:() => viewDist()/o.rad < 0.2 ? 'inside the rings: countless chunks of water ice\nfrom dust grains to boulders the size of houses' : 'rings reach 137,000 km from the centre, ~10 m thick\nwinds up to 1,800 km/h · hexagon storm at the north pole' });
   o.bodyFrac = RPL;
   return o;
 })();

@@ -27,7 +27,7 @@ function orbitTrace(el, n, col, from = 0, to = 1){
   ps.upload('ac');
   return ps;
 }
-const nearSS = () => smooth(0.3*AU_LY, 3*AU_LY, orbit.dist)*(1 - smooth(300*AU_LY, 3000*AU_LY, V.len(sun.rel)));
+const nearSS = () => smooth(0.3*AU_LY, 3*AU_LY, viewDist())*(1 - smooth(300*AU_LY, 3000*AU_LY, V.len(sun.rel)));
 
 // ---------------------------------------------------------------- irregular small bodies: 'Oumuamua, Arrokoth, the nucleus of Halley's Comet
 // uP0: x shape (0 'Oumuamua, 1 Arrokoth, 2 Halley's nucleus, 3 Vesta, 4 Bennu), y activity (jets)   uP1: Sun direction (world)
@@ -198,7 +198,7 @@ function exoPlanet(def){
 function orbitRing(host, a, col, far = 30){
   host.particleVis = () => 1;   // (the orbits are drawn even when the star itself is a speck)
   host.particles.push({ ps:ringPS(160, col), prog:'lnBasic', lines:true, mode:3, sb:0.3, size:1, rad:a*AU_LY, rot:() => host.R0,
-    vis:() => smooth(a*AU_LY*0.3, a*AU_LY, orbit.dist)*(1 - smooth(a*AU_LY*far, a*AU_LY*far*4, orbit.dist)) });
+    vis:() => smooth(a*AU_LY*0.3, a*AU_LY, viewDist())*(1 - smooth(a*AU_LY*far, a*AU_LY*far*4, viewDist())) });
 }
 // Kepler-16: a planet with two suns, like Tatooine
 const kep16 = namedStar('kepler16', 'Kepler-16', hms(19,16,18.2), dms(51,45,26.8), 245, 0.649, 4450, { label:'Kepler-16 A', atlas:false, type:'orange dwarf with a red dwarf partner',
@@ -474,7 +474,7 @@ addObj({ key:'einsteincross', name:'Einstein Cross', label:'Einstein Cross', typ
     pos, rad:RAD, minZoom:0.05, pxMin:3, noImpostor:true, labelRange:1e11, labelMin:3e7, aka:'bootes void great nothing', noWaypoint:true,
     views:[{ d:[0.3, 0.4, 1], k:1.4, hold:9, drift:0.02 }, { d:[0.8, 0.2, 0.5], k:0.5, hold:9, drift:0.02 }],
     particleVis:() => 1,
-    particles:[{ ps, prog:'ptBasic', mode:1, sb:0.6, size:1.6, vis:() => smooth(2e7, 1e8, orbit.dist) }, { ps:edge, prog:'lnBasic', lines:true, mode:3, sb:0.25, size:1, rad:rv*RAD, rot:camFacingRot, vis:() => smooth(8e7, 3e8, orbit.dist)*0.6 }],
+    particles:[{ ps, prog:'ptBasic', mode:1, sb:0.6, size:1.6, vis:() => smooth(2e7, 1e8, viewDist()) }, { ps:edge, prog:'lnBasic', lines:true, mode:3, sb:0.25, size:1, rad:rv*RAD, rot:camFacingRot, vis:() => smooth(8e7, 3e8, viewDist())*0.6 }],
     readout:() => '700 million light-years · 330 to 400 million light-years across\nabout 60 galaxies, where thousands would be expected' });
 }
 function camFacingRot(){ return [...cam.right, ...V.mul(cam.fwd, -1), ...cam.up]; }

@@ -164,7 +164,7 @@ const roadster = (() => {
     setU(pr){ const L = sunDirFrom(this); gl.uniform4f(pr.u.uP0, RADM, 0, 0, 0); gl.uniform4f(pr.u.uP1, L[0], L[1], L[2], 0); },
     particleVis:() => 1,
     particles:[{ ps:ring, prog:'lnBasic', lines:true, mode:3, sb:0.55, size:1, rad:AU_LY, rot:() => I3, rel:() => sun.rel,
-      show:() => o.ringOn(), vis:() => smooth(0.004*AU_LY, 0.05*AU_LY, orbit.dist) }],
+      show:() => o.ringOn(), vis:() => smooth(0.004*AU_LY, 0.05*AU_LY, viewDist()) }],
     // (the car fills the view, three-quarters from the front; then over Starman's shoulder;
     // then a pull back until its whole orbit round the Sun is in view)
     views:[

@@ -138,7 +138,7 @@ const lagoon = (() => {
     fact:'A cloud of glowing hydrogen about 110 by 50 light-years, where new stars are forming. A lane of dark dust across it gives it its name. On one side of the dark lane the young star Herschel 36 lights up the Hourglass; the young cluster NGC 6530 sits on the other.',
     pos, rad:RAD, sizeR:55, R0:facingEarth(pos, [0, 0, 1], -20), prog:program(VS_RECT, FS_LAGOON), minZoom:0.03, pxMin:6, farColor:[1, 0.5, 0.58], farLum:0.55, labelRange:1.5e5, labelMin:15,
     aka:'m8 messier 8 lagoon nebula ngc 6523 ngc 6530 hourglass herschel 36 sagittarius',
-    visFn(rpx){ return smooth(6, 16, rpx)*(0.2 + 0.8*smooth(2, 30, orbit.dist)); },
+    visFn(rpx){ return smooth(6, 16, rpx)*(0.2 + 0.8*smooth(2, 30, viewDist())); },
     // (the close angle looks along the dark lane from a little below, with the glow round the Hourglass on one side of it and the stars of
     // NGC 6530 on the other; aimed at the Hourglass from 18 light-years, as before, the camera sat inside the glow and saw an even pink haze)
     views:nebView(pos, [{ d:[0.55, 0.3, 0.8], k:1.1, hold:8, drift:0.03 }, { d:[0.2, -0.45, 1], k:1, off:[-0.1, 0.02, 0.06], hold:9, drift:0.02 }]),
