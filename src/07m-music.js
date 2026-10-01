@@ -1330,7 +1330,8 @@ const music = (() => {
     G.rumble.gain.setTargetAtTime(on ? p.rumble*0.9 : 0, t, k);
     G.crackle.gain.setTargetAtTime(on ? p.crackle*0.22 : 0, t, k*0.5);
     G.lp.frequency.setTargetAtTime(on ? clamp(p.lp, 80, 12000) : 800, t, k);
-    if (G.mus) G.mus.gain.setTargetAtTime(on ? 1 - 0.75*clamp(p.duck, 0, 1) : 1, t, 0.35);
+    // (the music dips to about two thirds under the roar, never further: owner, 0.10.1, it should stay there through a launch)
+    if (G.mus) G.mus.gain.setTargetAtTime(on ? 1 - 0.35*clamp(p.duck, 0, 1) : 1, t, 0.35);
   }
   return {
     get on(){ return wantOn; },
