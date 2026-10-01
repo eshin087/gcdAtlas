@@ -57,7 +57,7 @@ const bodyR = tg => tg ? (surfDrawn(tg) || tg.rad*0.6*magOf(tg)) : 0;
 // near to fit (the lens never widens the view) becomes a horizon: its top edge at hz, its centre below the view, the ship above it.
 const TSHOTS = {
   // (the first at a new place: all of it with room round it, easing in)
-  arrive:{ a:{ rho:0.3, sig:0.088, px:0.16, py:0.08, qx:-0.45, qy:-0.3, hz:-0.3, g:160 }, z:{ rho:0.5, sig:0.075, px:0.12, py:0.05, qx:-0.38, qy:-0.26, hz:-0.3, g:145 }, T:[12, 15], ease:true },
+  arrive:{ a:{ rho:0.3, sig:0.088, px:0.16, py:0.08, qx:-0.45, qy:-0.3, hz:-0.3, g:160 }, z:{ rho:0.5, sig:0.075, px:0.12, py:0.05, qx:-0.38, qy:-0.26, hz:-0.3, g:145 }, T:[7, 10], ease:true },
   // (the ship crossing in front of it)
   cross:{ a:{ rho:0.55, sig:0.088, px:0.08, py:0.06, qx:-0.62, qy:-0.2, hz:-0.3, g:175 }, z:{ rho:0.6, sig:0.088, px:0.02, py:0.04, qx:0.22, qy:-0.1, hz:-0.3, g:185 }, T:[13, 16] },
   // (the place filling the view, the ship high on one side)
@@ -69,13 +69,20 @@ const TSHOTS = {
   ahead:{ a:{ rho:1.4, sig:0.125, px:0, py:-0.3, qx:0, qy:0.02, hz:-0.4, g:15 }, z:{ rho:1.6, sig:0.112, px:0, py:-0.3, qx:0.05, qy:0.06, hz:-0.35, g:0 }, T:[11, 14] },
   // (a long way off: the ship a glint and its flame against the place)
   tele:{ a:{ rho:0.7, sig:0.044, px:0.05, py:0.08, qx:-0.3, qy:-0.45, hz:-0.3, g:150 }, z:{ rho:0.75, sig:0.044, px:0, py:0.06, qx:-0.1, qy:-0.42, hz:-0.3, g:168 }, T:[10, 13] },
+  // close-ups (0.10.2, owner: the camera was too often far from the ship; the Halo about a third of the screen, the place still big behind it
+  // through the lens): beside the ship, the place over its shoulder; from behind it, flying at the place; swinging round it; pushing in from far
+  close:{ a:{ rho:0.95, sig:0.3, px:0.3, py:0.12, qx:-0.38, qy:-0.22, hz:-0.3, g:115 }, z:{ rho:1, sig:0.34, px:0.26, py:0.1, qx:-0.33, qy:-0.2, hz:-0.3, g:92 }, T:[9, 12], ease:true },
+  behind:{ a:{ rho:0.9, sig:0.32, px:0.05, py:0.26, qx:0, qy:-0.4, hz:-0.3, g:15 }, z:{ rho:0.95, sig:0.3, px:0.02, py:0.24, qx:0.06, qy:-0.38, hz:-0.3, g:32 }, T:[9, 12] },
+  swing:{ a:{ rho:0.85, sig:0.28, px:0.28, py:0.06, qx:-0.32, qy:-0.18, hz:-0.3, g:70 }, z:{ rho:0.9, sig:0.3, px:-0.26, py:0.06, qx:0.32, qy:-0.18, hz:-0.3, g:150 }, T:[11, 14], ease:true },
+  pushin:{ a:{ rho:0.6, sig:0.08, px:0.12, py:0.06, qx:-0.4, qy:-0.25, hz:-0.3, g:140 }, z:{ rho:0.9, sig:0.32, px:0.24, py:0.08, qx:-0.34, qy:-0.22, hz:-0.3, g:110 }, T:[10, 13], ease:true },
   still:{ a:{ rho:0.6, sig:0.1, px:0.15, py:0.06, qx:-0.45, qy:-0.28, hz:-0.3, g:140 }, z:{ rho:0.6, sig:0.1, px:0.15, py:0.06, qx:-0.45, qy:-0.28, hz:-0.3, g:140 }, T:[1e9, 1e9] },
 };
-const TOURS_N = ['cross', 'grand', 'hero', 'horizon', 'ahead', 'tele'];
-// a job on the tour: the scan's hologram on the place with the ship beside it, the weapons test from behind the ship as it runs in (its shots
-// fly into the place), a skim and a signature move over the horizon
-const TJOB = { scan:{ rho:0.7, sig:0.1, px:0.14, py:0.04, qx:-0.5, qy:0.3, hz:-0.3, g:100 }, weapons:{ rho:0.6, sig:0.125, px:0.12, py:0.12, qx:-0.25, qy:-0.3, hz:-0.3, g:20 },
-  skim:{ rho:1.8, sig:0.125, px:0, py:-0.2, qx:-0.12, qy:0.15, hz:-0.3, g:70 }, sig:{ rho:1.2, sig:0.125, px:0.05, py:0, qx:-0.22, qy:0.12, hz:-0.25, g:35 } };
+// (wide and close take turns, 0.10.2: arrive is wide, a move's or a job's shot close; TCLOSE says which is which)
+const TWIDE = ['cross', 'grand', 'horizon', 'ahead', 'tele'], TCLOSE_N = ['close', 'behind', 'swing', 'pushin', 'hero'], TCLOSE = new Set(TCLOSE_N);
+// a job on the tour: the scan's hologram on the place with the ship beside it, the weapons test from just behind the ship as it runs in (its
+// shots fly into the place), a skim and a signature move close behind the ship over the horizon
+const TJOB = { scan:{ rho:0.8, sig:0.18, px:0.18, py:0.04, qx:-0.45, qy:0.28, hz:-0.3, g:100 }, weapons:{ rho:0.7, sig:0.25, px:0.1, py:0.15, qx:-0.2, qy:-0.3, hz:-0.3, g:15 },
+  skim:{ rho:1.8, sig:0.25, px:0, py:-0.2, qx:-0.12, qy:0.12, hz:-0.3, g:70 }, sig:{ rho:1.5, sig:0.3, px:0, py:-0.2, qx:-0.12, qy:0.12, hz:-0.3, g:25 } };
 // the size a shot frames: a surface (a star's with some of its glow; Saturn's with its rings, but only from well outside them: flying through
 // them, a horizon on the rings' edge showed empty sky), a black hole's shadow and the light round it, or most of a cloud's or a galaxy's
 // bounding sphere. D: the ship's distance from its centre
@@ -134,7 +141,7 @@ function startShot(name, job){
   const moveT = !cur ? 0 : tour ? Math.max(1.3*lr(cur.rho, a.rho), 1.3*lr(cur.sig, a.sig), 2.5*Math.hypot(cur.px - a.px, cur.py - a.py), 2.5*Math.hypot(cur.qx - a.qx, cur.qy - a.qy))
     : Math.max(1.3*lr(cur.d, a.d), Math.abs((a.e || 0) - (cur.e || 0))/12);
   RIDE.from = cur; RIDE.t = 0; RIDE.tr = 0; RIDE.trT = cur ? Math.max(job ? 3 : 4.2, Math.abs(RIDE.dg)/35, moveT) : 0;
-  RIDE.name = RIDE.shot.name;
+  RIDE.name = RIDE.shot.name; RIDE.close = job ? true : TCLOSE.has(name);
   if (!job && name !== 'still'){ RIDE.last.push(name); if (RIDE.last.length > 3) RIDE.last.shift(); }
 }
 // the next shot: on the Halo tour its first at a new place (arrive), then one at random, never one of the last three.
@@ -144,7 +151,7 @@ function startShot(name, job){
 function nextShot(){
   if (rideStill()) return startShot('still');
   if (RIDE.queue.length) return startShot(RIDE.queue.shift());
-  const tour = RIDE.fam === 'tour', pip = S_.act && S_.act.kind === 'probe', L = (tour ? TOURS_N : MOVING).filter(n => !RIDE.last.includes(n) && (tour || !pip || NEAR.has(n)));
+  const tour = RIDE.fam === 'tour', pip = S_.act && S_.act.kind === 'probe', L = (tour ? (RIDE.close ? TWIDE : TCLOSE_N) : MOVING).filter(n => !RIDE.last.includes(n) && (tour || !pip || NEAR.has(n)));
   startShot(L[Math.floor(rideR()*L.length)]);
   // (only over a shot close by, and from about its own bearing, so the close-up is a slow push in rather than a swing round the ship)
   if (!tour && !RIDE.pip && NEAR.has(RIDE.shot.name) && pipShotOk(true) && rideR() < (pip ? 0.85 : 0.4)){
@@ -209,7 +216,10 @@ function rideShots(dt){
   if (RIDE.wc >= 1) return;   // (the shot waits while the chase pose has the camera)
   RIDE.t += dt; RIDE.tr += dt;
   // a job gets its own shot, held until it is done; then the shots go on
-  const A = S.act, jk = A && JOB_SHOT[A.kind] && !rideStill() ? A : !A && S.phase === 'pass' && S.plan.sig && !rideStill() ? S.plan : null;
+  // (on the Halo tour a move's close shot covers the move, from about 5 s before its main moment to 2 s after it, so the arrival's wide shot
+  // shows the place first and a wide one follows: wide and close take turns)
+  const sigNow = S.phase === 'pass' && S.plan.sig && (RIDE.fam !== 'tour' || (S.t > (S.plan.tA || 0) - 5 && S.t < (S.plan.tB || S.plan.T) + 2));
+  const A = S.act, jk = A && JOB_SHOT[A.kind] && !rideStill() ? A : !A && sigNow && !rideStill() ? S.plan : null;
   if (jk && RIDE.job !== jk){ RIDE.job = jk; startShot(null, (RIDE.fam === 'tour' ? TJOB : JOB_SHOT)[jk.sig ? 'sig' : jk.kind]); return; }
   if (!jk && RIDE.job){ RIDE.job = null; nextShot(); return; }
   if (rideStill() !== (RIDE.shot.name === 'still') && !jk){ nextShot(); return; }
@@ -277,8 +287,10 @@ function tourPose(p){
   // (a horizon for the shots that ask for one, bigger than the view, and only over a surface: a cloud, a disc or a galaxy keeps its middle in
   // the view. It went by how big the place was on the screen before, and a fast dive tipped the camera up to the horizon in a second; a
   // whole-place shot close in now looks down at the surface under the ship)
-  const solid = surfDrawn(tg) > 0 && !tg.holeR, al = Math.asin(clamp(frameR(tg, D)/D, 0, 0.999)), w = solid ? smooth(1, 1.4, p.rho) : 0, elH = Math.atan(p.hz*fh*ty), sg = p.sig*m;
-  const dP = dirAE(lerpN(Math.atan(p.px*tx), 0, w), lerpN(Math.atan(p.py*fh*ty), elH - al, w));
+  // (the horizon is the surface itself, a star's photosphere or a planet's globe: a corona pass flies inside the glow framed for the whole
+  // place, and a horizon on the glow's edge put the star 40 degrees below the view, 0.10.2)
+  const sd = surfDrawn(tg), solid = sd > 0 && !tg.holeR, alS = Math.asin(clamp((solid ? sd : frameR(tg, D))/D, 0, 0.999)), w = solid ? smooth(1, 1.4, p.rho) : 0, elH = Math.atan(p.hz*fh*ty), sg = p.sig*m;
+  const dP = dirAE(lerpN(Math.atan(p.px*tx), 0, w), lerpN(Math.atan(p.py*fh*ty), elH - alS, w));
   const elQ = Math.atan(p.qy*fh*ty), dQ = dirAE(Math.atan(p.qx*tx), lerpN(elQ, Math.max(elQ, elH + 2.2*Math.atan(sg)), w));
   // (the ship sg across in tan units; never more than half way to the place's centre)
   const dS = Math.min(r*shipCam.zoom/sg, 0.5*D), G = p.g*DEGR, fT = tourRef(0), T = V.add(V.mul(fT, Math.cos(G)), V.mul(V.cross(fT, F.u), Math.sin(G)));
@@ -368,4 +380,4 @@ function rideStart(){ RIDE.shot = null; RIDE.from = null; RIDE.job = null; RIDE.
   const between = S_.phase === 'light' || S_.phase === 'fold' || S_.fk > -90 || S_.asm < FLK.A1 + 0.3; RIDE.wc = between ? 1 : 0; RIDE.wcV = 0;
   if (!between) startShot(rideStill() ? 'still' : RIDE.fam === 'tour' ? 'arrive' : 'shoulder'); }
 // the Halo tour's state (its logic is in 09t-halotour.js; kept here so the interface code, which loads before it, can read it)
-const HT = { on:false, tourId:'grand', stops:[], i:0, want:null, visits:-1, capT:0, STAY:[55, 70] };
+const HT = { on:false, tourId:'grand', stops:[], i:0, want:null, visits:-1, capT:0, n:0, jk:0 };

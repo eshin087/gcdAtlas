@@ -254,7 +254,18 @@ function weaveCurve(m, h, Rc, L1, r){
 function sigVisit(tg, arrival, dIn, seed, opt){
   const sp = opt.sig, r = lcg((seed*13 + 5) >>> 0), sunD = sunDirOf(tg), Rc = sp.Rc, L1 = Math.max(opt.L1 || Rc*4, Rc*3.2), L2 = L1*0.55;
   let best = null, bs = -1e9;
-  for (let k=0;k<12;k++){
+  // (out of light speed, on the Halo tour, 0.10.2: the leg runs straight into the pass, so it starts along the line the ship comes in on, as
+  // planVisit's do, its closest point on the side the move wants it; moves that need a heading of their own, SIG_FOLD, come by a fold)
+  if (arrival === 'light' && dIn){
+    for (let k=0;k<12;k++){
+      const m0 = V.norm(sp.m(r, sunD)), sg = sp.sg ? sp.sg[0] + (sp.sg[1] - sp.sg[0])*r() : 0.5 + 0.1*r(), ss = Math.sin(sg), cs = Math.cos(sg);
+      let sd = perpTo(m0, dIn); sd = V.len(sd) > 1e-6 ? V.norm(sd) : anyPerp(dIn);
+      const m = V.add(V.mul(dIn, ss), V.mul(sd, cs)), dout = V.sub(dIn, V.mul(m, 2*ss)), g = bend(dIn, dout, Rc, L1, L2, m0); g.di = dIn;
+      const sc = 2*V.dot(g.cDir, m0) - (g.clamped ? 0.3 : 0);
+      if (sc > bs){ bs = sc; best = g; }
+    }
+  }
+  else for (let k=0;k<12;k++){
     const m = V.norm(sp.m(r, sunD)); let h0 = perpTo(sp.h(r, m), m); h0 = V.len(h0) > 1e-6 ? V.norm(h0) : anyPerp(m);
     let g;
     if (sp.weave) g = weaveCurve(m, h0, Rc, L1, r);
@@ -440,8 +451,14 @@ const shipPt = l => V.add(ship.rel, localPt(l));                         // the 
 // arriving by a fold (a light-speed hop that became one keeps the job it had chosen for its first pass there)
 function foldVisit(tg, nx){
   const act = nx && nx.actK ? nx.actK : arrivalAct();
-  beginVisit(tg, planVisit(tg, 'fold', null, null, act, nx && nx.seed ? nx.seed : S_.seedN++, { Tf:nx && nx.Tf ? nx.Tf : roamTf(), slowOut:true }), 'fold');
+  beginVisit(tg, planVisit(tg, 'fold', null, null, act, nx && nx.seed ? nx.seed : S_.seedN++, { Tf:nx && nx.Tf ? nx.Tf : roamTf()*(HT.on ? 1.25 : 1), slowOut:true, sig:act === 'cruise' ? arriveSig(tg) : null }), 'fold');
 }
+// the Halo tour (0.10.2, owner: a stop as long as the normal tour's, about 40 s, with the Halo "dynamically interacting or flying through
+// the objects"): the ship arrives straight into its move for the place, or at one place in three into a job (S_.next.job: an attack run, a
+// skim, a scan), and leaves at the end of that pass (htArrive, 09t-halotour.js). A move that needs a heading of its own, through Saturn's
+// ring gap, a ring nebula's hole or a galaxy's disc, cannot start along a light-speed leg's line: the ship folds there instead
+const SIG_FOLD = new Set(['rings', 'through', 'arm']);
+const arriveSig = tg => HT.on ? sigSpec(tg) : null;
 // a new place: how long the ship stays (STAY), the jobs it will do there (one or two, from the second pass on, a loop apart), and where it
 // goes after (its last pass bends toward that)
 function beginVisit(tg, plan, how){
@@ -530,7 +547,8 @@ function startLoop(){
   if (st.n === 1) st.t1 = st.t;
   const R = st.n >= 2 ? (st.t - st.t1)/(st.n - 1) : 45, last = !st.jobs.length && st.t + 1.5*R > st.dur;
   // (the stay's signature move, on its second pass, when there is no job for it: tried first, and again next time if no gentle loop reaches it)
-  const sig = !st.sigDone && act === 'cruise' && !last ? sigSpec(tg) : null;
+  // (on the Halo tour the stay's last pass may be its move: the tour starting at the place where the ship already is, htStartHere)
+  const sig = !st.sigDone && act === 'cruise' && (!last || HT.on) ? sigSpec(tg) : null;
   let L = sig ? roamPlan(e, pl.Rc, tg, act, last, sig) : null;
   if (L && L.rate > 1.25*HALO.TURN) L = null;
   if (!L) L = roamPlan(e, pl.Rc, tg, act, last);
@@ -550,14 +568,17 @@ function startAlign(e0){
   // (a job that says when it is done, Pip's outing, may carry on past the pass: the ship waits for it before it jumps; any other ends here)
   if (S_.act && !jobBusy()){ if (S_.act.end) S_.act.end(); S_.act = null; }
   let al = null;
+  if (HT.on && nx.job) nx.actK = nx.job;
+  if (nx.mode === 'light' && HT.on && !nx.job){ const sp = sigSpec(nx.tg); if (sp && SIG_FOLD.has(sp.kind)) nx.mode = 'fold'; }
   if (nx.mode === 'light'){
     // plan the first pass there now, so the ship can already turn toward where it will drop out of light speed: aimAlign works out the turn
     // after which it points straight at where that pass starts (on a short hop the turn itself carries it a good part of the way there)
-    nx.actK = arrivalAct(); nx.seed = S_.seedN++; nx.Tf = roamTf();
+    // (on the tour the arrival pass is the stop, flown a quarter slower so its move plays out: about 40 s a stop with the jump)
+    nx.actK = nx.job || arrivalAct(); nx.seed = S_.seedN++; nx.Tf = roamTf()*(HT.on ? 1.25 : 1); nx.sig = nx.actK === 'cruise' ? arriveSig(nx.tg) : null;
     const A = S_.target; let d = V.norm(V.sub(nx.tg.pos, V.add(A.pos, e.p)));
     // (where that pass starts depends on the way the ship comes in, and the way in on where the turn ends: a few rounds settle both)
     for (let k=0;k<4;k++){
-      nx.plan = planVisit(nx.tg, 'light', d, null, nx.actK, nx.seed, { Tf:nx.Tf, slowOut:true });
+      nx.plan = planVisit(nx.tg, 'light', d, null, nx.actK, nx.seed, { Tf:nx.Tf, slowOut:true, sig:nx.sig });
       al = aimAlign(e.p, e.h, e.v, V.sub(V.add(nx.tg.pos, passStart(nx.plan)), A.pos), pl.Rc);
       if (!al) break;
       d = al.h1;
@@ -586,7 +607,7 @@ function startJump(){
     const B = nx.tg, from = V.add(A.pos, e.p); let pl = nx.plan;
     // and the pass there is planned again for the way the ship really comes in, so the leg runs straight into it
     let dd = V.norm(V.sub(V.add(B.pos, passStart(pl)), from));
-    for (let k=0;k<2;k++){ pl = nx.plan = planVisit(B, 'light', dd, null, nx.actK, nx.seed, { Tf:nx.Tf, slowOut:true }); dd = V.norm(V.sub(V.add(B.pos, passStart(pl)), from)); }
+    for (let k=0;k<2;k++){ pl = nx.plan = planVisit(B, 'light', dd, null, nx.actK, nx.seed, { Tf:nx.Tf, slowOut:true, sig:nx.sig }); dd = V.norm(V.sub(V.add(B.pos, passStart(pl)), from)); }
     const to = V.add(B.pos, passStart(pl)), D = Math.max(V.len(V.sub(to, from)), 1e-30), d = V.mul(V.sub(to, from), 1/D);
     const T = clamp(2.8 + 0.45*Math.log10(Math.max(D/pl.Rc, 1)), 3.2, 5.5), ex = solveLeg(D, e.v, pl.v0, T);
     // (too close for a proper jump: a glide whose speed runs evenly from one pass's to the next's, which takes 2D/(v0 + v1); a fixed time

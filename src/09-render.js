@@ -727,7 +727,8 @@ const shipMarkEl = $('#shipMark'), shipArrowEl = $('#shipArrow');
 function updateShipFinder(){
   const s = typeof ship !== 'undefined' ? ship : null;
   let showM = false, showA = false;
-  if (s && SET.haloMark && s.S && s.S.target && !(orbit.lock === s.index && s.rpx > 40)){
+  // (not on the Halo tour, owner 0.10.2: its shots are the place's, and the ship is in them anyway)
+  if (s && SET.haloMark && s.S && s.S.target && !HT.on && !(orbit.lock === s.index && s.rpx > 40)){
     const W = innerWidth, H = innerHeight, dtxt = 'halo · ' + fmtLen(s.dist*LY);
     const pr = projectCSS(s.rel);
     if (pr && pr.x > 24 && pr.x < W - 24 && pr.y > 24 && pr.y < H - 24){
