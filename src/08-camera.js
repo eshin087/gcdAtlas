@@ -597,7 +597,10 @@ canvas.addEventListener('contextmenu', e => e.preventDefault());
 canvas.addEventListener('pointerdown', e => {
   canvas.setPointerCapture(e.pointerId);
   pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
-  if (pointers.size === 1) drag = { x0:e.clientX, y0:e.clientY, t0:performance.now(), moved:0, pan:e.button === 2 || e.shiftKey };
+  // (on a rocket or its pad a right-drag turns round it like a left drag: a pan let go of it, and the free camera, which moves with the
+  // rocket, slid the rocket across the screen as if you were dragging it: owner, 0.10.1)
+  const lk = OBJ[orbit.lock], onRocket = LCAM.on || !!(lk && (lk.sx || lk.sxSite));
+  if (pointers.size === 1) drag = { x0:e.clientX, y0:e.clientY, t0:performance.now(), moved:0, pan:(e.button === 2 || e.shiftKey) && !onRocket };
   else if (drag){ drag.moved = 99; drag.two = null; }   // (a new two-finger gesture starts from here)
   canvas.classList.add('dragging');
 });
@@ -683,7 +686,7 @@ for (const el of [canvas, $('#labels'), $('#shipMark')]) el.addEventListener('wh
 function beginManual(){
   manualAt = performance.now();
   if (stopShipCam()) toast('the camera is yours · press play to ride along with the Halo again');
-  if (stopLaunchCam()) toast('the camera is yours · press play to follow the flight again');
+  if (stopLaunchCam()){ LCAM.took = true; toast('the camera is yours · it follows the flight again 10 s after you let go, or press play'); }
   SX.pend = null;
   shipCam.pending = false;
   if (tour.on){ stopTour(true); motion.last = 'tour'; }

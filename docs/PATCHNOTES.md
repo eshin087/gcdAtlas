@@ -5,11 +5,18 @@
      numbers with units. The newest version comes first and opens by itself; its number must match package.json (tests/smoke.mjs checks it).
      Every detail stays in docs/CHANGELOG.md, which the panel links to. -->
 
-## 0.10.2 · 30 Sep 2026 · The Halo tour, at the tour's pace
+## 0.10.2 · 1 Oct 2026 · The Halo tour, at the tour's pace
 - The Halo tour now spends about 40 s at each place, like the normal tour.
 - The Halo arrives straight into its move: through Saturn's rings, through a star's corona, weaving through a nebula. Now and then it arrives on a job instead.
 - The camera takes turns: wide shots of the place, and close-ups with the Halo a third of the screen and the place big behind it.
 - The Halo's blue marker stays hidden during the Halo tour.
+
+## 0.10.1 · 1 Oct 2026 · Smoother launches
+- Staging plays in real time: the booster's engines shut down in steps and the ship pulls away gently, instead of jumping.
+- The camera stays with the booster all the way home, through the flip, the burn back and the catch, with no jumps, and the playback speeds up and slows down smoothly.
+- Drag during a launch to look round the rocket from any angle. The camera follows the flight again 10 s after you let go, or when you press play.
+- The music stays under the rocket's roar, and the camera shakes less.
+- When the interface fades, the caption fades too and comes back briefly for each new step.
 
 ## 0.10.0 · 30 Sep 2026 · Launches you can hear, under real skies
 - Pick a rocket and the camera comes down from space onto the pad in one smooth move, with no jumps or odd angles all the way to orbit.

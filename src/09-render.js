@@ -1437,6 +1437,10 @@ function startTour(id){
 }
 const capEl = $('#caption'), capText = $('#capText'), capBtn = $('#capBtn');
 let capFull = '', capShown = 0, capT = 0;
+// (while the interface has faded away the caption fades too, a few seconds after it is written out, and comes back only for a new one:
+// owner, 0.10.1. A caption is new when more than its numbers change, so a launch clock ticking on does not bring it back)
+let capKey = '', capDoneAt = 0;
+const CAP_REST = 4500;
 const SHOWCAP = { txt:'' };   // a caption set by the Halo showcase
 function setCaption(txt, btn){
   if (txt === capFull){ return; }
@@ -1445,6 +1449,8 @@ function setCaption(txt, btn){
   let k = 0; const m = Math.min(capShown, txt.length); while (k < m && txt.charCodeAt(k) === capFull.charCodeAt(k)) k++;
   if (!(k >= 8 || (k > 0 && k === capShown))) k = 0;
   capFull = txt; capShown = k; capT = k; capText.textContent = txt.slice(0, k); capEl.classList.toggle('done', !!txt && k >= txt.length);
+  // (new: words it did not have before; a caption that only loses its event, back to the clock, stays faded)
+  const key = txt.replace(/[0-9]+/g, '#'); if (key !== capKey){ const had = new Set(capKey.split(/\s+/)); if (!txt || key.split(/\s+/).some(w => !had.has(w))){ capDoneAt = 0; capEl.classList.remove('rest'); } capKey = key; }
   capEl.hidden = !txt; capBtn.hidden = !btn; if (btn) capBtn.textContent = btn;
 }
 function updateCaption(dt){
@@ -1459,6 +1465,10 @@ function updateCaption(dt){
     capT += dt*(reduceMotion ? 1e4 : 55); const k = Math.min(capFull.length, Math.floor(capT));
     if (k !== capShown){ capShown = k; capText.textContent = capFull.slice(0, k); if (k >= capFull.length) capEl.classList.add('done'); }
   }
+  // (rests once it has been read: written out, and CAP_REST since; only while the interface is faded)
+  const now = performance.now();
+  if (capFull && capShown >= capFull.length && !capDoneAt) capDoneAt = now;
+  capEl.classList.toggle('rest', !!capDoneAt && now - capDoneAt > CAP_REST && document.body.classList.contains('ui-idle'));
 }
 capBtn.addEventListener('click', () => { if (cmp) endCompare(true); else if (LCAP.go) LCAP.go(); });
 

@@ -6,7 +6,11 @@
 // far apart the camera pulls back on the way so both stay in view. Picking a rocket flies the camera straight into the first shot's pose
 // (shotVP), and the launch camera takes over from exactly there with a slow zoom.
 const LENS = { k:1, want:1 };
-const LCAM = { on:false, run:null, shot:-1, focus:null, eo:null, lo:null, from:null, bt:0, bT:3, endT:0, st:0 };
+const LCAM = { on:false, run:null, shot:-1, focus:null, eo:null, lo:null, from:null, bt:0, bT:3, endT:0, st:0, took:false };
+// a dip through black between two shots far apart (a shot with fade: the screen darkens over the last 0.55 s of real time before it, and
+// the shot starts from black, without a blend, over 0.8 s). The overlay is set every tick, never by a CSS transition, so recordings repeat
+const sxFadeEl = (() => { const d = document.createElement('div'); d.className = 'sx-fade'; d.setAttribute('aria-hidden', 'true'); document.body.appendChild(d); return d; })();
+function sxFade(v){ v = v > 0.003 ? +v.toFixed(3) : 0; if (sxFadeEl._v !== v){ sxFadeEl._v = v; sxFadeEl.style.opacity = v; } }
 // the part a shot looks at (the camera's focus), and the Earth-fixed point of a shot's eye or look spec
 const center = o => V.add(o.sx.st.base, V.mul(o.sx.st.axis, o.sx.def.len*0.5e-3));
 function specPart(run, spec){ return spec && (spec[0] === 'part' || spec[0] === 'traj' || spec[0] === 'body') ? famPart(run.mis.fam, spec[1]) : null; }
@@ -120,7 +124,7 @@ function startLaunchCam(run){
   LCAM.from = { F:watchPart(run), rel:null }; LCAM.from.pose = camPose();   // (the blend in starts from the camera as it is)
   LCAM.from.eo = V.sub(LCAM.from.pose.eye, center(LCAM.from.F)); LCAM.from.lo = V.sub(LCAM.from.pose.look, center(LCAM.from.F));
   LCAM.bt = 0; LCAM.bT = 3.2;
-  LCAM.on = true; LCAM.run = run; LCAM.shot = shotIndex(run); LCAM.focus = null; LCAM.eo = LCAM.lo = null; LCAM.endT = 0; LCAM.st = 0; LCAM.upW = LCAM.fwW = null; run.hold = false; run.seen = true; motion.last = 'launch';
+  LCAM.on = true; LCAM.took = false; LCAM.run = run; LCAM.shot = shotIndex(run); LCAM.focus = null; LCAM.eo = LCAM.lo = null; LCAM.endT = 0; LCAM.st = 0; LCAM.upW = LCAM.fwW = null; run.hold = false; run.seen = true; motion.last = 'launch';
   stopTour(false); pauseShow(); tween = null; flyMove = null; shipCam.on = shipCam.pending = false;
   if (run.mode === 'real') dayTo(realJD() - JD_NOW, 2.5);   // (a live launch is lit by the real Sun: the atlas clock goes to now)
   updateLaunchCam(0); updateModeUI();
@@ -128,7 +132,7 @@ function startLaunchCam(run){
 // (flying off elsewhere only switches it off: the flight has already set the camera, the lock and the info panel)
 function stopLaunchCam(quiet, flying){
   if (!LCAM.on) return false;
-  LCAM.on = false; LENS.want = 1;
+  LCAM.on = false; LENS.want = 1; sxFade(0);
   if (flying){ updateModeUI(); return true; }
   const F = LCAM.focus; motion.last = 'launch';
   // (the camera stays exactly where it is, aimed where it was aimed; the lens eases back to normal)
@@ -146,12 +150,18 @@ function updateLaunchCam(dt){
   // a new shot: blend from the camera's last pose, carried along with the stage it was framing
   if (i !== LCAM.shot && LCAM.focus){
     // (a camera standing on the ground stays where it stands; one flying beside a stage, or on the station, which orbits at 7.7 km/s, goes on with it)
-    const pf = LCAM.focus, pc = center(pf), q = LCAM.pose, ps = run.mis.shots[LCAM.shot], stays = ps && ps.eye[0] === 'site';
+    // (the last pose is carried relative to where its stage was when it was made: measured from where the stage is now, a frame on, the camera
+    // fell a frame behind a stage at 2 km/s and the picture hopped by a quarter of the screen at every new shot)
+    const pf = LCAM.focus, pc = LCAM.poseC || center(pf), q = LCAM.pose, ps = run.mis.shots[LCAM.shot], stays = ps && ps.eye[0] === 'site';
     LCAM.from = { F:pf, eo:V.sub(q.eye, pc), lo:V.sub(q.look, pc), pose:q, stays, body:ps && ps.eye[0] === 'body' }; LCAM.bt = 0; LCAM.bT = sh.blend || 3;
     if (sh.cut){ LCAM.from = null; foldFlash('blink'); }
+    if (sh.fade){ LCAM.from = null; LCAM.upW = LCAM.fwW = null; }   // (from black the new shot starts with its own up: carried over, it turned for a second)
     LCAM.eo = LCAM.lo = null;
   }
   LCAM.shot = i;
+  { const nx = run.mis.shots[i + 1], J = run.mis.jump, tn = nx && J && nx.t >= J[1] && run.mt < J[0] ? J[0] : nx ? nx.t : 0;   // (a shot after a skip in time fades out before the skip)
+    const out = nx && nx.fade ? clamp(1 - (tn - run.mt)/Math.max(runRate(run), 1e-3)/0.55, 0, 1) : 0, inn = sh.fade ? clamp(1 - LCAM.st/0.8, 0, 1) : 0;
+    sxFade(Math.max(smoother(out), smoother(inn))); }
   // within a shot: ground cameras stay put, cameras fixed to a hull move with it, cameras riding beside a stage follow it with a little lag; the aim eases
   let eo = V.sub(raw.eye, Fc), lo = V.sub(raw.look, Fc);
   if (LCAM.eo && LCAM.focus === F && dt > 0){
@@ -182,18 +192,19 @@ function updateLaunchCam(dt){
     if (a > lim){ const ax = V.cross(LCAM.fwW, fw), al = V.len(ax); if (al > 1e-9){ const u = V.mul(ax, 1/al), cs = Math.cos(lim), sn = Math.sin(lim), nf = V.norm(V.add(V.mul(LCAM.fwW, cs), V.mul(V.cross(u, LCAM.fwW), sn)));
       pose.look = V.add(pose.eye, V.mul(nf, V.len(V.sub(pose.look, pose.eye)))); } } }
   LCAM.fwW = V.norm(V.sub(pose.look, pose.eye));
-  LCAM.pose = pose;
+  LCAM.pose = pose; LCAM.poseC = Fc;
   if (F !== LCAM.focus && infoObj !== F.index) setInfo(F.index);
   LCAM.focus = F;
   LENS.k = LENS.want = pose.lens;
   cam.focus = F.index;
   cam.rel = V.mul(M3.apply(earth.rot, V.sub(pose.eye, Fc)), KM);
-  // (the shake: near the pad the air and the ground shake the camera 10 to 20 times a second, with a slower sway, up to about half a degree;
-  // on a hull a steady buzz; none for people who ask for reduced motion. The pose itself stays still, so blends are not shaken off course)
+  // (the shake: near the pad the air and the ground shake the camera, mostly a sway 1 to 3 times a second with a lighter tremor 10 to 15 times
+  // a second, up to about a quarter of a degree (owner, 0.10.1: half a degree of fast jitter was too much); on a hull a gentle buzz; none
+  // for people who ask for reduced motion. The pose itself stays still, so blends are not shaken off course)
   let fw = M3.apply(earth.rot, V.norm(V.sub(pose.look, pose.eye))); const upw = M3.apply(earth.rot, pose.up);
-  const shk = reduceMotion ? 0 : (HEAR.onboard ? 0.005 : 0.008)*HEAR.total;
+  const shk = reduceMotion ? 0 : (HEAR.onboard ? 0.002 : 0.0032)*HEAR.total;
   if (shk > 1e-5){ const t = GT, rt = V.norm(V.cross(fw, upw)), uu = V.cross(rt, fw);
-    const nx = Math.sin(t*71.3)*0.55 + Math.sin(t*113.9 + 1.3)*0.3 + Math.sin(t*19.1 + 0.7)*0.4, ny = Math.sin(t*83.7 + 2.1)*0.5 + Math.sin(t*127.3 + 0.4)*0.3 + Math.sin(t*23.3 + 1.9)*0.4;
+    const nx = Math.sin(t*61.3)*0.25 + Math.sin(t*93.9 + 1.3)*0.12 + Math.sin(t*17.1 + 0.7)*0.45 + Math.sin(t*8.3 + 2.2)*0.35, ny = Math.sin(t*67.7 + 2.1)*0.22 + Math.sin(t*101.3 + 0.4)*0.12 + Math.sin(t*19.3 + 1.9)*0.45 + Math.sin(t*7.1 + 0.6)*0.35;
     fw = V.norm(V.add(fw, V.add(V.mul(rt, nx*shk), V.mul(uu, ny*shk)))); }
   setBasis(fw, upw);
   orbit.lock = F.index; orbit.frame = camFrameOf(F); orbit.off = V.mul(M3.apply(earth.rot, V.sub(pose.look, Fc)), KM); orbit.offFn = null; orbit.target = orbit.off.slice();
@@ -397,6 +408,11 @@ function sxTick(dt){
   sxEval(null);
   // the flight to a rocket was interrupted (another flight, a drag): nothing to wait for
   if (SX.pend && (!SX.runs.includes(SX.pend.run) || (!flight && GT - SX.pend.at > 1.5))) SX.pend = null;
+  // you took the camera from the director with a drag or the wheel (owner, 0.10.1: dragging should look round the rocket at any angle, and
+  // the director should come back): after 10 s without a touch it glides back in from where you left it, if you are still on that flight
+  if (LCAM.took && !LCAM.on){ const run = LCAM.run, o = OBJ[orbit.lock];
+    if (!run || run.ended || !SX.runs.includes(run) || flight || tour.on || shipCam.on || !o || !o.sx || o.sx.fam !== run.mis.fam) LCAM.took = false;
+    else if (performance.now() - manualAt > 10000 && !pointers.size){ startLaunchCam(run); toast('following the flight again'); } }
   // a flight you watch ends: a moment on the last shot, then the camera is yours
   if (LCAM.on && LCAM.run.ended){ LCAM.endT += dt; if (LCAM.endT > 5){ stopLaunchCam(true); toast('the flight is over · drag to look round · press play to watch it again'); } }
   // replays now and then while you look at Earth: from a pad on the side you see, in daylight
@@ -427,13 +443,21 @@ function sxTick(dt){
   const want = LCAM.on || (SX.pend && flight) || (SXENV.on && SXENV.alt < 40);
   if (want && sxRatePrev == null){ sxRatePrev = ssRate; ssRate = 1/86400; }
   else if (!want && sxRatePrev != null){ if (ssRate === 1/86400) ssRate = sxRatePrev; sxRatePrev = null; }
-  if (!LCAM.on){ const lk = 1 - Math.exp(-dt*2); LENS.k = Math.exp(Math.log(LENS.k)*(1 - lk)); }
+  if (!LCAM.on){ const lk = 1 - Math.exp(-dt*2), k0 = LENS.k; LENS.k = Math.exp(Math.log(LENS.k)*(1 - lk));
+    // (once the director lets go, the long lens eases back to normal while the camera moves in by as much, so the rocket keeps its size on
+    // the screen: let go from a 16 times lens, it shrank to a speck)
+    const o = OBJ[orbit.lock]; if (o && (o.sx || o.sxSite) && !flight && k0 > 1.0001){ const f = LENS.k/k0; orbit.dist *= f; orbit.distT = Math.max(orbit.distT*f, o.rad*(o.minZoom || 0)); } }
   // the atmosphere over the camera
   { const cf = camFixed(), alt = V.len(cf) - RE_KM; ATM.k = SKYV.on || !(alt < 120) ? 0 : 1 - smooth(25, 90, alt); }
   wxTick(dt); buildClusters(); updateTrail(); smokeUpdate(); sxHear();
   for (const k in SX.parts) SX.parts[k].noLabel = LCAM.on;   // (a clean picture while the launch camera plays)
   // locked on a rocket or a pad, the camera turns with the Earth under it (their frames turn with it)
   if (!LCAM.on && !flight && OBJ[orbit.lock] && (OBJ[orbit.lock].sx || OBJ[orbit.lock].sxSite)) orbit.frame = camFrameOf(OBJ[orbit.lock]);
+  // (looking round a stage near the ground the camera stays above it: in the level frame the pitch is the camera's elevation seen from the
+  // stage, kept where the eye clears the ground under the stage by 4 m)
+  { const o = OBJ[orbit.lock]; if (!LCAM.on && !flight && o && o.sx && o.sx.st && !o.hidden){ const c = center(o), alt = (V.len(c) - RE_KM)*1000;
+    if (alt < 3000){ const g = EDT.heightAt(c), dm = orbit.dist/MET, need = ((g == null ? 0 : g) + 4 - alt)/Math.max(dm, 1);
+      if (need > -1){ const pm = Math.asin(clamp(need, -1, 0.95)); if (orbit.pitch < pm) orbit.pitch = pm; } } } }
   // a shared link straight to a rocket starts its countdown
   if (!SX.hashDone && GT > 0.3){ SX.hashDone = true; const o = OBJ[orbit.lock]; if (o && o.sx && /[#&]o=/.test(location.hash) && !famRun(o.sx.fam)) lockOn(o.index); }
 }
@@ -482,7 +506,28 @@ function dockInDaylight(){
   earth.update(0); iss.update(0);
 }
 // playback speed at mission time t: the rate of the last step at or before t
-function stepRate(R, t){ let v = R[0][1]; for (const [a, b] of R) if (t >= a) v = b; return v; }
+// the playback speed at mission time t. A mission's table gives a speed from each time; between two speeds it eases, log-linear in mission
+// time, over about RAMP s of real time: starting at the change when it speeds up, ending at it when it slows down, so every slow part plays
+// slow from its first second (owner, 0.10.1: the jumps from 3 to 16 times and back to 1.6 looked like cuts and skips)
+const RAMP = 1.8;
+function rateTable(R){
+  if (R._sm) return R._sm;
+  const out = [[R[0][0], R[0][1]]];
+  for (let i=1;i<R.length;i++){
+    const [a, r1] = R[i], [p0, r0] = out[out.length - 1]; if (r1 === r0){ continue; }
+    const span = RAMP*Math.sqrt(r0*r1);   // (the mission seconds the ramp takes)
+    if (r1 > r0){ if (a > p0) out.push([a, r0]); out.push([a + span, r1]); }
+    else { const s0 = Math.max(a - span, p0); if (s0 > p0) out.push([s0, r0]); out.push([Math.max(a, s0 + 1e-3), r1]); }
+  }
+  Object.defineProperty(R, '_sm', { value:out, enumerable:false }); return out;
+}
+function stepRate(R, t){
+  const T = rateTable(R), n = T.length;
+  if (t <= T[0][0]) return T[0][1]; if (t >= T[n - 1][0]) return T[n - 1][1];
+  let i = 0; while (i < n - 2 && t >= T[i + 1][0]) i++;
+  const [a, ra] = T[i], [b, rb] = T[i + 1], u = (t - a)/Math.max(b - a, 1e-6);
+  return Math.exp(Math.log(ra) + (Math.log(rb) - Math.log(ra))*u);
+}
 function eventNow(run){ let e = ''; for (const [t, s] of run.mis.events) if (run.mt >= t && run.mt - t < (run.mode === 'real' ? 40 : 30)) e = s; return e === '@site' ? SXS[run.site].name : e; }
 // ---------------------------------------------------------------- the numbers in the info panel
 const SX_IDLE = {

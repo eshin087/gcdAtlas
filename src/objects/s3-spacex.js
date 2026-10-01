@@ -93,13 +93,16 @@ const MIS = {
     stack:Kp([[0,0,0,0.020,0],[4,0,0,0.052,0],[8,0,0,0.15,0],[12,0,0,0.31,0],[16,0,0,0.55,0.5],[20,0.02,0,0.85,1.5],[26,0.08,0,1.45,4],[34,0.3,0,2.6,8],[45,0.9,0,4.8,14],[62,2.6,0,9.5,23],[80,6.2,0,16,32],[100,12.8,0,25,41],[120,22.5,0,36,48],[140,36,0,49,54],[162,57,0,66,58]]),
     parts:{
       booster:{ sep:162, dy:0, path:Kp([[162,57,0,66,58],[168,64,0,72,45],[175,70,0,77,-20],[182,74,0,81,-72],[205,80,0,90,-80],[228,78,0,97,-78],[250,70,0,101,-55],[290,55,0,94,-20],[320,43,0,80,-8],[345,32,0,60,-5],[365,22,0,40,-3],[380,14,0,25,-2],[392,8,0,13,-1.5],[402,4,0,6.5,-1],[412,1.4,0,2.6,-0.5],[418,0.4,0,0.9,0],[424,0.06,0,0.2,0],[430,0,0,0.036,0],[436,0,0,0.031,0]]),
-        thr:[[-3.2,0],[-2.4,0.6],[0,1],[157,1],[158,0.12],[163,0.12],[164,0],[182,0],[183,1],[226,1],[227,0],[411,0],[412,1],[419,1],[420,0.3],[431,0.3],[432,0]] },
+        // (engine cutoff in steps as on the real flights, about 2.5 s: the outer 20 engines, then the middle 10, the 3 in the middle burning on
+        // through hot staging; the boostback on 13, the landing burn on 13 then 3. Owner, 0.10.1: the cutoff was abrupt)
+        thr:[[-3.2,0],[-2.4,0.6],[0,1],[155.4,1],[156.2,0.42],[157.1,0.4],[158,0.1],[163,0.1],[164.4,0],[182,0],[183.4,0.4],[225.6,0.4],[227,0],[411,0],[412.2,0.4],[419,0.4],[420.4,0.1],[430.6,0.1],[431.8,0]] },
       ship:{ sep:162, dy:71.3, path:Kp([[162,57,0,66,58],[172,72,0,76,62],[190,100,0,91,67],[220,152,0,112,72],[260,238,0,136,78],[320,400,0,162,84],[380,610,0,179,88],[440,880,0,188,91],[515,1290,0,192,93],[560,1600,0,192,93]]),
-        thr:[[159.5,0],[160.5,1],[515,1],[516,0]] } },
+        thr:[[159.2,0],[160.9,1],[514.4,1],[516,0]] } },
     pad:{ chopH:[[-600,62],[380,62],[405,93],[900,93]], chopOpen:[[-600,1],[428,1],[431,0.16],[900,0.16]], qd:[[-600,0],[-7,0],[-4.5,-1.3],[900,-1.3]] },
     cloud:{ strength:[[-3.2,0],[-2.2,1],[40,1],[110,0.35],[220,0]], steam:0.85, vent:[[-60,1],[-3,0.5],[1,0]] },
     events:[[-20,'@site'],[-10,'final countdown'],[-6,'the quick-disconnect arm swings back'],[-3,'33 Raptor engines start'],[0,'liftoff'],[9,'clear of the tower'],[62,'max Q: the hardest push of the air'],[157,'the booster cuts its engines'],[160,'hot staging: the ship lights its engines while still attached'],[183,'boostback burn: the booster turns back for Texas'],[227,'boostback done: the booster coasts home'],[412,'landing burn: 13 engines, then 3'],[430,'caught by the tower\'s chopsticks'],[515,'ship engine cutoff'],[525,'the ship coasts on round the world']],
-    rate:[[-12,1],[12,2.5],[55,4],[148,1.2],[170,3],[228,16],[390,1.6],[432,8],[515,3],[560,1]],
+    // (staging plays in real time, the booster's coast home fast, its descent slower and the landing near real time; the changes ease: stepRate)
+    rate:[[-12,1],[12,2.5],[55,4],[145,1],[178,2.5],[226,14],[366,3],[402,1.2],[434,8],[515,3],[560,1]],
     shots:[
       { t:-60, eye:['site', 'SITE', 'a'], look:['part', 'booster', 60], lens:1, to:{ eye:['site', 'SITE', 'b'], lens:['fit', 130, 0.3] }, move:11, drift:0.012 },
       { t:-9, eye:['site', 'starbase', [-380, 4, 520]], look:['part', 'booster', 62], lens:['fit', 130, 0.62] },
@@ -109,19 +112,25 @@ const MIS = {
       { t:22, eye:['traj', 'booster', [70, -45, 40]], look:['part', 'booster', 45], lens:1, lag:0.7, blend:3.5 },
       { t:31, eye:['body', 'booster', [6.5, 30, 0], 'sun'], look:['body', 'booster', [150, -300, 0], 'sun'], lens:1, up:'side', blend:3.5 },
       { t:55, eye:['traj', 'ship', [380, -70, 120]], look:['part', 'ship', 0], lens:['fit', 130, 0.5], lag:1 },
-      { t:150, eye:['traj', 'ship', [240, 28, -40]], look:['part', 'ship', -4], lens:['fit', 70, 0.8], lag:1 },
-      { t:172, eye:['traj', 'booster', [300, 120, 180]], look:['part', 'booster', 36], lens:['fit', 80, 0.5], lag:0.8 },
-      { t:228, eye:['traj', 'booster', [260, 170, 150]], look:['part', 'booster', 36], lens:['fit', 80, 0.35], lag:0.6 },
-      { t:395, eye:['site', 'starbase', [-900, 60, 300]], look:['part', 'booster', 36], lens:['fit', 90, 0.4] },
-      { t:414, eye:['site', 'starbase', [-250, 92, -10]], look:['site', 'starbase', [0, 88, -12]], lens:['fit', 160, 0.9] },
-      { t:440, eye:['traj', 'ship', [110, 60, -150]], look:['part', 'ship', 30], lens:1.2, lag:1 },
+      // (staging, from beside the stack: the interstage as the booster's engines cut off and the ship lights its own; as they part the camera
+      // moves over to ride with the booster, the ship's flame climbing away above it, and stays with the booster as it flips and burns back
+      // (owner, 0.10.1: the camera jumped between the ship, the booster and the ground and swept 13 km in 3 s; the booster sat off the screen
+      // for 2 s and 6 s))
+      { t:146, eye:['traj', 'ship', [230, 20, -60]], look:['part', 'ship', -12], lens:['fit', 120, 0.75], lag:1, blend:5 },
+      { t:163, eye:['traj', 'booster', [260, 60, -40]], look:['part', 'booster', 60], lens:['fit', 160, 0.75], lag:0.8, blend:4 },
+      { t:172, eye:['traj', 'booster', [300, 120, 180]], look:['part', 'booster', 36], lens:['fit', 80, 0.5], lag:0.8, blend:6 },
+      { t:226, eye:['traj', 'booster', [260, 170, 150]], look:['part', 'booster', 36], lens:['fit', 80, 0.35], lag:0.6, blend:5 },
+      // (the booster's descent and catch, from beside it, with the tower in the picture as it comes in)
+      { t:366, eye:['traj', 'booster', [220, 40, 160]], look:['part', 'booster', 30], lens:['fit', 120, 0.5], lag:0.6, blend:6 },
+      // (the ship by then is 900 km away: a dip through black instead of a 3 s sweep across it)
+      { t:437, eye:['traj', 'ship', [110, 60, -150]], look:['part', 'ship', 30], lens:1.2, lag:1, fade:true },
       { t:505, eye:['traj', 'ship', [190, 60, 60]], look:['part', 'ship', 25], lens:['fit', 55, 0.5], lag:1 } ] },
   falcon9:{ fam:'f9', name:'Falcon 9', site:'slc40', az:45, end:565, h0:0.004, pay:0, dsS:465,
     stack:Kp([[0,0,0,0.004,0],[4,0,0,0.012,0],[8,0,0,0.045,0],[12,0,0,0.11,0],[18,0,0,0.26,1],[25,0.03,0,0.55,3],[35,0.25,0,1.3,8],[50,1.1,0,3.3,15],[72,3.5,0,8.6,27],[90,8,0,14.5,36],[110,17,0,24,44],[130,35,0,39,51],[148,62,0,58,56]]),
     parts:{
       core:{ sep:151, dy:0, path:Kp([[148,62,0,58,56],[151,67,0,61,57],[160,80,0,70,120],[175,100,0,83,200],[200,133,0,101,235],[240,185,0,120,258],[273,228,0,125,270],[320,286,0,117,285],[360,334,0,98,300],[400,381,0,68,318],[418,400,0,54,322],[440,420,0,38,328],[470,443,0,20,336],[500,458,0,7.5,346],[512,462,0,3.2,352],[520,464,0,1.2,356],[528,464.9,0,0.3,359],[534,465,0,0.0075,360],[540,465,0,0.0075,360]]),
         thr:[[-3.2,0],[-2.6,0.7],[0,1],[147.5,1],[148,0],[399,0],[400,0.33],[417,0.33],[418,0],[511,0],[512,0.11],[533,0.11],[534,0]], legs:[[526,0],[530,1]], fins:[[153,0],[163,1]] },
-      s2:{ sep:151, dy:44.8, path:Kp([[148,62,0,58,56],[151,67,0,61,57],[160,80,0,69,60],[180,112,0,85,64],[220,190,0,112,70],[280,340,0,145,78],[360,610,0,176,85],[440,960,0,196,89],[522,1400,0,207,92],[565,1700,0,209,93]]),
+      s2:{ sep:151, dy:44.8, path:Kp([[148,62,0,58,56],[151,67,0,61,57],[160,81.5,0,69.5,60],[180,112,0,85,64],[220,190,0,112,70],[280,340,0,145,78],[360,610,0,176,85],[440,960,0,196,89],[522,1400,0,207,92],[565,1700,0,209,93]]),
         thr:[[156,0],[157.5,1],[522,1],[523,0]], pay:[[194,0],[195,2]] } },
     events:[[-20,'@site'],[-10,'final countdown'],[-3,'nine Merlin engines start'],[0,'liftoff'],[72,'max Q: the hardest push of the air'],[148,'main engine cutoff'],[151,'stage separation'],[157,'second stage engine start'],[195,'the fairing halves fall away'],[400,'entry burn'],[512,'landing burn'],[522,'second stage engine cutoff: in orbit'],[534,'landed on the droneship']],
     rate:[[-12,1],[12,3],[65,5],[140,1.2],[160,4],[230,16],[390,2.5],[420,8],[500,1.2],[540,3],[565,1]],
@@ -189,7 +198,7 @@ const MIS = {
       { t:505, eye:['site', 'DS', [-72, 7, 96]], look:['part', 'core', 22], lens:['fit', 60, 0.5] },
       { t:545, eye:['traj', 's2', [50, 10, -40]], look:['part', 's2', 16], lens:1, lag:1 },
       { t:700, eye:['traj', 'dragon', [16, 6, 18]], look:['part', 'dragon', 3], lens:1, lag:1 },
-      { t:1000, eye:['iss', [70, 26, 48]], look:['mid'], lens:1 },
+      { t:1000, eye:['iss', [70, 26, 48]], look:['mid'], lens:1, fade:true },   // (after the 4 minutes the flight skips: a dip through black)
       { t:1085, eye:['iss', [44, 9, 14]], look:['part', 'dragon', 6], lens:1 } ] },
 };
 // Falcon Heavy's side boosters fly back to Landing Zones 1 and 2; the Dragon mission flies Falcon 9's paths with Dragon on top
@@ -235,6 +244,9 @@ for (const fk in FAM) for (const d of FAM[fk].parts){
     views:[{ d:[0.8, 0.22, 0.56], k:4.2, hold:9, drift:0.03 }, { d:[-0.6, 0.1, 0.8], k:2.6, hold:9, drift:-0.03 }],
     readout:() => sxReadout(o) });
   o.sx = { fam:fk, def:d, st:null };
+  // (the camera orbits a stage in a level frame, up the local vertical: in the stage's own frame the rocket always pointed up the screen and
+  // the view turned over with it as it pitched and flipped: owner, 0.10.1)
+  o.camFrame = () => o.camR || o.R0;
   // (sorted by distance, the rockets on their pads come straight after Earth, in a fixed order, and Dragon with the station it docks at)
   const rank = ['starship', 'falcon9', 'falconheavy'].indexOf(d.key);
   if (inAtlas) o.distNow = d.key === 'dragon' ? () => V.len(BYKEY.iss.offset) : () => RE_KM*KM*(1 + (rank + 1)*1e-9);
@@ -286,6 +298,15 @@ function endRun(run){
 }
 const famRun = fk => SX.runs.find(r => r.mis.fam === fk);
 // the state of every part of a family at mission time mt (run null: standing on its home pad)
+// the stack's path at mission time t, and past its last keyframe the path of the stage it stands on (Falcon's stack path ends at main engine
+// cutoff, 3 s before separation: clamped there, the rocket stood still for 3 s and then jumped 5 km)
+function stackK(mis, t){ const T = mis.stack.T; if (t <= T[T.length - 1]) return kAt(mis.stack, t);
+  const tail = mis._tail !== undefined ? mis._tail : (mis._tail = Object.values(mis.parts).find(P => P.path && !P.dy && !P.dz && P.path.T[0] <= T[T.length - 1] + 1e-6) || null);
+  return kAt(tail ? tail.path : mis.stack, t); }
+// separation: a stage leaves the stack's motion gradually, over sepT s (12 by default), from where it stood on the stack (the ship 71 m up
+// on the booster), its position and speed carried on from the stack's and eased into its own path (owner, 0.10.1: the ship jumped 71 m down
+// into the booster as they separated and raced off at 300 m/s; real hot staging opens a gap of tens of metres in the first seconds)
+const SEP_T = 12;
 function sxEval(run){
   const fk = run ? run.mis.fam : null;
   for (const fam of run ? [fk] : Object.keys(FAM)){
@@ -301,17 +322,21 @@ function sxEval(run){
       if (d.id === 'dragon' && mt >= 1000){ dragonAtISS(o, mt); continue; }
       const own = P.path && mt >= P.sep, K = own ? P.path : mis.stack;
       const pathOwner = !own && d.id === 'dragon' ? mis.parts.s2 : null;
-      const k = kAt(pathOwner && mt >= pathOwner.sep ? pathOwner.path : K, mt);
-      let [s, c, h, pd] = k.v;
+      const k = pathOwner && mt >= pathOwner.sep ? kAt(pathOwner.path, mt) : own ? kAt(K, mt) : stackK(mis, mt);
+      let [s, c, h, pd] = k.v, dv = k.dv, wSep = 1;
+      if (own && d.id !== 'dragon'){ const u = (mt - P.sep)/(P.sepT || SEP_T);
+        if (u < 1){ wSep = u*u*u*(u*(u*6 - 15) + 10); const k0 = stackK(mis, P.sep), e = k0.v.map((v, j) => v + k0.dv[j]*(mt - P.sep));
+          [s, c, h, pd] = [s, c, h, pd].map((v, j) => e[j] + (v - e[j])*wSep); dv = k.dv.map((v, j) => k0.dv[j] + (v - k0.dv[j])*wSep); } }
       pt = trajPoint(A, s, c, h, pd);
       let base = pt.p;
+      if (own && wSep < 1) base = V.add(base, V.add(V.mul(pt.axis, (P.dy || 0)*(1 - wSep)*1e-3), V.mul(pt.left, (P.dz || 0)*(1 - wSep)*1e-3)));
       if (!own){
         let dy = P.dy || 0; const dz = P.dz || 0;
         if (d.id === 'dragon'){ dy = mt >= (mis.parts.s2.sep || 1e9) ? 12.6 + Math.max(0, mt - P.sep)*0.4 : P.dy; }
         base = V.add(base, V.add(V.mul(pt.axis, dy*1e-3), V.mul(pt.left, dz*1e-3)));
       }
       alt = V.len(base) - RE_KM;
-      vel = V.add(V.mul(pt.fwd, k.dv[0]), V.mul(pt.up, k.dv[2]));
+      vel = V.add(V.mul(pt.fwd, dv[0]), V.mul(pt.up, dv[2]));
       const thr = r.idle ? 0 : lin(P.thr || [[0, 0]], mt);
       const pay = P.pay ? lin(P.pay, mt) : (mis.pay ?? 0);
       Object.assign(st, { base, axis:pt.axis, left:pt.left, up:pt.up, fwd:pt.fwd, alt, vel, speed:V.len(vel), s, thr,
@@ -329,6 +354,8 @@ function placePart(o, st){
   const z = st.left, y = st.axis, x = V.cross(y, z);
   st.Mf = [...x, ...y, ...z];
   o.R0 = o.rot = M3.mul(earth.rot, st.Mf);
+  { const u = V.norm(c), lz = V.sub(st.left, V.mul(u, V.dot(st.left, u))), zz = V.len(lz) > 1e-6 ? V.norm(lz) : V.norm(V.cross(u, [0, 0, 1])), xx = V.cross(u, zz);
+    o.camR = M3.mul(earth.rot, [...xx, ...u, ...zz]); }
   o.hidden = !!st.hidden || !st.on;
 }
 // Dragon at the ISS: docked at the forward port (the ISS model's +x end, 29 m out), or closing in along that axis during a mission

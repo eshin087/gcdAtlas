@@ -4,7 +4,7 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
-## 0.10.2 · 2026-09-30
+## 0.10.2 · 2026-10-01
 
 **The Halo tour keeps the normal tour's pace** (owner, 2026-09-30: it spent about 2 minutes at each place; "the main point of the halo tour was to mirror the normal tours but in the perspective of halo's 3rd person view with cool scenes, moments (halo dynamically interacting or flying through the objects)"; picked from three each time)
 - About 40 s a stop, jump included, like the normal tour (26 to 64 s a stop, 43 on average). It was 67 to 131 s: a stay of about a minute that only ended with a pass, plus loops, a signature move and a job.
@@ -24,6 +24,31 @@ All notable changes, newest first. Dates are UTC.
 **Checked**
 - Motion test: on the Halo tour from Saturn, stops of 30 to 50 s on average and none over 70, moves on arrival and at least one job; the place framed first in 85% of the samples or more, the ship in the picture, and bigger than the place in 5% of the samples at most (close-ups).
 - Measured on the test's route: 36 to 51 s a stop, 40 on average; an attack run at the Pillars, a skim at Betelgeuse, a scan at Eta Carinae.
+
+## 0.10.1 · 2026-10-01
+
+**Staging** (owner: when the booster cut its engines the animation was abrupt, too fast and not natural)
+- The ship jumped 71 m down into the booster at separation and raced off at 300 m/s. Each stage now leaves the stack gradually over 12 s, from where it stood on it, its position and speed carried on from the stack's: the gap opens to about 70 m after 1 s, 150 m after 3 s and 575 m after 5 s. Falcon's stack stood still for 3 s before separation and then jumped 5 km; it now carries on along the core's path, and its second stage no longer passes back through the core.
+- The booster's engines shut down in steps over about 2.5 s, as on the real flights: the outer 20, then the middle 10, the 3 in the middle burning on through hot staging. The boostback burn uses 13 engines and the landing burn 13 then 3, so their flames have the right size and sound.
+- Staging plays in real time (it played 1.2 to 3 times faster).
+
+**The booster's flight home** (owner: random cuts and skips; the camera jumped and warped back and forth)
+- The playback speed eases between its settings over about 1.8 s of real time, slowing before a slow part so it plays slow from its first second. It jumped from 3 to 16 times and back to 1.6.
+- The camera stays with the booster from separation to the catch: it rides beside the stack, moves over to the booster as they part (with the ship's flame climbing away above), and stays with it through the flip, the burn back, the coast, the descent and the catch, with the tower in the picture. It used to switch from the ship to the booster while the booster was off the screen for 2 s, swoop 13 km from beside it to a ground camera in 3 s, hold on the tower for 6 s while the booster was above the picture, and fly 900 km back to the ship.
+- After the catch the picture dips through black to the ship, 900 km away, instead of sweeping across.
+- Each new shot starts exactly where the last one left off: it was carried from where its stage was a frame later, so at 2 km/s the picture hopped by a quarter of the screen at every new shot.
+- Checked frame by frame from T+2:20 to the catch: the booster stays on the screen throughout, the view turns at most 0.43 degrees a frame, and at a new shot the subject moves at most 0.5% of the screen.
+
+**Looking round during a launch** (owner: the rocket always pointed up the screen and the angles could not be changed; a right-drag moved the rocket)
+- Dragging (or the wheel) takes the camera from the director: it orbits the rocket at any angle and keeps following it. The director takes the camera back 10 s after you let go, gliding in from where you are, or when you press play. The pause button still keeps the camera yours.
+- The camera orbits a stage in a level frame, up the local vertical: in the stage's own frame the rocket always pointed up the screen and the view turned over with it as it pitched and flipped.
+- When the director lets go of a long lens, the camera moves in as the lens widens, so the rocket keeps its size on the screen.
+- On a rocket or its pad a right-drag turns round it like a left drag. A pan let go of the rocket, and the free camera, which moves with the rocket, slid it across the screen as if you were dragging it.
+
+**Sound, shake and caption**
+- The music dips to about two thirds under the roar (a quarter before), so it stays through a launch.
+- The camera shakes less: mostly a sway 1 to 3 times a second with a lighter tremor, up to about a quarter of a degree (half a degree of fast jitter before).
+- While the interface has faded, the caption fades too, 4.5 s after it is written out, and comes back for a new caption (new words, not just the clock moving on).
 
 ## 0.10.0 · 2026-09-30
 
