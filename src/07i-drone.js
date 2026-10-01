@@ -774,7 +774,8 @@ function pipOpen(O, req){
 const PIP_HOMEBY = 8;
 function pipWant(){
   const S = S_, st = S.stay;
-  if (!st || st.leave || (S.phase !== 'pass' && S.phase !== 'loop') || ship.parent !== S.target) return false;
+  // (on the Halo tour every stay is one pass and leaving from the start: Pip comes for the job that calls it, 0.10.2)
+  if (!st || (st.leave && !(HT.on && PIP.req)) || (S.phase !== 'pass' && S.phase !== 'loop') || ship.parent !== S.target) return false;
   if (S.fk > -90 || S.asm < FLK.A1 + 0.5) return false;
   return !(S.phase === 'pass' && S.plan.last && S.t > S.plan.T - PIP_HOMEBY);
 }
@@ -783,7 +784,8 @@ function pipWant(){
 function pipSchedule(q, dt){
   const S = S_, O = q.O;
   if (q.req && (S.act !== q.req || q.req.fin)) q.req = null;   // (a job that is over no longer calls)
-  const want = pipWant();
+  // (on the Halo tour only when a job calls it, 0.10.2: a stop lasts about 40 s, and the jump waits for Pip to come home)
+  const want = pipWant() && (!HT.on || !!q.req);
   if (!O){
     if (!want){ q.wantT = 0; return; }
     q.wantT += dt;

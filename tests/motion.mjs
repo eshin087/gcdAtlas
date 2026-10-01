@@ -172,9 +172,14 @@ const tourFrame = await page.evaluate(seed => {
   C.haloTourStart('grand'); C.land(0.2);
   // (a click on the ship on the tour rides along again, with the tour's shots)
   C.stopShipCam(); C.lockOn(h.index); const clickRides = C.HT.on && (C.shipCam.on || C.shipCam.pending); C.land(0.2);
-  const q = { n:0, good:0, shipIn:0, shipBig:0, places:[], clickRides, low:[] };
+  const q = { n:0, good:0, shipIn:0, shipBig:0, places:[], clickRides, low:[], stops:[], moves:0, jobs:0 };
+  let at = S.target.key, ta = 0, tt = 0, sawMove = false, sawJob = false;
   const pxOf = (rel, R) => { const d = Math.hypot(...rel); return d <= R ? 1e4 : Math.tan(Math.asin(R/d))/C.dbg.tan[1]*H/2; };
-  for (let i = 0; i < 30*240; i++){ C.tick(1/30); if (i % 15) continue;
+  for (let i = 0; i < 30*240; i++){ C.tick(1/30); tt += 1/30;
+    // (0.10.2, owner: a stop as long as the normal tour's: from one arrival to the next, the move or the job flown on the way in)
+    if (S.phase === 'pass' && S.plan.sig) sawMove = true; if (S.act && S.act.kind !== 'probe') sawJob = true;
+    if (S.target.key !== at && S.phase !== 'light' && S.phase !== 'fold'){ if (q.stops.length || ta > 0) q.stops.push(+(tt - ta).toFixed(1)); if (sawMove) q.moves++; if (sawJob) q.jobs++; at = S.target.key; ta = tt; sawMove = sawJob = false; }
+    if (i % 15) continue;
     if (!(S.phase === 'pass' || S.phase === 'loop') || C.ride.RIDE.wc > 0.05 || !C.shipCam.on) continue;
     const tg = h.parent, prp = pxOf(tg.rel, C.ride.frame(tg, Math.hypot(...h.offset))), srp = pxOf(h.rel, h.rad), p = C.proj({ rel:tg.rel });
     let cov = prp >= 1e4 ? 1 : 0;
@@ -188,9 +193,14 @@ const tourFrame = await page.evaluate(seed => {
   C.haloTourEnd(true); C.stopShipCam();
   return q;
 }, HALO_SEED);
-if (!tourFrame.clickRides || tourFrame.n < 200 || tourFrame.places.length < 2 || tourFrame.good < 0.85*tourFrame.n || tourFrame.shipIn < 0.9*tourFrame.n || tourFrame.shipBig)
+if (!tourFrame.clickRides || tourFrame.n < 200 || tourFrame.places.length < 2 || tourFrame.good < 0.85*tourFrame.n || tourFrame.shipIn < 0.9*tourFrame.n || tourFrame.shipBig > 0.05*tourFrame.n)
   fail('the Halo tour did not frame the place first (its disc 4% of the view or 3 times the ship, the ship in the picture and smaller): ' + JSON.stringify(tourFrame));
-console.log(`  Halo tour: the place framed first in ${Math.round(100*tourFrame.good/Math.max(tourFrame.n, 1))}% of ${tourFrame.n} samples at ${tourFrame.places.join(', ')}, the ship in the picture in ${Math.round(100*tourFrame.shipIn/Math.max(tourFrame.n, 1))}%`);
+// (the pace of the normal tour, 26 to 64 s a stop and 43 on average: 30 to 50 s on average and none over 70; the Halo's move on arrival at
+// most stops and a job at about one in three)
+{ const st = tourFrame.stops.slice(1), avg = st.reduce((a, b) => a + b, 0)/Math.max(st.length, 1);
+  if (st.length < 3 || avg < 30 || avg > 50 || Math.max(...st) > 70 || tourFrame.moves < 2 || tourFrame.jobs < 1)
+    fail('the Halo tour did not keep the pace of the normal tour (30 to 50 s a stop, none over 70, moves and a job): ' + JSON.stringify({ stops:tourFrame.stops, moves:tourFrame.moves, jobs:tourFrame.jobs })); }
+console.log(`  Halo tour: the place framed first in ${Math.round(100*tourFrame.good/Math.max(tourFrame.n, 1))}% of ${tourFrame.n} samples at ${tourFrame.places.join(', ')}, the ship in the picture in ${Math.round(100*tourFrame.shipIn/Math.max(tourFrame.n, 1))}%; stops of ${tourFrame.stops.join(', ')} s, ${tourFrame.moves} moves and ${tourFrame.jobs} jobs on arrival`);
 
 // 6. arrows: from the Moon, "next" goes up the scale bar to Earth; the arrows beside the name step angles and the loop carries on;
 //    changing the travel speed mid-flight re-times the rest of the trip
@@ -269,7 +279,9 @@ if (trips.bad.length) fail('tour trips that dip or fly through something: ' + tr
 // jobs, a scan's hologram lies on the drawn surface (and never in a black hole's shadow), and a weapons test leaves nothing behind
 const halo = await page.evaluate(HALO_SEED => {
   const C = __cosmos, h = C.BYKEY.halo, D = h.dbg, S = h.S, dt = 1/30;
-  C.setTour(false); if (C.shipCam.on) C.stopShipCam(); C.setDays(0); C.view('earth', 0); D.reset(HALO_SEED);   // (the same route every run, as in 5)
+  // (the objects' own clocks back to 0 too, 0.10.2: the moons and the rest move by them, so without it the route depended on how long the
+  // sections before this one ran, and a faster Halo tour changed it)
+  C.setTour(false); if (C.shipCam.on) C.stopShipCam(); for (const o of C.OBJ) o.t = 0; C.setDays(0); C.view('earth', 0); D.reset(HALO_SEED);   // (the same route every run, as in 5)
   C.tick(0);   // (the ship takes its place on the new route before anything is measured: otherwise the first step turns it from where it was)
   const r = { modes:{}, acts:{}, minTurnRadius:1e9, maxTurn20s:0, maxRate:0, stopped:0, steps:0 };
   const head = () => [h.R0[3], h.R0[4], h.R0[5]];

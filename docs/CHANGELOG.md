@@ -4,6 +4,27 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.10.2 · 2026-09-30
+
+**The Halo tour keeps the normal tour's pace** (owner, 2026-09-30: it spent about 2 minutes at each place; "the main point of the halo tour was to mirror the normal tours but in the perspective of halo's 3rd person view with cool scenes, moments (halo dynamically interacting or flying through the objects)"; picked from three each time)
+- About 40 s a stop, jump included, like the normal tour (26 to 64 s a stop, 43 on average). It was 67 to 131 s: a stay of about a minute that only ended with a pass, plus loops, a signature move and a job.
+- The Halo arrives straight into its move for the place and goes on at the end of that pass: through Saturn's ring gap, through a star's corona, low over the Great Red Spot or Earth's day side, weaving through a nebula. A move that needs a heading of its own (Saturn's ring gap, a ring nebula's hole, a galaxy's disc) arrives by a fold, since a light-speed leg comes in on a fixed line.
+- At about one place in three it arrives on a job instead, taking turns: an attack run with Pip's railgun, a scan, a skim to refuel where the place can be skimmed. That stop runs a little longer, and Pip comes out for it.
+- Pip comes out on the tour only for a job (a stop is short, and the jump waits for Pip to come home).
+- Started at a place where the Halo already is, with little of its pass left, the tour gives it one more pass there first.
+
+**Close and far** (owner: the camera was too often far from the Halo; picked: wide and close take turns, a close-up with the Halo about a third of the screen)
+- Four close-ups: beside the ship with the place over its shoulder, from just behind it flying at the place, swinging round it, and a push in from far away. The place still fills the background through the long lens.
+- Wide and close take turns: a wide shot as the Halo arrives, its move from close behind the ship (from about 5 s before the move's main moment to 2 s after), then a wide one.
+- A horizon shot puts the horizon on the surface itself (a star's photosphere, a planet's globe), not on the glow framed for the whole place: on a corona pass the star was 40 degrees below the view.
+
+**The Halo indicator** (owner: the square with "halo" and its distance)
+- Hidden during the Halo tour, with its arrow at the screen's edge.
+
+**Checked**
+- Motion test: on the Halo tour from Saturn, stops of 30 to 50 s on average and none over 70, moves on arrival and at least one job; the place framed first in 85% of the samples or more, the ship in the picture, and bigger than the place in 5% of the samples at most (close-ups).
+- Measured on the test's route: 36 to 51 s a stop, 40 on average; an attack run at the Pillars, a skim at Betelgeuse, a scan at Eta Carinae.
+
 ## 0.10.0 · 2026-09-30
 
 **Watching a launch: one take from space to the pad** (owner: picking a rocket, the camera zoomed in at weird angles, under the Earth or behind a rock, clipped, and some transitions were abrupt)
