@@ -56,6 +56,13 @@ const ETL = (() => {
   // the nearest a tile comes to the camera (km), and whether any of it faces the camera: 9 points over it
   function near(x, y, cf){
     let dm = 1e9, face = false;
+    // (first the tile's point nearest the one under the camera, its latitude and longitude each held within the tile's: with the camera
+    // over a tile's edge, between two of the samples below, the tile under it came out 20% farther than it is and was left out)
+    { const r = V.len(cf), la = Math.asin(clamp(cf[1]/r, -1, 1)), lo = Math.atan2(-cf[2], cf[0]), w = 2*Math.PI/NX;
+      const la0 = (90 - (y + 1)*180/NY)*DEG, la1 = (90 - y*180/NY)*DEG, lm = (-180 + (x + 0.5)*360/NX)*DEG;
+      let dl = lo - lm; dl -= 2*Math.PI*Math.round(dl/(2*Math.PI));
+      const p = V.mul(unitLL(clamp(la, la0, la1), lm + clamp(dl, -w/2, w/2)), 6371), v = V.sub(p, cf);
+      dm = V.len(v); face = V.dot(v, p) < 0; }
     for (let j=0;j<=2;j++) for (let i=0;i<=2;i++){
       const lo = (-180 + (x + i/2)*360/NX)*DEG, la = (90 - (y + j/2)*180/NY)*DEG, p = V.mul(unitLL(la, lo), 6371), v = V.sub(p, cf);
       const d = V.len(v); if (d < dm) dm = d; if (V.dot(v, p) < 0) face = true; }
@@ -73,7 +80,9 @@ const ETL = (() => {
     const cf = M3.applyT(earth.rot, V.mul(earth.rel, -1/KM)), pix = 2*tanY/sceneH, reach = 2*TEXEL/pix;
     const want = [];
     for (let y=0;y<NY;y++) for (let x=0;x<NX;x++){ const k = y*NX + x; if (!has[k]) continue;
-      const d = extra.has(k) ? 0 : near(x, y, cf); if (d < reach) want.push([k, d]); }
+      // (the ground's tiles ahead of every other, and nearest first among themselves: all at 0, a slot short near the poles or on a phone
+      // could leave out the tile under the camera; from Codex's review of #43)
+      const dn = near(x, y, cf), d = extra.has(k) ? Math.min(dn, 1e5) - 1e6 : dn; if (d < reach) want.push([k, d]); }
     want.sort((a, b) => a[1] - b[1]); dbgW = { reach, alt:V.len(cf) - 6371, n:want.length, near:want.slice(0, 3) };
     for (const [k, d] of want.slice(0, SLOTS)){
       let t = tiles.get(k);
@@ -135,7 +144,7 @@ const ETL = (() => {
   }
   { const prev = earth.setU; earth.setU = function(pr){ prev.call(this, pr); bind(pr); }; }
   { const prev = earth.update; earth.update = function(dt){ if (prev) prev.call(this, dt); tick(); }; }
-  return { can, NX, NY, PX, SLOTS, TEXEL, has, tick, bind, heightAt, get season(){ return season; }, get ver(){ return ver; }, get dbg(){ return { on, lastT, dbgW }; }, set off(v){ off = !!v; },
+  return { can, NX, NY, PX, SLOTS, TEXEL, has, tick, bind, heightAt, get season(){ return season; }, get ver(){ return ver; }, get dbg(){ return { on, lastT, dbgW, extra:extra.size }; }, set off(v){ off = !!v; },
     // (the highest land in the tiles of these keys whose heights are in (m), or null if none is)
     maxIn(keys){ let m = null; for (const k of keys){ const t = tiles.get(k); if (t && t.hgt) m = Math.max(m || 0, t.hmax); } return m; },
     // (the ground site's tiles: wanted whatever the camera's distance; keys y*NX + x)

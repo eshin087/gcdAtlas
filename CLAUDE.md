@@ -35,8 +35,9 @@ gcdatlas (https://gcdatlas.com, also gcdatlas.vercel.app; repo `eshin087/gcdatla
 
 ```sh
 node build.mjs                 # build dist/index.html (+ dist/artifact.html); fails on syntax errors
-npm test                       # smoke, SpaceX, phone layout, motion and Pip smoothness tests (tests/smoke.mjs, spacex.mjs, mobile.mjs, motion.mjs, pipsmooth.mjs)
+npm test                       # smoke, SpaceX, phone layout, Earth, motion and Pip smoothness tests (tests/smoke.mjs, spacex.mjs, mobile.mjs, earth.mjs, motion.mjs, pipsmooth.mjs)
 npm run test:mobile            # just the phone layout (390 x 844 and 844 x 390)
+npm run test:earth             # the Earth's tiles and the ground anywhere, over http (tests/earth.mjs; also in npm test)
 npm run test:tour              # long tour regression (tests/tour.mjs)
 npm run test:pip               # Pip and the Halo's cameras every tick: no teleports, jerks or cuts (tests/pipsmooth.mjs; PIP_SEED=n, --only, --dump; also in npm test)
 npm run test:music             # every candidate song, whole: loudness above 200 Hz, bass balance, peaks; WAVs in tests/out/music/

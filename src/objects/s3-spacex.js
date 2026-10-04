@@ -477,15 +477,17 @@ for (const o of [...Object.values(SX.parts), ...Object.values(SXS).map(S => S.o)
 function sxCamNear(c){ const rel = V.add(earth.rel, V.mul(M3.apply(earth.rot, c.C), KM)), d = V.len(rel)/MET; return c.R/Math.max(d, 1) > 0.0015; }
 // the ground and sky near a launch site, drawn just after Earth
 const SXENV = { on:false, cover:false };
-{ const prev = earth.drawAfter; earth.drawAfter = vis => { if (prev) prev(vis); if (FLAGS.spacex) drawEnv(); }; }
+// (also with the SpaceX flag off, for the ground anywhere: 0.12.0, from Codex's review of #43)
+const envOn = () => FLAGS.spacex || FLAGS.realEarth;
+{ const prev = earth.drawAfter; earth.drawAfter = vis => { if (prev) prev(vis); if (envOn()) drawEnv(); }; }
 // (while the ground and a nearly opaque sky cover the whole screen, Earth's own volume under them is not drawn: it cost as much again)
-earth.volOff = () => FLAGS.spacex && SXENV.cover;
+earth.volOff = () => envOn() && SXENV.cover;
 function camFixed(){ return M3.applyT(earth.rot, V.mul(earth.rel, -1/KM)); }
 function drawEnv(){
   const cf = camFixed(), alt = V.len(cf) - RE_KM;
   SXENV.on = SXENV.cover = false; if (alt > 90 || alt < -1) return;
   let best = null, bd = 1e9;
-  for (const S of SITE_LIST()){ const d = V.len(V.sub(cf, S.p)); if (d < bd){ bd = d; best = S; } }
+  for (const S of FLAGS.spacex ? SITE_LIST() : []){ const d = V.len(V.sub(cf, S.p)); if (d < bd){ bd = d; best = S; } }
   // (away from the launch sites, the ground anywhere, baked from the tiles: e7g-earth-ground.js, 0.12.0)
   if ((!best || bd > 420) && EGR.ready){ best = EGR.site; bd = 0; }
   if (!best || bd > 700) return;

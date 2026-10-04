@@ -74,7 +74,9 @@ const EGR = (() => {
     if (GT - lastT < 0.25) return; lastT = GT;
     const cf = M3.applyT(earth.rot, V.mul(earth.rel, -1/KM)), r = V.len(cf), alt = r - R;
     active = ETL.can && EGL.on && alt < 120 && !earth.hidden && !SKYV.on;
-    if (!active){ if (L.tex && GT - seen > 60) free(); return; }
+    // (switched off, it lets go of its tiles at once: kept, they held the slots while the camera looked elsewhere; from Codex's review of
+    // #43. It is centred afresh when the camera comes down again)
+    if (!active){ if (keys.length){ keys = []; ETL.want([]); G.p = null; if (L.state === 2) L.state = 1; } if (L.tex && GT - seen > 60) free(); return; }
     seen = GT;
     const u = V.mul(cf, 1/r);
     if (!G.p || V.len(V.sub(V.mul(u, R), G.p)) > 450){ centre(u); L.state = L.state === 2 ? 1 : 0; }
@@ -86,6 +88,6 @@ const EGR = (() => {
   { const prev = earth.update; earth.update = function(dt){ if (prev) prev.call(this, dt); if (GT !== lastGT){ const d = lastGT < 0 ? 0 : GT - lastGT; lastGT = GT; tick(d); } }; }
   // (tests: the camera's height above the sea (km) and the Sun's elevation over the site (degrees))
   function dbg(){ const cf = M3.applyT(earth.rot, V.mul(earth.rel, -1/KM)), s = M3.applyT(earth.rot, sunDirFrom(earth));
-    return { alt:+(V.len(cf) - R).toFixed(2), sun:G.up ? +(Math.asin(V.dot(s, G.up))/DEG).toFixed(1) : null, top:Math.round(G.top), la:+(G.la/DEG).toFixed(2), lo:+(G.lo/DEG).toFixed(2) }; }
+    return { alt:+(V.len(cf) - R).toFixed(2), sun:G.up ? +(Math.asin(V.dot(s, G.up))/DEG).toFixed(1) : null, top:Math.round(G.top), la:+(G.la/DEG).toFixed(2), lo:+(G.lo/DEG).toFixed(2), drawn:SXENV.on && SXENV.site === G, keys:keys.length }; }
   return { site:G, layer:L, dbg, get ready(){ return active && L.state === 2 && !!G.p; }, get fade(){ return fade; }, bake, centre };
 })();

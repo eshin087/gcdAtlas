@@ -370,7 +370,21 @@ function realLaunches(){
 const ATM = { k:0 };
 // ---------------------------------------------------------------- the director, once a tick (after Earth has turned, before the camera)
 const SXD = addObj({ key:'sx-director', name:'launch director', type:'', group:'travel', parent:earth, offset:[0, 0, 0], rad:1*MET, hidden:true, noPick:true, atlas:false, noLabel:true, noTour:true, noImpostor:true,
-  update(dt){ if (FLAGS.spacex) sxTick(dt); } });
+  update(dt){ if (FLAGS.spacex) sxTick(dt); else if (FLAGS.realEarth) groundTick(dt); } });
+// what the ground anywhere needs of the director with the SpaceX flag off (0.12.0, from Codex's review of #43): the day the clock eases to,
+// the clock in real time near the ground, the atmosphere over the camera, the weather it draws. sxTick does the same with the rest
+function groundTick(dt){ dayStep(dt); clockStep(); atmStep(); wxTick(dt); }
+// (the atlas clock easing to a daytime moment)
+function dayStep(dt){ if (DAY.T > 0){ DAY.t += dt; const e = smoother(clamp(DAY.t/DAY.T, 0, 1)); ssDays = DAY.from + (DAY.to - DAY.from)*e; if (e >= 1) DAY.T = 0; earth.update(0); } }
+// (near the ground, watching a launch or visiting a place on Earth, the Solar System clock runs in real time, so the Sun stays put and the
+// ground does not spin round)
+function clockStep(){
+  const want = LCAM.on || (SX.pend && flight) || (SXENV.on && SXENV.alt < 40) || EPL.hold();
+  if (want && sxRatePrev == null){ sxRatePrev = ssRate; ssRate = 1/86400; }
+  else if (!want && sxRatePrev != null){ if (ssRate === 1/86400) ssRate = sxRatePrev; sxRatePrev = null; }
+}
+// (the atmosphere over the camera)
+function atmStep(){ const cf = camFixed(), alt = V.len(cf) - RE_KM; ATM.k = SKYV.on || !(alt < 120) ? 0 : 1 - smooth(25, 90, alt); }
 let SX_T = 0, sxRatePrev = null;
 // playback speed: the mission's highlights (sped up in the quiet parts), or real time (the real-speed button, SET.launchReal)
 const runRate = run => run.mode === 'real' || (SET.launchReal && LCAM.on && LCAM.run === run) ? 1 : stepRate(run.mis.rate, run.mt);
@@ -379,7 +393,7 @@ function sxTick(dt){
   const now = Date.now();
   EDT.tick();
   // the atlas clock easing to a daytime moment
-  if (DAY.T > 0){ DAY.t += dt; const e = smoother(clamp(DAY.t/DAY.T, 0, 1)); ssDays = DAY.from + (DAY.to - DAY.from)*e; if (e >= 1) DAY.T = 0; earth.update(0); }
+  dayStep(dt);
   // the pads and droneships turn with the Earth (their objects' places are only used to sort them for drawing and to aim flights)
   for (const S of SITE_LIST()){ S.o.offset = V.mul(M3.apply(earth.rot, V.add(S.p, V.mul(S.up, 0.05))), KM); S.o.pos = V.add(earth.pos, S.o.offset); }
   // real launches: start (or join in progress) a flight for each one in its window, unless a flight you are watching holds that rocket
@@ -440,15 +454,13 @@ function sxTick(dt){
     }
   }
   // near the ground (or watching) the Solar System clock runs in real time, so the Sun stays put and the pad does not spin round
-  const want = LCAM.on || (SX.pend && flight) || (SXENV.on && SXENV.alt < 40) || EPL.hold();
-  if (want && sxRatePrev == null){ sxRatePrev = ssRate; ssRate = 1/86400; }
-  else if (!want && sxRatePrev != null){ if (ssRate === 1/86400) ssRate = sxRatePrev; sxRatePrev = null; }
+  clockStep();
   if (!LCAM.on){ const lk = 1 - Math.exp(-dt*2), k0 = LENS.k; LENS.k = Math.exp(Math.log(LENS.k)*(1 - lk));
     // (once the director lets go, the long lens eases back to normal while the camera moves in by as much, so the rocket keeps its size on
     // the screen: let go from a 16 times lens, it shrank to a speck)
     const o = OBJ[orbit.lock]; if (o && (o.sx || o.sxSite) && !flight && k0 > 1.0001){ const f = LENS.k/k0; orbit.dist *= f; orbit.distT = Math.max(orbit.distT*f, o.rad*(o.minZoom || 0)); } }
   // the atmosphere over the camera
-  { const cf = camFixed(), alt = V.len(cf) - RE_KM; ATM.k = SKYV.on || !(alt < 120) ? 0 : 1 - smooth(25, 90, alt); }
+  atmStep();
   wxTick(dt); buildClusters(); updateTrail(); smokeUpdate(); sxHear();
   for (const k in SX.parts) SX.parts[k].noLabel = LCAM.on;   // (a clean picture while the launch camera plays)
   // locked on a rocket or a pad, the camera turns with the Earth under it (their frames turn with it)
