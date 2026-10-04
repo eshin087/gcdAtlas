@@ -207,6 +207,9 @@ function scenicWaypoint(o, vp){
 }
 // fly somewhere by way of whatever is worth seeing on the way (lockOn, tours, the scale bar)
 function flyTo(o, vp, onDone){
+  // (a place on Earth below the camera's horizon: first up over it, then down, or the flight would go through the Earth; EPL.flyIn,
+  // e7s-earth-search.js. It takes over and returns true, or leaves the flight to this)
+  if (o.flyIn && o.flyIn(vp, onDone)) return;
   const W = scenicWaypoint(o, vp);
   startFlight(o, vp, onDone, W ? { o:W } : null);
   if (W){ flight.dest = o; toast('passing ' + W.name); }

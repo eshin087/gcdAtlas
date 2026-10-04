@@ -56,7 +56,9 @@ release and one pull request each. This file is the plan; `docs/CHANGELOG.md` sa
 
 - Phase 1: 0.11.0, merged (PR #42).
 - Phase 2: 0.12.0, merged (PR #43). Tiles to 2.4 km a pixel (31 MB), the ground in 3D anywhere, places on Earth in the search.
-- Phase 4, first part: 0.13.0. The five cities in 3D, tower lights, local time and weather; with it the real clouds (phase 5's back end, brought forward), Google Earth-like moves near surfaces, marks on the globe and a zoom that lands on places. The second part (traffic, planes, ships) follows; phase 3 (the iconic places) after it.
+- Phase 4, first part: 0.13.0. The five cities in 3D, tower lights, local time and weather; with it the real clouds (phase 5's back end, brought forward), Google Earth-like moves near surfaces, marks on the globe and a zoom that lands on places. The second part (traffic, planes, ships) is 0.14.0.
+- Phase 4, second part: 0.14.0. Traffic on the real roads by local hour, simulated planes on the real runways into the real wind, boats on the ferry routes, Tokyo Tower and the Skytree as models.
+- Phase 3: 0.15.0. 30 famous places in 3D (`e9p-earth-places.js`): their layers drawn near the ground like the cities', an object each with its framings, fact and credits, reached from the atlas's "on Earth" list (19 rows added, 7 of them in a new kind, "built by people"), the marks on the globe and the search, and a tour, wonders of Earth.
 - Phases 3 to 5: their data was prepared in parallel on local branches. Each phase's release takes its branch in:
   - `data/earth-places`: the iconic places' layers (`tools/earth-places.mjs`);
   - `data/earth-cities`: the five cities' layers, roads, runways and towers (`tools/earth-cities.mjs`);
