@@ -5,7 +5,7 @@
 //   layers      square layers (size in m, px) in the launch sites' format; r51 is always Sentinel-2 (matched in colour to the photos)
 //   airports    IATA code, the size of the airport's own layer (m, 1,024 px) and an optional centre when the OpenStreetMap one is off
 export const CITIES = [
-  { key:'newyork', name:'New York', la:40.7580, lo:-73.9855, drive:'right', photo:'fpac', nyc:true,
+  { key:'newyork', name:'New York', la:40.7580, lo:-73.9855, drive:'right', photo:['fpacny', 'fpac'], nyc:true,
     layers:[
       { id:'r51', name:'The region', la:40.72, lo:-73.98, size:51200, px:1024, bld:false },
       { id:'r12', name:'Manhattan and the harbour', la:40.745, lo:-73.985, size:12800, px:1536, bld:true },

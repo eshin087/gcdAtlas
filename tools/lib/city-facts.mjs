@@ -10,6 +10,7 @@ export const SOURCES = {
   ign:{ what:'Paris aerial photos', credit:'Aerial photos: IGN, BD ORTHO (Licence Ouverte 2.0)', url:'https://geoservices.ign.fr/bdortho', licence:'Licence Ouverte / Open Licence 2.0 (Etalab)' },
   bdtopo:{ what:'Paris building footprints and heights', credit:'IGN, BD TOPO (Licence Ouverte 2.0)', url:'https://geoservices.ign.fr/bdtopo', licence:'Licence Ouverte / Open Licence 2.0 (Etalab)' },
   terrain:{ what:'Ground height', credit:'Terrain: Mapzen Terrain Tiles on AWS (SRTM, USGS 3DEP and others)', url:'https://registry.opendata.aws/terrain-tiles/', licence:'free with credit' },
+  meteo:{ what:'Each city\'s weather (through /api/weather)', credit:'Weather data by Open-Meteo.com', url:'https://open-meteo.com', licence:'CC BY 4.0' },
   population:{ what:'Population', credit:'US Census Bureau 2020; Statistics Bureau of Japan, Tokyo Metropolitan Government 2020 census; Dubai Statistics Center; ONS Census 2021; INSEE', licence:'official statistics' },
 };
 

@@ -54,6 +54,16 @@ export function joinItems(items){
   return out;
 }
 
+// the runs of a polyline's points that lie in the square (centre cx, cy, half-width half): each point inside and the one before and after it, so a line leaves the square (the
+// binaries are 16-bit: a line that runs on for a hundred kilometres would be bent at the edge of the range)
+function clipRuns(pts, cx, cy, half){
+  const inside = pts.map(([x, y]) => Math.abs(x - cx) < half && Math.abs(y - cy) < half), runs = []; let cur = null;
+  for (let i=0;i<pts.length;i++){
+    const near = inside[i] || (i > 0 && inside[i - 1]) || (i + 1 < pts.length && inside[i + 1]);
+    if (near){ if (!cur) runs.push(cur = []); cur.push(pts[i]); } else cur = null;
+  }
+  return runs.filter(r => r.length >= 2);
+}
 // ---------------------------------------------------------------- roads
 // the cached road ways (as read from OpenStreetMap) of the tiles round a layer: the same tile queries buildRoads uses, so nothing new is fetched
 export async function roadWaysIn(city, L, pad = 100){
@@ -80,15 +90,8 @@ export async function buildRoads(city, layers){
   for (const w of ways){
     let pts = w.p.map(([la, lo]) => llToPlane(cityF, la, lo));
     if (w.cls === 4 && !pts.some(([x, y]) => Math.abs(x - cx12) < half12 && Math.abs(y - cy12) < half12)) continue;
-    // cut to the big layer's square, with a margin: keep runs of points (and the one before and after) that are inside
-    const inside = pts.map(([x, y]) => Math.abs(x - cx51) < half51 && Math.abs(y - cy51) < half51);
-    const runs = []; let cur = null;
-    for (let i=0;i<pts.length;i++){
-      const near = inside[i] || (i > 0 && inside[i - 1]) || (i + 1 < pts.length && inside[i + 1]);
-      if (near){ if (!cur) runs.push(cur = []); cur.push(pts[i]); } else cur = null;
-    }
-    for (const run of runs){
-      if (run.length < 2) continue;
+    // cut to the big layer's square, with a margin
+    for (const run of clipRuns(pts, cx51, cy51, half51)){
       const lanes = w.lanes || LANES_DEFAULT[w.cls][w.oneway ? 0 : 1];
       const flags = (w.oneway ? 2 : 0) | (w.bridge ? 4 : 0) | (w.tunnel ? 8 : 0) | (w.link ? 16 : 0) | (w.round ? 32 : 0);
       const k = `${w.cls}|${Math.min(lanes, 12)}|${flags}`;
@@ -170,7 +173,8 @@ export async function buildSea(city, layers){
   const proj = p => p.map(([la, lo]) => llToPlane(cityF, la, lo));
   // ferry routes: ways of one name joined end to end
   const skip = n => !!(city.seaSkip && city.seaSkip.test(n || ''));
-  const ferry = s.ferry.filter(f => !skip(f.name)).map(f => ({ pts:proj(f.p), dir:false, name:f.name || f.ref, car:f.car }));
+  const [cx51, cy51] = llToPlane(cityF, r51.la, r51.lo), half51 = r51.size/2 + 300;
+  const ferry = s.ferry.filter(f => !skip(f.name)).flatMap(f => clipRuns(proj(f.p), cx51, cy51, half51).map(pts => ({ pts, dir:false, name:f.name || f.ref, car:f.car })));
   const byName = new Map(); for (const f of ferry){ const k = (f.name || '') + '|' + f.car; if (!byName.has(k)) byName.set(k, []); byName.get(k).push(f); }
   let nFerry = 0;
   for (const [, items] of byName) for (const j of joinItems(items)){ const p = simplify(j.pts, 8); if (p.length < 2) continue; lines.push({ pts:p, cls:0, a:j.car ? 1 : 0, flags:0, grp:nameId(j.name) }); nFerry++; }
@@ -182,6 +186,7 @@ export async function buildSea(city, layers){
     let big = 0, ctr = null;
     for (const r of ar.rings){
       const p = proj(r); if (p.length < 4) continue;
+      if (!p.some(([x, y]) => Math.abs(x - cx51) < half51 && Math.abs(y - cy51) < half51)) continue;
       const area = polyArea(p); if (cls !== 1 && area < 800) continue;
       if (area > big){ big = area; ctr = r; }
       lines.push({ pts:simplify(p, 6), cls, a:0, flags:1, grp:nameId(ar.name) });

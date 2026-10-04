@@ -25,6 +25,14 @@ const KIND_H = { hangar:14, industrial:11, warehouse:10, factory:12, storage_tan
   shed:3, roof:5, carport:3, kiosk:3, hut:3, cabin:4, service:5, train_station:12, transportation:10, hospital:20, university:14, school:12, college:14, public:12, civic:12, government:16,
   stadium:25, sports_hall:12, museum:14, theatre:14, fire_station:8, greenhouse:4, barn:7, farm_auxiliary:5, stable:5, terminal:15, yes:7 };
 export function guessHeight(kind, levels){ return levels > 0 ? levels*3.3 + 1.5 : (KIND_H[kind] || 7); }
+// a building with no height, no levels and no kind (`building=yes`): by the size of its footprint, as a small one is a house and a big one in a city is several storeys
+// (most of Tokyo's buildings have no height in OpenStreetMap, and 7 m for all of them made the business districts flat). Metres, for a footprint in square metres.
+const areaGuess = a => a < 80 ? 5 : a < 150 ? 7 : a < 300 ? 9 : a < 600 ? 13 : a < 1200 ? 19 : a < 2500 ? 26 : 32;
+function ringArea(flat){
+  const la0 = flat[0]*D2R, kx = 111320*Math.cos(la0), ky = 110574; let s = 0;
+  for (let i=0, n=flat.length/2, j=n - 1;i<n;j=i++) s += (flat[2*j + 1]*kx)*(flat[2*i]*ky) - (flat[2*i + 1]*kx)*(flat[2*j]*ky);
+  return Math.abs(s)/2;
+}
 
 // ---------------------------------------------------------------- buildings: footprints with heights, one tile at a time
 // returns [{ i, h, k, r:[[lat, lon, lat, lon, ...], ...] }]: i the OSM id, h the height above the ground (m), r the rings (all of a multipolygon's outer and inner rings: even-odd)
@@ -43,7 +51,7 @@ function buildingFeatures(j){
     // (heights over 120 m must be a named landmark, have the levels to match, or be one of the parts a tower is mapped in (Burj Khalifa is 40 of them, to its 828 m spire):
     // others are typing mistakes in the data)
     if (h != null && (h < 1 || h > 120 && !(t.name || t.wikidata || t['building:part'] || lv >= h/6) || h > 900)) h = null;
-    if (h == null) h = guessHeight(kind, lv);
+    if (h == null) h = !(lv > 0) && kind === 'yes' && !t['building:part'] ? areaGuess(ringArea(rings[0].flat())) : guessHeight(kind, lv);
     if (t['building:part'] && mh > 0.5*h) continue;   // (a part floating high above the ground would be a pillar in a height map)
     out.push({ i:el.type[0] + el.id, h:Math.round(h*10)/10, k:kind, r:rings.map(r => r.flat()) });
   }

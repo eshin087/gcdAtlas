@@ -124,6 +124,8 @@ export const bilinear = (img, fx, fy) => {
 // ---------------------------------------------------------------- aerial photos: ArcGIS image services (NAIP), WMS (IGN), XYZ tiles (GSI)
 export const PHOTO = {
   fpac:{ kind:'arcgis', url:'https://apps.geo.fpac.usda.gov/geo-imagery/rest/services/naip/conus_naip/ImageServer/exportImage', extra:'&bandIds=0,1,2' },
+  // (the same service, only the flights of New York State, September 2024: the default mosaic takes New Jersey's July 2025 flights over the south of Manhattan, in other colours)
+  fpacny:{ kind:'arcgis', url:'https://apps.geo.fpac.usda.gov/geo-imagery/rest/services/naip/conus_naip/ImageServer/exportImage', extra:'&bandIds=0,1,2&mosaicRule=' + encodeURIComponent(JSON.stringify({ mosaicMethod:'esriMosaicAttribute', where:"ST='NY'", sortField:'QQDATE', sortValue:'0', ascending:false, mosaicOperation:'MT_FIRST' })) },
   usgs:{ kind:'arcgis', url:'https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer/exportImage', extra:'' },
   ign:{ kind:'wms', url:'https://data.geopf.fr/wms-r/wms', layer:'ORTHOIMAGERY.ORTHOPHOTOS' },
   gsi:{ kind:'xyz', url:'https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg', minZ:14, maxZ:18 },
@@ -160,6 +162,8 @@ async function xyzSource(L, key){
     const v = bilinear(t, Math.min((fx - X)*t.w, t.w - 1.001), Math.min((fy - Y)*t.h, t.h - 1.001)); return v && v[0] + v[1] + v[2] > 12 ? v : null; };
 }
 export async function photoSource(L, key){
+  // (a list of sources: the first that has a pixel gives it)
+  if (Array.isArray(key)){ const srcs = []; for (const k of key) srcs.push(await photoSource(L, k)); return (la, lo) => { for (const s of srcs){ const v = s(la, lo); if (v) return v; } return null; }; }
   const P = PHOTO[key];
   if (P.kind === 'xyz') return xyzSource(L, key);
   if (P.kind === 'arcgis') return stitched(L, key, (bx0, by0, bx1, by1, w, h) => `${P.url}?bbox=${bx0},${by0},${bx1},${by1}&bboxSR=3857&imageSR=3857&size=${w},${h}${P.extra}&format=jpg&f=image`, 1.25);

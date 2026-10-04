@@ -73,11 +73,12 @@ function ringsToPixels(flat, F, half, m){
   const pts = []; for (let k=0;k<flat.length;k+=2){ const [x, y] = llToPlane(F, flat[k], flat[k + 1]); pts.push([(x + half)/m, (half - y)/m]); } return pts;
 }
 // features [{ i, h, r:[flat rings] }] into a height grid (max where they overlap). Returns the count drawn.
-function rasterFeatures(feats, seen, F, N, half, m, h){
+function rasterFeatures(feats, seen, F, N, half, m, h, accept){
   let n = 0;
   for (const f of feats){
     if (seen.has(f.i)) continue; seen.add(f.i);
     const rings = f.r.map(fl => ringsToPixels(fl, F, half, m));
+    if (accept && !accept(rings[0][0])) continue;
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     for (const r of rings) for (const p of r){ if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }
     if (x1 < 0 || y1 < 0 || x0 >= N || y0 >= N) continue;
@@ -95,9 +96,11 @@ export async function rasterBuildings(city, L, F){
   if (city.nyc){
     // inside the five boroughs: the city's own footprints; outside (New Jersey): OpenStreetMap
     const hn = new Float32Array(N*N), ho = new Float32Array(N*N), cover = new Uint8Array(N*N), seenN = new Set();
-    for (const t of tiles){ n += rasterFeatures(withoutThin(city, await nycTile(t)), seenN, F, N, half, m, hn); process.stdout.write('c'); }
-    for (const t of tiles){ rasterFeatures(withoutThin(city, await buildingsTile(t)), seen, F, N, half, m, ho); process.stdout.write('o'); }
     for (const poly of await nycBoroughs()){ const rings = poly.map(fl => ringsToPixels(fl, F, half, m)); fillRings(rings, N, (y, a, c) => cover.fill(1, y*N + a, y*N + c + 1)); }
+    for (const t of tiles){ n += rasterFeatures(withoutThin(city, await nycTile(t)), seenN, F, N, half, m, hn); process.stdout.write('c'); }
+    // (a tile OpenStreetMap cannot answer is left out: it matters only west of the Hudson, where the city's own footprints end; only what stands outside the five boroughs is read)
+    const outside = p => { const x = Math.floor(p[0]), y = Math.floor(p[1]); return x < 0 || y < 0 || x >= N || y >= N || !cover[y*N + x]; };
+    for (const t of tiles){ try { n += rasterFeatures(withoutThin(city, await buildingsTile(t)), seen, F, N, half, m, ho, outside); process.stdout.write('o'); } catch (e) { console.log(`\n  no OpenStreetMap buildings for tile ${t.key}: ${e.message.slice(0, 80)}`); } }
     for (let i=0;i<N*N;i++) h[i] = cover[i] ? hn[i] : ho[i];
   } else if (city.bdtopo){
     // Paris: IGN's own buildings and heights
@@ -246,7 +249,7 @@ export async function buildLayer(city, L, ctx){
   const file = writeHashed(OUT, `${city.key}-${L.id}`, 'webp', webp);
   const [dx, dy] = llToPlane(cityF, L.la, L.lo);
   console.log(` ${(webp.length/1024).toFixed(0)} KB, ${Math.round(100*photoN/(N*N))}% aerial, ${Math.round(100*s2N/(N*N))}% Sentinel-2, ${Math.round(100*wN/(N*N))}% water${bld ? `, ${bld.n} buildings` : ''}, ground ${base} to ${hi.toFixed(0)} m in ${step} m steps`);
-  const meta = { id:L.id, name:L.name, file, la:L.la, lo:L.lo, size:L.size, px:N, dx:Math.round(dx), dy:Math.round(dy), base, step, top:Math.ceil(hi), src:[photoN ? L.photo : null, s2N ? 's2' : null].filter(Boolean), s2dates:s2N ? s2.dates : [], bld:bld ? bld.n : 0, bytes:webp.length };
+  const meta = { id:L.id, name:L.name, file, la:L.la, lo:L.lo, size:L.size, px:N, dx:Math.round(dx), dy:Math.round(dy), base, step, top:Math.ceil(hi), src:[photoN ? (Array.isArray(L.photo) ? L.photo[L.photo.length - 1] : L.photo) : null, s2N ? 's2' : null].filter(Boolean), s2dates:s2N ? s2.dates : [], bld:bld ? bld.n : 0, bytes:webp.length };
   if (painted) meta.painted = true;
   if (L.airport) meta.airport = L.airport;
   return meta;
