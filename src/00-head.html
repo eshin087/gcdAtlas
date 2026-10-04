@@ -284,6 +284,8 @@ body.showcase .strip{padding-bottom:calc(124px + env(safe-area-inset-bottom,0px)
 .lab.emark{color:#3fd6c6;font-size:calc(10px*var(--ts))}
 .lab.emark.e3d{color:#7ff0e2}
 .lab.emark:hover{color:var(--flare)}
+/* a plane's label in a city (0.17.0): small, faint, not clickable */
+.lab.plane-lab{font-size:calc(9px*var(--ts));color:#9fb4c8;pointer-events:none;cursor:default}
 .lab::before{content:"[ ";color:var(--faint)}
 .lab::after{content:" ]";color:var(--faint)}
 .lab.big{color:var(--soft);font-size:calc(11px*var(--ts));letter-spacing:.14em;text-transform:uppercase}

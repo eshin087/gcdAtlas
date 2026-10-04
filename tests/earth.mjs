@@ -52,7 +52,7 @@ try {
     // (0.14.0: its traffic's road maps drawn, its planes and boats, the readout's runways)
     const tt = await until(page, () => { const c = window.__cosmos, r = c.etr.dbg(), a = c.eas.dbg(); return r.state === 2 && r.nearAt >= 0 && r.farAt >= 0 && a.routes > 0 && a.points > 0 && c.ect.dbg().cityProg; }, null, 90, "New York's traffic, planes and boats");
     const a = await page.evaluate(() => { const c = window.__cosmos, o = c.OBJ[c.orbit.lock]; return { r:c.etr.dbg(), a:c.eas.dbg(), ro:o.readout() }; });
-    if (!/planes \(simulated\): landing JFK/.test(a.ro)) errors.push("New York's readout does not name the runways in use: " + a.ro);
+    if (!/planes \(simulated[^)]*\): landing JFK/.test(a.ro)) errors.push("New York's readout does not name the runways in use: " + a.ro);
     if (!(a.r.busy > 0 && a.r.busy <= 1)) errors.push('the traffic is not busy at all: ' + JSON.stringify(a.r));
     notes.push(`traffic after ${tt} s more (${a.r.segs} road segments, busy ${a.r.busy}), ${a.a.airports.join(' ')}, ${a.a.boats} boats on ${a.a.routes} routes, ${a.a.points} lights`);
     // (Paris: the ground drawn with the copy of the shader that has the Eiffel Tower as a model, which compiles only there)

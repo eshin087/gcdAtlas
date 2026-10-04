@@ -8,6 +8,7 @@ import sharp from 'sharp';
 import { OUT, CACHE, cached, get, UA, readGz, writeGz, frameAt, planeToLL, llToPlane, bboxLL, gridTiles, haversine, clampN, fillRings, assembleRings, photoSource, s2Source, terrainSource, writeHashed, PHOTO } from './city-common.mjs';
 import { buildingsTile, waterTile, airportInfo, airportDetail } from './city-osm.mjs';
 import { roadWaysIn } from './city-build.mjs';
+import { styleRoofs } from './city-style.mjs';
 
 export const CREDIT = {
   osm:'© OpenStreetMap contributors (ODbL)',
@@ -72,8 +73,9 @@ export async function nycBoroughs(){
 function ringsToPixels(flat, F, half, m){
   const pts = []; for (let k=0;k<flat.length;k+=2){ const [x, y] = llToPlane(F, flat[k], flat[k + 1]); pts.push([(x + half)/m, (half - y)/m]); } return pts;
 }
-// features [{ i, h, r:[flat rings] }] into a height grid (max where they overlap). Returns the count drawn.
-function rasterFeatures(feats, seen, F, N, half, m, h, accept){
+// features [{ i, h, r:[flat rings] }] into a height grid (max where they overlap). Returns the count drawn. With out ({ id: Int32Array, feats:[] }),
+// also which building each pixel shows (1 + its index in out.feats, { h, k }), for the architectural-model style (city-style.mjs, 0.17.0)
+function rasterFeatures(feats, seen, F, N, half, m, h, accept, out){
   let n = 0;
   for (const f of feats){
     if (seen.has(f.i)) continue; seen.add(f.i);
@@ -82,31 +84,34 @@ function rasterFeatures(feats, seen, F, N, half, m, h, accept){
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     for (const r of rings) for (const p of r){ if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }
     if (x1 < 0 || y1 < 0 || x0 >= N || y0 >= N) continue;
-    const any = fillRings(rings, N, (y, a, c) => { const o = y*N; for (let x=a;x<=c;x++) if (h[o + x] < f.h) h[o + x] = f.h; });
-    if (!any){ const cx = Math.floor((x0 + x1)/2), cy = Math.floor((y0 + y1)/2); if (cx >= 0 && cy >= 0 && cx < N && cy < N && h[cy*N + cx] < f.h) h[cy*N + cx] = f.h; }   // (smaller than a pixel: one pixel)
+    const id = out ? out.feats.push({ h:f.h, k:f.k }) : 0;
+    const any = fillRings(rings, N, (y, a, c) => { const o = y*N; for (let x=a;x<=c;x++) if (h[o + x] < f.h){ h[o + x] = f.h; if (out) out.id[o + x] = id; } });
+    if (!any){ const cx = Math.floor((x0 + x1)/2), cy = Math.floor((y0 + y1)/2); if (cx >= 0 && cy >= 0 && cx < N && cy < N && h[cy*N + cx] < f.h){ h[cy*N + cx] = f.h; if (out) out.id[cy*N + cx] = id; } }   // (smaller than a pixel: one pixel)
     n++;
   }
   return n;
 }
 // (lattice and other slender towers, which a height map turns into solid blocks, are left out where the city's config says: the page draws them from the towers' list)
 const withoutThin = (city, feats) => city.thin ? feats.filter(f => !city.thin.some(t => haversine(f.r[0][0], f.r[0][1], t.la, t.lo) < t.r)) : feats;
-export async function rasterBuildings(city, L, F){
+// (ids: also which building each pixel shows, { id, feats }, for the architectural-model style)
+export async function rasterBuildings(city, L, F, ids){
   const N = L.px, half = L.size/2, m = L.size/N, h = new Float32Array(N*N), tiles = gridTiles(bboxLL(L, 150), city.bldKm || 3.2, city.la), seen = new Set();
+  const out = ids ? { id:new Int32Array(N*N), feats:[] } : null;
   let n = 0;
   if (city.nyc){
     // inside the five boroughs: the city's own footprints; outside (New Jersey): OpenStreetMap
-    const hn = new Float32Array(N*N), ho = new Float32Array(N*N), cover = new Uint8Array(N*N), seenN = new Set();
+    const hn = new Float32Array(N*N), ho = new Float32Array(N*N), cover = new Uint8Array(N*N), seenN = new Set(), outN = ids ? { id:new Int32Array(N*N), feats:out.feats } : null, outO = ids ? { id:new Int32Array(N*N), feats:out.feats } : null;
     for (const poly of await nycBoroughs()){ const rings = poly.map(fl => ringsToPixels(fl, F, half, m)); fillRings(rings, N, (y, a, c) => cover.fill(1, y*N + a, y*N + c + 1)); }
-    for (const t of tiles){ n += rasterFeatures(withoutThin(city, await nycTile(t)), seenN, F, N, half, m, hn); process.stdout.write('c'); }
+    for (const t of tiles){ n += rasterFeatures(withoutThin(city, await nycTile(t)), seenN, F, N, half, m, hn, null, outN); process.stdout.write('c'); }
     // (a tile OpenStreetMap cannot answer is left out: it matters only west of the Hudson, where the city's own footprints end; only what stands outside the five boroughs is read)
     const outside = p => { const x = Math.floor(p[0]), y = Math.floor(p[1]); return x < 0 || y < 0 || x >= N || y >= N || !cover[y*N + x]; };
-    for (const t of tiles){ try { n += rasterFeatures(withoutThin(city, await buildingsTile(t)), seen, F, N, half, m, ho, outside); process.stdout.write('o'); } catch (e) { console.log(`\n  no OpenStreetMap buildings for tile ${t.key}: ${e.message.slice(0, 80)}`); } }
-    for (let i=0;i<N*N;i++) h[i] = cover[i] ? hn[i] : ho[i];
+    for (const t of tiles){ try { n += rasterFeatures(withoutThin(city, await buildingsTile(t)), seen, F, N, half, m, ho, outside, outO); process.stdout.write('o'); } catch (e) { console.log(`\n  no OpenStreetMap buildings for tile ${t.key}: ${e.message.slice(0, 80)}`); } }
+    for (let i=0;i<N*N;i++){ h[i] = cover[i] ? hn[i] : ho[i]; if (out) out.id[i] = cover[i] ? outN.id[i] : outO.id[i]; }
   } else if (city.bdtopo){
     // Paris: IGN's own buildings and heights
-    for (const t of tiles){ n += rasterFeatures(withoutThin(city, await bdtopoTile(t)), seen, F, N, half, m, h); process.stdout.write('p'); }
-  } else for (const t of tiles){ n += rasterFeatures(withoutThin(city, await buildingsTile(t)), seen, F, N, half, m, h); process.stdout.write('b'); }
-  return { h, n };
+    for (const t of tiles){ n += rasterFeatures(withoutThin(city, await bdtopoTile(t)), seen, F, N, half, m, h, null, out); process.stdout.write('p'); }
+  } else for (const t of tiles){ n += rasterFeatures(withoutThin(city, await buildingsTile(t)), seen, F, N, half, m, h, null, out); process.stdout.write('b'); }
+  return out ? { h, n, id:out.id, feats:out.feats } : { h, n };
 }
 // water: OpenStreetMap river and lake polygons (water), and the coast (sea: 1 sea, 0 land, -1 a row the coast does not cross)
 export async function rasterWater(city, L, F){
@@ -210,7 +215,7 @@ export async function buildLayer(city, L, ctx){
   process.stdout.write(`${city.key}-${L.id} (${(L.size/1000).toFixed(1)} km, ${m.toFixed(2)} m/px, ${L.photo}): `);
   const useAerial = L.photo !== 's2';
   const s2 = await ctx.s2For(L), photo = useAerial ? await ctx.photoFor(L, L.photo) : null, terr = await terrainSource(L);
-  const bld = L.bld ? await rasterBuildings(city, L, F) : null;
+  const bld = L.bld ? await rasterBuildings(city, L, F, L.size <= 13000) : null;
   const wat = await rasterWater(city, L, F);
   const gain = ctx.gain[city.key];
   const rgb = new Uint8Array(N*N*3), elev = new Float32Array(N*N), isWater = new Uint8Array(N*N), tArr = new Float32Array(N*N), wet = new Uint8Array(N*N);
@@ -245,12 +250,20 @@ export async function buildLayer(city, L, ctx){
   const base = Math.floor(lo), step = Math.max(0.1, Math.ceil((hi - base)/253*10)/10);
   const rgba = Buffer.alloc(N*N*4);
   for (let i=0;i<N*N;i++){ rgba[i*4] = rgb[i*3]; rgba[i*4 + 1] = rgb[i*3 + 1]; rgba[i*4 + 2] = rgb[i*3 + 2]; rgba[i*4 + 3] = isWater[i] ? 1 : Math.min(255, 2 + Math.round((elev[i] - base)/step)); }
-  const webp = await sharp(rgba, { raw:{ width:N, height:N, channels:4 } }).webp({ quality:ctx.quality || 70, alphaQuality:100, effort:6, smartSubsample:true }).toBuffer();
+  // (the architectural-model style, 0.17.0, city-style.mjs: the unstyled layer is kept in the cache first, where tools/city-style.mjs restyles from)
+  let styled = false;
+  if (bld && bld.id){
+    const uns = path.join(CACHE, 'unstyled'); fs.mkdirSync(uns, { recursive:true });
+    fs.writeFileSync(path.join(uns, `${city.key}-${L.id}.webp`), await sharp(rgba, { raw:{ width:N, height:N, channels:4 } }).webp({ quality:ctx.quality || 70, alphaQuality:100, effort:6, smartSubsample:true }).toBuffer());
+    styleRoofs(city.key, N, rgba, bld, m); styled = true;
+  }
+  const webp = await sharp(rgba, { raw:{ width:N, height:N, channels:4 } }).webp({ quality:styled ? 80 : ctx.quality || 70, alphaQuality:100, effort:6, smartSubsample:true }).toBuffer();
   const file = writeHashed(OUT, `${city.key}-${L.id}`, 'webp', webp);
   const [dx, dy] = llToPlane(cityF, L.la, L.lo);
   console.log(` ${(webp.length/1024).toFixed(0)} KB, ${Math.round(100*photoN/(N*N))}% aerial, ${Math.round(100*s2N/(N*N))}% Sentinel-2, ${Math.round(100*wN/(N*N))}% water${bld ? `, ${bld.n} buildings` : ''}, ground ${base} to ${hi.toFixed(0)} m in ${step} m steps`);
   const meta = { id:L.id, name:L.name, file, la:L.la, lo:L.lo, size:L.size, px:N, dx:Math.round(dx), dy:Math.round(dy), base, step, top:Math.ceil(hi), src:[photoN ? (Array.isArray(L.photo) ? L.photo[L.photo.length - 1] : L.photo) : null, s2N ? 's2' : null].filter(Boolean), s2dates:s2N ? s2.dates : [], bld:bld ? bld.n : 0, bytes:webp.length };
   if (painted) meta.painted = true;
+  if (styled) meta.styled = 'model';
   if (L.airport) meta.airport = L.airport;
   return meta;
 }

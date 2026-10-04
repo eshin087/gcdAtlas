@@ -471,12 +471,13 @@ uniform sampler2D uRd0; uniform sampler2D uRd1; uniform vec4 uRdN; uniform vec4 
 vec4 roadAt(vec2 en, float fp){
   if(uRdT.x < -0.5) return vec4(0., -999., 0., 0.);
   vec2 q0 = (en - uRdN.xy)/(2.*uRdN.z) + 0.5, q1 = en/(2.*uRdN.w) + 0.5, c; vec4 r; ivec2 i, s;
+  float R = 40.;   // (the offset's range: 40 m on the near map, 100 m on the far one, whose roads are padded wider: e9t-earth-traffic.js)
   if(fp < 8. && q0 == clamp(q0, 0.001, 0.999)){ s = textureSize(uRd0, 0); i = ivec2(q0*vec2(s)); r = texelFetch(uRd0, i, 0); c = uRdN.xy + ((vec2(i) + 0.5)/vec2(s) - 0.5)*2.*uRdN.z; }
-  else if(q1 == clamp(q1, 0.001, 0.999)){ s = textureSize(uRd1, 0); i = ivec2(q1*vec2(s)); r = texelFetch(uRd1, i, 0); c = ((vec2(i) + 0.5)/vec2(s) - 0.5)*2.*uRdN.w; }
+  else if(q1 == clamp(q1, 0.001, 0.999)){ s = textureSize(uRd1, 0); i = ivec2(q1*vec2(s)); r = texelFetch(uRd1, i, 0); c = ((vec2(i) + 0.5)/vec2(s) - 0.5)*2.*uRdN.w; R = 100.; }
   else return vec4(0., -999., 0., 0.);
   if(r.a < 0.3) return vec4(0., -999., 0., 0.);
   float th = r.r*6.2831853, b = floor(r.b*255. + 0.5); vec2 t = vec2(cos(th), sin(th));
-  return vec4(th, (r.g - 0.5)*64. + dot(en - c, vec2(t.y, -t.x)), floor(b/16.), mod(b, 16.) + (r.a < 0.8 ? 16. : 0.));
+  return vec4(th, (r.g - 0.5)*2.*R + dot(en - c, vec2(t.y, -t.x)), floor(b/16.), mod(b, 16.) + (r.a < 0.8 ? 16. : 0.));
 }
 // the cars on that road at en: rgb the light of their lamps (white coming toward the camera, red going away; dv: the view's direction on the
 // ground), a how much of the pixel a car's body covers by day, its colour in body. Each lane's cars sit in cells of length L (shorter when
@@ -484,25 +485,30 @@ vec4 roadAt(vec2 en, float fp){
 // off the lane's average light
 vec4 cars(vec2 en, vec4 rd, float fp, vec2 dv, out vec3 body){
   body = vec3(0.5);
-  float lanes = max(rd.z, 1.), w = mod(rd.w, 16.), cls = floor(w/2.), one = mod(w, 2.), hw = lanes*1.65, ac = rd.y;
-  if(abs(ac) > hw + 0.6) return vec4(0.);
+  float lanes = max(rd.z, 1.), w = mod(rd.w, 16.), cls = floor(w/2.), one = mod(w, 2.), hw = lanes*1.65, ac0 = rd.y;
+  // (far off, the big roads (motorway, trunk, primary) carry streams of cars drawn larger than life, so the traffic shows from 15 km: the road
+  // drawn at least a pixel and a half wide, the cars spaced about six pixels apart and moving as many pixels a second; owner's pick, 0.17.0)
+  float far = smoothstep(2.5, 6., fp)*step(cls, 2.5), hwE = mix(hw, clamp(fp*0.8, hw, 90.), far);
+  if(abs(ac0) > hwE + 0.6) return vec4(0.);
+  float ac = ac0*hw/hwE;   // (the lane it falls in, as on the road at its real width)
   vec2 t = vec2(cos(rd.x), sin(rd.x));
   float sg = one > 0.5 ? 1. : (ac*uRdT.y > 0. ? 1. : -1.);
   float li = one > 0.5 ? floor((ac + hw)/3.3) : floor(abs(ac)/3.3), lc = one > 0.5 ? (li + 0.5)*3.3 - hw : sign(ac)*(li + 0.5)*3.3;
   float busy = uRdT.x, v = (cls < 0.5 ? 27. : cls < 1.5 ? 20. : cls < 2.5 ? 13. : 11.)*(1. - 0.55*smoothstep(0.75, 1., busy)*step(cls, 1.5));
-  float L = mix(95., 15., busy)*(cls < 1.5 ? 0.85 : 1.15);
-  float u = dot(en, t) - sg*v*uRdT.z, lineC = dot(en, vec2(t.y, -t.x)) - ac;
+  float L0 = mix(95., 15., busy)*(cls < 1.5 ? 0.85 : 1.15), L = mix(L0, max(L0, fp*6.), far);
+  float u = dot(en, t) - sg*v*(L/L0)*uRdT.z, lineC = dot(en, vec2(t.y, -t.x)) - ac0;
   vec2 key = vec2(floor(rd.x*24.) + li*7.3 + sg*3.1, floor(lineC*0.5));
-  float cell = floor(u/L), r = max(1.6, fp*0.9), da = ac - lc, g = 0., hb = 0.;   // (at least a pixel across: smaller, most fell between the pixels)
+  float cell = floor(u/L), r = max(1.6, fp*0.9), da = (ac - lc)*mix(1., hwE/hw, far)*mix(1., 0.4, far), g = 0., hb = 0.;   // (at least a pixel across: smaller, most fell between the pixels)
   for(int j=0;j<3;j++){   // (three cars: this cell's and its neighbours'; ZI is declared further down)
     float cc = cell + float(j - 1), hh = hash12(key + cc*vec2(1.7, 3.1));
     if(fract(hh*13.7) < 0.85){ float du = u - (cc + 0.1 + 0.8*hh)*L, e = exp(-(du*du + 2.*da*da)/(r*r)); if(e > g){ g = e; hb = fract(hh*41.3); } }
   }
   body = hb < 0.3 ? vec3(0.92) : hb < 0.5 ? vec3(0.1) : hb < 0.75 ? vec3(0.7, 0.71, 0.73) : hb < 0.83 ? vec3(0.72, 0.1, 0.08) : hb < 0.92 ? vec3(0.15, 0.25, 0.55) : vec3(0.32);
   // (a lamp is a point of light: it stays bright as it shrinks to a pixel, then the lane's average light takes over)
-  float k = smoothstep(0.35, 0.9, fp/L), I = mix(g*min(2.56/(r*r)*4., 1.), 0.85*3.8*32./(L*max(3.3, fp)), k);
+  float k = smoothstep(0.35, 0.9, fp/L)*(1. - far), I = mix(mix(g*min(2.56/(r*r)*4., 1.), g*1.3, far), 0.85*3.8*32./(L*max(3.3, fp)), k);
   vec3 lamp = mix(vec3(1., 0.93, 0.8)*1.8, vec3(1., 0.12, 0.06)*1.3, smoothstep(-0.25, 0.25, dot(sg*t, dv)));
-  return vec4(lamp*I, g*min(6.25/(r*r), 1.)*(1. - k)*0.8);
+  body = mix(body, vec3(1., 0.92, 0.55), 0.35*far);   // (far off by day, brighter and warmer, so the moving dashes read against the dark road)
+  return vec4(lamp*I, g*mix(min(6.25/(r*r), 1.), 1., far)*(1. - k)*0.85);
 }
 #endif
 #ifdef TOKYO
@@ -897,7 +903,8 @@ void main(){
       // about the land, brighter)
       // (over the ground anywhere (uP4.z) the image is Blue Marble at 2.4 km, darker and softer than a photo: as it is, a little lifted, or
       // its forests turned black)
-      if(cov > 0.5) base = mix(fromSpace(edLin(img), sunE), (uP4.z > 0. ? img*1.08 + 0.02 : grade(img))*(uP4.z < 0. ? 1.35 : mix(0.6, 0.9, smoothstep(300., 1500., CALT)))*lit, near);
+      // (a city's images are in display terms since 0.17.0, its roofs painted in its materials (tools/city-style.mjs): shown as they are)
+      if(cov > 0.5) base = mix(fromSpace(edLin(img), sunE), (uP4.z > 0. ? img*1.08 + 0.02 : uP4.z < 0. ? img*1.15 : grade(img))*(uP4.z < 0. ? 1. : mix(0.6, 0.9, smoothstep(300., 1500., CALT)))*lit, near);
       else {
         float h = fbm3(vec3(p.xz*0.004, 2.)), h2 = noise(vec3(p.xz*0.03, 5.));
         base = mix(vec3(0.5, 0.45, 0.33), vec3(0.3, 0.36, 0.2), smoothstep(0.4, 0.6, h))*(0.8 + 0.4*h2);
@@ -909,22 +916,23 @@ void main(){
       // warm at night, as street lights do (illustrative)
       vec3 glowC = vec3(0.);
       if(uP4.z < 0. && cov > 0.5){
-        // (how far this stands above the lowest ground within 18 m: a roof is brighter than the street beside it, a street darker, so the
-        // blocks stand out from the ground in characters; 0.13.0, owner: the cities looked empty, camouflaged)
-        float m = gy, w1, k1;
-        for(int j=ZI;j<4;j++){ vec2 o2 = j == 0 ? vec2(18., 0.) : j == 1 ? vec2(-18., 0.) : j == 2 ? vec2(0., 18.) : vec2(0., -18.); m = min(m, groundY(p.xz + o2, w1, k1)); }
-        float roof = smoothstep(3., 12., gy - m)*(1. - thinHit);
-        // (the photo's colours a little richer; roofs turned toward the city's roofs; walls in its materials, below)
-        vec3 wc, rc; float lum0 = dot(base, vec3(0.3, 0.59, 0.11));
-        cityMat(uCity.x, step(120., altOf(vec3(p.x, gy, p.z), e) - uCity.y), hash12(floor(p.xz/28.) + vec2(uCity.x*7.1, 3.3)), wc, rc);
-        base = mix(vec3(lum0), base, 1.25);
-        base = mix(base, rc*lit*1.1, 0.45*roof);
-        base *= mix(0.72, 1.3, roof);
+        // (the architectural-model style, 0.17.0, owner's pick: the roofs come painted, the ground keeps the photo, darker. How far this stands above
+        // the lowest ground within 18 and 54 m tells a roof, even in the middle of a big building, from the street; the highest point within 18 m is
+        // the roof of a wall's building, whose height picks the wall's material, one per building, and says how much a taller neighbour shades the
+        // ground at its foot)
+        float m = gy, mx = gy, w1, k1;
+        for(int j=ZI;j<8;j++){ int q = j < 4 ? j : j - 4; vec2 o2 = (q == 0 ? vec2(1., 0.) : q == 1 ? vec2(-1., 0.) : q == 2 ? vec2(0., 1.) : vec2(0., -1.))*(j < 4 ? 18. : 54.);
+          float hq = groundY(p.xz + o2, w1, k1); m = min(m, hq); if(j < 4) mx = max(mx, hq); }
+        float roof = smoothstep(3., 12., gy - m)*(1. - thinHit), ao = (1. - roof)*smoothstep(6., 25., mx - gy);
+        vec3 wc, rc;
+        vec2 nH = normalize(n.xz + vec2(1e-5, 0.));
+        cityMat(uCity.x, step(120., altOf(vec3(p.x, mx, p.z), e) - uCity.y), hash12(floor((p.xz - nH*5.)/32.) + vec2(uCity.x*7.1, 3.3)), wc, rc);
+        base *= mix(0.6 - 0.2*ao, 1.15, roof);   // (the ground between the buildings dark, the roofs light: in characters the blocks stand out with an edge round each)
         glowC += vec3(0.04, 0.05, 0.08)*mix(0.5, 1., roof)*nightK;   // (moonlight and the city's skyglow on its roofs)
         float wl = smoothstep(0.3, 0.7, wall)*(1. - thinHit), hA = altOf(p, e), nt = 1. - smoothstep(-0.12, 0.05, sunE);
         vec2 tn = normalize(vec2(-n.z, n.x) + vec2(1e-5, 0.)); float wu = dot(p.xz, tn);
         vec2 cell = floor(vec2(wu/2.6, hA/3.6)), fw = fract(vec2(wu/2.6, hA/3.6));
-        float win = step(0.2, fw.x)*step(fw.x, 0.8)*step(0.3, fw.y)*step(fw.y, 0.85);
+        float win = mix(0.33, step(0.2, fw.x)*step(fw.x, 0.8)*step(0.3, fw.y)*step(fw.y, 0.85), smoothstep(1.6, 0.8, fp));   // (resolved only up close: farther they aliased into noise)
         base = mix(base, (uCity.x >= 0. ? wc : mix(vec3(0.42, 0.44, 0.47), img, 0.35))*(0.85 + 0.25*win)*lit, wl);
         glowC += vec3(1., 0.78, 0.45)*win*step(0.66, hash12(cell + floor(p.xz/40.)*7.31))*nt*wl*0.9;
         float lum = dot(img, vec3(0.3, 0.59, 0.11)), sat = length(img - vec3(lum));
@@ -936,10 +944,12 @@ void main(){
 #ifdef CITY
         // (the traffic: its lamps from a little before sunset, the cars' bodies as specks by day)
         { vec3 bd = cBd; vec2 en = cEn; vec4 rd = cRd, cr = rd.y > -900. && wl < 0.5 && thinHit < 0.5 ? cCr : vec4(0.);
-          float ln = 1. - smoothstep(-0.03, 0.08, sunE); glowC += cr.rgb*ln; base = mix(base, bd*lit, cr.a*(1. - ln));
+          float ln = 1. - smoothstep(-0.03, 0.08, sunE);
+          if(rd.y > -900. && wl < 0.5 && roof < 0.5 && abs(rd.y) < max(rd.z, 1.)*1.65 + 1. + min(fp*0.4, 20.)*step(floor(mod(rd.w, 16.)/2.), 2.5)) base *= mix(0.72, 0.5, smoothstep(3., 10., fp));   // (the carriageway darker: the street plan reads; the big roads wider far off)
+          glowC += cr.rgb*ln; base = mix(base, bd*lit, cr.a*(1. - ln));
           // (the street lights: orange on the carriageway and its pavements; far off, where a pixel is wider than a street, over the drawn width)
           // (fading out before the far map's edge, 24 km out: cut off there, the glow drew a bright line along the horizon)
-          if(rd.y > -900. && wl < 0.5) glowC += vec3(1., 0.6, 0.28)*ln*(abs(rd.y) < max(rd.z, 1.)*1.65 + 3. ? 0.2 : 0.09*smoothstep(4., 20., fp))*smoothstep(uRdN.w, uRdN.w*0.65, max(abs(en.x), abs(en.y)));
+          if(rd.y > -900. && wl < 0.5) glowC += vec3(1., 0.6, 0.28)*ln*(abs(rd.y) < max(rd.z, 1.)*1.65 + 3. ? 0.2 : abs(rd.y) < min(fp*0.7, 60.) ? 0.09*smoothstep(4., 20., fp) : 0.)*smoothstep(uRdN.w, uRdN.w*0.65, max(abs(en.x), abs(en.y)));
           if(uRdT.w > 0.5 && rd.y > -900.){ float hw = max(rd.z, 1.)*1.65; base = abs(rd.y) < hw ? (rd.y > 0. ? vec3(1., 0.2, 0.1) : vec3(0.1, 0.4, 1.)) : vec3(1., 1., 0.); } }   // (tests: the road maps)
 #endif
         // (a slender tower: painted iron or concrete, and lit gold at night, as the Eiffel Tower is every evening)
@@ -950,7 +960,7 @@ void main(){
       // (in a city twice the light from the sky and the facades round about, and walls lit by the street and the buildings opposite, so a
       // wall in shade keeps its colour: in characters a dark wall is an empty one, and Midtown seen against the afternoon Sun was a murk;
       // under an overcast sky the eyes adjust to its dimmer light, as they do; 0.13.0, owner: the cities looked camouflaged)
-      float amb = mix(0.3, 0.6, cityK), ovc = cityK*smoothstep(0.5, 0.95, uWx0.x);
+      float amb = mix(0.3, 0.38, cityK), ovc = cityK*smoothstep(0.5, 0.95, uWx0.x);   // (0.45 in a city since 0.17.0: sunlit and shaded walls further apart, as on a model)
       float fl = max(sunE, 0.)*(1. - 0.65*ovc) + amb, here = max(dot(n, L), 0.)*sh*csh + amb*mix(0.6 + 0.4*n.y, 0.85 + 0.15*n.y, cityK);
       g = base*clamp(here/fl, 0.15, 1.6)*mix(1., 0.8, wall*(1. - cityK)) + glowC;
       // lights round the site at night
@@ -958,7 +968,7 @@ void main(){
       if(hl > 0.93 && length(p.xz) < 1400. && uP4.z == 0.){ vec2 f = fract(p.xz/35.) - 0.5; g += vec3(1., 0.7, 0.35)*exp(-dot(f, f)*60.)*(1. - day)*0.5; }
       vec3 lv = uP3.xyz - p; g += base*vec3(1., 0.55, 0.22)*uP3.w*1.5*max(dot(n, normalize(lv)), 0.)/(1. + dot(lv, lv)*4e-6);
     }
-    g = mix(g, haze, hazeF(t, thin)*(1. - 0.6*cityK));   // (less over a city: its skyline far off was washed out)
+    g = mix(g, haze, hazeF(t, thin)*(1. - mix(0.6, 0.85, cityK*(1. - smoothstep(4000., 15000., t)))*cityK));   // (less over a city: its skyline far off was washed out)
     col = g; a = 1.;
   } else {
     col = skyCol(d, L, day) + vec3(0.2, 0.12, 0.06)*nightK*cityK*exp(-max(d.y - DIP, 0.)*9.)*thin;   // (a city's glow low in the night sky)

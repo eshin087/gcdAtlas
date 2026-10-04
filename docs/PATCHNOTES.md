@@ -5,6 +5,11 @@
      numbers with units. The newest version comes first and opens by itself; its number must match package.json (tests/smoke.mjs checks it).
      Every detail stays in docs/CHANGELOG.md, which the panel links to. -->
 
+## 0.17.0 · 4 Oct 2026 · Cities you can read, alive from afar
+- The five cities in a new style, like an architect's model: every building in one clean colour from the city's real roofs (Paris zinc and slate, London slate and clay tile, Tokyo concrete), outlined, on darker streets.
+- Traffic shows from 15 km: streams of white and red lights along the main roads at night, moving dashes by day.
+- Planes are easy to spot: shaped like planes, flying in over the city, with a small label such as "landing at Heathrow". Airliners passing high overhead leave white trails by day.
+
 ## 0.16.0 · 4 Oct 2026 · Twenty Messier objects and a Messier marathon
 - 20 famous objects from Charles Messier's catalogue: the Dumbbell, Owl, Trifid and Omega nebulae, the Beehive and Wild Duck clusters, the globular clusters M3, M4 and M22, and ten galaxies, among them the Sunflower, the Black Eye, the Phantom and the Leo Triplet.
 - A new tour, the Messier marathon: every Messier object in the atlas, in the order observers find them on one night in March.
