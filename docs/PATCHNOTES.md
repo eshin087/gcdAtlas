@@ -10,6 +10,12 @@
 - Traffic shows from 15 km: streams of white and red lights along the main roads at night, moving dashes by day.
 - Planes are easy to spot: shaped like planes, flying in over the city, with a small label such as "landing at Heathrow". Airliners passing high overhead leave white trails by day.
 
+## 0.16.0 · 4 Oct 2026 · Twenty Messier objects and a Messier marathon
+- 20 famous objects from Charles Messier's catalogue: the Dumbbell, Owl, Trifid and Omega nebulae, the Beehive and Wild Duck clusters, the globular clusters M3, M4 and M22, and ten galaxies, among them the Sunflower, the Black Eye, the Phantom and the Leo Triplet.
+- A new tour, the Messier marathon: every Messier object in the atlas, in the order observers find them on one night in March.
+- The atlas now works through two public lists, Messier's 110 and the Caldwell 109. So far 38 of the Messier objects are in, with more to come.
+- Search any of them by number, like M27 or NGC 6853.
+
 ## 0.15.0 · 4 Oct 2026 · Famous places in 3D
 - 30 famous places on Earth in 3D from real satellite images and heights: Everest, the Grand Canyon, the Alps, Kilimanjaro, Fuji, the Sahara's Richat Structure, the Amazon, Uluru, the Great Barrier Reef, Hawaii, Iceland, Antarctica, Greenland, the Palm, the Panama Canal, the Great Wall, Giza and more.
 - Find them in the atlas under "on Earth" (a new kind: built by people), by their marks on the globe, or by any of their names in the search.

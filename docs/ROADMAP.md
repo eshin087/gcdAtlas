@@ -4,7 +4,7 @@ Ideas are cheap to keep here; what gets built next is decided by moving items in
 
 ## Next
 
-- **Content packs still open** (see docs/CONTENT.md): 0.9.1 human reach (Parker Solar Probe, Starman's Roadster, Tiangong, our radio bubble, the Arecibo message), 0.9.2 surfaces (a terrain shader, Olympus Mons, the Apollo sites, Perseverance, Valles Marineris, Io's plumes, Didymos), 0.9.3 the biggest things (Laniakea, the Virgo Cluster, the Hercules-Corona Borealis Great Wall, Porphyrion, the heliosphere).
+- **Content packs** (see docs/CONTENT.md): the rest of the Messier catalogue in three packs (nebulae and open clusters, globular clusters, galaxies), then the Caldwell catalogue in four; curated packs beside them: human reach (Parker Solar Probe, Tiangong, our radio bubble, the Arecibo message), surfaces (a terrain shader, Olympus Mons, the Apollo sites, Perseverance, Valles Marineris, Io's plumes, Didymos), the biggest things (Laniakea, the Virgo Cluster, the Hercules-Corona Borealis Great Wall, Porphyrion, the heliosphere).
 - **ASCII Earth, phase 2**: zoom to city scale. Landmark models (pyramids, Eiffel Tower, Burj Khalifa…) as small SDF shaders appearing below ~50 km altitude; higher-resolution coastline tiles loaded on demand.
 - **Live sky events, phase 2**: a "happening now" toast when an ISS pass or launch is minutes away; notifications opt-in.
 - **Content Security Policy** (docs/SECURITY.md).

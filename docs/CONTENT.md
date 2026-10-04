@@ -4,28 +4,58 @@
 
 **`docs/CATALOG.md` is the source of truth.** It is generated from the built page (`npm run catalog`), so it cannot drift from the code: every object with its key, name, group, category, distance, true size, number of camera angles, whether it has a flyby, and the file it is defined in. Check it before adding anything, and regenerate it after.
 
+## The checklists the atlas follows (owner, 2026-10-04)
+
+Deep-sky objects come from two public lists, so the atlas grows in a consistent, trackable order:
+
+- **Messier** (110 objects, the classic list; SEDS, messier.seds.org) first, then
+- **Caldwell** (109 objects, Patrick Moore, 1995: the bright objects Messier missed, both hemispheres).
+
+Both lists are in `tools/data/deep-sky.mjs`. `npm run catalog` matches them against every object's `aka` and writes a done and missing table for each at the end of `docs/CATALOG.md`: an object counts once its `aka` holds the number (`m27`, `ngc 6853`; a Caldwell row counts by its NGC or IC number, or a `c63` in `aka`). So the missing rows are the to-do list, and nothing has to be ticked off by hand.
+
+**SIMBAD** (CDS, simbad.cds.unistra.fr) is the authority for names, catalogue numbers and positions: take RA and Dec in degrees from it (`simbadPos` in `src/objects/p8-messier.js`) and put every Messier, NGC and IC number it lists for the object in `aka`. Distances and sizes come from the best current measurement (Gaia DR3 inside the Milky Way, Baumgardt & Vasiliev for globular clusters, Cosmicflows-4 or a direct method for galaxies), named in the readout and in `docs/ACCURACY.md`.
+
+Everything the two lists do not cover stays on our own curated backlog below: black holes, planets of other stars, the Solar System, explosions, the largest structures, human-made things and Earth (`docs/EARTH_PLAN.md`).
+
 ## How to add a pack
 
-1. Pick objects from the backlog below and mark them *in progress* here.
-2. Create `src/objects/pN-name.js`. One pack per theme. Reuse helpers (`namedStar`, `addGalaxy`, `addBody`, `addProbe`, `clusterPS`, `orbitLine`) and shared shaders before writing new ones.
-3. Every object: real position (`radec` with catalogue RA/Dec and distance), true size, a sourced fact, a readout with numbers, 2–3 views including one close and dramatic, `aka` search words (with its Messier, NGC and IC numbers, like `m31 ngc 224`), a `sortKey`. Big objects: add them to `FLYBY_OBJ` in `src/objects/z8-flybys.js`.
+1. Pick about 20 objects: from the empty checklist rows in `docs/CATALOG.md`, or from the curated backlog below. Mark the pack *in progress* here.
+2. Create `src/objects/pN-name.js`. One pack per theme. Reuse helpers before writing new ones: `addGalaxy` (06g-galaxies.js) with `galAt` / `discR0` for a real position angle and tilt, `addGlobular`, `addOpenCluster`, the star-nursery shader `FS_NURSERY` (p8-messier.js), `addRingPN` and `clusterPS` (p1-nebulae.js), `namedStar`, `addBody`, `addProbe`. A pack that draws from `rnd()` saves `seed` at its start and puts it back at its end.
+3. Every object: real position (SIMBAD), true size, a sourced fact, a readout with numbers, 2 or 3 views including one close and dramatic, `aka` search words with its catalogue numbers (`m31 ngc 224`), a `sortKey`. Big objects: add them to `FLYBY_OBJ` in `src/objects/z8-flybys.js`.
    - Atlas place: `group` is its one heading (`GROUPS` in `src/09-render.js`: solar, comets, stars, worlds, nebulae, galaxies, cosmic, travel). `tags` put it in more kinds (`CATS`, the grid of filters in the atlas): `moons` (moons and small worlds), `events` (explosions and collisions), `clusters` (star clusters), `human` (human-made; `addProbe` adds it). Planets of other stars go in `worlds` (`exoPlanet` does this). When an object is not what its heading says, `atlasKind` sets its main kind (the S-stars sit under Galaxies & black holes but are `stars`); do not use `kind`, which is the surface shader's number on planets and moons.
-4. Consider: a tour stop (`src/08t-tours.js`), a ship destination (`SHIP_TARGETS` in `src/07-extras.js`), a ladder rung (`LADDER` in `src/09-render.js`) for iconic scales.
-5. Screenshot every view, `npm test`, `npm run catalog`, changelog line.
+4. Have a separate agent research the numbers and check the facts against NASA, ESA, SIMBAD and the papers before shipping (in 0.16.0 this corrected the distance or size of more than half of the 20).
+5. Consider: a tour stop (`src/08t-tours.js`; Messier objects join the Messier marathon by themselves), a ship destination (`SHIP_TARGETS` in `src/07-extras.js`), a ladder rung (`LADDER` in `src/09-render.js`) for iconic scales.
+6. Screenshot every view, `npm test`, `npm run catalog`, changelog line, patch notes.
 
 ## Backlog
 
 Status: `planned`, `in progress`, `done` (then it appears in CATALOG.md and can be removed from here).
 
+### From the checklists · planned (one pull request each, about 20 objects)
+After 0.16.0, 72 Messier objects are left. In the order to take them:
+
+| Pack | Objects |
+| --- | --- |
+| Messier 2: nebulae and open clusters | M76 (Little Dumbbell), M78 (a reflection nebula), M24 (the Sagittarius Star Cloud), M6 (Butterfly Cluster), M35, M36, M37, M38, M41, M46 (with the planetary nebula NGC 2438 in front of it), M47, M67 (one of the oldest open clusters), M52, M103, M34, M39, M29, M23, M25 |
+| Messier 3: globular clusters | M2, M5, M9, M10, M12, M14, M15 (with its planetary nebula Pease 1), M19, M28, M30, M53, M54 (the heart of the Sagittarius Dwarf galaxy), M55, M56, M62, M68, M69, M70, M71, M72, M75, M79, M80, M92, M107 |
+| Messier 4: galaxies and the rest | the Virgo Cluster's M49, M58, M59, M60, M61, M85, M88, M89, M90, M91, M98, M99, M100; M94, M95, M96, M105, M102, M108, M109; the open clusters M18, M21, M26, M48, M50, M93; the double star M40 and the asterism M73 |
+| Caldwell 1: southern showpieces | 47 Tucanae (C106), the Jewel Box (C94), the Coalsack (C99), the Southern Pleiades (C102), the Wishing Well (C91), NGC 6397 (C86), NGC 6752 (C93), the Running Chicken (C100), NGC 3201 (C79), NGC 1851 (C73) |
+| Caldwell 2: northern nebulae | the Double Cluster (C14), the North America Nebula (C20), the Crescent (C27), the Rosette (C49, C50), the Cocoon (C19), the Iris (C4), the Cave (C9), the Flaming Star (C31), Hubble's Variable Nebula (C46) |
+| Caldwell 3: planetary nebulae | the Saturn Nebula (C55), the Eskimo (C39), the Ghost of Jupiter (C59), the Blue Snowball (C22), the Bug or Butterfly (C69), the Skull (C56), the Bow-Tie (C2), the Blinking Planetary (C15) |
+| Caldwell 4: galaxies | the Needle (C38), NGC 891 (C23), the Whale (C32), the Fireworks (C12), the Hidden Galaxy (C5), NGC 1097 (C67), NGC 4945 (C83), NGC 300 (C70), NGC 55 (C72), the Spindle (C53); and list NGC 6822 (C57) and IC 1613 (C51), drawn already but left out of the atlas |
+
+### Done in 0.16.0 (`src/objects/p8-messier.js`)
+The checklists and the Messier marathon tour; M27, M97, M20, M17, M44, M11, M7, M3, M4, M22, M63, M64, M83, M77, M65, M66 (and NGC 3628, drawn, not listed), M106, M74, M84, M86.
+
 ### Done in 0.9.0 (`src/objects/p7-places.js`, Mimas in `src/o10-planet.js`)
 Vesta, Bennu, Mimas and its crater Herschel, 51 Pegasi b, K2-18 b, HD 189733 b, Gaia BH3, T Coronae Borealis, the Lagoon Nebula, the Great Hercules Cluster (M13); the Other worlds heading and the moons, events, clusters and human-made chips.
 
-### Next packs · planned (one pull request each)
+### Curated · planned (beyond the checklists; the version numbers they were first planned under were used for other releases)
 | Pack | Objects |
 | --- | --- |
-| 0.9.1 human reach | Parker Solar Probe, ~~the Tesla Roadster with Starman (no logos)~~ (done in 0.9.5, with SpaceX's rockets), Tiangong (its elements already come from `/api/sats`), our radio bubble (about 212 light-years across, worked out from the date; its star count computed once), the Arecibo message on its way to M13 (illustrative), a "human reach" tour |
-| 0.9.2 surfaces | a terrain shader for patches you can fly low over; Olympus Mons, Tranquility Base and the other landing sites, Perseverance in Jezero, Valles Marineris, Io's and Enceladus's plumes (both readouts already mention them), Didymos and Dimorphos |
-| 0.9.3 the biggest things | Laniakea (real Cosmicflows-4 flows), the Virgo Cluster, the Hercules-Corona Borealis Great Wall (labelled debated), Porphyrion, GRB 221009A, the heliosphere, the Butterfly Nebula |
+| human reach | Parker Solar Probe, Tiangong (its elements already come from `/api/sats`), our radio bubble (about 212 light-years across, worked out from the date; its star count computed once), the Arecibo message on its way to M13 (illustrative), a "human reach" tour. (The Tesla Roadster with Starman was done in 0.9.5, with SpaceX's rockets.) |
+| surfaces | a terrain shader for patches you can fly low over; Olympus Mons, Tranquility Base and the other landing sites, Perseverance in Jezero, Valles Marineris, Io's and Enceladus's plumes (both readouts already mention them), Didymos and Dimorphos |
+| the biggest things | Laniakea (real Cosmicflows-4 flows), the Virgo Cluster (its Messier galaxies come in Messier 4), the Hercules-Corona Borealis Great Wall (labelled debated), Porphyrion, GRB 221009A, the heliosphere |
 
 ### Comets and meteors · first pack done in 0.8.1 (`src/objects/p6-comets.js`), more planned
 | Object | Notes |
@@ -36,7 +66,7 @@ Vesta, Bennu, Mimas and its crater Herschel, 51 Pegasi b, K2-18 b, HD 189733 b, 
 | Geminids and 3200 Phaethon | a meteor shower from an asteroid-like parent |
 | Orionids and Eta Aquariids | the two showers from Halley's Comet (its orbit is already drawn) |
 
-### Human spaceflight · planned (see 0.9.1 and 0.9.2 above)
+### Human spaceflight · planned (see "human reach" and "surfaces" above)
 | Object | Notes |
 | --- | --- |
 | Apollo landing sites | markers on the Moon (11, 12, 14, 15, 16, 17) |
@@ -45,13 +75,13 @@ Vesta, Bennu, Mimas and its crater Herschel, 51 Pegasi b, K2-18 b, HD 189733 b, 
 | Parker Solar Probe | its closest passes, 6.1 million km from the Sun's surface; the fastest object ever built |
 | Tiangong | model (currently label only via live data) |
 
-### Other worlds · ideas
+### Other worlds · ideas (the NASA Exoplanet Archive is their reference)
 | Object | Notes |
 | --- | --- |
 | TOI-700 d, LHS 1140 b | temperate rocky worlds |
 | WASP-76 b | the planet where it may rain iron |
 
-### Planet surfaces · planned
+### Planet surfaces · planned (the IAU Gazetteer of Planetary Nomenclature is their reference)
 | Object | Notes |
 | --- | --- |
 | Olympus Mons | low flyover view on Mars |
@@ -59,18 +89,14 @@ Vesta, Bennu, Mimas and its crater Herschel, 51 Pegasi b, K2-18 b, HD 189733 b, 
 | Io's plumes | volcanic plumes rising 300 km |
 | Lunar craters | Tycho and Copernicus close-ups |
 
-### Earth, closer · planned (see ROADMAP: ASCII Earth phase 2)
-| Object | Notes |
-| --- | --- |
-| Landmarks | Pyramids of Giza, Eiffel Tower, Burj Khalifa, Great Wall, Statue of Liberty |
-| Cities | brighter, more detailed night lights for the 50 largest cities |
+### Earth, closer
+Planned and tracked in `docs/EARTH_PLAN.md` (the real Earth, its cities and famous places, live data).
 
-### Deep sky ideas · planned
+### Deep sky ideas beyond the checklists · planned
 | Object | Notes |
 | --- | --- |
 | Sombrero, Whirlpool detail passes | dust ring, pink HII regions (partly done in 0.7) |
 | Crab Nebula filaments | pulsar wind nebula glow |
-| Omega Nebula, Butterfly Nebula | more famous nebulae |
-| Phoenix Cluster, El Gordo | galaxy clusters |
+| Phoenix Cluster | galaxy cluster (El Gordo is done) |
 | Hercules–Corona Borealis Great Wall | biggest structure claim (with the caveat that it is debated) |
 | Magnetar SGR 1935+2154 | fast radio burst source |
