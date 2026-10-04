@@ -16,6 +16,7 @@ const ETR = (() => {
   const VS_RD = `#version 300 es
 layout(location=0) in vec4 aC; layout(location=1) in vec4 aS; layout(location=2) in vec4 aI;
 uniform vec4 uV;   // the map's centre (m east, north of the city's centre), its half-size (m), the extra half-width (m)
+uniform float uR;   // the offset across is encoded over +-uR m
 out vec4 vS; out vec4 vI;
 void main(){
   vec2 a = aS.xy, b = aS.zw, t = normalize(b - a + vec2(1e-6, 0.)), nr = vec2(t.y, -t.x); float w = aI.w + uV.w;
@@ -24,12 +25,12 @@ void main(){
 }`;
   const FS_RD = `#version 300 es
 precision highp float;
-in vec4 vS; in vec4 vI; uniform vec4 uV; uniform float uN; out vec4 o;
+in vec4 vS; in vec4 vI; uniform vec4 uV; uniform float uN; uniform float uR; out vec4 o;
 void main(){
   vec2 P = uV.xy + (gl_FragCoord.xy/uN*2. - 1.)*uV.z, a = vS.xy, b = vS.zw, t = normalize(b - a + vec2(1e-6, 0.)), nr = vec2(t.y, -t.x);
-  // r: the direction of travel (of the points' order) in turns; g: the texel centre's offset across the road, +-32 m; b: lanes*16 + class*2 +
+  // r: the direction of travel (of the points' order) in turns; g: the texel centre's offset across the road, +-uR m; b: lanes*16 + class*2 +
   // one-way; a: 1, or 0.6 on a bridge
-  o = vec4(fract(atan(t.y, t.x)/6.2831853 + 1.), clamp(dot(P - a, nr)/64. + 0.5, 0., 1.), (vI.x*16. + vI.y)/255., vI.z > 0.5 ? 0.6 : 1.);
+  o = vec4(fract(atan(t.y, t.x)/6.2831853 + 1.), clamp(dot(P - a, nr)/(2.*uR) + 0.5, 0., 1.), (vI.x*16. + vI.y)/255., vI.z > 0.5 ? 0.6 : 1.);
 }`;
   let prog = null;
   function load(c){
@@ -67,6 +68,8 @@ void main(){
     gl.bindVertexArray(null);
     S.n = n;
   }
+  // (pad: m added each side of a road, R: the offset's range; the far map's roads padded wide, so far off the streams can be drawn wider than life)
+  const PAD = { near:[12, 40], far:[70, 100] };
   function map(M, c, half){
     if (!M.tex){
       M.tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, M.tex); gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8, NN, NN);
@@ -76,7 +79,8 @@ void main(){
     const prevFb = gl.getParameter(gl.FRAMEBUFFER_BINDING), vp = gl.getParameter(gl.VIEWPORT), bl = gl.isEnabled(gl.BLEND);
     gl.bindFramebuffer(gl.FRAMEBUFFER, M.fb); gl.viewport(0, 0, NN, NN); gl.disable(gl.BLEND);
     gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.useProgram(prog.p); gl.uniform4f(prog.u.uV, c[0], c[1], half, half/NN*1.5); gl.uniform1f(prog.u.uN, NN);
+    const [pad, R] = M === S.far ? PAD.far : PAD.near;
+    gl.useProgram(prog.p); gl.uniform4f(prog.u.uV, c[0], c[1], half, pad + half/NN); gl.uniform1f(prog.u.uN, NN); gl.uniform1f(prog.u.uR, R);
     gl.bindVertexArray(S.vao); gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, S.n); gl.bindVertexArray(null);
     gl.bindFramebuffer(gl.FRAMEBUFFER, prevFb); gl.viewport(vp[0], vp[1], vp[2], vp[3]); if (bl) gl.enable(gl.BLEND);
     M.c = c.slice(); M.at = GT;

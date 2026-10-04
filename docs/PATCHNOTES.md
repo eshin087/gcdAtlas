@@ -5,6 +5,11 @@
      numbers with units. The newest version comes first and opens by itself; its number must match package.json (tests/smoke.mjs checks it).
      Every detail stays in docs/CHANGELOG.md, which the panel links to. -->
 
+## 0.17.0 · 4 Oct 2026 · Cities you can read, alive from afar
+- The five cities in a new style, like an architect's model: every building in one clean colour from the city's real roofs (Paris zinc and slate, London slate and clay tile, Tokyo concrete), outlined, on darker streets.
+- Traffic shows from 15 km: streams of white and red lights along the main roads at night, moving dashes by day.
+- Planes are easy to spot: shaped like planes, flying in over the city, with a small label such as "landing at Heathrow". Airliners passing high overhead leave white trails by day.
+
 ## 0.15.0 · 4 Oct 2026 · Famous places in 3D
 - 30 famous places on Earth in 3D from real satellite images and heights: Everest, the Grand Canyon, the Alps, Kilimanjaro, Fuji, the Sahara's Richat Structure, the Amazon, Uluru, the Great Barrier Reef, Hawaii, Iceland, Antarctica, Greenland, the Palm, the Panama Canal, the Great Wall, Giza and more.
 - Find them in the atlas under "on Earth" (a new kind: built by people), by their marks on the globe, or by any of their names in the search.
