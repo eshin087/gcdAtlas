@@ -5,6 +5,12 @@
      numbers with units. The newest version comes first and opens by itself; its number must match package.json (tests/smoke.mjs checks it).
      Every detail stays in docs/CHANGELOG.md, which the panel links to. -->
 
+## 0.15.0 · 4 Oct 2026 · Famous places in 3D
+- 30 famous places on Earth in 3D from real satellite images and heights: Everest, the Grand Canyon, the Alps, Kilimanjaro, Fuji, the Sahara's Richat Structure, the Amazon, Uluru, the Great Barrier Reef, Hawaii, Iceland, Antarctica, Greenland, the Palm, the Panama Canal, the Great Wall, Giza and more.
+- Find them in the atlas under "on Earth" (a new kind: built by people), by their marks on the globe, or by any of their names in the search.
+- Each one opens close enough to know it, then goes wide and closer, by day with the Sun to the side so the mountains stand out.
+- A new tour, wonders of Earth, flies to all 30, west round the world.
+
 ## 0.13.0 · 4 Oct 2026 · Five cities in 3D, real clouds
 - New York, Tokyo, Dubai, London and Paris stand up in 3D, in the colours of their buildings: Paris stone and zinc roofs, New York brick and glass, London brick and Portland stone. Each opens on a landmark, with warning lights on the towers, local time and real weather. At night your eyes adjust and the city glows.
 - The Eiffel Tower in its real shape and size: four curved legs, the arches, three floors and the antenna. At night it glows gold, and sparkles for 5 minutes on the hour.

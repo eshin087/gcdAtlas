@@ -161,22 +161,25 @@ place({ key:'hoover', name:'Hoover Dam and Lake Mead', group:'wonders', la:36.01
 // fact: one or two true sentences with a number, in the house style (short, concrete, no em dashes); readout: a short line with a real number; aka: search words
 // (lower case, other names and spellings); views: look [lat, lon, height m], az (degrees from north the camera looks toward), tilt (degrees down from the
 // horizon), dist (m from the look point to the camera), why. Each place has a wide view, a middle one, and a close, oblique one where the relief stands up.
-// Every number has its source in a comment.
+// Every number has its source in a comment. (0.15.0: the wide views keep the camera about 12 to 20 km up, the Richat Structure's and the Nile Delta's
+// excepted, which need the height to show their shape: from 25 to 100 km the page draws the ground as seen from space, dark and flat in characters)
 const v = (look, az, tilt, dist, why) => ({ look, az, tilt, dist, why });
 const TEXT = {
   // Everest: 8,848.86 m, the height China and Nepal announced together on 8 December 2020 (rounded to 8,849 m); the Khumbu icefall and the Western Cwm lie between the
   // peaks in the finest layer; "ten of the 14 peaks over 8,000 m are in the Himalaya" is left out
   everest:{ fact:'Mount Everest, on the border of Nepal and China, is the highest mountain above sea level: 8,849 m. Nepal and China agreed that height in 2020.',
     readout:'summit 8,849 m above sea level', aka:'everest sagarmatha chomolungma qomolangma himalaya himalayas nepal tibet khumbu lhotse nuptse',
-    views:[ v([28.0, 86.9, 6000], 20, 9, 180000, 'the Himalayan wall from the south'), v([27.99, 86.92, 7000], 60, 10, 40000, 'Everest, Lhotse and Nuptse from the Khumbu'), v([27.99, 86.93, 8300], 55, 11, 14000, 'close to the summit pyramid') ] },
-  // Grand Canyon: 446 km long, up to 29 km wide, over 1,800 m deep (National Park Service: 277 miles, 18 miles, a mile deep; Wikipedia gives a depth of 1,857 m)
-  grandcanyon:{ fact:'The Grand Canyon in Arizona is 446 km long, up to 29 km wide and more than 1,800 m deep. The Colorado River cut it through the rock.',
-    readout:'446 km long, over 1,800 m deep', aka:'grand canyon arizona colorado river south rim north rim bright angel phantom ranch',
-    views:[ v([36.1, -112.1, 1500], 20, 18, 70000, 'the canyon across the plateau'), v([36.09, -112.11, 1200], 300, 25, 25000, 'along the canyon'), v([36.1, -112.09, 900], 190, 20, 9000, 'from the North Rim across to the South Rim') ] },
-  // Mont Blanc 4,805.59 m (measured 2021, rounded 4,806 m), the Matterhorn 4,477.54 m (swisstopo, rounded 4,478 m)
-  alps:{ fact:'Mont Blanc, at 4,806 m, is the highest peak in the Alps. The Matterhorn, 4,478 m, stands on the border of Switzerland and Italy.',
-    readout:'Mont Blanc 4,806 m, Matterhorn 4,478 m', aka:'alps alpen alpes matterhorn cervino mont blanc monte bianco zermatt chamonix switzerland italy france',
-    views:[ v([45.9, 7.26, 3000], 20, 8, 160000, 'the Alps from Italy'), v([45.976, 7.659, 4000], 225, 9, 9000, 'the Matterhorn from Zermatt'), v([45.833, 6.865, 4200], 135, 10, 10000, 'Mont Blanc from Chamonix') ] },
+    views:[ v([28.0, 86.9, 6000], 20, 5, 110000, 'the Himalayan wall from the south'), v([27.99, 86.92, 7000], 60, 10, 40000, 'Everest, Lhotse and Nuptse from the Khumbu'), v([27.99, 86.93, 8300], 55, 11, 14000, 'close to the summit pyramid') ] },
+  // Grand Canyon: 446 km long, up to 29 km wide, up to about 1,800 m deep (National Park Service: 277 river miles, up to 18 miles wide, 6,000 ft at its deepest,
+  // about 4,000 ft on average; fact-checked 2026-10-04)
+  grandcanyon:{ fact:'The Grand Canyon in Arizona is 446 km long, up to 29 km wide and up to about 1,800 m deep. The Colorado River cut it through the rock.',
+    readout:'446 km long, up to 1,800 m deep', aka:'grand canyon arizona colorado river south rim north rim bright angel phantom ranch',
+    views:[ v([36.1, -112.1, 1500], 20, 12, 60000, 'the canyon across the plateau'), v([36.09, -112.11, 1200], 300, 25, 25000, 'along the canyon'), v([36.1, -112.09, 900], 190, 20, 9000, 'from the North Rim across to the South Rim') ] },
+  // Mont Blanc 4,807.81 m in 2021 and 4,805.59 m in 2023 (its snow cap: 4,805.6 to 4,810.9 m since 2001, over rock at about 4,792 m), the Matterhorn 4,477.54 m
+  // (swisstopo, rounded 4,478 m)
+  alps:{ fact:'Mont Blanc, about 4,806 m high, is the highest peak in the Alps; its snowy top rises and falls by a few metres from year to year. The Matterhorn, 4,478 m, stands on the border of Switzerland and Italy.',
+    readout:'Mont Blanc about 4,806 m, Matterhorn 4,478 m', aka:'alps alpen alpes matterhorn cervino mont blanc monte bianco zermatt chamonix switzerland italy france',
+    views:[ v([45.9, 7.26, 3000], 20, 5, 110000, 'the Alps from Italy'), v([45.976, 7.659, 4000], 225, 9, 9000, 'the Matterhorn from Zermatt'), v([45.833, 6.865, 4200], 135, 10, 10000, 'Mont Blanc from Chamonix') ] },
   // Uhuru Peak 5,895 m (Wikipedia, Tanzania National Parks)
   kilimanjaro:{ fact:'Kilimanjaro in Tanzania is Africa\'s highest mountain: 5,895 m above sea level. It is a volcano that stands alone, just over 3 degrees south of the equator, with ice on its summit.',
     readout:'Uhuru Peak 5,895 m', aka:'kilimanjaro kibo uhuru peak mawenzi shira tanzania africa volcano moshi',
@@ -184,7 +187,7 @@ const TEXT = {
   // Fuji 3,776 m (Geospatial Information Authority of Japan, 3,775.63 m), last eruption 1707 (the Hoei eruption, December 1707)
   fuji:{ fact:'Mount Fuji is Japan\'s highest mountain, a volcano 3,776 m high. It last erupted in 1707.',
     readout:'summit 3,776 m', aka:'fuji fujisan fujiyama japan volcano honshu suruga bay',
-    views:[ v([35.36, 138.73, 2000], 320, 5, 100000, 'the cone over Suruga Bay'), v([35.36, 138.73, 2500], 30, 10, 35000, 'the cone and its lakes'), v([35.3606, 138.7274, 3500], 10, 18, 5500, 'into the summit crater') ] },
+    views:[ v([35.36, 138.73, 2000], 320, 6, 45000, 'the cone over Suruga Bay'), v([35.36, 138.73, 2500], 30, 10, 35000, 'the cone and its lakes'), v([35.3606, 138.7274, 3500], 10, 18, 5500, 'into the summit crater') ] },
   // El Capitan rises about 900 m (3,000 ft) from its base to its summit (National Park Service)
   yosemite:{ fact:'El Capitan, in Yosemite Valley, California, is a granite wall that rises about 900 m from the valley floor to its top. Half Dome rises at the other end of the valley.',
     readout:'El Capitan rises 900 m', aka:'yosemite el capitan half dome california sierra nevada valley yosemite falls glacier point',
@@ -193,16 +196,18 @@ const TEXT = {
   torresdelpaine:{ fact:'Torres del Paine National Park is in Chilean Patagonia. Torres means towers in Spanish, and paine means blue in the Tehuelche language.',
     readout:'UNESCO biosphere reserve since 1978', aka:'torres del paine patagonia chile cuernos paine grande grey glacier lake pehoe national park',
     views:[ v([-50.95, -73.0, 1500], 0, 7, 90000, 'the massif from the south'), v([-50.95, -73.0, 1500], 355, 12, 28000, 'the towers and the lakes'), v([-50.97, -73.0, 1800], 0, 10, 12000, 'the Cuernos from the south') ] },
-  // Denali 6,190 m (20,310 ft), the height USGS gave in 2015
-  denali:{ fact:'Denali, in Alaska, is the highest mountain in North America: 6,190 m above sea level. Its name means the high one in the Koyukon language.',
+  // Denali 6,190 m (20,310 ft), the height USGS gave in 2015; the name from a Koyukon word for high or tall; Executive Order 14172 (January 2025) made Mount
+  // McKinley its official federal name again
+  denali:{ fact:'Denali, in Alaska, is the highest mountain in North America: 6,190 m above sea level. Its name comes from a Koyukon word for high, and since 2025 the US government calls it Mount McKinley.',
     readout:'summit 6,190 m', aka:'denali mckinley mount mckinley alaska range alaska',
-    views:[ v([63.07, -151.0, 3000], 330, 7, 200000, 'the Alaska Range'), v([63.07, -151.0, 3500], 330, 10, 60000, 'Denali and its glaciers'), v([63.07, -151.0, 5500], 320, 14, 16000, 'close to the summit') ] },
+    views:[ v([63.07, -151.0, 3000], 330, 5, 120000, 'the Alaska Range'), v([63.07, -151.0, 3500], 330, 10, 60000, 'Denali and its glaciers'), v([63.07, -151.0, 5500], 320, 14, 16000, 'close to the summit') ] },
   richat:{ fact:'The Richat Structure in Mauritania is a ring of eroded rock about 40 km across. Early space crews used it as a landmark.',
     readout:'about 40 km across', aka:'richat structure eye of the sahara guelb er richat mauritania adrar desert',
     views:[ v([21.12, -11.4, 400], 0, 35, 120000, 'the eye in the Sahara'), v([21.12, -11.4, 400], 0, 50, 50000, 'the rings'), v([21.12, -11.4, 400], 300, 30, 18000, 'across the rings') ] },
-  amazon:{ fact:'Near Manaus in Brazil, the dark Rio Negro meets the pale Solimoes. The two run side by side for about 6 km without mixing, and below the meeting the river is the Amazon.',
-    readout:'rivers side by side for about 6 km', aka:'amazon manaus meeting of waters encontro das aguas rio negro solimoes brazil rainforest',
-    views:[ v([-3.13, -59.92, 0], 90, 15, 100000, 'down the Amazon'), v([-3.13, -59.92, 0], 60, 25, 25000, 'the two rivers meet'), v([-3.13, -59.92, 0], 0, 35, 12000, 'the line between the waters') ] },
+  // the two waters take about 100 km to mix fully (Laraque and others, 2009, Hydrological Processes); "6 km without mixing" is a popular figure, left out
+  amazon:{ fact:'Near Manaus in Brazil, the dark Rio Negro meets the pale Solimoes, and below them the river is called the Amazon. The two waters flow side by side with a sharp line between them and take about 100 km to mix fully.',
+    readout:'about 100 km to mix fully', aka:'amazon manaus meeting of waters encontro das aguas rio negro solimoes brazil rainforest',
+    views:[ v([-3.13, -59.92, 0], 90, 9, 80000, 'down the Amazon'), v([-3.13, -59.92, 0], 60, 25, 25000, 'the two rivers meet'), v([-3.13, -59.92, 0], 0, 35, 12000, 'the line between the waters') ] },
   nile:{ fact:'The Nile Delta in Egypt fans out to about 240 km of Mediterranean coast. It is green farmland in a desert.',
     readout:'about 240 km of coast', aka:'nile delta egypt cairo alexandria mediterranean rosetta damietta',
     views:[ v([30.8, 31.1, 0], 180, 18, 200000, 'the delta from the sea'), v([30.9, 31.15, 0], 200, 30, 110000, 'the fan of green'), v([30.04, 31.24, 0], 180, 25, 25000, 'the Nile at Cairo') ] },
@@ -211,9 +216,9 @@ const TEXT = {
     readout:'348 m above the plain', aka:'uluru ayers rock kata tjuta olgas northern territory australia',
     views:[ v([-25.34, 131.0, 500], 20, 12, 70000, 'Uluru and Kata Tjuta'), v([-25.345, 131.04, 500], 45, 12, 8000, 'the rock from the south-west'), v([-25.345, 131.037, 700], 120, 14, 4500, 'along the flank') ] },
   // the flooded area swells from about 6,000 to 15,000 km2 (Wikipedia, Okavango Delta)
-  okavango:{ fact:'The Okavango Delta in Botswana is a river that ends in the Kalahari sand, not the sea. Its seasonal flood spreads over as much as 15,000 km².',
+  okavango:{ fact:'The Okavango Delta in Botswana is where a river ends in the Kalahari sand, not the sea. In flood, its water spreads over as much as 15,000 km².',
     readout:'floods up to 15,000 km²', aka:'okavango delta botswana moremi maun flood kalahari inland delta',
-    views:[ v([-19.3, 22.8, 1000], 340, 14, 200000, 'the delta from the south'), v([-19.3, 22.8, 1000], 340, 22, 110000, 'the fan of channels'), v([-19.35, 22.75, 950], 10, 35, 15000, 'channels and islands') ] },
+    views:[ v([-19.3, 22.8, 1000], 340, 7, 110000, 'the delta from the south'), v([-19.3, 22.8, 1000], 340, 20, 45000, 'the fan of channels'), v([-19.35, 22.75, 950], 10, 35, 15000, 'channels and islands') ] },
   // Big Daddy is about 325 m high (Wikipedia, Sossusvlei)
   sossusvlei:{ fact:'Sossusvlei, in the Namib Desert of Namibia, is a clay pan among red dunes. The dune called Big Daddy is about 325 m high.',
     readout:'dunes up to about 325 m', aka:'sossusvlei namib namibia dune 45 big daddy deadvlei desert naukluft',
@@ -221,59 +226,62 @@ const TEXT = {
   // over 2,900 reefs and 900 islands over 2,300 km (Wikipedia, Great Barrier Reef; GBRMPA)
   gbr:{ fact:'The Great Barrier Reef off Queensland is made of more than 2,900 reefs and 900 islands along 2,300 km. It is the largest coral reef system on Earth.',
     readout:'2,300 km, over 2,900 reefs', aka:'great barrier reef whitsundays whitehaven beach hill inlet heart reef hardy reef queensland australia coral',
-    views:[ v([-20.05, 149.2, 0], 10, 20, 200000, 'reefs along the coast'), v([-20.28, 149.04, 0], 340, 35, 25000, 'the Whitsunday islands'), v([-20.285, 149.045, 0], 340, 25, 7000, 'Hill Inlet and Whitehaven Beach') ] },
+    views:[ v([-20.05, 149.2, 0], 10, 9, 110000, 'reefs along the coast'), v([-20.28, 149.04, 0], 340, 35, 25000, 'the Whitsunday islands'), v([-20.285, 149.045, 0], 340, 25, 7000, 'Hill Inlet and Whitehaven Beach') ] },
   // Kilauea summit 1,247 m, Mauna Kea 4,207 m (USGS)
   hawaii:{ fact:'Kilauea, on the Big Island of Hawaii, is one of the most active volcanoes on Earth. Mauna Kea, on the same island, rises 4,207 m above sea level.',
     readout:'Kilauea 1,247 m, Mauna Kea 4,207 m', aka:'hawaii big island kilauea mauna loa mauna kea volcano halemaumau',
-    views:[ v([19.55, -155.5, 1000], 300, 15, 130000, 'the island from the sea'), v([19.45, -155.4, 2000], 0, 12, 70000, 'Mauna Loa and Kilauea'), v([19.4069, -155.2834, 1100], 315, 20, 7000, 'the summit caldera of Kilauea') ] },
+    views:[ v([19.55, -155.5, 1000], 300, 8, 100000, 'the island from the sea'), v([19.45, -155.4, 2000], 0, 12, 70000, 'Mauna Loa and Kilauea'), v([19.4069, -155.2834, 1100], 315, 20, 7000, 'the summit caldera of Kilauea') ] },
   // Hvannadalshnukur 2,110 m, Iceland's highest point (National Land Survey of Iceland)
   iceland:{ fact:'Vatnajokull is the biggest ice cap in Iceland. On its southern edge, the volcano Oraefajokull holds the highest point in the country, Hvannadalshnukur: 2,110 m.',
     readout:'Hvannadalshnukur 2,110 m', aka:'iceland vatnajokull jokulsarlon glacier lagoon hvannadalshnukur skaftafell diamond beach oraefajokull',
-    views:[ v([64.2, -17.8, 500], 0, 9, 250000, 'the south coast and the ice cap'), v([64.05, -16.55, 1200], 0, 10, 45000, 'Oraefajokull and the glaciers'), v([64.015, -16.675, 1800], 340, 15, 9000, 'the crater and its glaciers') ] },
+    views:[ v([64.2, -17.8, 500], 0, 6, 130000, 'the south coast and the ice cap'), v([64.05, -16.55, 1200], 0, 10, 45000, 'Oraefajokull and the glaciers'), v([64.015, -16.675, 1800], 340, 15, 9000, 'the crater and its glaciers') ] },
   // Sermeq Kujalleq (Jakobshavn Isbrae): about 17 km a year, 46 m a day at its peak, in summer 2012 (Joughin and others, 2014; NASA); UNESCO World Heritage listing 2004
   greenland:{ fact:'Sermeq Kujalleq feeds the Ilulissat Icefjord in Greenland. It is one of the fastest glaciers on Earth: in 2012 it moved up to 46 m a day.',
     readout:'up to 46 m a day', aka:'greenland ilulissat icefjord jakobshavn sermeq kujalleq glacier icebergs disko bay',
-    views:[ v([69.2, -50.5, 200], 90, 12, 250000, 'the ice sheet from Disko Bay'), v([69.17, -50.6, 100], 70, 20, 50000, 'the icefjord'), v([69.17, -51.0, 0], 90, 25, 11000, 'icebergs in the fjord') ] },
+    views:[ v([69.2, -50.5, 200], 90, 7, 120000, 'the ice sheet from Disko Bay'), v([69.17, -50.6, 100], 70, 20, 50000, 'the icefjord'), v([69.17, -51.0, 0], 90, 25, 11000, 'icebergs in the fjord') ] },
   // 26 atolls; the lowest country on Earth, an average ground level of 1.5 m above sea level (Wikipedia, Maldives)
   maldives:{ fact:'The Maldives are a chain of 26 coral atolls in the Indian Ocean. It is the lowest country on Earth: the ground is about 1.5 m above sea level on average.',
     readout:'ground 1.5 m above the sea on average', aka:'maldives male atoll indian ocean coral islands hulhumale',
-    views:[ v([4.2, 73.4, 0], 0, 40, 160000, 'atolls like rings'), v([4.35, 73.5, 0], 0, 35, 60000, 'North Male Atoll'), v([4.19, 73.51, 0], 0, 25, 6000, 'Male and its airport island') ] },
+    views:[ v([4.2, 73.4, 0], 0, 14, 70000, 'atolls like rings'), v([4.35, 73.5, 0], 0, 25, 40000, 'North Male Atoll'), v([4.19, 73.51, 0], 0, 25, 6000, 'Male and its airport island') ] },
   // Mount Otemanu 727 m (Wikipedia, Bora Bora)
-  borabora:{ fact:'Bora Bora, in French Polynesia, is an extinct volcano inside a lagoon. Its peak, Mount Otemanu, is 727 m high.',
+  borabora:{ fact:'Bora Bora, in French Polynesia, is what is left of an extinct volcano, ringed by a lagoon and a reef. Its peak, Mount Otemanu, is 727 m high.',
     readout:'Mount Otemanu 727 m', aka:'bora bora french polynesia otemanu lagoon society islands tahiti',
-    views:[ v([-16.5, -151.74, 0], 20, 18, 120000, 'the Society Islands'), v([-16.5, -151.74, 0], 20, 25, 25000, 'the island in its lagoon'), v([-16.5, -151.74, 300], 330, 14, 6000, 'Mount Otemanu') ] },
+    views:[ v([-16.5, -151.74, 0], 20, 14, 45000, 'the Society Islands'), v([-16.5, -151.74, 0], 20, 25, 25000, 'the island in its lagoon'), v([-16.5, -151.74, 300], 330, 14, 6000, 'Mount Otemanu') ] },
   // "some 1,600 islands and islets" in UNESCO's description of the site, listed in 1994
   halong:{ fact:'Ha Long Bay in Vietnam has about 1,600 limestone islands and islets rising from the sea. UNESCO made it a World Heritage Site in 1994.',
     readout:'about 1,600 islands', aka:'ha long bay halong vietnam limestone karst tonkin',
-    views:[ v([20.85, 107.1, 0], 0, 20, 90000, 'the bay and the gulf'), v([20.85, 107.1, 0], 0, 30, 30000, 'a field of islands'), v([20.85, 107.12, 0], 20, 22, 9000, 'among the limestone towers') ] },
+    views:[ v([20.85, 107.1, 0], 0, 12, 60000, 'the bay and the gulf'), v([20.85, 107.1, 0], 0, 30, 30000, 'a field of islands'), v([20.85, 107.12, 0], 20, 22, 9000, 'among the limestone towers') ] },
   // the fjord is about 15 km long (Wikipedia, Geirangerfjord); World Heritage since 2005 (UNESCO, West Norwegian Fjords)
   geiranger:{ fact:'Geirangerfjord in Norway is a narrow fjord about 15 km long, with waterfalls dropping straight into it. UNESCO listed it in 2005.',
     readout:'fjord about 15 km long', aka:'geirangerfjord geiranger norway fjord seven sisters waterfall unesco',
-    views:[ v([62.1, 7.1, 500], 30, 10, 130000, 'the fjords of western Norway'), v([62.1, 7.12, 500], 80, 12, 22000, 'along the fjord'), v([62.1, 7.16, 300], 70, 14, 8000, 'the fjord walls') ] },
-  // Palm Jumeirah: begun in 2001 (Wikipedia); 17 fronds on the crown; Burj Khalifa 828 m (Emaar), in the wider layer
-  palm:{ fact:'Palm Jumeirah in Dubai is an island built from dredged sand and rock, begun in 2001. From above it is a palm tree with 17 fronds.',
+    views:[ v([62.1, 7.1, 500], 30, 8, 90000, 'the fjords of western Norway'), v([62.1, 7.12, 500], 80, 12, 22000, 'along the fjord'), v([62.1, 7.16, 300], 70, 14, 8000, 'the fjord walls') ] },
+  // Palm Jumeirah: begun in June 2001, sand dredged from the sea floor and rock quarried in the Hajar Mountains (Wikipedia, CNN); "a trunk with 17 fronds" (USGS
+  // EROS); Burj Khalifa 828 m (Emaar), in the wider layer
+  palm:{ fact:'Palm Jumeirah in Dubai is an island built from sea sand and mountain rock, begun in 2001. From above it is a palm tree with 17 fronds.',
     readout:'17 fronds, built from the sea', aka:'palm jumeirah dubai uae island artificial atlantis marina burj khalifa burj al arab',
     views:[ v([25.11, 55.14, 0], 150, 15, 60000, 'Dubai from the Gulf'), v([25.11, 55.14, 0], 150, 30, 18000, 'the Palm and the Marina'), v([25.112, 55.139, 0], 160, 40, 9000, 'the Palm from above') ] },
-  // 82 km long; Gatun Lake is 26 m above sea level (Panama Canal Authority; Wikipedia)
-  panama:{ fact:'The Panama Canal is 82 km long. Ships are lifted 26 m up to Gatun Lake in locks, and lowered again on the other side.',
-    readout:'82 km long, lakes at 26 m', aka:'panama canal gatun lake miraflores locks culebra cut colon panama city pedro miguel',
-    views:[ v([9.15, -79.75, 0], 330, 15, 150000, 'the isthmus from the Pacific'), v([9.1, -79.7, 26], 330, 25, 55000, 'the canal and Gatun Lake'), v([8.997, -79.592, 10], 330, 25, 9000, 'the Miraflores locks') ] },
-  // all the walls built over the centuries add up to 21,196 km (State Administration of Cultural Heritage of China, survey published in 2012)
-  greatwall:{ fact:'The Great Wall of China is 21,196 km long, counting all the walls built over the centuries (China\'s 2012 survey). Mutianyu is a restored stretch north of Beijing.',
-    readout:'21,196 km of walls in all', aka:'great wall of china mutianyu badaling beijing ming',
-    views:[ v([40.39, 116.29, 500], 0, 12, 120000, 'the mountains north of Beijing'), v([40.43, 116.57, 700], 20, 18, 20000, 'the wall along the ridges'), v([40.43, 116.57, 700], 0, 16, 3500, 'the wall at Mutianyu') ] },
+  // about 82 km long from deep water to deep water (Britannica; the Panama Canal Authority says about 80 km); Gatun Lake is 26 m above sea level, Miraflores Lake
+  // about 16 m (Wikipedia)
+  panama:{ fact:'The Panama Canal is about 82 km long. Locks lift ships 26 m up to Gatun Lake and lower them again on the other side.',
+    readout:'about 82 km long, Gatun Lake 26 m up', aka:'panama canal gatun lake miraflores locks culebra cut colon panama city pedro miguel',
+    views:[ v([9.15, -79.75, 0], 330, 8, 100000, 'the isthmus from the Pacific'), v([9.1, -79.7, 26], 330, 20, 40000, 'the canal and Gatun Lake'), v([8.997, -79.592, 10], 330, 25, 9000, 'the Miraflores locks') ] },
+  // all the walls, trenches and other defences of every dynasty add up to 21,196.18 km (State Administration of Cultural Heritage of China, survey published in 2012);
+  // Mutianyu is in Huairou District, about 70 km northeast of central Beijing
+  greatwall:{ fact:'All the walls and trenches of the Great Wall of China, from every dynasty, add up to 21,196 km (China\'s 2012 survey). Mutianyu is a restored stretch northeast of Beijing.',
+    readout:'21,196 km in all', aka:'great wall of china mutianyu badaling beijing ming',
+    views:[ v([40.39, 116.29, 500], 0, 9, 80000, 'the mountains north of Beijing'), v([40.43, 116.57, 700], 20, 18, 20000, 'the wall along the ridges'), v([40.43, 116.57, 700], 0, 22, 1600, 'the wall at Mutianyu') ] },
   // the Great Pyramid: 230.3 m square, about 146.6 m high when built, 138.5 m now; built about 4,500 years ago (Wikipedia, Great Pyramid of Giza)
   giza:{ fact:'The Great Pyramid of Giza was built about 4,500 years ago. It was 146.6 m high when new and is 138.5 m high now.',
     readout:'138.5 m high, 230 m wide at the base', aka:'giza pyramids great pyramid khufu cheops khafre menkaure sphinx cairo egypt',
-    views:[ v([29.99, 31.13, 0], 270, 12, 60000, 'the plateau over the Nile'), v([29.9753, 31.1308, 60], 315, 18, 5000, 'the three pyramids'), v([29.9792, 31.1342, 100], 320, 14, 1800, 'the Great Pyramid') ] },
-  // 193 km long, opened in 1869 (Suez Canal Authority; Wikipedia)
-  suez:{ fact:'The Suez Canal in Egypt joins the Mediterranean and the Red Sea. It is 193 km long and opened in 1869.',
+    views:[ v([29.99, 31.13, 0], 270, 12, 60000, 'the plateau over the Nile'), v([29.9753, 31.1308, 90], 45, 4, 1500, 'the three pyramids'), v([29.9792, 31.1342, 100], 320, 14, 1800, 'the Great Pyramid') ] },
+  // 193.3 km long, opened on 17 November 1869, when it was 164 km long (Suez Canal Authority; Wikipedia)
+  suez:{ fact:'The Suez Canal in Egypt joins the Mediterranean and the Red Sea. It opened in 1869 and is now 193 km long.',
     readout:'193 km long, opened 1869', aka:'suez canal egypt ismailia port said red sea mediterranean great bitter lake',
-    views:[ v([30.6, 32.3, 0], 180, 18, 250000, 'the canal across the desert'), v([30.5, 32.3, 0], 200, 25, 60000, 'the lakes of the canal'), v([30.6, 32.28, 0], 180, 22, 12000, 'ships in the canal at Ismailia') ] },
+    views:[ v([30.6, 32.3, 0], 180, 10, 110000, 'the canal across the desert'), v([30.5, 32.3, 0], 200, 20, 45000, 'the lakes of the canal'), v([30.6, 32.28, 0], 180, 22, 12000, 'ships in the canal at Ismailia') ] },
   // the dam is 2,335 m long and 181 m high; 22,500 MW (Wikipedia, Three Gorges Dam; China Three Gorges Corporation)
   threegorges:{ fact:'The Three Gorges Dam on China\'s Yangtze River is 2,335 m long and 181 m high. Its power station is the biggest in the world, at 22,500 MW.',
     readout:'dam 2,335 m long, 181 m high', aka:'three gorges dam yangtze china yichang hydropower reservoir',
-    views:[ v([30.82, 111.0, 300], 270, 10, 120000, 'up the Yangtze'), v([30.82, 111.0, 300], 280, 18, 25000, 'the dam and the gorge'), v([30.82, 111.0, 150], 300, 18, 5000, 'the dam wall') ] },
+    views:[ v([30.82, 111.0, 300], 270, 8, 90000, 'up the Yangtze'), v([30.82, 111.0, 300], 280, 18, 25000, 'the dam and the gorge'), v([30.82, 111.0, 150], 300, 18, 5000, 'the dam wall') ] },
   // 221 m high, 379 m long on the crest (US Bureau of Reclamation); Lake Mead is the largest US reservoir by capacity (Wikipedia)
   hoover:{ fact:'Hoover Dam, on the border of Nevada and Arizona, is 221 m high. Lake Mead behind it is the biggest reservoir in the United States by capacity.',
     readout:'dam 221 m high, 379 m long', aka:'hoover dam lake mead colorado river nevada arizona las vegas black canyon',
@@ -281,7 +289,7 @@ const TEXT = {
   // Erebus 3,794 m, the southernmost active volcano on Earth; the Ross Ice Shelf, the largest in Antarctica, about 500,000 km2, about the size of France (Wikipedia, Mount Erebus and Ross Ice Shelf)
   antarctic:{ fact:'The Ross Ice Shelf is the largest floating ice shelf in Antarctica, about 500,000 km\u00b2. Mount Erebus, on Ross Island at its edge, is the southernmost active volcano on Earth: 3,794 m.',
     readout:'Ross Ice Shelf about 500,000 km\u00b2', aka:'antarctica erebus ross island mcmurdo sound ross ice shelf scott base transantarctic ice shelf',
-    views:[ v([-77.7, 167.0, 1000], 330, 12, 220000, 'Ross Island and the Ross Ice Shelf'), v([-77.53, 167.17, 2500], 0, 12, 40000, 'Erebus over the ice'), v([-77.53, 167.17, 3500], 330, 18, 8000, 'the crater of Erebus') ] },
+    views:[ v([-77.7, 167.0, 1000], 330, 6, 120000, 'Ross Island and the Ross Ice Shelf'), v([-77.53, 167.17, 2500], 0, 12, 40000, 'Erebus over the ice'), v([-77.53, 167.17, 3500], 330, 18, 8000, 'the crater of Erebus') ] },
 };
 for (const P of PLACES) if (TEXT[P.key]) Object.assign(P, TEXT[P.key]);
 

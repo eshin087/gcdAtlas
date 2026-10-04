@@ -56,6 +56,8 @@ const TOURS = [
     ['earth'], ['iss'], ['moon'], ['apollo11'], ['sun'], ['parker'], ['mercury'], ['venus'], ['mars'], ['olympus'], ['perseverance'], ['ceres'], ['vesta'], ['jupiter'], ['io'], ['europa'],
     ['saturn'], ['titan'], ['enceladus'], ['uranus'], ['neptune'], ['pluto'], ['arrokoth'], ['halley'], ['voyager1'], ['oort'], ['alphacen'], ['proxima'], ['proximab'],
   ] },
+  // (0.15.0: the famous places on Earth with their own layers, e9p-earth-places.js, west round the world; not listed without the real Earth)
+  { id:'earth', name:'wonders of Earth', blurb:'mountains, deserts, coasts, ice and what people built, up close', stops:PLC.tour.map(k => [k]) },
   { id:'galaxies', name:'galaxies', blurb:'islands of stars, near and far', stops:[
     ['milkyway'], ['lmc'], ['smc'], ['andromeda'], ['m33'], ['sculptor'], ['m81'], ['m82'], ['m51'], ['m101'], ['m104'], ['cena'], ['antennae'], ['m87'],
     ['quintet'], ['ngc1275'], ['cartwheel'], ['hoag'], ['cosmicweb'],
