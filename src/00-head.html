@@ -280,6 +280,10 @@ body.showcase .strip{padding-bottom:calc(124px + env(safe-area-inset-bottom,0px)
   opacity:0;visibility:hidden;transition:opacity .3s ease-in,visibility 0s linear .3s}
 .lab.on{opacity:1;visibility:visible;transition:opacity .8s ease-out,visibility 0s}
 .lab:hover{color:var(--flare)}
+/* places on Earth (0.13.0): teal like the atlas's "on Earth" kind; the five cities in 3D a little brighter */
+.lab.emark{color:#3fd6c6;font-size:calc(10px*var(--ts))}
+.lab.emark.e3d{color:#7ff0e2}
+.lab.emark:hover{color:var(--flare)}
 .lab::before{content:"[ ";color:var(--faint)}
 .lab::after{content:" ]";color:var(--faint)}
 .lab.big{color:var(--soft);font-size:calc(11px*var(--ts));letter-spacing:.14em;text-transform:uppercase}

@@ -454,6 +454,58 @@ P.sxSmoke = program(VS_RECT, FS_SX_SMOKE);
 // uP3 = plume light: position (m), strength;  uP4 = time, the height of the pad above the sea (m), 0, ZI (0)
 const FS_SX_ENV = COMMON + '#define ED_GRAD\n' + ED_GLSL + CLOUD_GLSL + `
 const float RE = 6371000.;
+uniform vec4 uTwL[16]; uniform float uTwLN;   // (a city's tower lights: e9c-earth-cities.js)
+// (a city's slender towers, too thin for its height images (the Eiffel Tower, Tokyo Tower, the Skytree...): uThin x y its foot in this frame
+// (x, z), z the ground there (m above the sea), w its height; uThinB x the half-width of its foot, y 1 for a straight shaft, 0 a tapering
+// lattice. THIN: whether the last height asked for was one of them)
+uniform vec4 uThin[4]; uniform vec4 uThinB[4]; uniform float uThinN;
+float THIN = 0.;
+#ifdef EIFFEL
+// the Eiffel Tower as a model (0.13.0, owner: drawn from the heights it was "a random triangle"), only in P.sxEnvEf, the copy of this
+// shader used near Paris (built in the background: the rest of the world never compiles it). Its real sizes (toureiffel.paris, Wikipedia):
+// the legs at the corners of a 125 m square, the floors at 57.6, 115.7 and 276.1 m (70.7, 41 and 16.5 m across), 300 m to the top of the
+// structure, 330 m with the antenna of 2022. The outer edge's curve is fitted through the floors (the half-width 2.9 + 59.6 e^(-y/94.8) m);
+// the four legs part below about 120 m, with an arch on each face (35 m half-span, 39 m high) under the first floor. The lattice is a
+// pattern of braces on the faces (illustrative). uEf0: its foot (x, z) in this frame, the ground there (m above the sea), the turn of its
+// faces; uEf1: the gold lights (0..1), the sparkle (0..1), a clock for the sparkle (s)
+uniform vec4 uEf0; uniform vec4 uEf1;
+float efW(float y){ return 2.9 + 59.6*exp(-y/94.8); }
+vec3 efLoc(vec3 v){ float c = cos(uEf0.w), s = sin(uEf0.w); return vec3(c*v.x + s*v.z, v.y, -s*v.x + c*v.z); }
+vec3 efWor(vec3 v){ float c = cos(uEf0.w), s = sin(uEf0.w); return vec3(c*v.x - s*v.z, v.y, s*v.x + c*v.z); }
+float efBox(vec3 p, vec3 c, vec3 b){ vec3 q = abs(p - c) - b; return length(max(q, 0.)) + min(max(q.x, max(q.y, q.z)), 0.); }
+// (distances in metres from its foot, y up; the faces lean in, so the distances along them are scaled down for the march)
+float efMap(vec3 p){
+  vec2 a = abs(p.xz); float y = p.y, w = efW(clamp(y, 0., 300.)), m = max(a.x, a.y), n = min(a.x, a.y);
+  float wi = 37.*pow(max(1. - y/122., 0.), 1.1);   // (the gap between the legs: 74 m at the ground, closed at about 120 m)
+  float d = max(max(m - w, wi - n)*0.8, max(-y, y - 300.));
+  float aY = 39.*sqrt(max(1. - (n/35.)*(n/35.), 0.));   // (the arch under the first floor, a 2 m skin on each face between the legs)
+  d = min(d, max(max(abs(m - w + 1.) - 1., n - wi), max(aY - y, y - 57.))*0.8);
+  d = min(d, efBox(p, vec3(0., 54.5, 0.), vec3(37.5, 4., 37.5)));   // (the floors)
+  d = min(d, efBox(p, vec3(0., 115.5, 0.), vec3(21.5, 2.8, 21.5)));
+  d = min(d, efBox(p, vec3(0., 276.3, 0.), vec3(8.4, 2.6, 8.4)));
+  d = min(d, efBox(p, vec3(0., 288.5, 0.), vec3(3.6, 9.5, 3.6)));   // (the top and the antenna)
+  return min(d, max(length(p.xz) - 1.1, abs(y - 315.) - 15.));
+}
+#endif
+// (which city, 0.13.0: x 0 Paris, 1 New York, 2 Tokyo, 3 Dubai, 4 London, -1 none; y the ground at its centre, m above the sea)
+uniform vec4 uCity;
+// a building's materials in a city, after each city's common ones and a little brighter than life so they read as characters (illustrative,
+// owner, 0.13.0: "add colours to the buildings to mirror what it would realistically look like"): its walls by a hash of where it stands,
+// its roof; towers over 120 m are glass
+void cityMat(float k, float tall, float hsh, out vec3 wc, out vec3 rc){
+  if(k < 0.5){        // Paris: cream limestone, a little brick, blue-grey zinc roofs
+    wc = hsh < 0.8 ? vec3(0.88, 0.81, 0.66) : hsh < 0.9 ? vec3(0.94, 0.9, 0.8) : vec3(0.66, 0.45, 0.35); rc = vec3(0.56, 0.62, 0.7);
+  } else if(k < 1.5){ // New York: brick, brownstone, limestone, concrete, glass
+    wc = hsh < 0.3 ? vec3(0.66, 0.38, 0.28) : hsh < 0.45 ? vec3(0.52, 0.37, 0.3) : hsh < 0.7 ? vec3(0.84, 0.79, 0.68) : hsh < 0.85 ? vec3(0.7, 0.7, 0.7) : vec3(0.5, 0.63, 0.76); rc = vec3(0.46, 0.46, 0.48);
+  } else if(k < 2.5){ // Tokyo: white and grey concrete, beige tile, glass
+    wc = hsh < 0.4 ? vec3(0.9, 0.9, 0.88) : hsh < 0.7 ? vec3(0.74, 0.75, 0.76) : hsh < 0.85 ? vec3(0.82, 0.76, 0.66) : vec3(0.56, 0.68, 0.8); rc = vec3(0.72, 0.73, 0.74);
+  } else if(k < 3.5){ // Dubai: sand, white, blue-silver glass
+    wc = hsh < 0.5 ? vec3(0.9, 0.8, 0.62) : hsh < 0.75 ? vec3(0.94, 0.93, 0.9) : vec3(0.52, 0.68, 0.82); rc = vec3(0.86, 0.8, 0.68);
+  } else {            // London: red-brown brick, yellow stock brick, Portland stone, glass; slate roofs
+    wc = hsh < 0.35 ? vec3(0.68, 0.4, 0.3) : hsh < 0.5 ? vec3(0.8, 0.69, 0.5) : hsh < 0.8 ? vec3(0.9, 0.87, 0.78) : vec3(0.52, 0.64, 0.76); rc = vec3(0.47, 0.49, 0.54);
+  }
+  if(tall > 0.5) wc = k > 2.5 && k < 3.5 ? vec3(0.55, 0.7, 0.84) : vec3(0.52, 0.65, 0.78);
+}
 int ZI = 0;   // (a 0 the compiler cannot see, set in main from a uniform, so the loops stay loops)
 float CALT = 0., DIP = 0.;   // the height of the camera above the sea (m), and how far below level the horizon lies (radians, about)
 vec3 unTone(vec3 c){ return -log(1. - clamp(c, 0., 0.985)); }
@@ -469,7 +521,50 @@ float curveT(vec3 o, vec3 d, float e){
 // a point of the ground plane at (x, z): its place on the sea-level sphere, in the layers' frame
 vec3 seaPt(vec2 xz){ return vec3(xz.x, -uP4.y - dot(xz, xz)/(2.*RE), xz.y); }
 // the height of whatever is at (x, z), as a y in this frame
-float groundY(vec2 xz, out float water, out float ok){ vec3 P = seaPt(xz); float h = edHeight(P, water, ok); return P.y + max(h, 0.); }
+float groundY(vec2 xz, out float water, out float ok){ vec3 P = seaPt(xz); float h = edHeight(P, water, ok), y = P.y + max(h, 0.); THIN = 0.;
+  for(int i=ZI;i<4;i++){
+    if(float(i) >= uThinN) break;
+#ifdef EIFFEL
+    if(uThinB[i].z > 1.5) continue;
+#endif
+    vec4 a = uThin[i]; vec2 q = abs(xz - a.xy); float r = max(q.x, q.y), R = uThinB[i].x;
+    if(r < R){ float th = uThinB[i].y > 0.5 ? a.w : min(a.w, a.w*log(R/max(r, 0.5))/log(R/1.5)), ty = P.y + a.z + th;
+      if(ty > y){ y = ty; THIN = 1.; ok = 1.; water = 0.; } }
+  }
+  return y; }
+#ifdef EIFFEL
+// the lattice at q on a face (uu: along the face): braces crossing and a girder every panel, the panels smaller toward the top; 1 on a girder,
+// 0 in a gap. k: how well a pixel resolves it (it fades to its average, 0.45, where a pixel covers half a panel or more)
+float efLat(vec3 q, float uu, float px, out float k){
+  float P = max(1.6, 0.17*efW(clamp(q.y, 0., 300.)));
+  float l1 = abs(fract((uu + q.y)/P) - 0.5), l2 = abs(fract((uu - q.y)/P) - 0.5), l3 = abs(fract(q.y/(2.*P)) - 0.5);
+  k = smoothstep(0.5, 0.2, px/P); return smoothstep(0.36, 0.48, max(max(l1, l2), l3));
+}
+// which way a point on a leg or the shaft runs along its face (the coordinate across the face it is nearest)
+float efU(vec3 q){ vec2 a = abs(q.xz); float w = efW(clamp(q.y, 0., 300.)), wi = 37.*pow(max(1. - q.y/122., 0.), 1.1);
+  return min(abs(a.x - w), abs(a.x - wi)) < min(abs(a.y - w), abs(a.y - wi)) ? q.z : q.x; }
+// whether a point is on the lattice of the legs or the shaft (not a floor, the arch, the top or the antenna)
+bool efOpen(vec3 q){ float y = q.y; vec2 a = abs(q.xz);
+  return y > 1. && y < 272. && abs(y - 54.5) > 4.5 && abs(y - 115.5) > 3.2 && !(y < 58. && min(a.x, a.y) < 37.*pow(max(1. - y/122., 0.), 1.1) + 0.5); }
+// where the ray meets it (-1 if nowhere before tMax), and its normal there in its own frame. Where the lattice's gaps are big enough to
+// see, the ray goes on through them, to the girders behind or past the tower (the real tower is mostly air)
+float efHit(vec3 o, vec3 d, float tMax, out vec3 nl){
+  nl = vec3(0., 1., 0.);
+  vec3 B = vec3(uEf0.x, seaPt(uEf0.xy).y + uEf0.z, uEf0.y), ol = efLoc(o - B), dl = efLoc(d);
+  vec3 iv = 1./(dl + vec3(dl.x < 0. ? -1e-7 : 1e-7, dl.y < 0. ? -1e-7 : 1e-7, dl.z < 0. ? -1e-7 : 1e-7));
+  vec3 t0 = (vec3(-64., -1., -64.) - ol)*iv, t1 = (vec3(64., 331., 64.) - ol)*iv, tn = min(t0, t1), tf = max(t0, t1);
+  float ta = max(max(tn.x, tn.y), max(tn.z, 0.)), tb = min(min(tf.x, tf.y), min(tf.z, tMax));
+  if(ta >= tb) return -1.;
+  float t = ta; bool hit = false;
+  for(int i=ZI;i<96;i++){ vec3 p = ol + dl*t; float h = efMap(p), pw = t*uPix*0.6;
+    if(h < pw){ float k, l = efLat(p, efU(p), t*uPix, k); if(k > 0.6 && l < 0.5 && efOpen(p)){ t += max(pw*2., 0.6); continue; } hit = true; break; }
+    t += h*0.85; if(t > tb) break; }
+  if(!hit) return -1.;
+  vec3 p = ol + dl*t, n = vec3(0.); float ep = max(0.12, t*uPix*0.5);
+  for(int k=ZI;k<4;k++){ vec3 kv = k == 0 ? vec3(1., -1., -1.) : k == 1 ? vec3(-1., -1., 1.) : k == 2 ? vec3(-1., 1., -1.) : vec3(1.); n += kv*efMap(p + kv*ep); }
+  nl = normalize(n + vec3(0., 1e-6, 0.)); return t;
+}
+#endif
 // the sky as it shows in direction r (day 0..1): deep blue overhead, paler toward the horizon (whiter when the air is hazy), both fading as
 // the air thins below the camera; gold round a low Sun and along that side of the horizon; at dusk and dawn, the Earth's grey-blue shadow
 // low on the far side with the pink band above it (the Belt of Venus); the Sun, in a halo that grows with haze
@@ -509,8 +604,10 @@ vec4 layerLow(vec3 o, vec3 d, float e, float tMax, vec3 L, float lit, vec3 sunC,
   float dt = (t1 - t0)/16., ph = 0.6 + 1.3*pow(max(dot(d, L), 0.), 8.);
   for(int i=ZI;i<16;i++){
     float t = t0 + dt*(float(i) + 0.5); vec3 p = o + d*t; float al = altOf(p, e);
-    // (a camera inside the layer flies in clear air between the clouds, as a camera plane would: no fog round it)
-    float dn = cloudLow(p, al)*(CALT > b && CALT < tp ? smoothstep(150., 700., t) : 1.); if(dn < 0.01) continue;
+    // (a camera inside the layer flies in clear air between the clouds, as a camera plane would: no fog round it. Over a city or the ground
+    // anywhere (uP4.z) the gap is a few kilometres wide, so the place below shows: London's overcast at 300 m put the Shard's view in fog)
+    vec2 gap = uP4.z != 0. ? vec2(2500., 5000.) : vec2(150., 700.);
+    float dn = cloudLow(p, al)*(CALT > b && CALT < tp ? smoothstep(gap.x, gap.y, t) : 1.); if(dn < 0.01) continue;
     // (the light through the cloud toward the Sun, gentler than physics would have it: in characters a cloud reads by its bright sunlit
     // side against the blue, and a physically deep cloud came out as a grey veil)
     float od = cloudLowC(p + L*140.)*0.8 + cloudLowC(p + L*450.)*1.0, hN = clamp((al - b)/max(tp - b, 50.), 0., 1.);
@@ -552,6 +649,10 @@ void main(){
   float thin = exp(-CALT/8500.);
   float lit = 0.04 + 0.96*smoothstep(-0.1, 0.2, sunE);   // how bright the day is: full with the Sun 12 degrees up (a camera's exposure follows the light: at 20 degrees a dawn launch came out murky), dim at night
   float near = smoothstep(30000., 8000., CALT);   // (above 30 km the ground shows as Earth's shader shows it, below 8 km brighter and richer)
+  // (a city (uP4.z < 0) at night: the eyes adjust, as they do in a city at night: the picture brightened about 2.6 times, so the buildings
+  // show by moonlight and the glow of the streets; owner, 0.13.0: the cities were hard to see at night)
+  // (and at dawn and dusk too, as the light gets low: owner, 0.13.0, Paris at 7:19 was a dark brown field)
+  float nightK = 1. - smoothstep(-0.12, 0.05, sunE), cityK = uP4.z < 0. ? 1. : 0., expo = 1. + cityK*(0.12 + 1.48*nightK + 0.8*smoothstep(0.35, 0.02, sunE)*(1. - nightK));
   vec3 col; float a;
   // the ground: march the heights near the camera (then halve the last step a few times), else the sea-level curve
   float t = -1., water = 0., ok = 0.;
@@ -560,8 +661,9 @@ void main(){
   float hTop = uEdS.z - e + 5.;
   if(det && d.y < 0.3 && (o.y < hTop || d.y < 0.)){
     float tt = o.y > hTop ? (o.y - hTop)/max(-d.y, 1e-5) : 0., tp = tt, lo = 0., hi = 0.; int nb = -1;
-    // (at a pad 40 km, finely; over the ground anywhere (uP4.z) much farther, in longer steps: the mountains are far and the heights coarse)
-    float tLim = uP4.z > 0. ? uP4.z : 40000., gA = uP4.z > 0. ? 100. : 25., gS = uP4.z > 0. ? 0.06 : 0.04;
+    // (at a pad 40 km, finely; over the ground anywhere (uP4.z > 0) much farther, in longer steps: the mountains are far and the heights
+    // coarse; over a city (uP4.z < 0) as far as -uP4.z, finely near, so its towers stand up, and in longer steps farther out)
+    float tLim = uP4.z > 0. ? uP4.z : uP4.z < 0. ? -uP4.z : 40000., gA = uP4.z > 0. ? 100. : 25., gS = uP4.z > 0. ? 0.06 : uP4.z < 0. ? 0.05 : 0.04;
     for(int i=ZI;i<86;i++){
       float tm = nb < 0 ? tt : 0.5*(lo + hi), w, k;
       vec3 p = o + d*tm; float dh = p.y - groundY(p.xz, w, k);
@@ -575,6 +677,22 @@ void main(){
   }
   float tc = curveT(o, d, e);
   if(t < 0. && tc > 0.) t = tc;
+#ifdef EIFFEL
+  vec3 nE; float tE = efHit(o, d, t > 0. ? t : 1e9, nE);
+  if(tE > 0.){
+    vec3 B = vec3(uEf0.x, seaPt(uEf0.xy).y + uEf0.z, uEf0.y), q = efLoc(o + d*tE - B), nw = efWor(nE);
+    // (the lattice: braces crossing on each face and a girder every panel, the panels smaller toward the top; it fades to its average
+    // where a character covers more than a panel. By day the girders bronze and the gaps darker; at night the girders lit gold)
+    float uu = abs(nE.x) > abs(nE.z) ? q.z : q.x, kL, lt = efLat(q, uu, tE*uPix, kL);
+    lt = mix(0.45, lt, kL*(1. - smoothstep(0.7, 0.9, abs(nE.y))));
+    float ov = smoothstep(0.5, 0.95, uWx0.x), fl = max(sunE, 0.)*(1. - 0.65*ov) + 0.6;
+    float here = max(dot(nw, L), 0.)*cloudShadow(o + d*tE, e, L) + 0.6*(0.85 + 0.15*nw.y);
+    vec3 g = vec3(0.64, 0.5, 0.36)*mix(0.32, 1., lt)*lit*clamp(here/fl, 0.15, 1.6);
+    g += vec3(1., 0.7, 0.32)*uEf1.x*(0.3 + 0.5*lt);
+    g += vec3(1., 0.96, 0.88)*1.6*uEf1.y*step(0.975, hash12(floor(vec2(uu, q.y)/2.2) + floor(uEf1.z*7.)*vec2(3.1, 7.7)));
+    col = mix(g, skyCol(normalize(vec3(d.x, DIP + 0.015, d.z)), L, day), hazeF(tE, thin)*0.4); a = 1.; t = tE;
+  } else
+#endif
   if(t > 0.){
     vec3 p = o + d*t;
     float fp = max(t*uPix, 0.05), cov = 0., wall = 0., sh = 1.;
@@ -582,7 +700,7 @@ void main(){
     // (a pixel's footprint on the ground: stretched along the view by the glancing angle, up to 16 times)
     vec3 hd = normalize(vec3(d.x, 0., d.z) + vec3(1e-5, 0., 0.)), g1 = hd*fp/max(abs(d.y), 0.0625), g2 = vec3(-hd.z, 0., hd.x)*fp;
     vec3 img = det ? edColourG(seaPt(p.xz), g1, g2, cov).rgb : vec3(0.);
-    float gy = det ? groundY(p.xz, water, ok) : -e;
+    float gy = det ? groundY(p.xz, water, ok) : -e, thinHit = THIN;
     if(det && ok > 0.5 && water < 0.5){
       // the slope from the heights a little east and south (a wall where it changes by more than a storey in a pixel or two)
       float s = max(fp*1.5, 0.8), hx = gy, hz = gy;
@@ -607,7 +725,7 @@ void main(){
       // (waves tilt the water: it mirrors a higher, darker part of the sky than a flat mirror would, and never all of it, so the sea stays
       // darker than the sky at the horizon)
       vec3 rr = reflect(d, nw); rr.y = max(abs(rr.y), 0.12); rr = normalize(rr);
-      float F = min(0.02 + 0.98*pow(1. - max(-dot(d, nw), 0.), 5.), 0.35);
+      float F = min(0.02 + 0.98*pow(1. - max(-dot(d, nw), 0.), 5.), cityK > 0.5 ? 0.18 : 0.35);   // (a city's water mirrors less: it was as bright as the city, and the city vanished into it)
       // (the water's own colour: the photo's, turned bluer, so a murky coast still reads as sea and a dark lagoon never as a hole; one colour on the open sea)
       float eg, op = cov > 0.5 ? edWide(seaPt(p.xz), eg).a : 1.;
       vec3 deep = vec3(0.03, 0.1, 0.2), ocn = vec3(0.03, 0.12, 0.24), wi = mix(img*vec3(0.7, 0.85, 1.05), vec3(0.04, 0.13, 0.25), 0.55);
@@ -621,27 +739,68 @@ void main(){
       // about the land, brighter)
       // (over the ground anywhere (uP4.z) the image is Blue Marble at 2.4 km, darker and softer than a photo: as it is, a little lifted, or
       // its forests turned black)
-      if(cov > 0.5) base = mix(fromSpace(edLin(img), sunE), (uP4.z > 0. ? img*1.08 + 0.02 : grade(img))*mix(0.6, 0.9, smoothstep(300., 1500., CALT))*lit, near);
+      if(cov > 0.5) base = mix(fromSpace(edLin(img), sunE), (uP4.z > 0. ? img*1.08 + 0.02 : grade(img))*(uP4.z < 0. ? 1.35 : mix(0.6, 0.9, smoothstep(300., 1500., CALT)))*lit, near);
       else {
         float h = fbm3(vec3(p.xz*0.004, 2.)), h2 = noise(vec3(p.xz*0.03, 5.));
         base = mix(vec3(0.5, 0.45, 0.33), vec3(0.3, 0.36, 0.2), smoothstep(0.4, 0.6, h))*(0.8 + 0.4*h2);
         if(sd > -120.) base = mix(base, vec3(0.75, 0.7, 0.58), smoothstep(-120., -40., sd));
         base = mix(base, vec3(0.5, 0.49, 0.47), smoothstep(90., 70., length(p.xz)))*lit;
       }
+      // a city (uP4.z < 0): the photos are taken from above, so a wall gets a facade of its own, concrete and glass with floors 3.6 m high
+      // and windows 2.6 m apart (illustrative), about a third of them lit at night; paved ground (grey and light in the photo) glows faintly
+      // warm at night, as street lights do (illustrative)
+      vec3 glowC = vec3(0.);
+      if(uP4.z < 0. && cov > 0.5){
+        // (how far this stands above the lowest ground within 18 m: a roof is brighter than the street beside it, a street darker, so the
+        // blocks stand out from the ground in characters; 0.13.0, owner: the cities looked empty, camouflaged)
+        float m = gy, w1, k1;
+        for(int j=ZI;j<4;j++){ vec2 o2 = j == 0 ? vec2(18., 0.) : j == 1 ? vec2(-18., 0.) : j == 2 ? vec2(0., 18.) : vec2(0., -18.); m = min(m, groundY(p.xz + o2, w1, k1)); }
+        float roof = smoothstep(3., 12., gy - m)*(1. - thinHit);
+        // (the photo's colours a little richer; roofs turned toward the city's roofs; walls in its materials, below)
+        vec3 wc, rc; float lum0 = dot(base, vec3(0.3, 0.59, 0.11));
+        cityMat(uCity.x, step(120., altOf(vec3(p.x, gy, p.z), e) - uCity.y), hash12(floor(p.xz/28.) + vec2(uCity.x*7.1, 3.3)), wc, rc);
+        base = mix(vec3(lum0), base, 1.25);
+        base = mix(base, rc*lit*1.1, 0.45*roof);
+        base *= mix(0.72, 1.3, roof);
+        glowC += vec3(0.04, 0.05, 0.08)*mix(0.5, 1., roof)*nightK;   // (moonlight and the city's skyglow on its roofs)
+        float wl = smoothstep(0.3, 0.7, wall)*(1. - thinHit), hA = altOf(p, e), nt = 1. - smoothstep(-0.12, 0.05, sunE);
+        vec2 tn = normalize(vec2(-n.z, n.x) + vec2(1e-5, 0.)); float wu = dot(p.xz, tn);
+        vec2 cell = floor(vec2(wu/2.6, hA/3.6)), fw = fract(vec2(wu/2.6, hA/3.6));
+        float win = step(0.2, fw.x)*step(fw.x, 0.8)*step(0.3, fw.y)*step(fw.y, 0.85);
+        base = mix(base, (uCity.x >= 0. ? wc : mix(vec3(0.42, 0.44, 0.47), img, 0.35))*(0.85 + 0.25*win)*lit, wl);
+        glowC += vec3(1., 0.78, 0.45)*win*step(0.66, hash12(cell + floor(p.xz/40.)*7.31))*nt*wl*0.9;
+        float lum = dot(img, vec3(0.3, 0.59, 0.11)), sat = length(img - vec3(lum));
+        glowC += vec3(1., 0.62, 0.3)*nt*(1. - wl)*smoothstep(0.18, 0.4, lum)*(1. - smoothstep(0.03, 0.12, sat))*0.2*(1. - thinHit);
+        // (a slender tower: painted iron or concrete, and lit gold at night, as the Eiffel Tower is every evening)
+        // (bronze in the Sun: in a darker brown the Eiffel Tower hid among the roofs)
+        base = mix(base, vec3(0.64, 0.5, 0.36)*lit, thinHit); glowC += vec3(1., 0.72, 0.36)*thinHit*nt*0.45;
+      }
       // (the photo already holds the light on flat ground; slopes, walls and shadows change it by their share of the light of the Sun)
-      float fl = max(sunE, 0.) + 0.3, here = max(dot(n, L), 0.)*sh*csh + 0.3*(0.6 + 0.4*n.y);
-      g = base*clamp(here/fl, 0.15, 1.6)*mix(1., 0.8, wall);
+      // (in a city twice the light from the sky and the facades round about, and walls lit by the street and the buildings opposite, so a
+      // wall in shade keeps its colour: in characters a dark wall is an empty one, and Midtown seen against the afternoon Sun was a murk;
+      // under an overcast sky the eyes adjust to its dimmer light, as they do; 0.13.0, owner: the cities looked camouflaged)
+      float amb = mix(0.3, 0.6, cityK), ovc = cityK*smoothstep(0.5, 0.95, uWx0.x);
+      float fl = max(sunE, 0.)*(1. - 0.65*ovc) + amb, here = max(dot(n, L), 0.)*sh*csh + amb*mix(0.6 + 0.4*n.y, 0.85 + 0.15*n.y, cityK);
+      g = base*clamp(here/fl, 0.15, 1.6)*mix(1., 0.8, wall*(1. - cityK)) + glowC;
       // lights round the site at night
       vec2 cl = floor(p.xz/35.); float hl = hash12(cl);
       if(hl > 0.93 && length(p.xz) < 1400. && uP4.z == 0.){ vec2 f = fract(p.xz/35.) - 0.5; g += vec3(1., 0.7, 0.35)*exp(-dot(f, f)*60.)*(1. - day)*0.5; }
       vec3 lv = uP3.xyz - p; g += base*vec3(1., 0.55, 0.22)*uP3.w*1.5*max(dot(n, normalize(lv)), 0.)/(1. + dot(lv, lv)*4e-6);
     }
-    g = mix(g, haze, hazeF(t, thin));
+    g = mix(g, haze, hazeF(t, thin)*(1. - 0.6*cityK));   // (less over a city: its skyline far off was washed out)
     col = g; a = 1.;
   } else {
-    col = skyCol(d, L, day);
+    col = skyCol(d, L, day) + vec3(0.2, 0.12, 0.06)*nightK*cityK*exp(-max(d.y - DIP, 0.)*9.)*thin;   // (a city's glow low in the night sky)
     float tw = smoothstep(-0.18, 0.02, sunE)*smoothstep(0.25, 0.0, sunE);
     a = clamp((0.25 + 0.74*day)*mix(0.35, 1., thin) + 0.3*tw, 0., 0.99);
+  }
+  // the blinking lights on a city's tallest towers (uTwL: their tops in this frame, w how bright now), hidden by whatever the ray met first
+  for(int i=ZI;i<16;i++){
+    if(float(i) >= uTwLN) break;
+    vec4 tw = uTwL[i]; if(tw.w < 0.01) continue;
+    vec3 v = tw.xyz - o; float tl = dot(v, d); if(tl <= 0. || (t > 0. && tl > t + 8.)) continue;
+    float r = length(v - d*tl), s = max(tl*uPix*1.4, 1.5);
+    col += vec3(1., 0.16, 0.08)*tw.w*(exp(-r*r/(s*s))*2.2 + exp(-r/(s*6.))*0.12);
   }
   // the clouds in front of what the ray met, in the order it meets them (the sunlight warm when the Sun is low)
   { vec3 sunC = mix(vec3(1., 0.97, 0.92), vec3(1., 0.62, 0.36), smoothstep(0.3, 0.02, sunE))*lit*smoothstep(-0.06, 0.04, sunE);
@@ -654,6 +813,7 @@ void main(){
     if(tM < tL){ X = A1; A1 = A2; A2 = X; }
     vec3 cc = A1.rgb + A1.a*(A2.rgb + A2.a*A3.rgb); float Tc = A1.a*A2.a*A3.a;
     col = col*Tc + cc; a = 1. - (1. - a)*Tc; }
-  outCol(unTone(col)*fade, a*fade);
+  outCol(unTone(col)*expo*fade, a*fade);
 }`;
 P.sxEnv = program(VS_RECT, FS_SX_ENV);
+P.sxEnvEf = program(VS_RECT, FS_SX_ENV.replace('#version 300 es\n', '#version 300 es\n#define EIFFEL\n'));   // (with the Eiffel Tower: near Paris)
