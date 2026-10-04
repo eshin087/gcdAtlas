@@ -24,6 +24,12 @@ Round 2 (owner, 2026-10-04: the cities were hard to see and looked empty; naviga
 - Coming across places: the famous places are marked on the globe once it is big on the screen (`earthMarks` in 09-render.js; the five cities first, marked 3D; click to fly down), and scrolling in at Earth's closest zoom flies down to the famous place nearest the cursor (`snapToPlace`).
 - The slender towers (the Eiffel Tower, Tokyo Tower, the Skytree, the BT Tower, masts and chimneys) are drawn as shapes of their own at their real sizes (`uThin`), the Eiffel Tower lit gold at night.
 
+Round 3 (owner, 2026-10-04: Paris still looked camouflaged; "add colors to the buildings to mirror what it would realistically look like", for all the cities; picked real materials brightened, the clock kept with brighter dawn and dusk, and arriving closer):
+- Each city's buildings in its own materials (`cityMat` in FS_SX_ENV, `uCity`): Paris cream limestone with blue-grey zinc roofs, New York brick, brownstone, limestone and glass, Tokyo white and grey concrete, Dubai sand and white, London brick, Portland stone and slate; towers over 120 m are glass. The photos' colours a quarter richer, roofs turned toward the city's roofs.
+- Walls in shade keep their colour (twice the light from the sky and the facades round about; Midtown seen against the afternoon Sun was a murk), the eyes adjust under an overcast sky, a little more light by day, and at dawn and dusk the picture brightens as the Sun gets low (Paris at 7:19 was a dark brown field).
+- A city opens on its nearest landmark (the Eiffel Tower, the Midtown towers, Shinjuku, Burj Khalifa, the Shard), then the wide view, then the other landmark. The Eiffel Tower is a sunlit bronze by day (in dark brown it hid among the roofs).
+- Fixed: after the time was moved, a city's camera looked at the far side of the city or from under the ground, and the picture went black (the framings' aim stayed put in space while the Earth turned; it is now worked out in the place's frame every frame, also through a swing). Fixed: a camera low over a city in an overcast sky saw only fog (London's Shard view); over a city or the ground anywhere the clear gap round the camera in the low cloud is now a few kilometres wide.
+
 ## 0.12.0 · 2026-10-03
 
 **Fly down anywhere** (phase 2 of `docs/EARTH_PLAN.md`)

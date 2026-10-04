@@ -513,6 +513,7 @@ function drawEnv(){
     // city, minus 150 km: finely near, the towers stand up, and on to the horizon)
     gl.uniform4f(p.u.uP3, pl[0], pl[1], pl[2], plI*(0.4 + 1.6*(1 - day))); gl.uniform4f(p.u.uP4, GT, best.elev || 0, best.ground ? 260000 : best.city ? -150000 : 0, 0);
     if (p.u.uTwL){ gl.uniform4fv(p.u.uTwL, ECT.LT); gl.uniform1f(p.u.uTwLN, nTw); }
+    if (p.u.uCity) gl.uniform4f(p.u.uCity, best.city ? ['paris', 'newyork', 'tokyo', 'dubai', 'london'].indexOf(best.city.key) : -1, best.city ? best.city.ele || 0 : 0, 0, 0);   // (which city: its materials)
     if (p.u.uThin){ const nTh = ECT.thin(best, cf); gl.uniform4fv(p.u.uThin, ECT.TH); gl.uniform4fv(p.u.uThinB, ECT.THB); gl.uniform1f(p.u.uThinN, nTh); }
     wxUniforms(p);
   }, Rw, 1);

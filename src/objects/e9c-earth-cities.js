@@ -70,9 +70,15 @@ const ECT = (() => {
     o.place.la = c.la; o.place.lo = c.lo; o.name = c.name; o.rad = 3*KM; o.minZoom = 0.05;
     const pop = c.facts.population, F = enuOf(c.up), h0 = c.ele || 0;
     o.fact = c.facts.facts.join(' ') + ` (${pop.source}, ${pop.year}.)`;
-    o.views = c.facts.views.map(v => {
+    // (first the nearest landmark, where the buildings and their colours are clear, then the wide view, then the other landmark; owner,
+    // 0.13.0: "arrive closer, then go wide". A made-up view from 3 km above the centre showed a flat grey carpet)
+    const fv = c.facts.views, vs = [fv[1], fv[0]].concat(fv.slice(2));
+    o.views = vs.map(v => {
       const e = (v.look[1] - c.lo)*DEG*R*1000*Math.cos(c.la*DEG), n = (v.look[0] - c.la)*DEG*R*1000, az = v.az*DEG, ti = v.tilt*DEG;
-      return { d:[-Math.sin(az)*Math.cos(ti), Math.sin(ti), Math.cos(az)*Math.cos(ti)], k:v.dist/3000, off:[e/3000, (v.look[2] - h0)/3000, -n/3000], hold:11, drift:0.012 };
+      // (the aim as a function, so viewParams turns it with the Earth every frame: a fixed one stayed put in space while the Earth turned,
+      // and after the time was moved the camera looked at the far side of the city, or from under the ground)
+      const off = [e/3000, (v.look[2] - h0)/3000, -n/3000];
+      return { d:[-Math.sin(az)*Math.cos(ti), Math.sin(ti), Math.cos(az)*Math.cos(ti)], k:v.dist/3000, off:() => off, hold:11, drift:0.012 };
     });
     o.readoutExtra = () => nowLine(c);
   });

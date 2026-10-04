@@ -298,7 +298,10 @@ function updateFlight(dt){
   }
 }
 let flyMove = null;   // a flyby playing outside a tour
-function startTween(to, dur){ tween = { t:0, dur, from:{yaw:orbit.yaw, pitch:orbit.pitch, dist:orbit.dist, off:orbit.off.slice()}, to }; }
+// (on a place on Earth the aim it starts from is kept in the place's frame, which turns with the Earth: kept fixed in space, it went
+// under the ground when the time was moved during a swing; 0.13.0)
+function startTween(to, dur){ const o = OBJ[orbit.lock], loc = !!(o && o.earthSpot);
+  tween = { t:0, dur, from:{yaw:orbit.yaw, pitch:orbit.pitch, dist:orbit.dist, off:orbit.off.slice(), offL:loc ? M3.applyT(orbit.frame, orbit.off) : null}, to }; }
 const wrapA = a => Math.atan2(Math.sin(a), Math.cos(a));
 function updateTween(dt){
   const w = tween; w.t += dt; const u = ease(clamp(w.t/w.dur, 0, 1));
@@ -309,7 +312,7 @@ function updateTween(dt){
   orbit.yaw = w.from.yaw + w.dy*u;
   orbit.pitch = w.from.pitch + (w.to.pitch - w.from.pitch)*u;
   orbit.dist = orbit.distT = Math.exp(Math.log(w.from.dist) + (Math.log(w.to.dist) - Math.log(w.from.dist))*u);
-  orbit.off = V.lerp(w.from.off, w.to.offFn ? w.to.offFn() : (w.to.off || [0,0,0]), u);
+  orbit.off = V.lerp(w.from.offL ? M3.apply(orbit.frame, w.from.offL) : w.from.off, w.to.offFn ? w.to.offFn() : (w.to.off || [0,0,0]), u);
   if (w.t >= w.dur){ orbit.offFn = w.to.offFn || null; tween = null; w.onDone && w.onDone(); }
 }
 const TOUR = [];   // filled after all objects exist (list of object indices)

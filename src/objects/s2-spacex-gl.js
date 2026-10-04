@@ -460,6 +460,25 @@ uniform vec4 uTwL[16]; uniform float uTwLN;   // (a city's tower lights: e9c-ear
 // lattice. THIN: whether the last height asked for was one of them)
 uniform vec4 uThin[4]; uniform vec4 uThinB[4]; uniform float uThinN;
 float THIN = 0.;
+// (which city, 0.13.0: x 0 Paris, 1 New York, 2 Tokyo, 3 Dubai, 4 London, -1 none; y the ground at its centre, m above the sea)
+uniform vec4 uCity;
+// a building's materials in a city, after each city's common ones and a little brighter than life so they read as characters (illustrative,
+// owner, 0.13.0: "add colours to the buildings to mirror what it would realistically look like"): its walls by a hash of where it stands,
+// its roof; towers over 120 m are glass
+void cityMat(float k, float tall, float hsh, out vec3 wc, out vec3 rc){
+  if(k < 0.5){        // Paris: cream limestone, a little brick, blue-grey zinc roofs
+    wc = hsh < 0.8 ? vec3(0.88, 0.81, 0.66) : hsh < 0.9 ? vec3(0.94, 0.9, 0.8) : vec3(0.66, 0.45, 0.35); rc = vec3(0.56, 0.62, 0.7);
+  } else if(k < 1.5){ // New York: brick, brownstone, limestone, concrete, glass
+    wc = hsh < 0.3 ? vec3(0.66, 0.38, 0.28) : hsh < 0.45 ? vec3(0.52, 0.37, 0.3) : hsh < 0.7 ? vec3(0.84, 0.79, 0.68) : hsh < 0.85 ? vec3(0.7, 0.7, 0.7) : vec3(0.5, 0.63, 0.76); rc = vec3(0.46, 0.46, 0.48);
+  } else if(k < 2.5){ // Tokyo: white and grey concrete, beige tile, glass
+    wc = hsh < 0.4 ? vec3(0.9, 0.9, 0.88) : hsh < 0.7 ? vec3(0.74, 0.75, 0.76) : hsh < 0.85 ? vec3(0.82, 0.76, 0.66) : vec3(0.56, 0.68, 0.8); rc = vec3(0.72, 0.73, 0.74);
+  } else if(k < 3.5){ // Dubai: sand, white, blue-silver glass
+    wc = hsh < 0.5 ? vec3(0.9, 0.8, 0.62) : hsh < 0.75 ? vec3(0.94, 0.93, 0.9) : vec3(0.52, 0.68, 0.82); rc = vec3(0.86, 0.8, 0.68);
+  } else {            // London: red-brown brick, yellow stock brick, Portland stone, glass; slate roofs
+    wc = hsh < 0.35 ? vec3(0.68, 0.4, 0.3) : hsh < 0.5 ? vec3(0.8, 0.69, 0.5) : hsh < 0.8 ? vec3(0.9, 0.87, 0.78) : vec3(0.52, 0.64, 0.76); rc = vec3(0.47, 0.49, 0.54);
+  }
+  if(tall > 0.5) wc = k > 2.5 && k < 3.5 ? vec3(0.55, 0.7, 0.84) : vec3(0.52, 0.65, 0.78);
+}
 int ZI = 0;   // (a 0 the compiler cannot see, set in main from a uniform, so the loops stay loops)
 float CALT = 0., DIP = 0.;   // the height of the camera above the sea (m), and how far below level the horizon lies (radians, about)
 vec3 unTone(vec3 c){ return -log(1. - clamp(c, 0., 0.985)); }
@@ -522,8 +541,10 @@ vec4 layerLow(vec3 o, vec3 d, float e, float tMax, vec3 L, float lit, vec3 sunC,
   float dt = (t1 - t0)/16., ph = 0.6 + 1.3*pow(max(dot(d, L), 0.), 8.);
   for(int i=ZI;i<16;i++){
     float t = t0 + dt*(float(i) + 0.5); vec3 p = o + d*t; float al = altOf(p, e);
-    // (a camera inside the layer flies in clear air between the clouds, as a camera plane would: no fog round it)
-    float dn = cloudLow(p, al)*(CALT > b && CALT < tp ? smoothstep(150., 700., t) : 1.); if(dn < 0.01) continue;
+    // (a camera inside the layer flies in clear air between the clouds, as a camera plane would: no fog round it. Over a city or the ground
+    // anywhere (uP4.z) the gap is a few kilometres wide, so the place below shows: London's overcast at 300 m put the Shard's view in fog)
+    vec2 gap = uP4.z != 0. ? vec2(2500., 5000.) : vec2(150., 700.);
+    float dn = cloudLow(p, al)*(CALT > b && CALT < tp ? smoothstep(gap.x, gap.y, t) : 1.); if(dn < 0.01) continue;
     // (the light through the cloud toward the Sun, gentler than physics would have it: in characters a cloud reads by its bright sunlit
     // side against the blue, and a physically deep cloud came out as a grey veil)
     float od = cloudLowC(p + L*140.)*0.8 + cloudLowC(p + L*450.)*1.0, hN = clamp((al - b)/max(tp - b, 50.), 0., 1.);
@@ -567,7 +588,8 @@ void main(){
   float near = smoothstep(30000., 8000., CALT);   // (above 30 km the ground shows as Earth's shader shows it, below 8 km brighter and richer)
   // (a city (uP4.z < 0) at night: the eyes adjust, as they do in a city at night: the picture brightened about 2.6 times, so the buildings
   // show by moonlight and the glow of the streets; owner, 0.13.0: the cities were hard to see at night)
-  float nightK = 1. - smoothstep(-0.12, 0.05, sunE), cityK = uP4.z < 0. ? 1. : 0., expo = mix(1., 2.6, nightK*cityK);
+  // (and at dawn and dusk too, as the light gets low: owner, 0.13.0, Paris at 7:19 was a dark brown field)
+  float nightK = 1. - smoothstep(-0.12, 0.05, sunE), cityK = uP4.z < 0. ? 1. : 0., expo = 1. + cityK*(0.12 + 1.48*nightK + 0.8*smoothstep(0.35, 0.02, sunE)*(1. - nightK));
   vec3 col; float a;
   // the ground: march the heights near the camera (then halve the last step a few times), else the sea-level curve
   float t = -1., water = 0., ok = 0.;
@@ -655,22 +677,32 @@ void main(){
         float m = gy, w1, k1;
         for(int j=ZI;j<4;j++){ vec2 o2 = j == 0 ? vec2(18., 0.) : j == 1 ? vec2(-18., 0.) : j == 2 ? vec2(0., 18.) : vec2(0., -18.); m = min(m, groundY(p.xz + o2, w1, k1)); }
         float roof = smoothstep(3., 12., gy - m)*(1. - thinHit);
+        // (the photo's colours a little richer; roofs turned toward the city's roofs; walls in its materials, below)
+        vec3 wc, rc; float lum0 = dot(base, vec3(0.3, 0.59, 0.11));
+        cityMat(uCity.x, step(120., altOf(vec3(p.x, gy, p.z), e) - uCity.y), hash12(floor(p.xz/28.) + vec2(uCity.x*7.1, 3.3)), wc, rc);
+        base = mix(vec3(lum0), base, 1.25);
+        base = mix(base, rc*lit*1.1, 0.45*roof);
         base *= mix(0.72, 1.3, roof);
         glowC += vec3(0.04, 0.05, 0.08)*mix(0.5, 1., roof)*nightK;   // (moonlight and the city's skyglow on its roofs)
         float wl = smoothstep(0.3, 0.7, wall)*(1. - thinHit), hA = altOf(p, e), nt = 1. - smoothstep(-0.12, 0.05, sunE);
         vec2 tn = normalize(vec2(-n.z, n.x) + vec2(1e-5, 0.)); float wu = dot(p.xz, tn);
         vec2 cell = floor(vec2(wu/2.6, hA/3.6)), fw = fract(vec2(wu/2.6, hA/3.6));
         float win = step(0.2, fw.x)*step(fw.x, 0.8)*step(0.3, fw.y)*step(fw.y, 0.85);
-        base = mix(base, mix(vec3(0.42, 0.44, 0.47), img, 0.35)*(0.85 + 0.25*win)*lit, wl);
+        base = mix(base, (uCity.x >= 0. ? wc : mix(vec3(0.42, 0.44, 0.47), img, 0.35))*(0.85 + 0.25*win)*lit, wl);
         glowC += vec3(1., 0.78, 0.45)*win*step(0.66, hash12(cell + floor(p.xz/40.)*7.31))*nt*wl*0.9;
         float lum = dot(img, vec3(0.3, 0.59, 0.11)), sat = length(img - vec3(lum));
         glowC += vec3(1., 0.62, 0.3)*nt*(1. - wl)*smoothstep(0.18, 0.4, lum)*(1. - smoothstep(0.03, 0.12, sat))*0.2*(1. - thinHit);
         // (a slender tower: painted iron or concrete, and lit gold at night, as the Eiffel Tower is every evening)
-        base = mix(base, vec3(0.46, 0.38, 0.3)*lit, thinHit); glowC += vec3(1., 0.72, 0.36)*thinHit*nt*0.45;
+        // (bronze in the Sun: in a darker brown the Eiffel Tower hid among the roofs)
+        base = mix(base, vec3(0.64, 0.5, 0.36)*lit, thinHit); glowC += vec3(1., 0.72, 0.36)*thinHit*nt*0.45;
       }
       // (the photo already holds the light on flat ground; slopes, walls and shadows change it by their share of the light of the Sun)
-      float fl = max(sunE, 0.) + 0.3, here = max(dot(n, L), 0.)*sh*csh + 0.3*(0.6 + 0.4*n.y);
-      g = base*clamp(here/fl, 0.15, 1.6)*mix(1., 0.8, wall) + glowC;
+      // (in a city twice the light from the sky and the facades round about, and walls lit by the street and the buildings opposite, so a
+      // wall in shade keeps its colour: in characters a dark wall is an empty one, and Midtown seen against the afternoon Sun was a murk;
+      // under an overcast sky the eyes adjust to its dimmer light, as they do; 0.13.0, owner: the cities looked camouflaged)
+      float amb = mix(0.3, 0.6, cityK), ovc = cityK*smoothstep(0.5, 0.95, uWx0.x);
+      float fl = max(sunE, 0.)*(1. - 0.65*ovc) + amb, here = max(dot(n, L), 0.)*sh*csh + amb*mix(0.6 + 0.4*n.y, 0.85 + 0.15*n.y, cityK);
+      g = base*clamp(here/fl, 0.15, 1.6)*mix(1., 0.8, wall*(1. - cityK)) + glowC;
       // lights round the site at night
       vec2 cl = floor(p.xz/35.); float hl = hash12(cl);
       if(hl > 0.93 && length(p.xz) < 1400. && uP4.z == 0.){ vec2 f = fract(p.xz/35.) - 0.5; g += vec3(1., 0.7, 0.35)*exp(-dot(f, f)*60.)*(1. - day)*0.5; }
