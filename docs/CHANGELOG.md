@@ -4,6 +4,19 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.11.0 · 2026-10-03
+
+**The real Earth from space** (owner, 2026-10-03: draw the whole Earth from real, public data; phase 1 of `docs/EARTH_PLAN.md`, which holds the plan and the owner's picks for the phases after it)
+- Earth's land and sea take their colours from NASA's Blue Marble Next Generation (2004, with topography and bathymetry): deserts, forests, tundra, ice and the shallow seas as a cloud-free satellite mosaic shows them. The painted map stays until the maps arrive, and offline.
+- Twelve images, one a month, following the date the atlas shows. A month crosses over into the next over the five days either side of the change, so the time machine shows snow spreading south in winter and the land greening in spring.
+- The relief is lit by the Sun from GEBCO's heights of the land, raised 7 times so slopes of a few degrees catch the light (it shows most at dawn and dusk).
+- The night lights come from the same Black Marble 2016 map, now 4096 x 2048 on a desk (2048 x 1024 before) and a level and a half sharper, so towns read as points.
+- The coast follows Natural Earth's 10 m land, less GEBCO's lakes. Shallow seas keep their colour a little deeper in tone, so the coast stays a clear edge in characters.
+- The colours turn into light along a gentler curve than the launch sites' photos (`pow(c, 1.2) x 1.9`): the photos' curve turned forests nearly black, and from space the Amazon and the taiga vanished into the sea. The launch sites' images still blend into the globe round them.
+- The maps are `assets/earth/global-*.webp`, made by `tools/earth-global.mjs`: 4096 x 2048 for a desk (about 0.75 MB a month, 0.67 MB of data) and 2048 x 1024 for a phone (about 0.23 MB a month), 13 MB for all of them. The page fetches the data and one or two months when Earth's disc is more than 80 px across, and lets go of a month 20 s after it stops being drawn and of everything a minute after Earth has shrunk away. Two maps of 4096 x 2048 take about 90 MB of the graphics card.
+- Earth draws them with copies of its shader compiled in the background (`P.earthG`, `P.earthGEd`), so the one compiled at start-up costs no more than before. The readout credits NASA's Blue Marble (the month), GEBCO and NASA's Black Marble while the maps show.
+- A feature flag, `realEarth`, on by default.
+
 ## 0.10.2 · 2026-10-01
 
 **The Halo tour keeps the normal tour's pace** (owner, 2026-09-30: it spent about 2 minutes at each place; "the main point of the halo tour was to mirror the normal tours but in the perspective of halo's 3rd person view with cool scenes, moments (halo dynamically interacting or flying through the objects)"; picked from three each time)

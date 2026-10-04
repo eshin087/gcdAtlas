@@ -67,7 +67,7 @@ const EDT = (() => {
       if (GT - S.used > 120) for (const L of S.layers) if (L.state === 2) free(L);
     }
     // Earth draws with the images (P.earthEd, compiled in the background the first time) only near a site that has some ready
-    const S = pick(); earth.prog = S && progReady(P.earthEd) ? P.earthEd : P.earth;
+    EARTH_PR.ed = !!pick(); earthProgPick();
   }
   // all of a site's layers now (a rocket there was picked)
   function want(key){ const S = sites.find(s => s.key === key); if (S){ S.used = GT; for (const L of S.layers) load(L); } }
