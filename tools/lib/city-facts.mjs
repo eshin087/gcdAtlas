@@ -80,16 +80,15 @@ export const TOWER_FIX = {
   newyork:[
     { re:/^One World Trade Center$/, kind:'building', src:'OpenStreetMap (541 m with the spire, 1,776 ft: the Wikipedia figure)' },
     { re:/^3 World Trade Center$/, h:329, src:'Wikipedia (OpenStreetMap has 352 m)' },
-    { re:/^30 Hudson Yards$/, h:387, src:'Wikipedia (OpenStreetMap has 395 m)' },
-    { re:/^425 Park Avenue$/, h:283, src:'Wikipedia (OpenStreetMap has 262 m)' },
+    { re:/^30 Hudson Yards$/, h:390, src:'Wikipedia (1,270 ft; OpenStreetMap has 395 m)' },
+    { re:/^100 United Nations Plaza Tower$/, name:'Trump World Tower', h:262, src:'Wikipedia (861 ft; OpenStreetMap names this building 100 United Nations Plaza Tower)' },
     { re:/^599 Lexington Avenue$/, h:199, src:'Wikipedia (OpenStreetMap has 217 m)' },
     { re:/^14 Wall Street$/, h:164, src:'Wikipedia (OpenStreetMap has 199 m)' },
     { re:/^15 William$/, h:161, src:'Wikipedia (OpenStreetMap has 226 m)' } ],
   tokyo:[],
   dubai:[
     { re:/^Ain Dubai$/, h:250, src:'Wikipedia (OpenStreetMap has 210 m)' },
-    { re:/^Marina 101$/, h:425, src:'Wikipedia (OpenStreetMap has 432 m)' },
-    { re:/^Ciel Tower$/, h:365, src:'Wikipedia (OpenStreetMap has 377 m)' } ],
+    { re:/^Marina 101$/, h:425, src:'Wikipedia (OpenStreetMap has 432 m)' } ],
   london:[
     { re:/^Landmark Pinnacle$/, h:233.7, src:'Wikipedia (OpenStreetMap has 263 m)' },
     { re:/^Newfoundland Quay$/, h:220, src:'Wikipedia (OpenStreetMap has 203 m)' },
@@ -100,11 +99,10 @@ export const TOWER_FIX = {
     { re:/^Hyatt Regency Paris/, h:137, src:'Wikipedia (OpenStreetMap has 174 m)' } ] };
 // Landmarks OpenStreetMap does not tag with a height under the right name or place: { name, la, lo, h, kind, thin, src }
 export const TOWER_ADD = {
-  newyork:[ { name:'Trump World Tower', la:40.75135, lo:-73.96778, h:262, kind:'building', src:'Wikipedia (861 ft)' } ],
-  tokyo:[], dubai:[], london:[], paris:[] };
+  newyork:[], tokyo:[], dubai:[], london:[], paris:[] };
 // Names to leave out (not towers, not built, a mast on a hotel, or a name and height that do not belong together)
 export const TOWER_SKIP = {
-  newyork:[ /^Times Square Ball$/, /^2 World Trade Center$/, /^The Torch$/, /^100 United Nations Plaza Tower$/, /^Trinity Commons$/ ],
+  newyork:[ /^Times Square Ball$/, /^2 World Trade Center$/, /^The Torch$/, /^Trinity Commons$/ ],
   tokyo:[], dubai:[],
   london:[ /^Proposed Development/ ],
   paris:[ /^Pullman Paris Montparnasse$/, /^Tour Légende$/, /^Tour Hertzienne de Meudon$/ ] };
