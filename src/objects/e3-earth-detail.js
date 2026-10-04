@@ -84,9 +84,11 @@ const EDT = (() => {
   // the uniforms: up to four ready layers of site S, finest first (the fine patches only near them), in Earth's frame or a site's.
   // Earth's shader takes only the two widest (ED_N 2 there: seen from space the finer ones add nothing, and it compiles at start-up)
   const ub = { C:new Float32Array(16), E:new Float32Array(16), N:new Float32Array(16), X:new Float32Array(16) };
+  // (a 1 x 1 texture for samplers with nothing to show; alpha 1, so a shader must not read it as data: ETR binds it with its maps off)
+  function dummyTex(){ if (!dummy){ dummy = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, dummy); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255])); } return dummy; }
   function bind(pr, S, frame){
     if (!pr.u.uEdS) return;
-    if (!dummy){ dummy = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, dummy); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255])); }
+    dummyTex();
     const N = frame.earth ? 2 : 4;
     let ls = [];
     if (S){ const cf = camE(), alt = V.len(cf) - 6371, g = V.mul(cf, 6371/Math.max(V.len(cf), 1)), near = L => V.len(V.sub(g, V.mul(L.c, 6371))) + Math.max(alt, 0);
@@ -128,5 +130,5 @@ const EDT = (() => {
   { const prev = earth.readout; earth.readout = () => { const t = prev(), c = creditNow(); return c ? t + '\n' + c : t; }; }
   // Earth's shader takes the layers of the site nearest the camera
   { const prev = earth.setU; earth.setU = function(pr){ prev.call(this, pr); bind(pr, pick(), { earth:true }); }; }
-  return { sites, tick, want, bind, pick, siteOfPad, credit, creditNow, heightAt, load, addSite, get ready(){ return sites.flatMap(S => S.layers.filter(L => L.state === 2).map(L => S.key + '-' + L.id)); } };
+  return { sites, tick, want, bind, pick, siteOfPad, credit, creditNow, heightAt, load, addSite, dummy:dummyTex, get ready(){ return sites.flatMap(S => S.layers.filter(L => L.state === 2).map(L => S.key + '-' + L.id)); } };
 })();

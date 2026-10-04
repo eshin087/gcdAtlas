@@ -48,7 +48,7 @@ const ECT = (() => {
     TH.fill(0); THB.fill(0); if (!S || !S.city) return 0;
     const list = S.city.towers.filter(t => t.thin).map(t => [t, V.len(V.sub(V.mul(unit(t.la, t.lo), R), cf))]).filter(x => x[1] < 30).sort((a, b) => a[1] - b[1]).slice(0, 4);
     list.forEach(([t], i) => { const q = M3.applyT(S.F.M, V.mul(V.sub(V.mul(unit(t.la, t.lo), R), S.p), 1000)), [hw, straight] = footOf(t);
-      TH.set([q[0], q[2], t.ground, t.h], i*4); THB.set([hw, straight, /eiffel/i.test(t.name) ? 2 : 0, 0], i*4); });   // (z 2: drawn as a model in P.sxEnvEf)
+      TH.set([q[0], q[2], t.ground, t.h], i*4); THB.set([hw, straight, /eiffel|tokyo tower|skytree/i.test(t.name) ? 2 : 0, 0], i*4); });   // (z 2: drawn as a model, in P.sxEnvEf or P.sxEnvTk)
     return list.length;
   }
   // the Eiffel Tower as a model (0.13.0, FS_SX_ENV's EIFFEL copy): its foot in the site's frame, the turn of its faces, and its lights by the
@@ -66,6 +66,22 @@ const ECT = (() => {
     const on = sunEl < -1.5 && hm >= 12*60 && hm < 23*60 + 45, now = performance.now(), dt = EF.at ? Math.min((now - EF.at)/1000, 0.5) : 1; EF.at = now;
     EF.g += ((on ? 1 : 0) - EF.g)*Math.min(1, dt*1.5); EF.s += ((on && hm % 60 < 5 ? 1 : 0) - EF.s)*Math.min(1, dt*3);
     return [q[0], q[2], tw.ground, Math.atan2(-Math.cos(b), Math.sin(b)), EF.g, EF.s, (now/1000) % 1000, 0];
+  }
+  // Tokyo Tower and the Skytree as models (0.14.0, FS_SX_ENV's TOKYO copy): their feet, the turn of their faces (illustrative), and their
+  // lights: from about 10 minutes after sunset to midnight; the Skytree in its two styles on alternate days (Iki, light blue; Miyabi,
+  // purple), Tokyo Tower orange (its winter Landmark Light, October to early July) or white (summer)
+  const TK = { a:0, b:0, at:0, fmt:null };
+  function tokyo(S, cf, sunEl){
+    if (!S || !S.city || S.city.key !== 'tokyo') return null;
+    const tt = S.city.towers.find(t => /tokyo tower/i.test(t.name)), sk = S.city.towers.find(t => /skytree/i.test(t.name)); if (!tt || !sk) return null;
+    const ft = t => M3.applyT(S.F.M, V.mul(V.sub(V.mul(unit(t.la, t.lo), R), S.p), 1000)), a = ft(tt), b = ft(sk);
+    let hm = 20*60, mo = 10, dd = 1;
+    try { if (!TK.fmt) TK.fmt = new Intl.DateTimeFormat('en-GB', { timeZone:S.city.tz, hour:'2-digit', minute:'2-digit', month:'numeric', day:'numeric', hourCycle:'h23' });
+      const pt = TK.fmt.formatToParts(new Date((jdNow() - 2440587.5)*86400000)), g = k => +(pt.find(x => x.type === k) || {}).value; hm = g('hour')*60 + g('minute'); mo = g('month'); dd = g('day'); } catch (e) {}
+    const on = sunEl < -1.5 && hm >= 12*60, now = performance.now(), dt = TK.at ? Math.min((now - TK.at)/1000, 0.5) : 1; TK.at = now;
+    TK.a += ((on ? 1 : 0) - TK.a)*Math.min(1, dt*1.5); TK.b += ((on ? 1 : 0) - TK.b)*Math.min(1, dt*1.5);
+    const day = Math.floor((jdNow() + S.city.lo/360)), summer = (mo === 7 && dd >= 7) || mo === 8 || mo === 9;
+    return [a[0], a[2], tt.ground, 0.3, b[0], b[2], sk.ground, 0.5, TK.a, TK.b, day % 2, summer ? 1 : 0];
   }
   // the time and weather there now (the atlas clock's moment), for the readout
   const WMO = c => c == null ? '' : c === 0 ? 'clear' : c <= 1 ? 'mainly clear' : c === 2 ? 'partly cloudy' : c === 3 ? 'overcast' : c <= 48 ? 'fog' : c <= 57 ? 'drizzle' :
@@ -96,9 +112,9 @@ const ECT = (() => {
       const off = [e/3000, (v.look[2] - h0)/3000, -n/3000];
       return { d:[-Math.sin(az)*Math.cos(ti), Math.sin(ti), Math.cos(az)*Math.cos(ti)], k:v.dist/3000, off:() => off, hold:11, drift:0.012 };
     });
-    o.readoutExtra = () => nowLine(c);
+    o.readoutExtra = () => [nowLine(c), EAS.S.city === c ? EAS.line : ''].filter(Boolean).join('\n');
   });
   // (tests: the site the ground is drawn with, the city's layers that are in, the tower lights last drawn)
-  const dbg = (key) => ({ cam:(() => { const c = cities.find(x => x.key === key); if (!c) return null; const q = M3.applyT(c.env.F.M, V.mul(V.sub(camFixed(), c.env.p), 1000)); return [Math.round(q[0]), Math.round(q[1]), Math.round(-q[2])]; })(), env:typeof SXENV !== 'undefined' && SXENV.on && SXENV.site ? SXENV.site.key : null, eiffel:typeof SXENV !== 'undefined' && SXENV.on && !!SXENV.eiffel, layers:cities.map(c => c.key + ' ' + c.ed.layers.filter(L => L.state === 2).length + '/' + c.ed.layers.length), lights:lastN });
-  return { cities, near, envSite, lights, LT, thin, TH, THB, eiffel, EF, nowLine, match, dbg };
+  const dbg = (key) => ({ cam:(() => { const c = cities.find(x => x.key === key); if (!c) return null; const q = M3.applyT(c.env.F.M, V.mul(V.sub(camFixed(), c.env.p), 1000)); return [Math.round(q[0]), Math.round(q[1]), Math.round(-q[2])]; })(), env:typeof SXENV !== 'undefined' && SXENV.on && SXENV.site ? SXENV.site.key : null, eiffel:typeof SXENV !== 'undefined' && SXENV.on && !!SXENV.eiffel, tokyo:typeof SXENV !== 'undefined' && SXENV.on && !!SXENV.tokyo, cityProg:typeof SXENV !== 'undefined' && SXENV.on && !!SXENV.city, layers:cities.map(c => c.key + ' ' + c.ed.layers.filter(L => L.state === 2).length + '/' + c.ed.layers.length), lights:lastN });
+  return { cities, near, envSite, lights, LT, thin, TH, THB, eiffel, EF, tokyo, TK, nowLine, match, dbg };
 })();
