@@ -161,17 +161,19 @@ const atl = await page.evaluate(() => {
   r.out = out; return r;
 });
 errors.push(...atl.out);
+// (how many places the atlas lists, counted from the page, so a content pack does not have to change these checks)
+const NPL = await page.evaluate(() => { const C = window.__cosmos; return C.OBJ.filter(o => o.atlas !== false && !o.marker && C.dbg.GROUPS.some(([g]) => g === o.group)).length; });
 if (atl.cells !== 14) errors.push('the atlas has ' + atl.cells + ' cells ("all", 12 kinds and "on Earth" expected)');
 if (!(atl.rows >= 10)) errors.push('the atlas list has room for only ' + atl.rows + ' rows at 1280 x 800');
 if (atl.dflt.sort !== 'kind' || atl.dflt.all !== 'true' || atl.dflt.result || atl.dflt.dir !== '⇅near → far' || atl.dflt.kb || atl.dflt.flow) errors.push('the atlas default view: ' + JSON.stringify(atl.dflt));
 if (atl.gal.note !== 'from Earth' || atl.gal.heads !== 1 || atl.gal.stray.length || atl.gal.first !== 'the Milky Way, the Galactic Centre, Large Magellanic Cloud') errors.push('galaxies chosen: ' + JSON.stringify(atl.gal));
 if (atl.flat !== 'Earth, Starship, #all around us, the Solar System, the Oort cloud, the cosmic web, the observable universe') errors.push('one list by distance: ' + atl.flat);
-if (atl.flatSays.join('|') !== '142 places · near → far / from Earth|⇅near → far|true') errors.push('the results line for one list by distance: ' + JSON.stringify(atl.flatSays));
+if (atl.flatSays.join('|') !== `${NPL} places · near → far / from Earth|⇅near → far|true`) errors.push('the results line for one list by distance: ' + JSON.stringify(atl.flatSays));
 if (atl.size.join('|') !== '⇅big → small|the observable universe|93 billion ly|true size, across') errors.push('size does not start with the biggest, said short: ' + JSON.stringify(atl.size));
-if (!atl.search.jupiter || !/^\d+ found · searching all 142$/.test(atl.search.found) || atl.search.btn !== 'clear' || !atl.search.dim || atl.search.kb !== 1) errors.push('a search with black holes chosen: ' + JSON.stringify(atl.search));
+if (!atl.search.jupiter || !new RegExp(`^\\d+ found · searching all ${NPL}$`).test(atl.search.found) || atl.search.btn !== 'clear' || !atl.search.dim || atl.search.kb !== 1) errors.push('a search with black holes chosen: ' + JSON.stringify(atl.search));
 if (atl.cleared.box || atl.cleared.cat !== 'bh' || atl.cleared.n !== 8 || atl.cleared.kb) errors.push('clearing the search: ' + JSON.stringify(atl.cleared));
 if (atl.kRight !== 'galaxies' || atl.kDown.join() !== 'human,human' || atl.kAll.join() !== 'all,atlasAll,radio,atlasCats') errors.push('arrow keys in the kinds: ' + JSON.stringify([atl.kRight, atl.kDown, atl.kAll]));
-if (!/^8 black holes not seen yet/.test(atl.seenNow[0]) || !/^7 black holes not seen yet/.test(atl.seenNow[1]) || atl.seenNow[2] !== '7' || atl.seenNow[3] !== '7 of 142' || !atl.seenNow[4]) errors.push('a place seen with "not seen yet" on: ' + JSON.stringify(atl.seenNow));
+if (!/^8 black holes not seen yet/.test(atl.seenNow[0]) || !/^7 black holes not seen yet/.test(atl.seenNow[1]) || atl.seenNow[2] !== '7' || atl.seenNow[3] !== `7 of ${NPL}` || !atl.seenNow[4]) errors.push('a place seen with "not seen yet" on: ' + JSON.stringify(atl.seenNow));
 if (!atl.tray[0] || atl.tray[1] !== 'true' || atl.tray[2] !== 9 || atl.tray[3] !== 9) errors.push('the badge tray: ' + JSON.stringify(atl.tray));
 if (atl.badgeGo[0] !== 'bh' || !atl.badgeGo[1] || atl.badgeGo[2] || !/^7 black holes not seen yet/.test(atl.badgeGo[3])) errors.push('black hole hunter does not show the black holes left: ' + JSON.stringify(atl.badgeGo));
 const planetsLeft = atl.planets[1] ? atl.planets[1].split(',') : [], PL = ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'];
@@ -179,11 +181,11 @@ if (atl.planets[0] !== planetsLeft.length + ' places not seen yet for planet hop
 if (atl.escTray.join() !== 'false,true' || atl.escAtlas) errors.push('Esc does not close the badge tray, then the atlas: ' + JSON.stringify([atl.escTray, atl.escAtlas]));
 if (atl.reset[0] || atl.reset[1] !== '{"sort":"kind","dir":1,"cat":"all","unseen":false}') errors.push('reset: ' + JSON.stringify(atl.reset));
 // catalogue numbers: both search boxes find a place by its Messier, NGC or IC number, whatever the spaces and case, and only by the whole
-// number (M4 is not in the atlas: nothing, never M42 or M45; M1 is the Crab, never WR 124's M1-67). The place whose own number it is comes
+// number (M2 is not in the atlas: nothing, never M20, M22 or M27; M4 is M4, never M42, M44 or M45; M1 is the Crab, never WR 124's M1-67). The place whose own number it is comes
 // first, with the keyboard on it, in every order of the list (M87 before its jet and M87*, the Eagle Nebula before the Pillars), and clearing
 // the search puts the list back as it was
 const CATQ = [['M31', 'Andromeda Galaxy'], ['NGC 1976', 'Orion Nebula'], ['NGC1952', 'Crab Nebula'], ['m 42', 'Orion Nebula'], ['Messier 42', 'Orion Nebula'],
-  ['NGC 224', 'Andromeda Galaxy'], ['ngc 5194', 'Whirlpool Galaxy'], ['M110', 'Andromeda Galaxy'], ['IC 434', 'Horsehead Nebula'], ['M16', 'Eagle Nebula'], ['m87', 'M87']];
+  ['NGC 224', 'Andromeda Galaxy'], ['ngc 5194', 'Whirlpool Galaxy'], ['M110', 'Andromeda Galaxy'], ['IC 434', 'Horsehead Nebula'], ['M16', 'Eagle Nebula'], ['m87', 'M87'], ['M4', 'M4'], ['M44', 'Beehive Cluster'], ['NGC 6853', 'Dumbbell Nebula'], ['m 17', 'Omega Nebula']];
 const cat = await page.evaluate(CATQ => {
   const $ = s => document.querySelector(s), out = [], names = () => [...document.querySelectorAll('.arow')].filter(b => !b.hidden).map(b => b.querySelector('.an').textContent);
   const find = (box, q) => { const s = $(box); s.value = q; s.dispatchEvent(new Event('input', { bubbles:true })); const kb = $('.arow.kb'); return { v:names(), kb:kb && kb.querySelector('.an').textContent }; };
@@ -194,8 +196,9 @@ const cat = await page.evaluate(CATQ => {
   const order = () => [...$('#atlasList').children].filter(e => e.matches('.arow, .agroup')).map(e => e.querySelector('.an, .gt').textContent).join('|');
   for (const box of ['#search', '#atlasSearch']){
     for (const [q, name] of CATQ){ const r = find(box, q); if (r.v[0] !== name || r.kb !== name) out.push(`${box} "${q}": ${r.v.join(', ') || 'nothing'} (keyboard on ${r.kb})`); }
-    for (const q of ['M4', 'm 4', 'NGC 6121', 'ngc6121']){ const r = find(box, q); if (r.v.length) out.push(`${box} "${q}" finds ${r.v.join(', ')}`); }
+    for (const q of ['M2', 'm 2', 'NGC 7089', 'ngc7089']){ const r = find(box, q); if (r.v.length) out.push(`${box} "${q}" finds ${r.v.join(', ')}`); }
     const m1 = find(box, 'M1').v.join(', '); if (m1 !== 'Crab Nebula') out.push(`${box} "M1" finds ${m1}`);
+    const m4 = find(box, 'M4').v.join(', '); if (m4 !== 'M4') out.push(`${box} "M4" finds ${m4}`);
     const m16 = find(box, 'm16').v.join(', '); if (m16 !== 'Eagle Nebula, Pillars of Creation') out.push(`${box} "m16" finds ${m16}`);
   }
   let moved = 0;

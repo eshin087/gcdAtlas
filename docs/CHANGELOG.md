@@ -4,6 +4,16 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.16.0 · 2026-10-04
+
+**The checklists, and twenty Messier objects** (owner, 2026-10-04: follow one public astronomy directory, so additions stay consistent and organized, and track what is in and what is next; picked Messier and Caldwell, a first pack of about 20 famous Messier objects, and a Messier marathon tour)
+- The atlas now follows two public lists of famous deep-sky objects: Charles Messier's 110 and Patrick Moore's Caldwell 109 (`tools/data/deep-sky.mjs`; every Messier number's NGC or IC number checked against SIMBAD's cross-identifiers, every Caldwell designation resolved in SIMBAD). `npm run catalog` adds a done and missing table for both to `docs/CATALOG.md`, matched through the objects' `aka`. Before this release: Messier 18 of 110, Caldwell 14 of 109. Now: Messier 38, Caldwell 14.
+- Twenty Messier objects (`src/objects/p8-messier.js`): the Dumbbell (M27), the Owl (M97), the Trifid (M20) and the Omega (M17) nebulae; the Beehive (M44), the Wild Duck (M11) and Ptolemy's Cluster (M7); the globular clusters M3, M4 and M22; and the galaxies M63 (the Sunflower), M64 (the Black Eye), M83 (the Southern Pinwheel), M77, M65 and M66 of the Leo Triplet (NGC 3628 drawn beside them, not listed), M106, M74 (the Phantom), and M84 and M86 at the start of Markarian's Chain. Positions from SIMBAD; distances from Gaia DR3 (Bailer-Jones 2021, Kuhn 2019, Hunt & Reffert 2023), Baumgardt & Vasiliev 2021, Cosmicflows-4, PHANGS, M106's masers (Reid 2019) and Cepheids for M77 (2026); sizes from HyperLeda.
+- Their galaxies and nebulae are turned to their real position angle on the sky (`skyR0`, `discR0`: `facingEarth`'s roll counts from galactic north, so a catalogue angle given to it is off by up to 180 degrees; the earlier galaxies keep theirs).
+- New looks: the Dumbbell's apple core (`FS_DUMBBELL`), the Owl's eyes (`FS_OWL`: the two ends of one barrel-shaped hollow tilted about 45 degrees, as Guerrero et al. 2003 model it, drawn as two lobes whose walls are the brightest gas), and one star-nursery shader for the Trifid's three lobes and blue reflection nebula and the Omega's swan (`FS_NURSERY`, compiled once for each with a `KIND` constant). Open clusters are stars only (`addOpenCluster`); globular clusters reuse Omega Centauri's glow (`addGlobular`).
+- A new tour, the Messier marathon: every Messier object in the atlas in the order of Don Machholz's one-night marathon (as SEDS publishes it), 35 stops for now. It grows by itself as packs add the rest (`messierStops` in 08t-tours.js reads the m numbers in `aka`).
+- The smoke test counts the atlas's places from the page instead of a fixed 142, checks that M4, M44, NGC 6853 and M17 find their places and that M2 finds nothing (M4 was its example of a number not in the atlas).
+
 ## 0.15.0 · 2026-10-04
 
 **Famous places in 3D** (phase 3 of `docs/EARTH_PLAN.md`)
