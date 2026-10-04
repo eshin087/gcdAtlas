@@ -13,6 +13,7 @@ All notable changes, newest first. Dates are UTC.
 - The 16 tallest towers nearest the camera blink red about 40 times a minute (aviation warning lights), bright at night and faint by day, hidden behind whatever is nearer (`uTwL`).
 - A city picked in the atlas or the search flies to the three framings in its data, and its readout says its local time (from its time zone, worked out on the visitor's device) and its weather, with the credit for its photos and buildings. The camera keeps clear of the rooftops (`EDT.heightAt`).
 - Earth's readout from space credits the photos round a launch site or city again (it missed them since 0.11.0, which draws Earth with `P.earthGEd` there).
+- The slender towers the height images cannot hold (the Eiffel Tower, Tokyo Tower, the Skytree, the BT Tower, masts and chimneys) are drawn as shapes of their own at their real sizes, a tapering lattice or a straight shaft (`uThin`), lit gold at night.
 - `tests/earth.mjs` flies to New York and checks its layers, its lights and its readout.
 
 ## 0.12.0 · 2026-10-03

@@ -39,6 +39,18 @@ const ECT = (() => {
       LT.set([q[0], q[1], q[2], blink*(0.2 + 0.8*(1 - day))], i*4); });
     return lastN = list.length;
   }
+  // the slender towers nearest the camera (4 at most, within 30 km), too thin for the height images, drawn by FS_SX_ENV as shapes of their own:
+  // a lattice tapering from its foot (the Eiffel Tower's is 125 m across, its top a few metres), or a straight shaft (a mast, a chimney).
+  // Their sizes are the real ones; the shapes are simplified
+  const TH = new Float32Array(16), THB = new Float32Array(16);
+  const footOf = t => /eiffel|tokyo tower/i.test(t.name) ? [Math.min(0.19*t.h, 62), 0] : t.h > 500 ? [34, 0] : t.kind === 'chimney' ? [5, 1] : [12, 1];
+  function thin(S, cf){
+    TH.fill(0); THB.fill(0); if (!S || !S.city) return 0;
+    const list = S.city.towers.filter(t => t.thin).map(t => [t, V.len(V.sub(V.mul(unit(t.la, t.lo), R), cf))]).filter(x => x[1] < 30).sort((a, b) => a[1] - b[1]).slice(0, 4);
+    list.forEach(([t], i) => { const q = M3.applyT(S.F.M, V.mul(V.sub(V.mul(unit(t.la, t.lo), R), S.p), 1000)), [hw, straight] = footOf(t);
+      TH.set([q[0], q[2], t.ground, t.h], i*4); THB.set([hw, straight, 0, 0], i*4); });
+    return list.length;
+  }
   // the time and weather there now (the atlas clock's moment), for the readout
   const WMO = c => c == null ? '' : c === 0 ? 'clear' : c <= 1 ? 'mainly clear' : c === 2 ? 'partly cloudy' : c === 3 ? 'overcast' : c <= 48 ? 'fog' : c <= 57 ? 'drizzle' :
     c <= 67 ? 'rain' : c <= 77 ? 'snow' : c <= 82 ? 'showers' : c <= 86 ? 'snow showers' : 'thunderstorms';
@@ -66,5 +78,5 @@ const ECT = (() => {
   });
   // (tests: the site the ground is drawn with, the city's layers that are in, the tower lights last drawn)
   const dbg = (key) => ({ cam:(() => { const c = cities.find(x => x.key === key); if (!c) return null; const q = M3.applyT(c.env.F.M, V.mul(V.sub(camFixed(), c.env.p), 1000)); return [Math.round(q[0]), Math.round(q[1]), Math.round(-q[2])]; })(), env:typeof SXENV !== 'undefined' && SXENV.on && SXENV.site ? SXENV.site.key : null, layers:cities.map(c => c.key + ' ' + c.ed.layers.filter(L => L.state === 2).length + '/' + c.ed.layers.length), lights:lastN });
-  return { cities, near, envSite, lights, LT, nowLine, match, dbg };
+  return { cities, near, envSite, lights, LT, thin, TH, THB, nowLine, match, dbg };
 })();

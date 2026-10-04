@@ -455,6 +455,11 @@ P.sxSmoke = program(VS_RECT, FS_SX_SMOKE);
 const FS_SX_ENV = COMMON + '#define ED_GRAD\n' + ED_GLSL + CLOUD_GLSL + `
 const float RE = 6371000.;
 uniform vec4 uTwL[16]; uniform float uTwLN;   // (a city's tower lights: e9c-earth-cities.js)
+// (a city's slender towers, too thin for its height images (the Eiffel Tower, Tokyo Tower, the Skytree...): uThin x y its foot in this frame
+// (x, z), z the ground there (m above the sea), w its height; uThinB x the half-width of its foot, y 1 for a straight shaft, 0 a tapering
+// lattice. THIN: whether the last height asked for was one of them)
+uniform vec4 uThin[4]; uniform vec4 uThinB[4]; uniform float uThinN;
+float THIN = 0.;
 int ZI = 0;   // (a 0 the compiler cannot see, set in main from a uniform, so the loops stay loops)
 float CALT = 0., DIP = 0.;   // the height of the camera above the sea (m), and how far below level the horizon lies (radians, about)
 vec3 unTone(vec3 c){ return -log(1. - clamp(c, 0., 0.985)); }
@@ -470,7 +475,14 @@ float curveT(vec3 o, vec3 d, float e){
 // a point of the ground plane at (x, z): its place on the sea-level sphere, in the layers' frame
 vec3 seaPt(vec2 xz){ return vec3(xz.x, -uP4.y - dot(xz, xz)/(2.*RE), xz.y); }
 // the height of whatever is at (x, z), as a y in this frame
-float groundY(vec2 xz, out float water, out float ok){ vec3 P = seaPt(xz); float h = edHeight(P, water, ok); return P.y + max(h, 0.); }
+float groundY(vec2 xz, out float water, out float ok){ vec3 P = seaPt(xz); float h = edHeight(P, water, ok), y = P.y + max(h, 0.); THIN = 0.;
+  for(int i=ZI;i<4;i++){
+    if(float(i) >= uThinN) break;
+    vec4 a = uThin[i]; vec2 q = abs(xz - a.xy); float r = max(q.x, q.y), R = uThinB[i].x;
+    if(r < R){ float th = uThinB[i].y > 0.5 ? a.w : min(a.w, a.w*log(R/max(r, 0.5))/log(R/1.5)), ty = P.y + a.z + th;
+      if(ty > y){ y = ty; THIN = 1.; ok = 1.; water = 0.; } }
+  }
+  return y; }
 // the sky as it shows in direction r (day 0..1): deep blue overhead, paler toward the horizon (whiter when the air is hazy), both fading as
 // the air thins below the camera; gold round a low Sun and along that side of the horizon; at dusk and dawn, the Earth's grey-blue shadow
 // low on the far side with the pink band above it (the Belt of Venus); the Sun, in a halo that grows with haze
@@ -584,7 +596,7 @@ void main(){
     // (a pixel's footprint on the ground: stretched along the view by the glancing angle, up to 16 times)
     vec3 hd = normalize(vec3(d.x, 0., d.z) + vec3(1e-5, 0., 0.)), g1 = hd*fp/max(abs(d.y), 0.0625), g2 = vec3(-hd.z, 0., hd.x)*fp;
     vec3 img = det ? edColourG(seaPt(p.xz), g1, g2, cov).rgb : vec3(0.);
-    float gy = det ? groundY(p.xz, water, ok) : -e;
+    float gy = det ? groundY(p.xz, water, ok) : -e, thinHit = THIN;
     if(det && ok > 0.5 && water < 0.5){
       // the slope from the heights a little east and south (a wall where it changes by more than a storey in a pixel or two)
       float s = max(fp*1.5, 0.8), hx = gy, hz = gy;
@@ -635,14 +647,16 @@ void main(){
       // warm at night, as street lights do (illustrative)
       vec3 glowC = vec3(0.);
       if(uP4.z < 0. && cov > 0.5){
-        float wl = smoothstep(0.3, 0.7, wall), hA = altOf(p, e), nt = 1. - smoothstep(-0.12, 0.05, sunE);
+        float wl = smoothstep(0.3, 0.7, wall)*(1. - thinHit), hA = altOf(p, e), nt = 1. - smoothstep(-0.12, 0.05, sunE);
         vec2 tn = normalize(vec2(-n.z, n.x) + vec2(1e-5, 0.)); float wu = dot(p.xz, tn);
         vec2 cell = floor(vec2(wu/2.6, hA/3.6)), fw = fract(vec2(wu/2.6, hA/3.6));
         float win = step(0.2, fw.x)*step(fw.x, 0.8)*step(0.3, fw.y)*step(fw.y, 0.85);
         base = mix(base, mix(vec3(0.42, 0.44, 0.47), img, 0.35)*(0.85 + 0.25*win)*lit, wl);
         glowC += vec3(1., 0.78, 0.45)*win*step(0.66, hash12(cell + floor(p.xz/40.)*7.31))*nt*wl*0.9;
         float lum = dot(img, vec3(0.3, 0.59, 0.11)), sat = length(img - vec3(lum));
-        glowC += vec3(1., 0.62, 0.3)*nt*(1. - wl)*smoothstep(0.18, 0.4, lum)*(1. - smoothstep(0.03, 0.12, sat))*0.2;
+        glowC += vec3(1., 0.62, 0.3)*nt*(1. - wl)*smoothstep(0.18, 0.4, lum)*(1. - smoothstep(0.03, 0.12, sat))*0.2*(1. - thinHit);
+        // (a slender tower: painted iron or concrete, and lit gold at night, as the Eiffel Tower is every evening)
+        base = mix(base, vec3(0.46, 0.38, 0.3)*lit, thinHit); glowC += vec3(1., 0.72, 0.36)*thinHit*nt*0.45;
       }
       // (the photo already holds the light on flat ground; slopes, walls and shadows change it by their share of the light of the Sun)
       float fl = max(sunE, 0.) + 0.3, here = max(dot(n, L), 0.)*sh*csh + 0.3*(0.6 + 0.4*n.y);
