@@ -48,8 +48,24 @@ const ECT = (() => {
     TH.fill(0); THB.fill(0); if (!S || !S.city) return 0;
     const list = S.city.towers.filter(t => t.thin).map(t => [t, V.len(V.sub(V.mul(unit(t.la, t.lo), R), cf))]).filter(x => x[1] < 30).sort((a, b) => a[1] - b[1]).slice(0, 4);
     list.forEach(([t], i) => { const q = M3.applyT(S.F.M, V.mul(V.sub(V.mul(unit(t.la, t.lo), R), S.p), 1000)), [hw, straight] = footOf(t);
-      TH.set([q[0], q[2], t.ground, t.h], i*4); THB.set([hw, straight, 0, 0], i*4); });
+      TH.set([q[0], q[2], t.ground, t.h], i*4); THB.set([hw, straight, /eiffel/i.test(t.name) ? 2 : 0, 0], i*4); });   // (z 2: drawn as a model in P.sxEnvEf)
     return list.length;
+  }
+  // the Eiffel Tower as a model (0.13.0, FS_SX_ENV's EIFFEL copy): its foot in the site's frame, the turn of its faces, and its lights by the
+  // tower's own schedule (toureiffel.paris): gold from about 10 minutes after sunset (here the Sun 1.5 degrees under the horizon) to
+  // 23:45, sparkling for 5 minutes on the hour. Null away from Paris (more than 30 km from the tower)
+  const EF = { g:0, s:0, at:0, fmt:null };
+  function eiffel(S, cf, sunEl){
+    if (!S || !S.city || S.city.key !== 'paris') return null;
+    const tw = S.city.towers.find(t => /eiffel/i.test(t.name)), u = tw && unit(tw.la, tw.lo);
+    if (!tw || V.len(V.sub(V.mul(u, R), cf)) > 30) return null;
+    const q = M3.applyT(S.F.M, V.mul(V.sub(V.mul(u, R), S.p), 1000)), b = 138.2*DEG;   // (its faces look along the Champ de Mars, to 138 degrees)
+    let hm = 20*60;
+    try { if (!EF.fmt) EF.fmt = new Intl.DateTimeFormat('en-GB', { timeZone:S.city.tz, hour:'2-digit', minute:'2-digit', hourCycle:'h23' });
+      const pt = EF.fmt.formatToParts(new Date((jdNow() - 2440587.5)*86400000)); hm = +pt.find(x => x.type === 'hour').value*60 + +pt.find(x => x.type === 'minute').value; } catch (e) {}
+    const on = sunEl < -1.5 && hm >= 12*60 && hm < 23*60 + 45, now = performance.now(), dt = EF.at ? Math.min((now - EF.at)/1000, 0.5) : 1; EF.at = now;
+    EF.g += ((on ? 1 : 0) - EF.g)*Math.min(1, dt*1.5); EF.s += ((on && hm % 60 < 5 ? 1 : 0) - EF.s)*Math.min(1, dt*3);
+    return [q[0], q[2], tw.ground, Math.atan2(-Math.cos(b), Math.sin(b)), EF.g, EF.s, (now/1000) % 1000, 0];
   }
   // the time and weather there now (the atlas clock's moment), for the readout
   const WMO = c => c == null ? '' : c === 0 ? 'clear' : c <= 1 ? 'mainly clear' : c === 2 ? 'partly cloudy' : c === 3 ? 'overcast' : c <= 48 ? 'fog' : c <= 57 ? 'drizzle' :
@@ -83,6 +99,6 @@ const ECT = (() => {
     o.readoutExtra = () => nowLine(c);
   });
   // (tests: the site the ground is drawn with, the city's layers that are in, the tower lights last drawn)
-  const dbg = (key) => ({ cam:(() => { const c = cities.find(x => x.key === key); if (!c) return null; const q = M3.applyT(c.env.F.M, V.mul(V.sub(camFixed(), c.env.p), 1000)); return [Math.round(q[0]), Math.round(q[1]), Math.round(-q[2])]; })(), env:typeof SXENV !== 'undefined' && SXENV.on && SXENV.site ? SXENV.site.key : null, layers:cities.map(c => c.key + ' ' + c.ed.layers.filter(L => L.state === 2).length + '/' + c.ed.layers.length), lights:lastN });
-  return { cities, near, envSite, lights, LT, thin, TH, THB, nowLine, match, dbg };
+  const dbg = (key) => ({ cam:(() => { const c = cities.find(x => x.key === key); if (!c) return null; const q = M3.applyT(c.env.F.M, V.mul(V.sub(camFixed(), c.env.p), 1000)); return [Math.round(q[0]), Math.round(q[1]), Math.round(-q[2])]; })(), env:typeof SXENV !== 'undefined' && SXENV.on && SXENV.site ? SXENV.site.key : null, eiffel:typeof SXENV !== 'undefined' && SXENV.on && !!SXENV.eiffel, layers:cities.map(c => c.key + ' ' + c.ed.layers.filter(L => L.state === 2).length + '/' + c.ed.layers.length), lights:lastN });
+  return { cities, near, envSite, lights, LT, thin, TH, THB, eiffel, EF, nowLine, match, dbg };
 })();

@@ -49,6 +49,10 @@ try {
     if (!/local time/.test(s.ro)) errors.push("New York's readout has no local time: " + s.ro);
     if (!(s.d.lights > 0)) errors.push('no tower lights in New York');
     notes.push(`New York drawn with its layers after ${t} s (${s.d.layers.find(x => x.startsWith('newyork'))} in, ${s.d.lights} tower lights, ${s.views} framings)`);
+    // (Paris: the ground drawn with the copy of the shader that has the Eiffel Tower as a model, which compiles only there)
+    await page.evaluate(() => { const c = window.__cosmos; c.epl.go(c.epl.PICKS.cities.find(r => r[0] === 'Paris')); });
+    const tp = await until(page, () => { const c = window.__cosmos, d = c.ect.dbg(); return !c.flight && d.env === 'city-paris' && d.eiffel; }, null, 150, 'Paris drawn with the Eiffel Tower');
+    notes.push(`Paris drawn with the Eiffel Tower after ${tp} s`);
     errors.push(...pe); await browser.close(); }
   // ---- the SpaceX flag off
   { const { browser, page, errors:pe } = await openPage({ url:URL0 + '?flags=-spacex' });

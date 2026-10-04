@@ -7,6 +7,7 @@
 
 ## 0.13.0 · 4 Oct 2026 · Five cities in 3D, real clouds
 - New York, Tokyo, Dubai, London and Paris stand up in 3D, in the colours of their buildings: Paris stone and zinc roofs, New York brick and glass, London brick and Portland stone. Each opens on a landmark, with warning lights on the towers, local time and real weather. At night your eyes adjust and the city glows.
+- The Eiffel Tower in its real shape and size: four curved legs, the arches, three floors and the antenna. At night it glows gold, and sparkles for 5 minutes on the hour.
 - Find places on Earth as you go: famous places are marked on the globe (click one), and scrolling in close to Earth takes you down to the nearest one.
 - Near the ground it moves like Google Earth: drag to move over it, scroll toward a spot, right-drag to turn and tilt, W A S D to glide.
 - The clouds are real: NASA's satellite picture of a recent day, over the whole Earth.

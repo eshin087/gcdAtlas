@@ -30,6 +30,12 @@ Round 3 (owner, 2026-10-04: Paris still looked camouflaged; "add colors to the b
 - A city opens on its nearest landmark (the Eiffel Tower, the Midtown towers, Shinjuku, Burj Khalifa, the Shard), then the wide view, then the other landmark. The Eiffel Tower is a sunlit bronze by day (in dark brown it hid among the roofs).
 - Fixed: after the time was moved, a city's camera looked at the far side of the city or from under the ground, and the picture went black (the framings' aim stayed put in space while the Earth turned; it is now worked out in the place's frame every frame, also through a swing). Fixed: a camera low over a city in an overcast sky saw only fog (London's Shard view); over a city or the ground anywhere the clear gap round the camera in the low cloud is now a few kilometres wide.
 
+Round 4 (owner, 2026-10-04: "eiffel tower does not look like eiffel tower. do an accurate realistic mirror of it. right now it looks like a random triangle"):
+- The Eiffel Tower is a model at its real sizes (`efMap` in FS_SX_ENV, only in `P.sxEnvEf`, the copy of the shader used near Paris, built in the background; until it is ready the old shape shows): four legs at the corners of a 125 m square, curving in along a line fitted through the real floors (57.6, 115.7 and 276.1 m up, 70.7, 41 and 16.5 m across) and joining at about 120 m, an arch on each face under the first floor, the three floors, the top at 300 m and the antenna to 330 m. Its faces look along the Champ de Mars.
+- Its lattice: braces crossing on each face, the panels smaller toward the top. Where they are big enough to see, the gaps are open (the ray goes on through them), and by day they are darker than the girders, so the tower reads against the cream city behind it.
+- At night it glows gold from about 10 minutes after sunset to 23:45, and sparkles for 5 minutes on the hour, as the real one does (toureiffel.paris).
+- `tests/earth.mjs` flies on to Paris and waits for the ground to be drawn with the tower.
+
 ## 0.12.0 · 2026-10-03
 
 **Fly down anywhere** (phase 2 of `docs/EARTH_PLAN.md`)

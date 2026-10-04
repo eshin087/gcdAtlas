@@ -505,7 +505,9 @@ function drawEnv(){
   for (const k in SX.parts){ const st = SX.parts[k].sx.st; if (!st || !st.on || SX.parts[k].hidden || !(st.thr > plI) || st.alt > 20) continue; plI = st.thr; pl = M3.applyT(best.F.M, V.mul(V.sub(st.base, best.p), 1000)); }
   const rel = V.add(earth.rel, V.mul(M3.apply(earth.rot, best.p), KM)), ED = best.ground || best.city ? best : best.kind === 4 ? null : EDT.siteOfPad(best.key);
   const nTw = ECT.lights(best, cf, day);
-  drawVolume(earth, P.sxEnv, rel, V.len(rel)*4 + 1e-3, p => {
+  // (near the Eiffel Tower, the copy of the shader that draws it as a model, once it has compiled in the background; until then the plain one)
+  const ef = ECT.eiffel(best, cf, Math.asin(clamp(L[1], -1, 1))/DEG), prog = ef && progReady(P.sxEnvEf) ? P.sxEnvEf : P.sxEnv; SXENV.eiffel = prog === P.sxEnvEf;
+  drawVolume(earth, prog, rel, V.len(rel)*4 + 1e-3, p => {
     EDT.bind(p, ED, { M:best.F.M, p:best.p });
     gl.uniform4f(p.u.uP0, cl[0], cl[1], cl[2], fade); gl.uniform4f(p.u.uP1, L[0], L[1], L[2], day);
     gl.uniform4f(p.u.uP2, best.coast[0], best.coast[1], best.coast[2], best.kind === 4 ? 1 : 0);
@@ -515,6 +517,7 @@ function drawEnv(){
     if (p.u.uTwL){ gl.uniform4fv(p.u.uTwL, ECT.LT); gl.uniform1f(p.u.uTwLN, nTw); }
     if (p.u.uCity) gl.uniform4f(p.u.uCity, best.city ? ['paris', 'newyork', 'tokyo', 'dubai', 'london'].indexOf(best.city.key) : -1, best.city ? best.city.ele || 0 : 0, 0, 0);   // (which city: its materials)
     if (p.u.uThin){ const nTh = ECT.thin(best, cf); gl.uniform4fv(p.u.uThin, ECT.TH); gl.uniform4fv(p.u.uThinB, ECT.THB); gl.uniform1f(p.u.uThinN, nTh); }
+    if (p.u.uEf0 && ef){ gl.uniform4f(p.u.uEf0, ef[0], ef[1], ef[2], ef[3]); gl.uniform4f(p.u.uEf1, ef[4], ef[5], ef[6], ef[7]); }
     wxUniforms(p);
   }, Rw, 1);
 }

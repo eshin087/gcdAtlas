@@ -460,6 +460,33 @@ uniform vec4 uTwL[16]; uniform float uTwLN;   // (a city's tower lights: e9c-ear
 // lattice. THIN: whether the last height asked for was one of them)
 uniform vec4 uThin[4]; uniform vec4 uThinB[4]; uniform float uThinN;
 float THIN = 0.;
+#ifdef EIFFEL
+// the Eiffel Tower as a model (0.13.0, owner: drawn from the heights it was "a random triangle"), only in P.sxEnvEf, the copy of this
+// shader used near Paris (built in the background: the rest of the world never compiles it). Its real sizes (toureiffel.paris, Wikipedia):
+// the legs at the corners of a 125 m square, the floors at 57.6, 115.7 and 276.1 m (70.7, 41 and 16.5 m across), 300 m to the top of the
+// structure, 330 m with the antenna of 2022. The outer edge's curve is fitted through the floors (the half-width 2.9 + 59.6 e^(-y/94.8) m);
+// the four legs part below about 120 m, with an arch on each face (35 m half-span, 39 m high) under the first floor. The lattice is a
+// pattern of braces on the faces (illustrative). uEf0: its foot (x, z) in this frame, the ground there (m above the sea), the turn of its
+// faces; uEf1: the gold lights (0..1), the sparkle (0..1), a clock for the sparkle (s)
+uniform vec4 uEf0; uniform vec4 uEf1;
+float efW(float y){ return 2.9 + 59.6*exp(-y/94.8); }
+vec3 efLoc(vec3 v){ float c = cos(uEf0.w), s = sin(uEf0.w); return vec3(c*v.x + s*v.z, v.y, -s*v.x + c*v.z); }
+vec3 efWor(vec3 v){ float c = cos(uEf0.w), s = sin(uEf0.w); return vec3(c*v.x - s*v.z, v.y, s*v.x + c*v.z); }
+float efBox(vec3 p, vec3 c, vec3 b){ vec3 q = abs(p - c) - b; return length(max(q, 0.)) + min(max(q.x, max(q.y, q.z)), 0.); }
+// (distances in metres from its foot, y up; the faces lean in, so the distances along them are scaled down for the march)
+float efMap(vec3 p){
+  vec2 a = abs(p.xz); float y = p.y, w = efW(clamp(y, 0., 300.)), m = max(a.x, a.y), n = min(a.x, a.y);
+  float wi = 37.*pow(max(1. - y/122., 0.), 1.1);   // (the gap between the legs: 74 m at the ground, closed at about 120 m)
+  float d = max(max(m - w, wi - n)*0.8, max(-y, y - 300.));
+  float aY = 39.*sqrt(max(1. - (n/35.)*(n/35.), 0.));   // (the arch under the first floor, a 2 m skin on each face between the legs)
+  d = min(d, max(max(abs(m - w + 1.) - 1., n - wi), max(aY - y, y - 57.))*0.8);
+  d = min(d, efBox(p, vec3(0., 54.5, 0.), vec3(37.5, 4., 37.5)));   // (the floors)
+  d = min(d, efBox(p, vec3(0., 115.5, 0.), vec3(21.5, 2.8, 21.5)));
+  d = min(d, efBox(p, vec3(0., 276.3, 0.), vec3(8.4, 2.6, 8.4)));
+  d = min(d, efBox(p, vec3(0., 288.5, 0.), vec3(3.6, 9.5, 3.6)));   // (the top and the antenna)
+  return min(d, max(length(p.xz) - 1.1, abs(y - 315.) - 15.));
+}
+#endif
 // (which city, 0.13.0: x 0 Paris, 1 New York, 2 Tokyo, 3 Dubai, 4 London, -1 none; y the ground at its centre, m above the sea)
 uniform vec4 uCity;
 // a building's materials in a city, after each city's common ones and a little brighter than life so they read as characters (illustrative,
@@ -497,11 +524,47 @@ vec3 seaPt(vec2 xz){ return vec3(xz.x, -uP4.y - dot(xz, xz)/(2.*RE), xz.y); }
 float groundY(vec2 xz, out float water, out float ok){ vec3 P = seaPt(xz); float h = edHeight(P, water, ok), y = P.y + max(h, 0.); THIN = 0.;
   for(int i=ZI;i<4;i++){
     if(float(i) >= uThinN) break;
+#ifdef EIFFEL
+    if(uThinB[i].z > 1.5) continue;
+#endif
     vec4 a = uThin[i]; vec2 q = abs(xz - a.xy); float r = max(q.x, q.y), R = uThinB[i].x;
     if(r < R){ float th = uThinB[i].y > 0.5 ? a.w : min(a.w, a.w*log(R/max(r, 0.5))/log(R/1.5)), ty = P.y + a.z + th;
       if(ty > y){ y = ty; THIN = 1.; ok = 1.; water = 0.; } }
   }
   return y; }
+#ifdef EIFFEL
+// the lattice at q on a face (uu: along the face): braces crossing and a girder every panel, the panels smaller toward the top; 1 on a girder,
+// 0 in a gap. k: how well a pixel resolves it (it fades to its average, 0.45, where a pixel covers half a panel or more)
+float efLat(vec3 q, float uu, float px, out float k){
+  float P = max(1.6, 0.17*efW(clamp(q.y, 0., 300.)));
+  float l1 = abs(fract((uu + q.y)/P) - 0.5), l2 = abs(fract((uu - q.y)/P) - 0.5), l3 = abs(fract(q.y/(2.*P)) - 0.5);
+  k = smoothstep(0.5, 0.2, px/P); return smoothstep(0.36, 0.48, max(max(l1, l2), l3));
+}
+// which way a point on a leg or the shaft runs along its face (the coordinate across the face it is nearest)
+float efU(vec3 q){ vec2 a = abs(q.xz); float w = efW(clamp(q.y, 0., 300.)), wi = 37.*pow(max(1. - q.y/122., 0.), 1.1);
+  return min(abs(a.x - w), abs(a.x - wi)) < min(abs(a.y - w), abs(a.y - wi)) ? q.z : q.x; }
+// whether a point is on the lattice of the legs or the shaft (not a floor, the arch, the top or the antenna)
+bool efOpen(vec3 q){ float y = q.y; vec2 a = abs(q.xz);
+  return y > 1. && y < 272. && abs(y - 54.5) > 4.5 && abs(y - 115.5) > 3.2 && !(y < 58. && min(a.x, a.y) < 37.*pow(max(1. - y/122., 0.), 1.1) + 0.5); }
+// where the ray meets it (-1 if nowhere before tMax), and its normal there in its own frame. Where the lattice's gaps are big enough to
+// see, the ray goes on through them, to the girders behind or past the tower (the real tower is mostly air)
+float efHit(vec3 o, vec3 d, float tMax, out vec3 nl){
+  nl = vec3(0., 1., 0.);
+  vec3 B = vec3(uEf0.x, seaPt(uEf0.xy).y + uEf0.z, uEf0.y), ol = efLoc(o - B), dl = efLoc(d);
+  vec3 iv = 1./(dl + vec3(dl.x < 0. ? -1e-7 : 1e-7, dl.y < 0. ? -1e-7 : 1e-7, dl.z < 0. ? -1e-7 : 1e-7));
+  vec3 t0 = (vec3(-64., -1., -64.) - ol)*iv, t1 = (vec3(64., 331., 64.) - ol)*iv, tn = min(t0, t1), tf = max(t0, t1);
+  float ta = max(max(tn.x, tn.y), max(tn.z, 0.)), tb = min(min(tf.x, tf.y), min(tf.z, tMax));
+  if(ta >= tb) return -1.;
+  float t = ta; bool hit = false;
+  for(int i=ZI;i<96;i++){ vec3 p = ol + dl*t; float h = efMap(p), pw = t*uPix*0.6;
+    if(h < pw){ float k, l = efLat(p, efU(p), t*uPix, k); if(k > 0.6 && l < 0.5 && efOpen(p)){ t += max(pw*2., 0.6); continue; } hit = true; break; }
+    t += h*0.85; if(t > tb) break; }
+  if(!hit) return -1.;
+  vec3 p = ol + dl*t, n = vec3(0.); float ep = max(0.12, t*uPix*0.5);
+  for(int k=ZI;k<4;k++){ vec3 kv = k == 0 ? vec3(1., -1., -1.) : k == 1 ? vec3(-1., -1., 1.) : k == 2 ? vec3(-1., 1., -1.) : vec3(1.); n += kv*efMap(p + kv*ep); }
+  nl = normalize(n + vec3(0., 1e-6, 0.)); return t;
+}
+#endif
 // the sky as it shows in direction r (day 0..1): deep blue overhead, paler toward the horizon (whiter when the air is hazy), both fading as
 // the air thins below the camera; gold round a low Sun and along that side of the horizon; at dusk and dawn, the Earth's grey-blue shadow
 // low on the far side with the pink band above it (the Belt of Venus); the Sun, in a halo that grows with haze
@@ -614,6 +677,22 @@ void main(){
   }
   float tc = curveT(o, d, e);
   if(t < 0. && tc > 0.) t = tc;
+#ifdef EIFFEL
+  vec3 nE; float tE = efHit(o, d, t > 0. ? t : 1e9, nE);
+  if(tE > 0.){
+    vec3 B = vec3(uEf0.x, seaPt(uEf0.xy).y + uEf0.z, uEf0.y), q = efLoc(o + d*tE - B), nw = efWor(nE);
+    // (the lattice: braces crossing on each face and a girder every panel, the panels smaller toward the top; it fades to its average
+    // where a character covers more than a panel. By day the girders bronze and the gaps darker; at night the girders lit gold)
+    float uu = abs(nE.x) > abs(nE.z) ? q.z : q.x, kL, lt = efLat(q, uu, tE*uPix, kL);
+    lt = mix(0.45, lt, kL*(1. - smoothstep(0.7, 0.9, abs(nE.y))));
+    float ov = smoothstep(0.5, 0.95, uWx0.x), fl = max(sunE, 0.)*(1. - 0.65*ov) + 0.6;
+    float here = max(dot(nw, L), 0.)*cloudShadow(o + d*tE, e, L) + 0.6*(0.85 + 0.15*nw.y);
+    vec3 g = vec3(0.64, 0.5, 0.36)*mix(0.32, 1., lt)*lit*clamp(here/fl, 0.15, 1.6);
+    g += vec3(1., 0.7, 0.32)*uEf1.x*(0.3 + 0.5*lt);
+    g += vec3(1., 0.96, 0.88)*1.6*uEf1.y*step(0.975, hash12(floor(vec2(uu, q.y)/2.2) + floor(uEf1.z*7.)*vec2(3.1, 7.7)));
+    col = mix(g, skyCol(normalize(vec3(d.x, DIP + 0.015, d.z)), L, day), hazeF(tE, thin)*0.4); a = 1.; t = tE;
+  } else
+#endif
   if(t > 0.){
     vec3 p = o + d*t;
     float fp = max(t*uPix, 0.05), cov = 0., wall = 0., sh = 1.;
@@ -737,3 +816,4 @@ void main(){
   outCol(unTone(col)*expo*fade, a*fade);
 }`;
 P.sxEnv = program(VS_RECT, FS_SX_ENV);
+P.sxEnvEf = program(VS_RECT, FS_SX_ENV.replace('#version 300 es\n', '#version 300 es\n#define EIFFEL\n'));   // (with the Eiffel Tower: near Paris)
