@@ -571,7 +571,8 @@ float efMap(vec3 p){
   return min(d, max(length(p.xz) - 1.1, abs(y - 315.) - 15.));
 }
 #endif
-// (which city, 0.13.0: x 0 Paris, 1 New York, 2 Tokyo, 3 Dubai, 4 London, -1 none; y the ground at its centre, m above the sea)
+// (which city, 0.13.0: x 0 Paris, 1 New York, 2 Tokyo, 3 Dubai, 4 London, -1 none; y the ground at its centre, m above the sea; z 1 at a
+// famous place, 0.15.0: its water keeps the images' colours)
 uniform vec4 uCity;
 // a building's materials in a city, after each city's common ones and a little brighter than life so they read as characters (illustrative,
 // owner, 0.13.0: "add colours to the buildings to mirror what it would realistically look like"): its walls by a hash of where it stands,
@@ -876,9 +877,11 @@ void main(){
       // darker than the sky at the horizon)
       vec3 rr = reflect(d, nw); rr.y = max(abs(rr.y), 0.12); rr = normalize(rr);
       float F = min(0.02 + 0.98*pow(1. - max(-dot(d, nw), 0.), 5.), cityK > 0.5 ? 0.18 : 0.35);   // (a city's water mirrors less: it was as bright as the city, and the city vanished into it)
-      // (the water's own colour: the photo's, turned bluer, so a murky coast still reads as sea and a dark lagoon never as a hole; one colour on the open sea)
-      float eg, op = cov > 0.5 ? edWide(seaPt(p.xz), eg).a : 1.;
-      vec3 deep = vec3(0.03, 0.1, 0.2), ocn = vec3(0.03, 0.12, 0.24), wi = mix(img*vec3(0.7, 0.85, 1.05), vec3(0.04, 0.13, 0.25), 0.55);
+      // (the water's own colour: the photo's, turned bluer, so a murky coast still reads as sea and a dark lagoon never as a hole; one colour on the open sea.
+      // At a famous place (uCity.z) the images' water shows everywhere, more of it: its reefs and lagoons are what it is about, and its wide layers
+      // were cleaned of seams and haze over the open sea when they were made)
+      float eg, op = cov > 0.5 ? edWide(seaPt(p.xz), eg).a*(1. - uCity.z) : 1.;
+      vec3 deep = vec3(0.03, 0.1, 0.2), ocn = vec3(0.03, 0.12, 0.24), wi = mix(img*vec3(0.7, 0.85, 1.05), vec3(0.04, 0.13, 0.25), 0.55 - 0.3*uCity.z);
       vec3 wc = mix(fromSpace(mix(mix(ocn, edLin(img), 0.55*step(0.5, cov)), ocn, op), sunE), mix(cov > 0.5 ? wi : deep, deep, op)*lit, near);
       g = mix(wc*mix(0.72, 1., csh), skyCol(rr, L, day)*0.95, F);
       g += vec3(1., 0.9, 0.75)*pow(max(dot(rr, L), 0.), 80.)*smoothstep(-0.05, 0.05, sunE)*0.8*csh;

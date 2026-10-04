@@ -5,6 +5,12 @@
      numbers with units. The newest version comes first and opens by itself; its number must match package.json (tests/smoke.mjs checks it).
      Every detail stays in docs/CHANGELOG.md, which the panel links to. -->
 
+## 0.15.0 · 4 Oct 2026 · Famous places in 3D
+- 30 famous places on Earth in 3D from real satellite images and heights: Everest, the Grand Canyon, the Alps, Kilimanjaro, Fuji, the Sahara's Richat Structure, the Amazon, Uluru, the Great Barrier Reef, Hawaii, Iceland, Antarctica, Greenland, the Palm, the Panama Canal, the Great Wall, Giza and more.
+- Find them in the atlas under "on Earth" (a new kind: built by people), by their marks on the globe, or by any of their names in the search.
+- Each one opens close enough to know it, then goes wide and closer, by day with the Sun to the side so the mountains stand out.
+- A new tour, wonders of Earth, flies to all 30, west round the world.
+
 ## 0.14.0 · 4 Oct 2026 · The cities come alive
 - Traffic on the real roads of all five cities: headlights and red tail lights at night, busier at rush hour, on the side of the road each city drives on. By day the cars are small specks.
 - Planes land and take off at the 14 real airports, on the runways that face into the real wind. They are simulated, not live flights.

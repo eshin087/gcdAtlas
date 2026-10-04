@@ -14,7 +14,9 @@ const EDT = (() => {
   const sites = EARTH_DETAIL.sites.map(S => mkSite(S, '', { pad:true }));
   // (a site's layers are wanted only while its feature is on: the launch sites with SpaceX, the cities with the real Earth)
   const live = S => S.pad ? FLAGS.spacex : FLAGS.realEarth;
-  // more sites, from files that load after this one: the cities (0.13.0, e9c-earth-cities.js), with their folder and their own credit line
+  // more sites, from files that load after this one: the cities (0.13.0, e9c-earth-cities.js) and the famous places (0.15.0, e9p-earth-places.js,
+  // extra.place), with their folder and their own credit line; extra.far: how much farther than its size (km) a site's widest layer loads
+  // (4,000 km, so a launch site's region is in before the camera has come down)
   function addSite(S, dir, extra){ const s = mkSite(S, dir, extra); sites.push(s); return s; }
   const can = /^https?:$/.test(location.protocol) && typeof createImageBitmap === 'function';
   let dummy = null, last = 0;
@@ -63,13 +65,17 @@ const EDT = (() => {
   // once a second: load what the camera is heading for, let go of what it left
   function tick(){
     if (!can || GT - last < 1) return; last = GT;
-    const cf = camE(), r = V.len(cf), alt = r - 6371, g = V.mul(cf, 6371/Math.max(r, 1));
+    const cf = camE(), r = V.len(cf), alt = r - 6371, g = V.mul(cf, 6371/Math.max(r, 1)), dOf = S => V.len(V.sub(g, V.mul(S.c, 6371))) + Math.max(alt, 0)*0.5;
+    // (of the famous places only the nearest one loads and counts as in use: thirty of them, some a few hundred km apart, would hold a dozen
+    // wide layers at once; the one left behind is let go of two minutes later, as any site)
+    let np = null, nd = 1e9; for (const S of sites) if (S.place && live(S)){ const d = dOf(S); if (d < nd){ nd = d; np = S; } }
     for (const S of sites){
       if (!live(S)) continue;
-      const dS = V.len(V.sub(g, V.mul(S.c, 6371))) + Math.max(alt, 0)*0.5;
+      const dS = dOf(S);
+      if (S.place && S !== np){ if (GT - S.used > 120) for (const L of S.layers) if (L.state === 2) free(L); continue; }
       if (dS < 4500) S.used = GT;
       for (const L of S.layers){ const dL = V.len(V.sub(g, V.mul(L.c, 6371))) + Math.max(alt, 0)*0.7, k = L.size/1000;
-        if (dL < Math.max(k*5, 25) + (k > 100 ? 4000 : 0)) load(L); }
+        if (dL < Math.max(k*5, 25) + (k > 100 ? (S.far != null ? S.far : 4000) : 0)) load(L); }
       if (GT - S.used > 120) for (const L of S.layers) if (L.state === 2) free(L);
     }
     // Earth draws with the images (P.earthEd, compiled in the background the first time) only near a site that has some ready
@@ -123,7 +129,7 @@ const EDT = (() => {
   // what the readout adds now: the ground under a launch camera or near a pad, or the images on Earth seen from space nearby
   function creditNow(){
     if (!can) return '';
-    if (typeof SXENV !== 'undefined' && SXENV.on && SXENV.site && SXENV.site.key) return credit(SXENV.site.city ? SXENV.site.ed : siteOfPad(SXENV.site.key), true);
+    if (typeof SXENV !== 'undefined' && SXENV.on && SXENV.site && SXENV.site.key) return credit(SXENV.site.ed || siteOfPad(SXENV.site.key), true);   // (a city's or a famous place's own site, or a pad's)
     if ((earth.prog === P.earthEd || earth.prog === P.earthGEd) && orbit.lock === earth.index){ const alt = V.len(camE()) - 6371; if (alt < 2500) return credit(pick(), false); }
     return '';
   }

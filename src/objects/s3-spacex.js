@@ -489,13 +489,16 @@ function drawEnv(){
   let best = null, bd = 1e9;
   for (const S of FLAGS.spacex ? SITE_LIST() : []){ const d = V.len(V.sub(cf, S.p)); if (d < bd){ bd = d; best = S; } }
   // (over one of the five cities, the city: its own layers, the ground anywhere round them; e9c-earth-cities.js, 0.13.0)
-  const city = ECT.envSite(cf); if (city){ best = city; bd = 0; }
+  // (near one of the famous places, the place: its own layers, the ground anywhere round them; e9p-earth-places.js, 0.15.0)
+  const city = ECT.envSite(cf), place = city || (best && bd <= 150) ? null : PLC.envSite(cf);
+  if (city){ best = city; bd = 0; }
+  else if (place){ best = place; bd = 0; }
   // (away from the launch sites, the ground anywhere, baked from the tiles: e7g-earth-ground.js, 0.12.0)
   // (a launch site only within 150 km of its pads: farther, the ground and weather of the place itself. Los Angeles, 200 km from Vandenberg,
   // was drawn with Vandenberg's sea fog over it)
   else if ((!best || bd > 150) && EGR.ready){ best = EGR.site; bd = 0; }
   if (!best || bd > 700) return;
-  const fade = (1 - smooth(22, 85, alt))*(best.ground ? EGR.fade : best.city ? 1 : 1 - smooth(350, 700, bd));
+  const fade = (1 - smooth(22, 85, alt))*(best.ground ? EGR.fade : best.city || best.place ? 1 : 1 - smooth(350, 700, bd));
   if (fade < 0.01) return;
   SXENV.on = true; SXENV.site = best; SXENV.alt = alt;
   const Rw = M3.mul(earth.rot, best.F.M), cl = M3.applyT(best.F.M, V.mul(V.sub(cf, best.p), 1000)), L = M3.applyT(best.F.M, sunFixed()), day = smooth(-0.12, 0.12, L[1]);
@@ -503,7 +506,7 @@ function drawEnv(){
   SXENV.cover = fade > 0.999 && (0.25 + 0.74*day)*(0.35 + 0.65*Math.exp(-alt*1000/8500)) > 0.85;
   let pl = [0, 0, 0], plI = 0;
   for (const k in SX.parts){ const st = SX.parts[k].sx.st; if (!st || !st.on || SX.parts[k].hidden || !(st.thr > plI) || st.alt > 20) continue; plI = st.thr; pl = M3.applyT(best.F.M, V.mul(V.sub(st.base, best.p), 1000)); }
-  const rel = V.add(earth.rel, V.mul(M3.apply(earth.rot, best.p), KM)), ED = best.ground || best.city ? best : best.kind === 4 ? null : EDT.siteOfPad(best.key);
+  const rel = V.add(earth.rel, V.mul(M3.apply(earth.rot, best.p), KM)), ED = best.ground || best.city || best.place ? best : best.kind === 4 ? null : EDT.siteOfPad(best.key);
   const nTw = ECT.lights(best, cf, day);
   // (near the Eiffel Tower, the copy of the shader that draws it as a model, once it has compiled in the background; until then the plain one)
   // (over a city the copy with the traffic, P.sxEnvC (0.14.0), and near Paris the one with the Eiffel Tower too, each once it has compiled)
@@ -514,11 +517,11 @@ function drawEnv(){
     EDT.bind(p, ED, { M:best.F.M, p:best.p });
     gl.uniform4f(p.u.uP0, cl[0], cl[1], cl[2], fade); gl.uniform4f(p.u.uP1, L[0], L[1], L[2], day);
     gl.uniform4f(p.u.uP2, best.coast[0], best.coast[1], best.coast[2], best.kind === 4 ? 1 : 0);
-    // (z: how far the heights are marched, 0 at a pad (40 km, finely); 260 km over the ground anywhere, where the mountains are far; over a
-    // city, minus 150 km: finely near, the towers stand up, and on to the horizon)
-    gl.uniform4f(p.u.uP3, pl[0], pl[1], pl[2], plI*(0.4 + 1.6*(1 - day))); gl.uniform4f(p.u.uP4, GT, best.elev || 0, best.ground ? 260000 : best.city ? -150000 : 0, 0);
+    // (z: how far the heights are marched, 0 at a pad (40 km, finely); 260 km over the ground anywhere and a famous place, where the mountains
+    // are far; over a city, minus 150 km: finely near, the towers stand up, and on to the horizon)
+    gl.uniform4f(p.u.uP3, pl[0], pl[1], pl[2], plI*(0.4 + 1.6*(1 - day))); gl.uniform4f(p.u.uP4, GT, best.elev || 0, best.ground || best.place ? 260000 : best.city ? -150000 : 0, 0);
     if (p.u.uTwL){ gl.uniform4fv(p.u.uTwL, ECT.LT); gl.uniform1f(p.u.uTwLN, nTw); }
-    if (p.u.uCity) gl.uniform4f(p.u.uCity, best.city ? ['paris', 'newyork', 'tokyo', 'dubai', 'london'].indexOf(best.city.key) : -1, best.city ? best.city.ele || 0 : 0, 0, 0);   // (which city: its materials)
+    if (p.u.uCity) gl.uniform4f(p.u.uCity, best.city ? ['paris', 'newyork', 'tokyo', 'dubai', 'london'].indexOf(best.city.key) : -1, best.city ? best.city.ele || 0 : 0, best.place ? 1 : 0, 0);   // (which city: its materials; a famous place: its water)
     if (p.u.uThin){ const nTh = ECT.thin(best, cf); gl.uniform4fv(p.u.uThin, ECT.TH); gl.uniform4fv(p.u.uThinB, ECT.THB); gl.uniform1f(p.u.uThinN, nTh); }
     if (p.u.uEf0 && ef){ gl.uniform4f(p.u.uEf0, ef[0], ef[1], ef[2], ef[3]); gl.uniform4f(p.u.uEf1, ef[4], ef[5], ef[6], ef[7]); }
     if (p.u.uTk0 && tk){ gl.uniform4f(p.u.uTk0, tk[0], tk[1], tk[2], tk[3]); gl.uniform4f(p.u.uTk1, tk[4], tk[5], tk[6], tk[7]); gl.uniform4f(p.u.uTk2, tk[8], tk[9], tk[10], tk[11]); }
@@ -544,6 +547,8 @@ for (const c of ECT.cities) WX_SITE['city-' + c.key] = c.key;   // (the five cit
 const WX_FAIR = { low:0.28, mid:0.08, high:0.22, ws:4, wd:135, ws850:7, wd850:150, vis:22000, rain:0, code:2, rh:72, real:false };
 // (the ground anywhere, 0.12.0: no weather of its own yet, so a clear day with a few clouds and air clear enough to see far mountains)
 const WX_CLEAR = { low:0.12, mid:0.04, high:0.15, ws:4, wd:270, ws850:8, wd850:270, vis:150000, rain:0, code:1, rh:55, real:false };
+// (a famous place, 0.15.0: clearer still, a few wisps of high cloud)
+const WX_PLACE = Object.assign({}, WX_CLEAR, { low:0, mid:0, high:0.1, code:0 });
 function wxWant(){
   if (WX.state === 1 || !/^https?:$/.test(location.protocol) || typeof fetch !== 'function') return;
   if ((WX.state === 2 || WX.state === 3) && GT - WX.last < (WX.state === 2 ? 1800 : 300)) return;
@@ -555,6 +560,9 @@ function wxWant(){
 function wxAt(padKey, ms){
   // (the ground anywhere: the cloud cover of the real clouds' picture round the place, 0.13.0; a clear day without it)
   if (padKey === 'ground'){ const G = EGR.site, w = G.p ? ECLD.wxAt(G.la, G.lo) : null; return Object.assign({ key:padKey }, w || WX_CLEAR); }
+  // (a famous place, 0.15.0: a clear day, illustrative. Its images are cloud-free; with the real clouds of the day the Panama Canal,
+  // Geirangerfjord and Iceland's ice cap were hidden under an overcast, and the ground anywhere's few clouds read as white clutter over islands)
+  if (/^place-/.test(padKey)) return Object.assign({ key:padKey }, WX_PLACE);
   const key = WX_SITE[padKey] || 'cape', d = WX.data && WX.data.sites && WX.data.sites[key];
   if (!d || !d.low || !d.low.length) return Object.assign({ key }, WX_FAIR);
   const i = clamp(Math.round((ms/1000 - WX.data.t0)/(WX.data.step || 3600)), 0, d.low.length - 1), g = k => (d[k] && d[k][i] != null) ? d[k][i] : WX_FAIR[k];
@@ -567,7 +575,7 @@ const windTo = (ws, wd) => ({ e:-ws*Math.sin(wd*DEG), n:-ws*Math.cos(wd*DEG) });
 function wxTick(dt){
   const S = LCAM.on ? SXS[LCAM.run.site] : SXENV.on && SXENV.site ? SXENV.site : null;
   if (!S){ WX.now = null; return; }
-  if (!S.ground) wxWant();
+  if (!S.ground && !S.place) wxWant();
   const jd = jdNow(), ms = (jd - 2440587.5)*86400000, w = wxAt(S.key, ms);
   WX.now = w; WX.key = S.key;
   WX.wind = windTo(w.ws, w.wd); WX.wind850 = windTo(w.ws850, w.wd850);
