@@ -288,7 +288,7 @@ for (const P of PLACES) if (TEXT[P.key]) Object.assign(P, TEXT[P.key]);
 // ---------------------------------------------------------------- what the data lacks at a few man-made places (each takes the layer's arrays and changes them)
 const ringOf = el => el.type === 'way' ? [el.geometry] : (el.members || []).filter(m => m.role === 'outer' && m.geometry).map(m => m.geometry);
 // the heights a building is drawn with: its tag, else its levels, else a guess by kind (the launch sites' tool does the same)
-function bldHeight(t){ let h = parseFloat(t.height || t['building:height']); const lv = parseFloat(t['building:levels']);
+function bldHeight(t){ let h = parseFloat(t.height || t['building:height'] || t.maxheight); const lv = parseFloat(t['building:levels']);
   if (!(h > 0) || h > 1000) h = lv > 0 ? lv*3.4 + 1 : 12; return h; }
 // footprints of tall buildings (at least levels or height in the query's own filter) in a layer's box, as heights above the ground, added to elev
 async function addTallBuildings(ctx, minLevels, minHeight, key){
