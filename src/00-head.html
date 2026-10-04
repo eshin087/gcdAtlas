@@ -362,6 +362,15 @@ body.showcase .strip{padding-bottom:calc(124px + env(safe-area-inset-bottom,0px)
 .unseen[aria-checked="true"]{color:var(--flare);border-color:rgba(255,179,92,.55);background:var(--flare-bg)}
 .unseen[aria-checked="true"] b{color:var(--flare)}
 .cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(calc(99.5px*var(--ts)),1fr));gap:4px}
+/* each kind's colour (0.12.0, owner: make the sections easier to tell apart): a mark on its cell, which fills with it when chosen, its heading,
+   and its rows' left edge. Light enough for dark text on a chosen cell; the amber of the place in view stays the atlas's own */
+[data-k="solar"]{--kc:#ffd166}[data-k="moons"]{--kc:#c8cedc}[data-k="comets"]{--kc:#b9f0ff}[data-k="stars"]{--kc:#ff9b6b}[data-k="worlds"]{--kc:#b4e35f}
+[data-k="nebulae"]{--kc:#ff86c8}[data-k="clusters"]{--kc:#6fc6ff}[data-k="bh"]{--kc:#d48cff}[data-k="galaxies"]{--kc:#a59cff}[data-k="cosmic"]{--kc:#7b9dff}
+[data-k="events"]{--kc:#ff6b6b}[data-k="human"]{--kc:#7fe8a8}[data-k="earth"]{--kc:#3fd6c6}
+.cell[data-k]{border-left:3px solid var(--kc)}
+.cell[data-k]:hover{border-color:color-mix(in srgb,var(--kc) 60%,transparent);border-left-color:var(--kc)}
+.cell[data-k][aria-checked="true"]{background:var(--kc);border-color:var(--kc)}
+.cats .allcell.withearth{grid-column:span 2}
 /* (while a search is typed it looks through everything: the kinds fade a little, still there to tap, and a tap clears the search) */
 .atlas-tools.searching .show-row,.atlas-tools.searching .cats{opacity:.6}
 .sortseg button:focus-visible,.dirbtn:focus-visible,.cell:focus-visible,.unseen:focus-visible,.chip:focus-visible,.afoot:focus-visible,.brow:focus-visible,.atlas-empty button:focus-visible{outline:1px solid var(--flare);outline-offset:1px}
@@ -378,6 +387,7 @@ body.showcase .strip{padding-bottom:calc(124px + env(safe-area-inset-bottom,0px)
 .agroup{position:sticky;top:-4px;z-index:1;display:flex;flex-wrap:wrap;align-items:baseline;column-gap:10px;padding:10px 12px 4px;color:var(--flare);background:rgb(7,9,16);font-size:calc(10.5px*var(--ts));letter-spacing:.14em;text-transform:uppercase}
 .arow{scroll-margin-top:calc(34px*var(--ts))}
 .agroup .gt{flex:0 1 auto;min-width:0}
+.agroup[data-k]:not([data-k=""]){color:var(--kc);box-shadow:inset 0 -1px 0 color-mix(in srgb,var(--kc) 30%,transparent)}
 .agroup .gnote{flex:none;margin-left:auto;color:var(--dim);font-size:calc(10px*var(--ts));letter-spacing:.02em;text-transform:none}
 .arow.child .an::before{content:"\2514\00a0";color:var(--faint);font-weight:400}
 .aend{padding:10px 12px 2px;color:var(--dim);font-size:calc(10px*var(--ts))}
@@ -417,6 +427,7 @@ body.showcase .strip{padding-bottom:calc(124px + env(safe-area-inset-bottom,0px)
 /* a row: the name, and its number beside it, or under it (right-aligned) when both do not fit; a name is never cut */
 .arow{position:relative;display:flex;flex-wrap:wrap;align-items:baseline;column-gap:10px;width:100%;text-align:left;background:none;border:0;border-left:2px solid transparent;padding:5px 12px 5px 18px;color:var(--soft);cursor:pointer;font-size:calc(12px*var(--ts))}
 .arow:hover,.arow.kb{background:rgba(140,160,210,.1);color:var(--ink)}
+.arow[data-k]{border-left-color:color-mix(in srgb,var(--kc) 55%,transparent)}
 .arow[aria-selected="true"]{background:var(--flare-bg);border-left-color:var(--flare);color:var(--flare);font-weight:600}
 .arow[aria-selected="true"]::before{content:">";position:absolute;left:6px;color:var(--flare)}
 .arow[aria-selected="true"] .ad{color:var(--flare);opacity:.85}

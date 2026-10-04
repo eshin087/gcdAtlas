@@ -47,9 +47,13 @@ for (const line of (await get('countryInfo.txt', 'https://download.geonames.org/
   if (!line || line[0] === '#') continue; const f = line.split('\t'); if (f[0] && f[4]) cc[f[0]] = f[4]; }
 // cities (GeoNames: id, name, asciiname, alternatenames, lat, lon, class, code, country, cc2, admin1-4, population, elevation, dem, timezone, date)
 const cities = unzip1(await get('cities15000.zip', 'https://download.geonames.org/export/dump/cities15000.zip')).toString('utf8');
+// (a part named after its city and a number: "Paris 15 Vaugirard", "Marseille 08"; "Mile 91" is a town of its own)
+const cityNames = new Set(cities.split('\n').map(l => l.split('\t')[1]));
+const partOf = n => { const m = /^(.+?) \d{1,2}\b/.exec(n); return !!m && cityNames.has(m[1]); };
 for (const line of cities.split('\n')){
   const f = line.split('\t'); if (f.length < 15) continue;
-  const pop = +f[14]; if (!(pop >= 15000) || f[7] === 'PPLX') continue;   // (not the parts of a city: Paris's arrondissements)
+  // (not the parts of a city, nor places gone: sections (PPLX), parts named after their city, historical, destroyed and abandoned places)
+  const pop = +f[14]; if (!(pop >= 15000) || /^PPL[XHWQ]$/.test(f[7]) || partOf(f[1])) continue;
   rows.push([f[1], f[7] === 'PPLC' ? 'C' : 'c', r3(+f[4]), r3(+f[5]), pop, f[8], '']);
 }
 const nc = rows.length;

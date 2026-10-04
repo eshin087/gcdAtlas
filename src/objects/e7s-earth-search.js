@@ -37,9 +37,28 @@ const EPL = (() => {
   const people = p => p >= 1e6 ? (p/1e6).toFixed(p >= 1e7 ? 0 : 1) + ' million' : Math.round(p/1000)*1000 >= 1000 ? Math.round(p/1000).toLocaleString('en-US') + ',000' : String(p);
   const metres = m => Math.round(m).toLocaleString('en-US') + ' m';
   const llTxt = (la, lo) => Math.abs(la).toFixed(2) + '° ' + (la >= 0 ? 'N' : 'S') + ', ' + Math.abs(lo).toFixed(2) + '° ' + (lo >= 0 ? 'E' : 'W');
+  // famous places, listed by the atlas's "on Earth" kind without a search (rows as in the names list, from it; their countries below)
+  const PICKS = {
+    mountains:[["Mount Everest","m",27.98,86.881,8848],["K2","m",35.882,76.513,8611],["Aconcagua","m",-32.656,-70.016,6959],["Denali","m",63.069,-151.007,6194],["Mount Kilimanjaro","m",-3.076,37.353,5895],
+      ["Mount Elbrus","m",43.355,42.439,5642],["Vinson Massif","m",-78.529,-85.634,4892],["Mont Blanc","m",45.834,6.865,4807],["Matterhorn","m",45.938,7.73,4478],["Mount Rainier","m",46.85,-121.76,4392],
+      ["Mauna Kea","m",19.82,-155.468,4205],["Mount Fuji","m",35.358,138.731,3776],["Mount Etna","m",37.755,14.995,3322]],
+    regions:[["Sahara","r",19.834,13.707,6447,"","desert"],["Himalayas","r",29.64,88.631,2592,"","mountain range"],["Andes","r",-35.649,-72.596,10487,"","mountain range"],["Alps","r",46.172,10.979,1004,"","mountain range"],
+      ["Rocky Mountains","r",46.092,-113.647,3453,"","mountain range"],["Tibetan Plateau","r",33.914,90.757,3258,"","plateau"],["Grand Canyon","r",36.191,-112.718,285,"","gorge"],["Great Rift Valley","r",6.322,38.854,2785,"","valley"],
+      ["Amazon basin","r",-1.989,-53.96,5523,"","basin"],["Nile Delta","r",31.103,31.047,245,"","delta"],["Gobi Desert","r",41.767,104.437,2420,"","desert"],["Atacama Desert","r",-23.57,-70.028,1265,"","desert"],
+      ["Namib","r",-20.091,13.652,1695,"","desert"],["Kalahari Desert","r",-23.686,19.272,2284,"","desert"],["Patagonia","r",-49.687,-71.584,3952,"","region"]],
+    islands:[["Greenland","i",73.04,-42.42,2944,"","island"],["Iceland","i",65.347,-19.872,591,"","island"],["Madagascar","i",-17.738,46.775,1772,"","island"],["Hawaii","i",19.615,-155.579,165,"","island group"],
+      ["Galapagos Islands","i",-0.628,-90.573,375,"","island group"],["Svalbard","i",77.991,21.629,931,"","island group"]],
+    waters:[["Great Barrier Reef","w",-21.536,150.373,3080,"","reef"],["Mediterranean Sea","w",36.891,17.864,3545,"","sea"],["Caribbean Sea","w",15.371,-76.083,3682,"","sea"],["Red Sea","w",20.049,39.078,2008,"","sea"],
+      ["Persian Gulf","w",27.105,51.56,1144,"","gulf"],["Gulf of Mexico","w",27.61,-89.568,2164,"","gulf"],["Bay of Bengal","w",18.434,88.054,3266,"","bay"],["Strait of Gibraltar","w",35.992,-5.633,85,"","strait"]],
+    cities:[["Tokyo","C",35.69,139.692,9733276,"JP"],["Shanghai","c",31.222,121.458,24874500,"CN"],["Beijing","C",39.908,116.397,18960744,"CN"],["Istanbul","c",41.014,28.95,15701602,"TR"],["Lagos","c",6.454,3.395,15388000,"NG"],
+      ["Mumbai","c",19.073,72.883,12691836,"IN"],["São Paulo","c",-23.547,-46.636,12400232,"BR"],["Mexico City","C",19.428,-99.128,12294193,"MX"],["Moscow","C",55.752,37.618,10381222,"RU"],["Cairo","C",30.063,31.25,9606916,"EG"],
+      ["London","C",51.509,-0.126,8961989,"GB"],["New York City","c",40.714,-74.006,8804190,"US"],["Hong Kong","C",22.278,114.175,7396076,"HK"],["Rio de Janeiro","c",-22.906,-43.182,6747815,"BR"],["Sydney","c",-33.868,151.207,5638830,"AU"],
+      ["Singapore","C",1.29,103.85,5638700,"SG"],["Cape Town","c",-33.926,18.423,4772846,"ZA"],["Los Angeles","c",34.052,-118.244,3820914,"US"],["Dubai","c",25.077,55.309,3790000,"AE"],["Paris","C",48.853,2.349,2138551,"FR"]],
+  };
+  const PICK_CC = { JP:'Japan', US:'United States', GB:'United Kingdom', FR:'France', AE:'United Arab Emirates', CN:'China', IN:'India', BR:'Brazil', EG:'Egypt', AU:'Australia', MX:'Mexico', TR:'Turkey', SG:'Singapore', ZA:'South Africa', NG:'Nigeria', RU:'Russia', HK:'Hong Kong' };
   // a result in words: [what it is, the short line in the list]
   function about(r){
-    const cn = r[5] && data && data.cc[r[5]] ? data.cc[r[5]] : '';
+    const cn = r[5] ? (data && data.cc[r[5]]) || PICK_CC[r[5]] || '' : '';
     if (r[1] === 'c' || r[1] === 'C') return [(r[1] === 'C' ? 'the capital of ' : 'a city in ') + (cn || 'its country'), cn || 'city'];
     if (r[1] === 'm') return [r[6] ? 'a ' + r[6] : 'a mountain', metres(r[4])];
     return ['a' + (/^[aeiou]/.test(r[6] || '') ? 'n ' : ' ') + (r[6] || (r[1] === 'i' ? 'island' : 'region')), r[6] || (r[1] === 'w' ? 'water' : 'region')];
@@ -127,5 +146,5 @@ const EPL = (() => {
   // (while a place on Earth is visited, or flown to, the clock runs in real time, as near a launch pad: at the atlas's usual pace the
   // afternoon it was flown to turned to night on the way)
   const hold = () => { const o = OBJ[orbit.lock]; return !!(o && o.earthSpot && !flight) || !!(flight && (flight.obj.earthSpot || (pend && flight.obj === earth))); };
-  return { can, find, go, about, load, spots, hashOf, fromHash, onLoad, hold, get state(){ return state; } };
+  return { can, find, go, about, load, spots, hashOf, fromHash, onLoad, hold, PICKS, get state(){ return state; } };
 })();

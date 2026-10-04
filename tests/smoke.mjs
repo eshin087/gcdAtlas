@@ -66,7 +66,7 @@ if (ui.rows < 50) bad.push('atlas has only ' + ui.rows + ' rows');
 // atlas categories: every chip has places; the made-up Halo is not human-made, every real craft is
 bad.push(...await page.evaluate(() => { const c = window.__cosmos, d = c.dbg, out = [];
   const listed = c.OBJ.filter(o => o.atlas !== false && !o.marker && d.GROUPS.some(([g]) => g === o.group));
-  for (const [id] of d.CATS) if (id !== 'all' && !listed.some(o => d.catsOf(o).includes(id))) out.push('atlas chip ' + id + ' has no places');
+  for (const [id] of d.CATS) if (id !== 'all' && id !== 'earth' && !listed.some(o => d.catsOf(o).includes(id))) out.push('atlas chip ' + id + ' has no places');   // (on Earth: places on Earth, not objects)
   if (d.catsOf(c.BYKEY.halo).includes('human')) out.push('the Halo is in the human-made chip');
   for (const o of listed) if (o.group === 'travel' && o.key !== 'halo' && !d.catsOf(o).includes('human')) out.push(o.key + ' is not in the human-made chip');
   return out; }));
@@ -161,7 +161,7 @@ const atl = await page.evaluate(() => {
   r.out = out; return r;
 });
 errors.push(...atl.out);
-if (atl.cells !== 13) errors.push('the atlas has ' + atl.cells + ' cells ("all" and 12 kinds expected)');
+if (atl.cells !== 14) errors.push('the atlas has ' + atl.cells + ' cells ("all", 12 kinds and "on Earth" expected)');
 if (!(atl.rows >= 10)) errors.push('the atlas list has room for only ' + atl.rows + ' rows at 1280 x 800');
 if (atl.dflt.sort !== 'kind' || atl.dflt.all !== 'true' || atl.dflt.result || atl.dflt.dir !== '⇅near → far' || atl.dflt.kb || atl.dflt.flow) errors.push('the atlas default view: ' + JSON.stringify(atl.dflt));
 if (atl.gal.note !== 'from Earth' || atl.gal.heads !== 1 || atl.gal.stray.length || atl.gal.first !== 'the Milky Way, the Galactic Centre, Large Magellanic Cloud') errors.push('galaxies chosen: ' + JSON.stringify(atl.gal));
