@@ -104,7 +104,23 @@ const TOURS = [
     ['oumuamua', 'Some visitors come from other stars. \'Oumuamua was the first one found, in 2017.'],
     ['3iatlas', '3I/ATLAS, found in 2025, was the third. It passed the Sun and is heading back to interstellar space.'],
   ] },
+  // (0.16.0: every Messier object in the atlas, found by the m number in its aka, in the order of a one-night Messier marathon; it grows as
+  // content packs add the rest of the checklist, docs/CATALOG.md)
+  { id:'messier', name:'Messier marathon', blurb:'every Messier object in the atlas, in one night\'s order', stops:messierStops() },
 ];
+// The order observers take the 110 on a marathon night in March, roughly west to east as the sky turns: Don Machholz's search sequence for
+// 20 to 40 degrees north, as SEDS publishes it (http://www.messier.seds.org/xtra/marathon/marath1.txt).
+function messierStops(){
+  const ORDER = [77, 74, 33, 31, 32, 110, 52, 103, 76, 34, 45, 79, 42, 43, 78, 1, 35, 37, 36, 38, 41, 93, 47, 46, 50, 48, 44, 67, 95, 96, 105, 65, 66, 81, 82,
+    97, 108, 109, 40, 106, 94, 63, 51, 101, 102, 53, 64, 3, 98, 99, 100, 85, 84, 86, 87, 89, 90, 88, 91, 58, 59, 60, 49, 61, 104, 68, 83, 5, 13, 92, 57, 56, 29,
+    39, 27, 71, 107, 12, 10, 14, 9, 4, 80, 19, 62, 6, 7, 11, 26, 16, 17, 18, 24, 25, 23, 21, 20, 8, 28, 22, 69, 70, 54, 55, 75, 15, 2, 72, 73, 30];
+  // (an m number read the way the search reads it, CAT_RE in 09-render.js: whole, so WR 124's "m1-67" is not M1)
+  const mOf = o => new Set([...(o.aka || '').toLowerCase().matchAll(/(?:^|[^\w+\-\/.])(?:m|messier)\s*(\d+)(?![\w+\-])/g)].map(m => +m[1]));
+  const own = OBJ.filter(o => o.atlas !== false && !o.marker && o.group && o.views).map(o => [o, mOf(o)]), stops = [];
+  for (const n of ORDER){ const hit = own.find(([, ms]) => ms.has(n)); if (hit && !stops.some(([k]) => k === hit[0].key)) stops.push([hit[0].key]); }
+  stops[0] && stops[0].push('Around the new Moon in March or early April, from a dark site about 25 degrees north of the equator, all 110 Messier objects can be seen in a single night. Marathoners take them in this order, from the west at dusk to the east before dawn.');
+  return stops;
+}
 let TOUR_ID = 'grand', TOUR_CAP = {};
 let TOUR_GEN = 0;   // goes up whenever TOUR is rebuilt (the tour track on the scale bar keys on it: a new deal of the same length has new names)
 function tourStops(id){ const t = TOURS.find(t => t.id === id) || TOURS[0]; return t.stops.filter(([k]) => BYKEY[k] && !BYKEY[k].marker).map(([k, cap]) => ({ i:BYKEY[k].index, cap })); }

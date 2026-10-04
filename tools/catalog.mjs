@@ -4,6 +4,7 @@ import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { MESSIER, CALDWELL } from './data/deep-sky.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // (the Halo showcase only names objects in its plan, as key:'moon' and so on, so it is left out)
 const src = [...fs.readdirSync(path.join(ROOT, 'src')).filter(f => f.endsWith('.js') && f !== '09i-showcase.js').map(f => 'src/' + f), ...fs.readdirSync(path.join(ROOT, 'src/objects')).map(f => 'src/objects/' + f)];
@@ -16,14 +17,18 @@ await page.addInitScript(() => { window.__noAdapt = true; });
 await page.goto('file://' + path.join(ROOT, 'dist', 'index.html'));
 await page.waitForFunction(() => window.__cosmos && window.__cosmos.OBJ);
 // the atlas headings (GROUPS) and kinds (CATS, the grid of filters) come from the page itself, so a new group can never drop out of the catalogue
-const { rows, GROUPS, CATS } = await page.evaluate(() => {
+const { rows, GROUPS, CATS, held } = await page.evaluate(() => {
   const c = window.__cosmos, LY = 9.4607e12, earth = c.BYKEY.earth;
   const size = o => o.isBH || (o.prog && o.prog === c.BYKEY.sgra.prog) ? o.rad/20 : (o.sizeR || (o.starR ? o.starR*o.rad : o.rad*(o.solid || 0.6)));
   const rows = c.OBJ.filter(o => !o.marker && o.atlas !== false && o.group).map(o => ({
     key:o.key, name:o.name, group:o.group, type:o.type, bh:!!(o.isBH || (o.prog && o.prog === c.BYKEY.sgra.prog)),
     distLy:o.distNow ? o.distNow() : Math.hypot(o.pos[0] - earth.pos[0], o.pos[1] - earth.pos[1], o.pos[2] - earth.pos[2]), sizeKm:2*size(o)*LY,
     views:(o.views || []).length, flyby:!!o.flyby, tour:c.TOUR.includes(o.index), cats:c.dbg.catsOf(o) }));
-  return { rows, GROUPS:c.dbg.GROUPS, CATS:c.dbg.CATS };
+  // (every object's catalogue numbers and words, read as the search reads them, for the Messier and Caldwell checklists; objects left out
+  // of the atlas count too, as drawn but not listed)
+  const held = c.OBJ.filter(o => !o.marker && o.aka).map(o => ({ key:o.key, listed:o.atlas !== false && !!o.group,
+    codes:c.dbg.catSplit(o.aka).codes, words:' ' + o.aka.toLowerCase() + ' ' }));
+  return { rows, GROUPS:c.dbg.GROUPS, CATS:c.dbg.CATS, held };
 });
 await browser.close();
 for (const r of rows) r.file = fileOf(r.key);
@@ -38,6 +43,22 @@ for (const [g, title] of GROUPS){
   md += `\n## ${title} (${list.length})\n\n| key | name | distance | size | views | flyby | tour | file |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n`;
   for (const r of list) md += `| \`${r.key}\` | ${r.name} | ${fmtD(r.distLy)} | ${fmtS(r.sizeKm)} | ${r.views} | ${r.flyby ? 'yes' : ''} | ${r.tour ? 'yes' : ''} | ${r.file} |\n`;
 }
+// ---------------------------------------------------------------- the checklists the atlas follows: Messier and Caldwell (tools/data/deep-sky.mjs)
+// A row is in the atlas when an object's aka holds its number: Messier by its m number, Caldwell by its first NGC or IC number, a c number
+// (c63), or its `also` words for the few with neither. An object in the atlas wins over one drawn but left out of it.
+const holder = test => held.filter(test).sort((a, b) => b.listed - a.listed)[0];
+const mRow = r => holder(h => h.codes.includes('m' + r[0]));
+const cRow = r => { const first = r[1].split(/ (?=ngc|ic)/)[0].replace(/\s+/g, '');
+  return holder(h => (/^(ngc|ic)\d/.test(first) && h.codes.includes(first)) || h.words.includes(' c' + r[0] + ' ') || (!!r[5] && h.words.includes(' ' + r[5] + ' '))); };
+const cell = h => h ? (h.listed ? `\`${h.key}\`` : `drawn, not listed (\`${h.key}\`)`) : '';
+const tally = (list, f) => list.filter(r => { const h = f(r); return h && h.listed; }).length;
+const desig = s => s.replace(/\b(ngc|ic|mel) (\d+)/g, (m, p, n) => (p === 'mel' ? 'Mel' : p.toUpperCase()) + ' ' + n).replace(/^sh2/, 'Sh2').replace(/^winnecke/, 'Winnecke');
+const mN = tally(MESSIER, mRow), cN = tally(CALDWELL, cRow);
+md += `\n## The checklists: Messier and Caldwell\n\nThe atlas follows two public lists of famous deep-sky objects: Charles Messier's 110 and Patrick Moore's Caldwell 109 (\`tools/data/deep-sky.mjs\`; names, numbers and positions from SIMBAD). A row counts once an object's search words (\`aka\`) hold its number. New content packs take their objects from the empty rows (docs/CONTENT.md).\n\n**Messier ${mN} of ${MESSIER.length} · Caldwell ${cN} of ${CALDWELL.length}**\n`;
+for (const [title, list, f, pre, n] of [['Messier', MESSIER, mRow, 'M', mN], ['Caldwell', CALDWELL, cRow, 'C', cN]]){
+  md += `\n### ${title} (${n} of ${list.length})\n\n| # | designation | name | kind | constellation | in the atlas |\n| --- | --- | --- | --- | --- | --- |\n`;
+  for (const r of list) md += `| ${pre}${r[0]} | ${desig(r[1])} | ${r[2]} | ${r[3]} | ${r[4]} | ${cell(f(r))} |\n`;
+}
 fs.writeFileSync(path.join(ROOT, 'docs', 'CATALOG.md'), md);
 fs.writeFileSync(path.join(ROOT, 'docs', 'catalog.json'), JSON.stringify(rows, null, 1));
-console.log(`docs/CATALOG.md: ${rows.length} objects`);
+console.log(`docs/CATALOG.md: ${rows.length} objects · Messier ${mN} of ${MESSIER.length} · Caldwell ${cN} of ${CALDWELL.length}`);
