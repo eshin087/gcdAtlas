@@ -97,7 +97,10 @@ const EPL = (() => {
     }
   }
   function readout(o){
-    const P = o.place, r = P.row; if (!r) return '';
+    const P = o.place, r = P.row;
+    // (moved over the ground by hand: where it is, and the city's time and weather when it is over one)
+    if (!r) return [llTxt(P.la, P.lo) + (o.hNow != null ? ' · ground ' + metres(o.hNow) + ' above sea level' : ''), o.city && typeof ECT !== 'undefined' ? ECT.nowLine(o.city) : '',
+      o.city ? EDT.credit(o.city.ed, true) : 'ground: NASA Blue Marble and GEBCO, about 2.4 km a pixel'].filter(Boolean).join('\n');
     const what = r[1] === 'c' || r[1] === 'C' ? `about ${people(r[4])} people` : r[1] === 'm' ? `${metres(r[4])} above sea level` : `its outline spans about ${Math.round(r[4]).toLocaleString('en-US')} km`;
     // (a city with its own layers: its time and weather, and the credit for its photos and buildings)
     if (o.city) return [`${llTxt(P.la, P.lo)} · about ${people(o.city.facts.population.n)} people`, o.readoutExtra ? o.readoutExtra() : '', EDT.credit(o.city.ed, true)].filter(Boolean).join('\n');
@@ -106,7 +109,7 @@ const EPL = (() => {
   // set a place object to a result
   function setSpot(o, r){
     const [name, kind, la, lo, n] = r, k = kind === 'C' ? 'c' : kind === 'm' ? 'm' : kind === 'c' ? 'c' : 'r', [what] = about(r);
-    o.place = { la, lo, h:kind === 'm' ? n : 0, row:r, kind:k }; o.hNow = null; o.city = null; o.readoutExtra = null;
+    o.place = { la, lo, la0:la, lo0:lo, h:kind === 'm' ? n : 0, row:r, kind:k }; o.hNow = null; o.city = null; o.readoutExtra = null;
     o.name = name; o.type = what;
     o.rad = (k === 'm' ? 3 : k === 'c' ? 5 : clamp(n*0.35, 20, 2000))*KM; o.minZoom = k === 'r' ? 0.05 : 0.3;
     o.views = VIEWS[k];
@@ -116,6 +119,39 @@ const EPL = (() => {
     // (later files dress it up: a city with its own layers, e9c-earth-cities.js)
     for (const f of spotHooks) f(o, r);
     placeSpot(o);
+  }
+  // ---------------------------------------------------------------- moving over the ground by hand (0.13.0, owner: navigating near the ground
+  // should be easy and smooth, like Google Earth): a drag, the wheel toward the cursor, WASD and the arrows move the place the camera looks at,
+  // so the ground follows the mouse. Once it has gone more than a few km from the place it was set to, it is "over" the nearest famous place
+  function panKm(o, dN, dE){
+    const P = o.place; P.la = clamp(P.la + dN/R/DEG, -85, 85); P.lo = ((P.lo + dE/(R*Math.cos(P.la*DEG))/DEG + 540) % 360) - 180;
+    const away = V.len(V.sub(V.mul(unit(P.la, P.lo), R), V.mul(unit(P.la0, P.lo0), R)));
+    if (P.row && away > Math.max(8, 4*o.rad/KM)){
+      P.row = null; o.city = null; o.readoutExtra = null;
+      o.type = 'a place on Earth'; o.fact = 'Drag to move over the ground, right-drag to turn and tilt, scroll toward a spot to go closer. Search or pick a place to fly there.';
+      o.views = [{ d:sphL(orbit.yaw, orbit.pitch), k:orbit.dist/o.rad, hold:30, drift:0 }];
+    }
+    // (moved by hand: named after the nearest famous place, as it goes)
+    if (!P.row){ const near = nearest(P.la*DEG, P.lo*DEG, 400);
+      const nm = near ? 'over ' + near.row[0].replace(/^the /, '') + (near.km > 15 ? ' (' + Math.round(near.km/5)*5 + ' km away)' : '') : 'a place on Earth';
+      if (nm !== o.name){ o.name = nm; if (typeof setInfo === 'function' && infoObj === o.index) setInfo(o.index); } }
+    // (over one of the five cities: its time and weather in the readout)
+    if (!P.row && typeof ECT !== 'undefined'){ const c = ECT.match(P.la, P.lo, null); if (c !== o.city){ o.city = c; } }
+    placeSpot(o);
+  }
+  // a move of the mouse by (dx, dy) CSS pixels, as ground: the place moves the other way, so the ground under the mouse follows it
+  function panPx(o, dx, dy){
+    const s = 2*tanY/viewHcss*orbit.dist/KM, up = M3.apply(earth.rot, o.up);
+    const flat = v => V.sub(v, V.mul(up, V.dot(v, up))), rt = V.norm(flat(cam.right)), f0 = flat(cam.fwd), fw = V.len(f0) > 0.05 ? V.norm(f0) : V.norm(flat(cam.up));
+    const d = V.add(V.mul(rt, -dx*s), V.mul(fw, dy*s/Math.max(Math.sin(Math.max(orbit.pitch, 0.05)), 0.25)));
+    panKm(o, V.dot(d, M3.apply(earth.rot, o.F.n)), V.dot(d, M3.apply(earth.rot, o.F.e)));
+  }
+  // the famous place nearest a point (radians), within maxKm: { row, km }
+  const ALL_PICKS = Object.values(PICKS).flat();
+  function nearest(la, lo, maxKm){
+    const u = V.mul([Math.cos(la)*Math.cos(lo), Math.sin(la), -Math.cos(la)*Math.sin(lo)], R); let best = null, bd = maxKm;
+    for (const r of ALL_PICKS){ const d = V.len(V.sub(u, V.mul(unit(r[2], r[3]), R))); if (d < bd){ bd = d; best = r; } }
+    return best ? { row:best, km:bd } : null;
   }
   // fly down to a result: straight there when the camera is above the place's horizon, else first round to above it (a flight that
   // started on the far side would go through the Earth)
@@ -152,5 +188,5 @@ const EPL = (() => {
   // (while a place on Earth is visited, or flown to, the clock runs in real time, as near a launch pad: at the atlas's usual pace the
   // afternoon it was flown to turned to night on the way)
   const hold = () => { const o = OBJ[orbit.lock]; return !!(o && o.earthSpot && !flight) || !!(flight && (flight.obj.earthSpot || (pend && flight.obj === earth))); };
-  return { can, find, go, about, load, spots, hashOf, fromHash, onLoad, hold, PICKS, spotHooks, get state(){ return state; } };
+  return { can, find, go, about, load, spots, hashOf, fromHash, onLoad, hold, PICKS, ALL_PICKS, spotHooks, panPx, panKm, nearest, get state(){ return state; } };
 })();

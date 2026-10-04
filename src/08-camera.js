@@ -600,7 +600,7 @@ canvas.addEventListener('pointerdown', e => {
   // (on a rocket or its pad a right-drag turns round it like a left drag: a pan let go of it, and the free camera, which moves with the
   // rocket, slid the rocket across the screen as if you were dragging it: owner, 0.10.1)
   const lk = OBJ[orbit.lock], onRocket = LCAM.on || !!(lk && (lk.sx || lk.sxSite));
-  if (pointers.size === 1) drag = { x0:e.clientX, y0:e.clientY, t0:performance.now(), moved:0, pan:(e.button === 2 || e.shiftKey) && !onRocket };
+  if (pointers.size === 1) drag = { x0:e.clientX, y0:e.clientY, t0:performance.now(), moved:0, pan:(e.button === 2 || e.shiftKey) && !onRocket, turn:e.button === 2 || e.ctrlKey };
   else if (drag){ drag.moved = 99; drag.two = null; }   // (a new two-finger gesture starts from here)
   canvas.classList.add('dragging');
 });
@@ -622,9 +622,40 @@ canvas.addEventListener('pointermove', e => {
   drag.moved += Math.abs(dx) + Math.abs(dy);
   if (drag.moved < 4) return;
   beginManual();
+  // (near a surface the ground follows the mouse, and a right-drag or Ctrl-drag turns and tilts: surfaceMode)
+  const S = surfaceMode();
+  if (S){
+    if (S.kind === 'ground' && !drag.turn) EPL.panPx(S.o, dx, dy);
+    else { const k = drag.turn || S.kind === 'ground' ? 0.005 : grabK(S); orbit.yaw -= dx*k; orbit.pitch = clamp(orbit.pitch + dy*k, S.kind === 'ground' ? 0.03 : -1.52, 1.52); }
+    return;
+  }
   if (drag.pan) panBy(dx, dy);
   else { orbit.yaw -= dx*0.005; orbit.pitch = clamp(orbit.pitch + dy*0.005, -1.52, 1.52); }
 });
+// ---------------------------------------------------------------- near a surface (0.13.0, owner: "fix how to navigate zoomed up planets and cities: very easy and smooth"):
+// like Google Earth. Over a place on Earth (the place objects, e7s-earth-search.js) a drag moves over the ground and the ground follows the
+// mouse; close to a planet or moon (within 6 of its radii) a drag turns the globe so the ground under the mouse keeps up with it, where it
+// used to race ten times faster near the surface. Everywhere near a surface: a right-drag or Ctrl-drag turns and tilts, the wheel zooms
+// toward the cursor, W A S D and the arrows glide over the ground, Q E turn, R F tilt. Farther out the camera works as before.
+function surfaceMode(){
+  const o = OBJ[orbit.lock]; if (!o || flight || SKYV.on || shipCam.on || LCAM.on || cmp) return null;
+  if (o.earthSpot) return { kind:'ground', o };
+  if (o.solid && orbit.dist < o.rad*6 && !o.sx && !o.sxSite) return { kind:'globe', o, R:o.rad*o.solid*magOf(o) };
+  return null;
+}
+// (a globe: how far to turn it for a pixel, so the ground under the middle of the view moves with the mouse; never faster than before)
+const grabK = S => Math.min(0.005, 2*tanY/viewHcss*Math.max(orbit.dist - S.R, S.R*1e-4)/S.R);
+// (the wheel's move toward the cursor, still to go: eased over the same time as the zoom)
+const gPend = { x:0, y:0 };
+function groundEase(dt){
+  if (!gPend.x && !gPend.y) return;
+  const S = surfaceMode(); if (!S){ gPend.x = gPend.y = 0; return; }
+  const k = 1 - Math.exp(-dt*7), x = gPend.x*k, y = gPend.y*k; gPend.x -= x; gPend.y -= y;
+  if (Math.abs(gPend.x) + Math.abs(gPend.y) < 0.05) gPend.x = gPend.y = 0;
+  // (toward the cursor: the place moves toward where the mouse is, which is the ground moving the other way)
+  if (S.kind === 'ground') EPL.panPx(S.o, -x, -y);
+  else { const g = grabK(S); orbit.yaw += x*g; orbit.pitch = clamp(orbit.pitch - y*g, -1.52, 1.52); }
+}
 // two fingers (touch screens): the spread zooms exactly as far as the fingers spread (three times apart = three times closer), about the object,
 // never past its surface; moving both fingers together slides it across the screen on the leash, still locked on (in free camera: a pan).
 // A slide only starts once the fingers clearly travel together, so a pinch whose middle drifts a little stays a pure zoom.
@@ -679,7 +710,29 @@ canvas.addEventListener('pointercancel', endPointer);
 function onWheel(e){ e.preventDefault();
   // riding along: the wheel moves the chase camera nearer or further back instead of letting go of the ship
   if (shipCam.on && shipCam.mode === 'chase'){ shipCam.zoom = clamp(shipCam.zoom*Math.exp(clamp(e.deltaY*(e.deltaMode ? 0.06 : 0.0022), -0.6, 0.6)), 0.55, 4); return; }
-  beginManual(); zoomBy(Math.exp(clamp(e.deltaY*(e.deltaMode ? 0.06 : 0.0022), -0.6, 0.6))); }
+  const f = Math.exp(clamp(e.deltaY*(e.deltaMode ? 0.06 : 0.0022), -0.6, 0.6));
+  // (the rest of a scroll that snapped down onto a place does not stop the flight there; scrolling out still does)
+  if (f < 1 && flight && performance.now() - snapAt < 6000) return;
+  beginManual();
+  const S = surfaceMode();
+  // (close to Earth and zooming in further: down onto the famous place nearest the cursor, the way into the ground and cities; owner, 0.13.0)
+  if (f < 1 && orbit.lock === earth.index && FLAGS.realEarth && orbit.distT <= earth.rad*earth.minZoom*1.02 && snapToPlace(e.clientX, e.clientY)) return;
+  zoomBy(f);
+  // (near a surface the zoom goes toward the cursor: the part of the way the zoom covers, eased with it)
+  if (S){ const c = projectCSS(V.add(OBJ[orbit.lock].rel, S.kind === 'ground' ? orbit.off : [0, 0, 0])) || { x:viewWcss/2, y:canvasHcss/2 };
+    const t = 1 - f; gPend.x += (e.clientX - c.x)*t; gPend.y += (e.clientY - c.y)*t; } }
+// the famous place on Earth nearest the cursor (within 1,500 km of the ground under it): fly down to it. False if the cursor is off the Earth
+let snapAt = -1e9;
+function snapToPlace(cx, cy){
+  if (performance.now() - snapAt < 1500) return true;
+  const ray = cssRay(cx, cy); if (!ray) return false;
+  const c = V.sub(frel(earth), cam.rel), Re = EARTH_R*KM, b = V.dot(ray, c), h = b*b - V.dot(c, c) + Re*Re; if (h < 0) return false;
+  const p = V.sub(V.mul(ray, b - Math.sqrt(h)), c), u = V.norm(M3.applyT(earth.rot, p)), la = Math.asin(clamp(u[1], -1, 1)), lo = Math.atan2(-u[2], u[0]);
+  const n = EPL.nearest(la, lo, 1500); if (!n) return false;
+  snapAt = performance.now(); EPL.go(n.row); toast('down to ' + n.row[0] + ' · scroll out to leave'); return true;
+}
+// the direction through a point of the canvas (CSS pixels), in world axes
+function cssRay(cx, cy){ const x = (cx/viewWcss*2 - 1)*tanX, y = (1 - cy/canvasHcss*2)*tanY; return V.norm(V.add(V.add(cam.fwd, V.mul(cam.right, x)), V.mul(cam.up, y))); }
 // labels and the Halo's brackets sit on top of the scene: a wheel over them zooms like a wheel over the sky (it used to do nothing)
 for (const el of [canvas, $('#labels'), $('#shipMark')]) el.addEventListener('wheel', onWheel, {passive:false});
 
@@ -784,7 +837,20 @@ function stepAngle(dir){
   updateModeUI();
 }
 function updateKeys(dt){
+  groundEase(dt);
   if (!keys.size) return;
+  // (near a surface: W S and the up and down arrows glide forward and back over the ground, A D and left and right sideways, Q E turn,
+  // R F tilt, at a speed that suits the height: about half the view a second)
+  const S = surfaceMode();
+  if (S){
+    const fw = (keys.has('w') || keys.has('arrowup') ? 1 : 0) - (keys.has('s') || keys.has('arrowdown') ? 1 : 0), sd = (keys.has('d') || keys.has('arrowright') ? 1 : 0) - (keys.has('a') || keys.has('arrowleft') ? 1 : 0);
+    const turn = (keys.has('e') ? 1 : 0) - (keys.has('q') ? 1 : 0), tilt = (keys.has('r') ? 1 : 0) - (keys.has('f') ? 1 : 0), px = viewHcss*0.5*dt;
+    if (S.kind === 'ground'){ if (fw || sd) EPL.panPx(S.o, -sd*px, fw*px); }
+    else if (fw || sd){ const g = grabK(S); orbit.yaw += sd*px*g; orbit.pitch = clamp(orbit.pitch + fw*px*g, -1.52, 1.52); }
+    if (turn) orbit.yaw -= turn*dt*0.9;
+    if (tilt) orbit.pitch = clamp(orbit.pitch + tilt*dt*0.7, S.kind === 'ground' ? 0.03 : -1.52, 1.52);
+    return;
+  }
   const f = (keys.has('w')?1:0) - (keys.has('s')?1:0), r = (keys.has('d')?1:0) - (keys.has('a')?1:0), u = (keys.has('r')||keys.has('e')?1:0) - (keys.has('f')||keys.has('q')?1:0);
   if (keys.has('arrowleft')) orbit.yaw += dt*1.2;
   if (keys.has('arrowright')) orbit.yaw -= dt*1.2;

@@ -565,6 +565,9 @@ void main(){
   float thin = exp(-CALT/8500.);
   float lit = 0.04 + 0.96*smoothstep(-0.1, 0.2, sunE);   // how bright the day is: full with the Sun 12 degrees up (a camera's exposure follows the light: at 20 degrees a dawn launch came out murky), dim at night
   float near = smoothstep(30000., 8000., CALT);   // (above 30 km the ground shows as Earth's shader shows it, below 8 km brighter and richer)
+  // (a city (uP4.z < 0) at night: the eyes adjust, as they do in a city at night: the picture brightened about 2.6 times, so the buildings
+  // show by moonlight and the glow of the streets; owner, 0.13.0: the cities were hard to see at night)
+  float nightK = 1. - smoothstep(-0.12, 0.05, sunE), cityK = uP4.z < 0. ? 1. : 0., expo = mix(1., 2.6, nightK*cityK);
   vec3 col; float a;
   // the ground: march the heights near the camera (then halve the last step a few times), else the sea-level curve
   float t = -1., water = 0., ok = 0.;
@@ -621,7 +624,7 @@ void main(){
       // (waves tilt the water: it mirrors a higher, darker part of the sky than a flat mirror would, and never all of it, so the sea stays
       // darker than the sky at the horizon)
       vec3 rr = reflect(d, nw); rr.y = max(abs(rr.y), 0.12); rr = normalize(rr);
-      float F = min(0.02 + 0.98*pow(1. - max(-dot(d, nw), 0.), 5.), 0.35);
+      float F = min(0.02 + 0.98*pow(1. - max(-dot(d, nw), 0.), 5.), cityK > 0.5 ? 0.18 : 0.35);   // (a city's water mirrors less: it was as bright as the city, and the city vanished into it)
       // (the water's own colour: the photo's, turned bluer, so a murky coast still reads as sea and a dark lagoon never as a hole; one colour on the open sea)
       float eg, op = cov > 0.5 ? edWide(seaPt(p.xz), eg).a : 1.;
       vec3 deep = vec3(0.03, 0.1, 0.2), ocn = vec3(0.03, 0.12, 0.24), wi = mix(img*vec3(0.7, 0.85, 1.05), vec3(0.04, 0.13, 0.25), 0.55);
@@ -635,7 +638,7 @@ void main(){
       // about the land, brighter)
       // (over the ground anywhere (uP4.z) the image is Blue Marble at 2.4 km, darker and softer than a photo: as it is, a little lifted, or
       // its forests turned black)
-      if(cov > 0.5) base = mix(fromSpace(edLin(img), sunE), (uP4.z > 0. ? img*1.08 + 0.02 : grade(img))*(uP4.z < 0. ? 1.05 : mix(0.6, 0.9, smoothstep(300., 1500., CALT)))*lit, near);
+      if(cov > 0.5) base = mix(fromSpace(edLin(img), sunE), (uP4.z > 0. ? img*1.08 + 0.02 : grade(img))*(uP4.z < 0. ? 1.35 : mix(0.6, 0.9, smoothstep(300., 1500., CALT)))*lit, near);
       else {
         float h = fbm3(vec3(p.xz*0.004, 2.)), h2 = noise(vec3(p.xz*0.03, 5.));
         base = mix(vec3(0.5, 0.45, 0.33), vec3(0.3, 0.36, 0.2), smoothstep(0.4, 0.6, h))*(0.8 + 0.4*h2);
@@ -647,6 +650,13 @@ void main(){
       // warm at night, as street lights do (illustrative)
       vec3 glowC = vec3(0.);
       if(uP4.z < 0. && cov > 0.5){
+        // (how far this stands above the lowest ground within 18 m: a roof is brighter than the street beside it, a street darker, so the
+        // blocks stand out from the ground in characters; 0.13.0, owner: the cities looked empty, camouflaged)
+        float m = gy, w1, k1;
+        for(int j=ZI;j<4;j++){ vec2 o2 = j == 0 ? vec2(18., 0.) : j == 1 ? vec2(-18., 0.) : j == 2 ? vec2(0., 18.) : vec2(0., -18.); m = min(m, groundY(p.xz + o2, w1, k1)); }
+        float roof = smoothstep(3., 12., gy - m)*(1. - thinHit);
+        base *= mix(0.72, 1.3, roof);
+        glowC += vec3(0.04, 0.05, 0.08)*mix(0.5, 1., roof)*nightK;   // (moonlight and the city's skyglow on its roofs)
         float wl = smoothstep(0.3, 0.7, wall)*(1. - thinHit), hA = altOf(p, e), nt = 1. - smoothstep(-0.12, 0.05, sunE);
         vec2 tn = normalize(vec2(-n.z, n.x) + vec2(1e-5, 0.)); float wu = dot(p.xz, tn);
         vec2 cell = floor(vec2(wu/2.6, hA/3.6)), fw = fract(vec2(wu/2.6, hA/3.6));
@@ -666,10 +676,10 @@ void main(){
       if(hl > 0.93 && length(p.xz) < 1400. && uP4.z == 0.){ vec2 f = fract(p.xz/35.) - 0.5; g += vec3(1., 0.7, 0.35)*exp(-dot(f, f)*60.)*(1. - day)*0.5; }
       vec3 lv = uP3.xyz - p; g += base*vec3(1., 0.55, 0.22)*uP3.w*1.5*max(dot(n, normalize(lv)), 0.)/(1. + dot(lv, lv)*4e-6);
     }
-    g = mix(g, haze, hazeF(t, thin));
+    g = mix(g, haze, hazeF(t, thin)*(1. - 0.6*cityK));   // (less over a city: its skyline far off was washed out)
     col = g; a = 1.;
   } else {
-    col = skyCol(d, L, day);
+    col = skyCol(d, L, day) + vec3(0.2, 0.12, 0.06)*nightK*cityK*exp(-max(d.y - DIP, 0.)*9.)*thin;   // (a city's glow low in the night sky)
     float tw = smoothstep(-0.18, 0.02, sunE)*smoothstep(0.25, 0.0, sunE);
     a = clamp((0.25 + 0.74*day)*mix(0.35, 1., thin) + 0.3*tw, 0., 0.99);
   }
@@ -692,6 +702,6 @@ void main(){
     if(tM < tL){ X = A1; A1 = A2; A2 = X; }
     vec3 cc = A1.rgb + A1.a*(A2.rgb + A2.a*A3.rgb); float Tc = A1.a*A2.a*A3.a;
     col = col*Tc + cc; a = 1. - (1. - a)*Tc; }
-  outCol(unTone(col)*fade, a*fade);
+  outCol(unTone(col)*expo*fade, a*fade);
 }`;
 P.sxEnv = program(VS_RECT, FS_SX_ENV);

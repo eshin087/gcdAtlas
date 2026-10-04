@@ -491,7 +491,9 @@ function drawEnv(){
   // (over one of the five cities, the city: its own layers, the ground anywhere round them; e9c-earth-cities.js, 0.13.0)
   const city = ECT.envSite(cf); if (city){ best = city; bd = 0; }
   // (away from the launch sites, the ground anywhere, baked from the tiles: e7g-earth-ground.js, 0.12.0)
-  else if ((!best || bd > 420) && EGR.ready){ best = EGR.site; bd = 0; }
+  // (a launch site only within 150 km of its pads: farther, the ground and weather of the place itself. Los Angeles, 200 km from Vandenberg,
+  // was drawn with Vandenberg's sea fog over it)
+  else if ((!best || bd > 150) && EGR.ready){ best = EGR.site; bd = 0; }
   if (!best || bd > 700) return;
   const fade = (1 - smooth(22, 85, alt))*(best.ground ? EGR.fade : best.city ? 1 : 1 - smooth(350, 700, bd));
   if (fade < 0.01) return;
@@ -540,7 +542,8 @@ function wxWant(){
     .catch(e => { WX.state = 3; WX.last = GT; console.info('weather unavailable, a fair day instead (' + e + ')'); });
 }
 function wxAt(padKey, ms){
-  if (padKey === 'ground') return Object.assign({ key:padKey }, WX_CLEAR);
+  // (the ground anywhere: the cloud cover of the real clouds' picture round the place, 0.13.0; a clear day without it)
+  if (padKey === 'ground'){ const G = EGR.site, w = G.p ? ECLD.wxAt(G.la, G.lo) : null; return Object.assign({ key:padKey }, w || WX_CLEAR); }
   const key = WX_SITE[padKey] || 'cape', d = WX.data && WX.data.sites && WX.data.sites[key];
   if (!d || !d.low || !d.low.length) return Object.assign({ key }, WX_FAIR);
   const i = clamp(Math.round((ms/1000 - WX.data.t0)/(WX.data.step || 3600)), 0, d.low.length - 1), g = k => (d[k] && d[k][i] != null) ? d[k][i] : WX_FAIR[k];

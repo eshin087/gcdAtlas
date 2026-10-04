@@ -16,6 +16,13 @@ uniform sampler2D uEgC0; uniform sampler2D uEgC1; uniform sampler2D uEgD; unifor
 // 0 January's detail, 1 July's), uEt: x 1 while any tile is in, y z the tiles across and down, w a tile texel at the equator (m)
 precision highp sampler2DArray;
 uniform sampler2DArray uEtC; uniform sampler2DArray uEtD; uniform sampler2D uEtI; uniform vec4 uEt;
+// the real clouds (e5c-earth-clouds.js): NASA GIBS's true-colour picture of a recent day; cloud is what is white in it, less where the month's
+// Blue Marble is white too (snow and ice); uCl.x how far it has faded in (0: the made-up clouds)
+uniform sampler2D uClT; uniform vec4 uCl;
+float cloudReal(vec2 uv, float lod){
+  vec3 s = textureLod(uClT, uv, lod).rgb; vec3 b = textureLod(uEgC0, uv, lod + 1.).rgb;
+  return smoothstep(0.42, 0.85, min(s.r, min(s.g, s.b)))*(1. - 0.85*smoothstep(0.45, 0.75, min(b.r, min(b.g, b.b))));
+}
 #endif
 vec2 euv(vec3 n){ float lat = asin(clamp(n.y, -1., 1.)), lon = atan(-n.z, n.x); return vec2(lon*0.15915494 + 0.5, 0.5 - lat*0.31830989); }
 vec4 etex(vec3 n, float lod){ return textureLod(uTex, euv(n), lod); }
@@ -164,7 +171,10 @@ void main(){
     vec2 sto = storms(n, t);
     float cl = max(clouds(n, t)*(1. - 0.75*sto.y), sto.x);
     // clouds cast soft shadows a little way from themselves
-    float cls = clouds(normalize(n + L*0.012), t);
+    float cls = clouds(normalize(n + L*0.012), t), realCl = 0.;
+#ifdef EG_ON
+    if(uCl.x > 0.001){ realCl = uCl.x; cl = mix(cl, cloudReal(euv(n), lod), realCl); cls = mix(cls, cloudReal(euv(normalize(n + L*0.012)), lod + 1.), realCl); }
+#endif
     vec3 lit = surf*dif*(1. - 0.55*cls)*1.25;
     vec3 hv = normalize(L - d); float gl = pow(max(dot(n, hv), 0.), 90.)*(1. - land)*(1. - cl);
     lit += vec3(1., 0.92, 0.75)*gl*1.6*dif;
@@ -191,7 +201,8 @@ void main(){
         col = mix(col, vec3(0.45, 0.4, 0.34)*(dif + 0.02), box*0.18*fpatch*day*(1. - cl)); } }
     // lightning: a storm cloud lit from inside for a moment, a soft patchy glow about a hundred kilometres across rather than a
     // point of light, with a faint brighter core where the bolt is (only visible on the night side)
-    for(int i=0;i<6;i++){ vec4 f = uFlash[i]; if(f.w <= 0.) continue; float d = length(n - f.xyz); if(d > 0.06) continue;
+    // (with the real clouds, only where they are thick)
+    for(int i=0;i<6;i++){ vec4 f = uFlash[i]; f.w *= mix(1., smoothstep(0.45, 0.8, cl), realCl); if(f.w <= 0.) continue; float d = length(n - f.xyz); if(d > 0.06) continue;
       float cloudTop = 0.35 + 0.9*noise(n*150. + float(i)*3.1);
       col += vec3(0.72, 0.8, 1.)*f.w*(exp(-d*d/0.00035)*0.55*cloudTop + exp(-d*d/0.00003)*0.35)*(1. - 0.9*day); }
     if(era > 3.) col += vec3(1., 0.36, 0.08)*pow(noise(n*16. + t*0.02), 3.)*(era - 3.)*2.5;   // the magma ocean glows on its own

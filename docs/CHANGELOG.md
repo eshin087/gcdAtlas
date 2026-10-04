@@ -16,6 +16,14 @@ All notable changes, newest first. Dates are UTC.
 - The slender towers the height images cannot hold (the Eiffel Tower, Tokyo Tower, the Skytree, the BT Tower, masts and chimneys) are drawn as shapes of their own at their real sizes, a tapering lattice or a straight shaft (`uThin`), lit gold at night.
 - `tests/earth.mjs` flies to New York and checks its layers, its lights and its readout.
 
+Round 2 (owner, 2026-10-04: the cities were hard to see and looked empty; navigating near the ground and planets was hard; how should people come across the places; Los Angeles was under thick unnatural clouds; the cities were hard to see at night):
+- The cities easy to see: roofs brighter than the streets beside them (how far a point stands above the lowest ground within 18 m), a third more light by day, water that mirrors less and less haze over a city. At night the eyes adjust (the picture 2.6 times brighter, moonlight on the roofs, the city's glow low in the sky), as one sees a city at night.
+- The real clouds (`e5c-earth-clouds.js`, `ECLD`; the back end `api/clouds.js` from `data/earth-live`): NASA GIBS's true-colour picture of a recent day (VIIRS, a day or two old) replaces the made-up clouds and storms on Earth; white is cloud, less where the month's Blue Marble is white too (snow, ice). Near the ground anywhere the sky's cloud cover comes from the same picture round the place; the pads and the five cities keep their hourly forecasts. The readout credits it with its day. `/api/quakes` and `/api/fires` came with it, unused until phase 5.
+- Los Angeles's thick clouds were Vandenberg's: a launch site's ground and weather reached 420 km from its pads. Now 150 km; farther, a place has its own ground and its own clouds.
+- Near a surface it moves like Google Earth (`surfaceMode` in 08-camera.js): over a place on Earth a drag moves over the ground (`EPL.panPx`), close to a planet a drag turns the globe so the ground follows the mouse (it raced ten times faster); a right-drag or Ctrl-drag turns and tilts, the wheel zooms toward the cursor (eased), W A S D and the arrows glide, Q E turn, R F tilt. A place moved far by hand is "over" the nearest famous place.
+- Coming across places: the famous places are marked on the globe once it is big on the screen (`earthMarks` in 09-render.js; the five cities first, marked 3D; click to fly down), and scrolling in at Earth's closest zoom flies down to the famous place nearest the cursor (`snapToPlace`).
+- The slender towers (the Eiffel Tower, Tokyo Tower, the Skytree, the BT Tower, masts and chimneys) are drawn as shapes of their own at their real sizes (`uThin`), the Eiffel Tower lit gold at night.
+
 ## 0.12.0 · 2026-10-03
 
 **Fly down anywhere** (phase 2 of `docs/EARTH_PLAN.md`)

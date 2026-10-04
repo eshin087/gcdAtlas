@@ -459,6 +459,16 @@ function uiRects(){
   if (!settingsEl.hidden) r.push(settingsEl.getBoundingClientRect());
   return r;
 }
+// the marks of places on Earth: the famous places of the atlas's "on Earth" kind (EPL.PICKS); m.min: how big Earth must be on the screen (px)
+const earthMarks = FLAGS.realEarth ? EPL.ALL_PICKS.map(r => {
+  const city3d = typeof ECT !== 'undefined' && ECT.match(r[2], r[3], r[0]), k = r[1];
+  const el = document.createElement('button'); el.className = 'lab emark' + (city3d ? ' e3d' : ''); el.tabIndex = -1;
+  el.textContent = r[0] + (city3d ? ' · 3D' : ''); el.title = 'Fly down to ' + r[0];
+  el.addEventListener('click', () => { hideHint(); EPL.go(r); });
+  $('#labels').appendChild(el);
+  return { el, row:r, u:[Math.cos(r[2]*DEG)*Math.cos(r[3]*DEG), Math.sin(r[2]*DEG), -Math.cos(r[2]*DEG)*Math.sin(r[3]*DEG)],
+    pri:city3d ? 3 : k === 'C' || k === 'c' ? 1.2 + Math.log10(r[4])*0.1 : k === 'm' ? 1 + r[4]/9000 : 0.8, min:city3d ? 110 : k === 'C' || k === 'c' ? 135 : 230 };
+}) : [];
 function updateLabels(){
   const focus = tour.on ? tour.obj : orbit.lock;
   const clean = focus >= 0 ? focus : cam.focus;   // the object whose disc stays free of other labels (in free flight: the one the camera is centred on)
@@ -488,6 +498,19 @@ function updateLabels(){
       if (f < 0.02) return;
       cand.push({ i:-1, el:starEls[j], pr, rpx:2, pri:-1 + Math.log10(f)*0.5 }); });
   }
+  // places on Earth (0.13.0, owner: a natural way to come across the cities and landmarks without a search): famous places marked on the globe
+  // once it is big on the screen, the five cities in 3D first (with a mark that says so), mountains and regions only closer; a click flies down
+  earthMarks.forEach(m => { m.el._show = false; });
+  if (labelsOn && FLAGS.realEarth && !SKYV.on && ATM.k < 0.3 && earth.rpx > 110 && !earth.hidden && !cmp){
+    const RE = EARTH_R*KM;
+    for (const m of earthMarks){
+      if (m.min > earth.rpx) continue;
+      const nw = M3.apply(earth.rot, m.u), rel = V.add(earth.rel, V.mul(nw, RE));
+      if (V.dot(nw, rel) > -0.12*V.len(rel)) continue;   // (on the far side, or too near the edge of the disc)
+      const pr = projectCSS(rel); if (!pr) continue;
+      cand.push({ i:-2, el:m.el, pr, rpx:2, pri:m.pri, earthMark:true });
+    }
+  }
   // labels hide behind planets, stars and black holes that stand in front of them
   const occ = [];
   for (const o of OBJ){
@@ -501,7 +524,7 @@ function updateLabels(){
   if (fo && labelsOn){ const pr = projectCSS(fo.rel); if (pr){ const R = fo.holeR || fo.rad*(fo.solid || fo.labelDisc || 0.6); fd = { x:pr.x, y:pr.y, r:R/(pr.z*tanY)*(viewHcss/2), z:pr.z, R }; }
     else if (fo.dist < fo.rad) fd = { x:0, y:0, r:1e9, z:0, R:fo.rad }; }
   const overFocus = (c, lx, ly, w, h) => {
-    if (!fd || c.i === clean || fd.r < 10) return false;
+    if (!fd || c.i === clean || fd.r < 10 || c.earthMark) return false;   // (places on Earth belong on it)
     const oc = c.i >= 0 ? OBJ[c.i] : null;
     if (oc && !oc.marker && c.rpx > 12 && c.pr.z < fd.z - fd.R) return false;
     const nx = clamp(fd.x, lx, lx + w), ny = clamp(fd.y, ly, ly + h);
@@ -522,7 +545,9 @@ function updateLabels(){
   // labels fade in and out (CSS) rather than popping
   for (const el of labelEls) if (el.classList.contains('on') !== el._show) el.classList.toggle('on', el._show);
   for (const el of starEls) if (el.classList.contains('on') !== el._show) el.classList.toggle('on', el._show);
+  for (const m of earthMarks) if (m.el.classList.contains('on') !== m.el._show) m.el.classList.toggle('on', m.el._show);
 }
+
 function updateHUD(dt){
   roTimer -= dt;
   if (roTimer <= 0){
@@ -1733,7 +1758,7 @@ tick(0);
 if (!applyHash()) tourGo(TOUR[0], true);
 tick(0);
 updateModeUI(); syncTimeUI();
-window.__cosmos = { get egl(){ return typeof EGL !== 'undefined' ? EGL : null; }, get etl(){ return ETL; }, get egr(){ return EGR; }, get epl(){ return EPL; }, get ect(){ return ECT; }, startTour, playFlyby, setMove(o, v, f){ flight = null; tween = null; tourGo(o.index, true); tour.on = false; flyMove = { o, v, t:f*v.hold, frozen:true }; },  get flyMove(){ return flyMove; }, startCompare, endCompare, setDeep, viewHash, applyHash, get cmp(){ return cmp; }, get ssRate(){ return ssRate; }, set ssRate(v){ ssRate = v; }, dbg:{ imp, impSpec, atlas, sphereRect, get tan(){ return [tanX, tanY]; }, get cols(){ return cols; }, get sceneH(){ return sceneH; }, get LODK(){ return LODK; }, PROGS }, OBJ, BYKEY, tourGo, lockOn, setTour, cam, orbit, tour, TOUR, SET, setOpt, music, LADDER, goLadder,
+window.__cosmos = { get egl(){ return typeof EGL !== 'undefined' ? EGL : null; }, get etl(){ return ETL; }, get egr(){ return EGR; }, get epl(){ return EPL; }, get ect(){ return ECT; }, get ecld(){ return ECLD; }, startTour, playFlyby, setMove(o, v, f){ flight = null; tween = null; tourGo(o.index, true); tour.on = false; flyMove = { o, v, t:f*v.hold, frozen:true }; },  get flyMove(){ return flyMove; }, startCompare, endCompare, setDeep, viewHash, applyHash, get cmp(){ return cmp; }, get ssRate(){ return ssRate; }, set ssRate(v){ ssRate = v; }, dbg:{ imp, impSpec, atlas, sphereRect, get tan(){ return [tanX, tanY]; }, get cols(){ return cols; }, get sceneH(){ return sceneH; }, get LODK(){ return LODK; }, PROGS }, OBJ, BYKEY, tourGo, lockOn, setTour, cam, orbit, tour, TOUR, SET, setOpt, music, LADDER, goLadder,
   land:(extra = 0.2) => { let n = 0; while (flight && n < 60*180){ tick(1/60); n++; } for (let i=0;i<extra*60;i++) tick(1/60); return n/60; },
   setDays:d => { ssDays = d; }, get days(){ return ssDays; }, stepObject, stepAngle, get tourId(){ return TOUR_ID; }, get tourGen(){ return TOUR_GEN; }, randomSeed:n => { RSEED = n >>> 0; }, samePlace, tourable, tourPool, tripClear, dealRandom, RANDOM_W, tripW:(a, b) => tripWeight(tripEnd(a), tripEnd(b)), get nextDeal(){ return nextDeal; }, get stepTarget(){ return flight ? (flight.dest || flight.obj).key : null; }, get via(){ return flight && flight.via ? flight.via.key : null; }, PASS,
   startShipCam, stopShipCam, setShipCamMode, get shipCam(){ return shipCam; }, SHIP_POSE, get show(){ return show; }, togglePlay, get flight(){ return flight; },

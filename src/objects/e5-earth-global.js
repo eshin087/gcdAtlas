@@ -16,7 +16,14 @@ const EGL = (() => {
     if (e.state || !can) return e;
     e.state = 1;
     fetch('earth/' + file).then(r => r.ok ? r.blob() : Promise.reject(r.status))
-      .then(b => createImageBitmap(b, { premultiplyAlpha:'none', colorSpaceConversion:'none' }))
+      .then(async b => {
+        // (a month's colours also small on the CPU, 512 x 256: where it is white (snow, ice) the real clouds' picture is not taken for cloud
+        // near the ground, e5c-earth-clouds.js)
+        if (F.color.includes(file)) try { const s = await createImageBitmap(b, { resizeWidth:512, resizeHeight:256, resizeQuality:'medium' });
+          const cv = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(512, 256) : Object.assign(document.createElement('canvas'), { width:512, height:256 });
+          const cx = cv.getContext('2d', { willReadFrequently:true }); cx.drawImage(s, 0, 0); const px = cx.getImageData(0, 0, 512, 256).data, m = new Uint8Array(512*256);
+          for (let i=0;i<m.length;i++) m[i] = Math.min(px[i*4], px[i*4 + 1], px[i*4 + 2]); e.cpu = m; if (s.close) s.close(); } catch (er) { e.cpu = null; }
+        return createImageBitmap(b, { premultiplyAlpha:'none', colorSpaceConversion:'none' }); })
       .then(img => {
         if (glLost){ e.state = 0; return; }
         const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
@@ -82,5 +89,8 @@ const EGL = (() => {
     orbit.lock = earth.index; cam.focus = earth.index; orbit.frame = camFrameOf(earth); const d = M3.applyT(orbit.frame, M3.apply(earth.rot, u));
     orbit.yaw = Math.atan2(d[0], d[2]); orbit.pitch = Math.asin(d[1]); orbit.dist = orbit.distT = earth.rad*k; orbit.off = [0, 0, 0]; orbit.target = [0, 0, 0]; applyOrbit(); return 1;
   }
-  return { SZ, months, lookAt, bind, set off(v){ off = !!v; fade = 0; }, get on(){ return fade > 0; }, get fade(){ return fade; }, get ready(){ return Object.keys(T).filter(f => T[f].state === 2); }, tick };
+  // how white the month's map is at u, v (0 to 1, from the CPU copy; 0 before it is in): snow and ice
+  function snowAt(u, v){ const M = months(), e = T[F.color[M.a]] || T[F.color[M.b]]; if (!e || !e.cpu) return 0;
+    const x = ((Math.floor(u*512) % 512) + 512) % 512, y = clamp(Math.floor(v*256), 0, 255); return smooth(0.45, 0.75, e.cpu[y*512 + x]/255); }
+  return { SZ, months, lookAt, bind, snowAt, set off(v){ off = !!v; fade = 0; }, get on(){ return fade > 0; }, get fade(){ return fade; }, get ready(){ return Object.keys(T).filter(f => T[f].state === 2); }, tick };
 })();
