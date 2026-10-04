@@ -12,7 +12,8 @@ export const CITIES = [
       { id:'midtown', name:'Midtown', la:40.752, lo:-73.982, size:3200, px:2048, bld:true },
       { id:'fidi', name:'Lower Manhattan', la:40.711, lo:-74.010, size:3200, px:1536, bld:true } ],
     airports:[ { iata:'JFK', size:6400 }, { iata:'LGA', size:3200 }, { iata:'EWR', size:5120 } ] },
-  { key:'tokyo', name:'Tokyo', la:35.6812, lo:139.7671, drive:'left', photo:'gsi', bldKm:1.6, thin:[{ la:35.65855, lo:139.74543, r:90 }, { la:35.71007, lo:139.81071, r:110 }],   // (Tokyo Tower and Tokyo Skytree)
+  { key:'tokyo', name:'Tokyo', la:35.6812, lo:139.7671, drive:'left', photo:'gsi', bldKm:1.6, seaSkip:/Disney|Splash Mountain|Jungle Cruise|Gondola|Mark Twain|Canoe|Lost River|Mediterranean Harbor|American Waterfront|Venetian|Beaver Brothers|Port Discovery|Explorer/i,   // (the boats and landings of the theme parks)
+ thin:[{ la:35.65855, lo:139.74543, r:90 }, { la:35.71007, lo:139.81071, r:110 }],   // (Tokyo Tower and Tokyo Skytree)
 
     layers:[
       { id:'r51', name:'The region', la:35.64, lo:139.76, size:51200, px:1024, bld:false },

@@ -1,8 +1,15 @@
 // OpenStreetMap through Overpass, read into small things: building footprints with heights, water and coast, roads, airports, ferries and ports, tall buildings.
 // Everything here is cached by tools/lib/city-common.mjs (the raw answers gzipped, the readings of the building tiles too), so a rerun asks for nothing.
-import { overpass, readGz, writeGz, gridTiles, haversine, bearing, D2R } from './city-common.mjs';
+import fs from 'node:fs';
+import { overpass, readGz, writeGz, cacheFile, gridTiles, haversine, bearing, D2R } from './city-common.mjs';
 
 // ---------------------------------------------------------------- tags
+// the name a visitor reads: the English one if OpenStreetMap has it, else the local one if it is in Latin letters (Paris, London), else nothing (Arabic, Japanese: the page has no use for it)
+export function nameOf(t){
+  const en = t['name:en'], loc = t.name;
+  if (en) return en;
+  return loc && /[A-Za-zÀ-ÿ]/.test(loc) && !/[؀-ۿ぀-ヿ一-鿿가-힯]/.test(loc) ? loc : '';
+}
 // a height tag in metres, feet ("1776'", "12 ft") or with a unit ("45 m"); null when it is not a number
 export function parseHeight(s){
   if (s == null) return null;
@@ -33,8 +40,9 @@ function buildingFeatures(j){
     if (!rings.length) continue;
     const kind = t.building && t.building !== 'yes' ? t.building : t['building:part'] && t['building:part'] !== 'yes' ? t['building:part'] : 'yes';
     let h = parseHeight(t.height ?? t['building:height']); const lv = parseFloat(t['building:levels']), mh = parseHeight(t.min_height) || 0;
-    // (heights over 120 m must be a named landmark or have the levels to match: others are typing mistakes in the data)
-    if (h != null && (h < 1 || h > 120 && !(t.name || t.wikidata || lv >= h/6) || h > 900)) h = null;
+    // (heights over 120 m must be a named landmark, have the levels to match, or be one of the parts a tower is mapped in (Burj Khalifa is 40 of them, to its 828 m spire):
+    // others are typing mistakes in the data)
+    if (h != null && (h < 1 || h > 120 && !(t.name || t.wikidata || t['building:part'] || lv >= h/6) || h > 900)) h = null;
     if (h == null) h = guessHeight(kind, lv);
     if (t['building:part'] && mh > 0.5*h) continue;   // (a part floating high above the ground would be a pillar in a height map)
     out.push({ i:el.type[0] + el.id, h:Math.round(h*10)/10, k:kind, r:rings.map(r => r.flat()) });
@@ -44,18 +52,19 @@ function buildingFeatures(j){
 export async function buildingsTile(tile, depth = 0){
   const key = `bldf_${tile.key}_${tile.bb.join('_')}.json.gz`, hit = readGz(key);
   if (hit) return hit;
-  const b = tile.bb.join(',');
+  const b = tile.bb.join(','), qs = quarters(tile);
+  const compose = async () => { const seen = new Set(), f = []; for (const q of qs) for (const x of await buildingsTile(q, depth + 1)) if (!seen.has(x.i)){ seen.add(x.i); f.push(x); } return f; };
   let f;
-  try {
+  // (a tile that was answered in four quarters before: from those again, without asking for the whole)
+  if (qs.every(q => fs.existsSync(cacheFile(`bldf_${q.key}_${q.bb.join('_')}.json.gz`)))) f = await compose();
+  else try {
     const j = await overpass(`(way["building"](${b});way["building:part"](${b});relation["building"]["type"="multipolygon"](${b});relation["building:part"]["type"="multipolygon"](${b}););out geom;`, 'bld', depth ? 4 : 3);
     f = buildingFeatures(j);
   } catch (e) {
     // (a dense tile that the server cannot answer in time: ask for its four quarters instead)
     if (depth >= 2) throw e;
     console.log(`\n  tile ${tile.key} too heavy (${e.message.slice(0, 80)}): in four`);
-    const [s, w, n, ea] = tile.bb, ms = (s + n)/2, mw = (w + ea)/2, seen = new Set(); f = [];
-    for (const [i, bb] of [[s, w, ms, mw], [s, mw, ms, ea], [ms, w, n, mw], [ms, mw, n, ea]].entries())
-      for (const x of await buildingsTile({ key:tile.key + 'q' + i, bb:bb.map(v => +v.toFixed(5)) }, depth + 1)) if (!seen.has(x.i)){ seen.add(x.i); f.push(x); }
+    f = await compose();
   }
   writeGz(key, f); return f;
 }
@@ -140,7 +149,7 @@ export async function airportInfo(iata, cityBox){
   // (the one with a name, and the biggest if several: a few airports are mapped twice, as an area and a node)
   const el = els.sort((a, b) => (b.tags.name ? 1 : 0) - (a.tags.name ? 1 : 0))[0];
   if (!el) throw new Error('no aerodrome ' + iata);
-  const c = el.center || { lat:el.lat, lon:el.lon }, out = { iata, name:el.tags.name || '', la:c.lat, lo:c.lon, ele:parseHeight(el.tags.ele), icao:el.tags.icao || '', tags:el.tags };
+  const c = el.center || { lat:el.lat, lon:el.lon }, out = { iata, name:nameOf(el.tags), la:c.lat, lo:c.lon, ele:parseHeight(el.tags.ele), icao:el.tags.icao || '', tags:el.tags };
   writeGz(key, out); return out;
 }
 // runways, taxiways and aprons within a box round an airport
@@ -189,7 +198,7 @@ export async function seaFeatures(city, box){
   const j = await overpass(`(way["route"="ferry"](${b});nwr["amenity"="ferry_terminal"](${b});nwr["leisure"="marina"](${b});nwr["seamark:type"="anchorage"](${b});nwr["landuse"="port"](${b});nwr["industrial"="port"](${b});nwr["harbour"="yes"](${b});nwr["seamark:type"="harbour"](${b});way["waterway"="dock"](${b}););out geom tags;`, 'sea');
   const out = { ferry:[], areas:[], points:[] };
   for (const el of j.elements || []){
-    const t = el.tags || {}, name = t.name || t['name:en'] || '';
+    const t = el.tags || {}, name = nameOf(t);
     if (el.type === 'way' && t.route === 'ferry' && el.geometry){ out.ferry.push({ name, ref:t.ref || '', op:t.operator || '', car:t.motor_vehicle === 'yes' || t.vehicle === 'yes' ? 1 : 0, p:el.geometry.map(g => [g.lat, g.lon]) }); continue; }
     const kind = t.amenity === 'ferry_terminal' ? 'ferry' : t.leisure === 'marina' ? 'marina' : t['seamark:type'] === 'anchorage' ? 'anchorage' : t.waterway === 'dock' ? 'dock' : 'port';
     // (a point, or an area: its outer ways)
@@ -211,7 +220,7 @@ export async function towerCandidates(city, box){
   const out = [];
   for (const el of j.elements || []){
     const t = el.tags || {}, c = el.center || { lat:el.lat, lon:el.lon }; if (c.lat == null) continue;
-    out.push({ id:el.type[0] + el.id, name:t.name || t['name:en'] || '', en:t['name:en'] || '', h:parseHeight(t.height), lv:parseFloat(t['building:levels']) || 0, la:c.lat, lo:c.lon, man:t.man_made || '', ty:t.tower_type || t['tower:type'] || '', wd:t.wikidata || '', ele:t.ele || '' });
+    out.push({ id:el.type[0] + el.id, name:nameOf(t), en:t['name:en'] || '', h:parseHeight(t.height), lv:parseFloat(t['building:levels']) || 0, la:c.lat, lo:c.lon, man:t.man_made || '', ty:t.tower_type || t['tower:type'] || '', wd:t.wikidata || '', ele:t.ele || '' });
   }
   writeGz(key, out); return out;
 }

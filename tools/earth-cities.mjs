@@ -18,7 +18,7 @@ import { CACHE, OUT, ROOT, frameAt, llToPlane, unpackLines, terrainSource } from
 import { CITIES } from './lib/city-config.mjs';
 import { buildLayer, makeCtx, cityGain, CREDIT } from './lib/city-layers.mjs';
 import { buildRoads, buildAirports, buildSea } from './lib/city-build.mjs';
-import { buildTowers } from './lib/city-towers.mjs';
+import { buildTowers, addMapInfo } from './lib/city-towers.mjs';
 import { FACTS, SOURCES } from './lib/city-facts.mjs';
 import { previewLayer } from './lib/city-preview.mjs';
 import { renderView } from './lib/city-view.mjs';
@@ -69,6 +69,7 @@ for (const city of CITIES){
   if (stages.includes('facts')) man.facts = FACTS[city.key];
   // the ground height at the centre (the sea level where it is flat) and the highest ground or roof of any layer: the page's ray march starts from `top`
   if (stages.includes('layers')){ const t = await terrainSource({ la:city.la, lo:city.lo, size:1600, px:1024 }); man.ele = Math.round(Math.max(0, t(city.la, city.lo))*10)/10; man.top = Math.max(...man.layers.map(l => l.top)); }
+  if (man.towers && man.layers && (stages.includes('towers') || stages.includes('layers') || stages.includes('mapinfo'))) await addMapInfo({ ...man, la:city.la, lo:city.lo });
   Object.assign(man, { key:city.key, name:city.name, la:city.la, lo:city.lo, drive:city.drive, tz:FACTS[city.key].tz, country:FACTS[city.key].country });
   fs.writeFileSync(manFile(city.key), JSON.stringify(man));
   if (stages.includes('preview') && man.layers) await previews(city, man);

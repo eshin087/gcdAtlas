@@ -157,7 +157,7 @@ async function paintOsm(city, L, F, rgb, isWater, bh){
   const before = Buffer.from(rgb);
   // airport: aprons, taxiways, runways
   if (L.airport){
-    const info = await airportInfo(L.airport, [0, 0, 0, 0]).catch(() => null), det = info && await airportDetail(L.airport, info, L.airport === 'CDG' ? 6500 : 4500);
+    const info = readGz(`air_${L.airport}.json.gz`), det = info && await airportDetail(L.airport, info, L.airport === 'CDG' ? 6500 : 4500);
     if (det){
       for (const a of det.apron) if (a.p.length > 3){ fillRings([toPx(a.p)], N, (y, xa, xb) => { for (let x=xa;x<=xb;x++){ const o = (y*N + x)*3; rgb[o] = rgb[o]*0.3 + 140*0.7; rgb[o + 1] = rgb[o + 1]*0.3 + 140*0.7; rgb[o + 2] = rgb[o + 2]*0.3 + 144*0.7; } }); }
       for (const t of det.taxi) strokeLine(rgb, N, toPx(t.p), Math.max(0.8, (t.lane ? 5 : 8)/m), [112, 112, 116], 0.9);
@@ -210,19 +210,30 @@ export async function buildLayer(city, L, ctx){
   const bld = L.bld ? await rasterBuildings(city, L, F) : null;
   const wat = await rasterWater(city, L, F);
   const gain = ctx.gain[city.key];
-  const rgb = new Uint8Array(N*N*3), elev = new Float32Array(N*N), isWater = new Uint8Array(N*N);
+  const rgb = new Uint8Array(N*N*3), elev = new Float32Array(N*N), isWater = new Uint8Array(N*N), tArr = new Float32Array(N*N), wet = new Uint8Array(N*N);
   let photoN = 0, s2N = 0, wN = 0;
   for (let y=0;y<N;y++) for (let x=0;x<N;x++){
     const px = (x + 0.5)*m - L.size/2, py = L.size/2 - (y + 0.5)*m, [la, lo] = planeToLL(F, px, py), i = y*N + x;
-    const t = terr(la, lo), b = bld ? bld.h[i] : 0, sv = wat.sea[i];
-    let w = wat.water[i] === 1 || sv === 1 || (sv === -1 && t <= 0.2);
-    if (b > 0.5) w = false;
-    isWater[i] = w ? 1 : 0; if (w) wN++;
+    const t = terr(la, lo), sv = wat.sea[i]; tArr[i] = t;
+    // wet: 2 the sea (the coast says so, or where it does not cross the row, the terrain model at or under the sea level), 1 a river or lake of OpenStreetMap
+    wet[i] = sv === 1 || (sv === -1 && t <= 0.2) ? 2 : wat.water[i] === 1 ? 1 : 0;
     let v = photo ? photo(la, lo) : null;
     if (v) photoN++; else { v = s2(la, lo); if (v){ s2N++; if (gain) v = gain(v); } }
-    if (!v) v = w ? [14, 36, 58] : [96, 92, 78];
+    if (!v) v = wet[i] ? [14, 36, 58] : [96, 92, 78];
     rgb[i*3] = clampN(Math.round(v[0]), 0, 255); rgb[i*3 + 1] = clampN(Math.round(v[1]), 0, 255); rgb[i*3 + 2] = clampN(Math.round(v[2]), 0, 255);
-    elev[i] = Math.max(t, 0) + b;
+  }
+  // water is alpha 1, which the page draws at the sea level: so only water at the sea level can be alpha 1. A river that runs high above it (the Seine at 26 m) would be a deep canyon:
+  // there the water stays land, at its own level (the lowest the terrain model has in 5 x 5 pixels of the water, so the quays do not count), with the photo's water colours
+  for (let y=0;y<N;y++) for (let x=0;x<N;x++){
+    const i = y*N + x, b = bld ? bld.h[i] : 0, t = Math.max(tArr[i], 0);
+    let w = wet[i] > 0, ground = t;
+    if (wet[i] === 1){
+      let tw = tArr[i]; for (let dy=-2;dy<=2;dy++) for (let dx=-2;dx<=2;dx++){ const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= N || yy >= N) continue; const j = yy*N + xx; if (wet[j] && tArr[j] < tw) tw = tArr[j]; }
+      if (tw > 5){ w = false; ground = Math.max(tw, 0); }
+    }
+    if (b > 0.5){ w = false; ground = t; }
+    isWater[i] = w ? 1 : 0; if (w) wN++;
+    elev[i] = ground + b;
   }
   let painted = false;
   if (!useAerial && L.id !== 'r51'){ await paintOsm(city, L, F, rgb, isWater, bld ? bld.h : null); painted = true; }

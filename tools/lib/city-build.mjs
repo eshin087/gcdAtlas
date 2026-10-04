@@ -120,7 +120,9 @@ export async function buildAirports(city, layers){
     const info = await airportInfo(a.iata, wide), det = await airportDetail(a.iata, info, a.iata === 'CDG' ? 6500 : 4500);
     // runways: the ways with one ref are one runway
     const byRef = new Map(), loose = [];
-    for (const w of det.runways){ if (w.ref){ if (!byRef.has(w.ref)) byRef.set(w.ref, []); byRef.get(w.ref).push(w); } else loose.push(w); }
+    // (a ref may be written "34R/16L" on one way and "16L/34R" on another: the lower number first)
+    const canonRef = r => { const p = String(r).split(/[\/;-]/).map(s => s.trim()).filter(s => /^\d{1,2}[LRC]?$/.test(s)); return p.length === 2 ? p.map(s => s.replace(/^(\d)([LRC]?)$/, '0$1$2')).sort((a, b) => parseInt(a) - parseInt(b) || a.localeCompare(b)).join('/') : r; };
+    for (const w of det.runways){ if (w.ref){ const k = canonRef(w.ref); if (!byRef.has(k)) byRef.set(k, []); byRef.get(k).push(w); } else loose.push(w); }
     // (runway ways with no ref: the paved ones that continue a named runway, in line with it and within 100 m of one of its ends, are part of it, as at Paris-Charles de Gaulle;
     // the others, grass strips and the like, are left out)
     for (const w of loose){
@@ -167,7 +169,8 @@ export async function buildSea(city, layers){
   const lines = [], terminals = [], points = [];
   const proj = p => p.map(([la, lo]) => llToPlane(cityF, la, lo));
   // ferry routes: ways of one name joined end to end
-  const ferry = s.ferry.map(f => ({ pts:proj(f.p), dir:false, name:f.name || f.ref, car:f.car }));
+  const skip = n => !!(city.seaSkip && city.seaSkip.test(n || ''));
+  const ferry = s.ferry.filter(f => !skip(f.name)).map(f => ({ pts:proj(f.p), dir:false, name:f.name || f.ref, car:f.car }));
   const byName = new Map(); for (const f of ferry){ const k = (f.name || '') + '|' + f.car; if (!byName.has(k)) byName.set(k, []); byName.get(k).push(f); }
   let nFerry = 0;
   for (const [, items] of byName) for (const j of joinItems(items)){ const p = simplify(j.pts, 8); if (p.length < 2) continue; lines.push({ pts:p, cls:0, a:j.car ? 1 : 0, flags:0, grp:nameId(j.name) }); nFerry++; }
@@ -192,7 +195,7 @@ export async function buildSea(city, layers){
   }
   // (named terminals: ports by area first, then ferry terminals; one entry a name)
   const seenN = new Set(), term = [];
-  for (const t of terminals.sort((a, b) => b.area - a.area || a.name.localeCompare(b.name))){ if (seenN.has(t.name) || /^[a-zà-ÿ]/.test(t.name)) continue; /* (a name that starts in lower case is a description, "bac traversier", not a name) */ seenN.add(t.name); term.push({ name:t.name, kind:t.kind, la:Math.round(t.la*1e5)/1e5, lo:Math.round(t.lo*1e5)/1e5 }); }
+  for (const t of terminals.sort((a, b) => b.area - a.area || a.name.localeCompare(b.name))){ if (seenN.has(t.name) || skip(t.name) || /^[a-zà-ÿ]/.test(t.name)) continue; /* (a name that starts in lower case is a description, "bac traversier", not a name) */ seenN.add(t.name); term.push({ name:t.name, kind:t.kind, la:Math.round(t.la*1e5)/1e5, lo:Math.round(t.lo*1e5)/1e5 }); }
   const buf = packLines(lines, 2), file = writeHashed(OUT, `${city.key}-sea`, 'bin', buf);
   console.log(`${city.key} sea: ${nFerry} ferry routes, ${lines.length - nFerry} areas, ${points.length} anchorages, ${term.length} named terminals, ${(buf.length/1024).toFixed(0)} KB`);
   return { file, bytes:buf.length, names, terminals:term.filter(t => t.kind === 'port').slice(0, 14).concat(term.filter(t => t.kind === 'ferry').slice(0, 18)), anchorages:points.slice(0, 40).map(p => ({ name:p.name, la:Math.round(p.la*1e5)/1e5, lo:Math.round(p.lo*1e5)/1e5 })), lines_:lines, nFerry };
