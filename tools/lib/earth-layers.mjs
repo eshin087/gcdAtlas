@@ -84,9 +84,9 @@ async function stacRun(body, pages){
   return feats;
 }
 const dt = w => w.replace('/', 'T00:00:00Z/') + 'T23:59:59Z';
-// the MGRS tiles over a box: one stretch of twelve days with no cloud filter has a scene of every tile
+// the MGRS tiles over a box: a stretch of 45 days from the start of each season, with no cloud filter (a tile cut by the edge of its satellite pass has scenes with data in the box only on some days)
 async function stacTiles(bb, win){
-  const a = new Date(win.split('/')[0] + 'T00:00:00Z'), b = new Date(+a + 12*864e5), f = await stacRun({ collections:['sentinel-2-l2a'], bbox:bb, datetime:a.toISOString().slice(0, 10) + 'T00:00:00Z/' + b.toISOString().slice(0, 10) + 'T23:59:59Z', limit:100 }, 6);
+  const a = new Date(win.split('/')[0] + 'T00:00:00Z'), b = new Date(+a + 45*864e5), f = await stacRun({ collections:['sentinel-2-l2a'], bbox:bb, datetime:a.toISOString().slice(0, 10) + 'T00:00:00Z/' + b.toISOString().slice(0, 10) + 'T23:59:59Z', limit:100 }, 6);
   return [...new Set(f.map(x => x.properties['grid:code']).filter(Boolean))].sort();
 }
 // the clearest scenes of one tile in a season
@@ -111,10 +111,10 @@ function boxBlur(a, W, H, r){   // (a Float32 array, mean over a (2r+1) square, 
   return a;
 }
 export async function s2Source(L, opt = {}){
-  const bb = bboxLL(L, 0), want = L.size/L.px, cloudMax = opt.cloud ?? 60, maxPer = opt.maxPer ?? 4, tries = opt.tries ?? 6, feather = opt.feather ?? 4000, mask = opt.mask ?? 'scl';
+  const bb = bboxLL(L, 0), want = L.size/L.px, cloudMax = opt.cloud ?? 60, maxPer = opt.maxPer ?? 4, tries = opt.tries ?? 6, feather = opt.feather ?? (L.size >= 200000 ? 9000 : 4000), mask = opt.mask ?? 'scl';
   const wins = opt.wins || ['2025-01-01/2026-09-28'];
   // (the catalogue: the tiles over the layer, then each tile's clearest scenes in each season)
-  const tileCodes = (opt.tiles || await stacTiles(bb, wins[0])), byTile = {}, all = new Map();
+  const tileCodes = (opt.tiles || [...new Set((await Promise.all(wins.map(w => stacTiles(bb, w)))).flat())]), byTile = {}, all = new Map();
   for (const t of tileCodes) for (const w of wins) for (const f of await stacTile(bb, t, w, cloudMax, tries)) all.set(f.id, f);
   const items = [...all.values()].filter(f => f.assets && f.assets.visual && f.assets.scl && (f.properties['s2:nodata_pixel_percentage'] ?? 0) < 97);
   for (const f of items){ const t = f.properties['grid:code'] || f.id.split('_')[1]; (byTile[t] = byTile[t] || []).push(f); }
@@ -152,10 +152,22 @@ export async function s2Source(L, opt = {}){
     const scl = new Uint8Array(await rd('scl', 1, 'scl')), n = W*H, cl = new Uint8Array(n), sh = new Uint8Array(n), nd = new Uint8Array(n);
     for (let i=0;i<n;i++){ const c = scl[i]; if (c === 0) nd[i] = 1; else if (c === 8 || c === 9 || c === 10) cl[i] = 1; else if (c === 3) sh[i] = 1; }
     if (mask === 'none'){ cl.fill(0); sh.fill(0); }
+    // 'snow': the classification takes a lot of snow and ice for cloud. Snow is dark in the short-wave infrared (B11) and cloud is not, so a "cloud" pixel with a
+    // snow index (green against B11) over 0.4 and a B11 reflectance under 0.12 is snow after all
+    if (mask === 'snow'){
+      const band = async (asset, nm) => new Uint16Array(new Uint8Array(await cached(`s2${nm}_${id}.bin`, async () => { const t = await fromUrl(f.assets[asset].href); const r = await t.readRasters({ bbox:[e0, n0, e1, n1], width:W, height:H }); const a = r[0]; return Buffer.from(a.buffer, a.byteOffset, a.byteLength); })).buffer);
+      const gr = await band('green', 'grn'), sw = await band('swir16', 'sw');
+      for (let i=0;i<n;i++) if (cl[i]){ const g = gr[i], s = sw[i]; if (g + s > 0 && (g - s)/(g + s) > 0.4 && s < 1200) cl[i] = 0; }
+    }
+    // small cumulus that the classification misses (the humid tropics): a land pixel that is white (all three bands high, little colour) is cloud
+    // (and much brighter than the ground round it, so a town or a bare field, which is bright all over, stays)
+    if (opt.wcloud){ const d = new Uint8Array(await rd('visual', 3, 'rgb')), lum = new Float32Array(n); for (let i=0;i<n;i++) lum[i] = (d[i*3] + d[i*3 + 1] + d[i*3 + 2])/3;
+      const mean = boxBlur(lum, W, H, Math.max(2, Math.round(600/res)));
+      for (let i=0;i<n;i++){ const r = d[i*3], g = d[i*3 + 1], b = d[i*3 + 2], mn = Math.min(r, g, b), mx = Math.max(r, g, b); if (scl[i] !== 6 && mn > 105 && (mx - mn) < 0.22*mx && lum[i] - mean[i] > 38) cl[i] = 1; } }
     // (where a scene's data ends, at the edge of its satellite pass, its weight ramps up over a few km; where cloud was, over a few hundred metres, so a patch
     // taken from another date does not show as a hard edge)
     const near = dilate(cl, W, H, rs), hard = dilate(cl, W, H, rc), vc = new Float32Array(n), vn = new Float32Array(n), okm = new Uint8Array(n), ndD = dilate(nd, W, H, rn); let ok = 0;
-    for (let i=0;i<n;i++){ vc[i] = (hard[i] || (sh[i] && near[i])) ? 0 : 1; vn[i] = ndD[i] ? 0 : 1; const v = vc[i] && !nd[i] ? 1 : 0; okm[i] = v; ok += v; }
+    for (let i=0;i<n;i++){ vc[i] = hard[i] ? 0 : (sh[i] && near[i]) ? 0.3 : 1; vn[i] = ndD[i] ? 0 : 1; const v = vc[i] >= 0.5 && !nd[i] ? 1 : 0; okm[i] = v; ok += v; }
     const wc = boxBlur(vc, W, H, rb), wn = boxBlur(vn, W, H, rn), w = new Float32Array(n); for (let i=0;i<n;i++) w[i] = wc[i]*wn[i];
     log('s');
     return (readCache[f.id] = { f, zone, south, ext, e0, n0, e1, n1, W, H, id, rd, rdHdr, scl, nd, w, ok:okm, valid:ok/n, date:f.properties.datetime.slice(0, 10), cc:f.properties['eo:cloud_cover'] });
@@ -167,25 +179,51 @@ export async function s2Source(L, opt = {}){
     let miss = 1;
     while (left.length && chosen.length < maxPer){
       let best = null, bs = -1;
-      for (const r of left){ let gain; if (!chosen.length) gain = Math.floor(r.valid*20)/20 + (dates[r.date] || 0)*1e-4 - r.cc*1e-6; else { if (r.W*r.H !== chosen[0].W*chosen[0].H) continue; let g = 0; const n = r.W*r.H; for (let i=0;i<n;i++) if (r.ok[i] && !cover[i]) g++; gain = g/n; if (gain < 0.01) continue; }
+      for (const r of left){ let gain; if (!chosen.length) gain = (r.valid >= 0.92 ? 1 : r.valid*0.9) + (dates[r.date] || 0)*0.002 - r.cc*1e-6; else { if (r.W*r.H !== chosen[0].W*chosen[0].H) continue; let g = 0; const n = r.W*r.H; for (let i=0;i<n;i++) if (r.ok[i] && !cover[i]) g++; gain = g/n; if (gain < 0.003) continue; }
         if (gain > bs){ bs = gain; best = r; } }
       if (!best) break;
       left.splice(left.indexOf(best), 1);
       chosen.push(best); const n = best.W*best.H; for (let i=0;i<n;i++) if (best.ok[i]) cover[i] = 1;
-      let m = 0; for (let i=0;i<n;i++) if (!cover[i]) m++; miss = m/n; if (miss < 0.02) break;
+      let m = 0; for (let i=0;i<n;i++) if (!cover[i]) m++; miss = m/n; if (miss < 0.003) break;
     }
-    chosen.cov = 1 - miss; return chosen;
+    chosen.cov = 1 - miss; if (process.env.S2DEBUG) console.log("\n  tile pick:", reads.map(r => r.date + " valid " + r.valid.toFixed(2) + " cc " + r.cc.toFixed(0)).join(" | "), "-> chosen", chosen.map(r => r.date).join(","), "cover", chosen.cov.toFixed(2)); return chosen;
   }
   for (const t of tileCodes.slice().sort()){
     const cand = (byTile[t] || []).sort((a, b) => a.properties['eo:cloud_cover'] - b.properties['eo:cloud_cover'] || (dates[b.properties.datetime.slice(0, 10)] - dates[a.properties.datetime.slice(0, 10)])).slice(0, tries);
+    // 'median': a per-pixel median of a tile's k clearest scenes (no masks): clouds that pass over one scene in three drop out, and snow, which the classification
+    // takes for cloud, stays (the layers of Denali and Torres del Paine, whose tiles had snow-white and cloud-white squares)
+    if (opt.median){
+      const reads = []; for (const f of cand.slice(0, opt.median + 4)){ const r = await readScene(f); if (r && r.valid > 0.9) reads.push(r); }
+      reads.sort((a, b) => a.cc - b.cc); const use = reads.filter(r => r.W*r.H === (reads[0] ? reads[0].W*reads[0].H : 0)).slice(0, opt.median);
+      if (use.length >= 3){
+        const ds = []; for (const r of use) ds.push(new Uint8Array(await (opt.tone === 'hdr' ? r.rdHdr().catch(() => r.rd('visual', 3, 'rgb')) : r.rd('visual', 3, 'rgb'))));
+        // (per pixel the scene at a rank of the brightness of the pixel among those that have data: the middle one, or with medianP under 0.5 a darker one, which
+        // takes cloud out where it is the usual thing, as on Patagonia's Pacific side; the pixel is that scene's own, so colours stay whole)
+        const r0 = use[0], n = r0.W*r0.H, d = new Uint8Array(n*3), w = new Float32Array(n), nd = new Uint8Array(n), mp = opt.medianP ?? 0.5, v = [];
+        for (let i=0;i<n;i++){ v.length = 0;
+          for (const s of ds){ const r = s[i*3], g = s[i*3 + 1], b = s[i*3 + 2]; if (r + g + b >= 6) v.push([r, g, b, r + g + b]); }
+          if (!v.length){ nd[i] = 1; continue; }
+          v.sort((x, y) => x[3] - y[3]); const p = v[Math.min(v.length - 1, Math.floor(mp*(v.length - 1) + 0.5))]; d[i*3] = p[0]; d[i*3 + 1] = p[1]; d[i*3 + 2] = p[2];
+          w[i] = v.length/ds.length; }
+        const wb = boxBlur(w, r0.W, r0.H, rb);
+        for (let i=0;i<n;i++) w[i] = Math.min(wb[i], 1)*(nd[i] ? 0 : 1);
+        srcs.push(Object.assign({}, r0, { w, nd, rank:0, tile:t, img:{ w:r0.W, h:r0.H, c:3, d } })); log('m');
+        if (process.env.S2DEBUG) console.log('\n  median of', use.map(r => r.date).join(','));
+        for (const k of Object.keys(readCache)) delete readCache[k];
+        continue;
+      }
+    }
     let chosen = await pickTile(cand);
     // (a tile still missing a part of its ground: look further back in time, with more cloud allowed)
-    if (!chosen.length || chosen.cov < 0.97){
-      const have = new Set(cand.map(f => f.id)), more = (await stacTile(bb, t, wide, Math.min(cloudMax + 20, 90), tries*2, 70)).filter(f => !have.has(f.id) && f.assets && f.assets.visual && f.assets.scl);
+    if (!chosen.length || chosen.cov < 0.995){
+      // (the scenes of one satellite pass share a footprint, so the same share of the tile is no data: the clearest two of each share, so the other passes are tried)
+      const have = new Set(cand.map(f => f.id)), groups = {};
+      for (const f of (await stacTile(bb, t, wide, Math.min(cloudMax + 30, 95), 100, 97))){ if (have.has(f.id) || !(f.assets && f.assets.visual && f.assets.scl)) continue; const k = Math.round((f.properties['s2:nodata_pixel_percentage'] ?? 0)/4); (groups[k] = groups[k] || []).push(f); }
+      const more = Object.values(groups).flatMap(g => g.slice(0, 2)).slice(0, 24);
       if (more.length) chosen = await pickTile(cand.concat(more));
     }
     for (let rank=0;rank<chosen.length;rank++){
-      const r = chosen[rank], d = new Uint8Array(await (opt.tone === 'hdr' ? r.rdHdr() : r.rd('visual', 3, 'rgb'))), n = r.W*r.H;
+      const r = chosen[rank], d = new Uint8Array(await (opt.tone === 'hdr' ? r.rdHdr().catch(() => r.rd('visual', 3, 'rgb')) : r.rd('visual', 3, 'rgb'))), n = r.W*r.H;
       const w = Float32Array.from(r.w), nd = Uint8Array.from(r.nd); for (let i=0;i<n;i++) if (d[i*3] + d[i*3 + 1] + d[i*3 + 2] < 6){ w[i] = 0; nd[i] = 1; }
       srcs.push(Object.assign({}, r, { w, nd, rank, tile:t, img:{ w:r.W, h:r.H, c:3, d } })); log('.');
     }
@@ -194,6 +232,35 @@ export async function s2Source(L, opt = {}){
   const dateList = [...new Set(srcs.map(s => s.date))].sort(), gamma = opt.gamma ?? 0.72, zones = [...new Set(srcs.map(s => s.zone + (s.south ? 'S' : 'N')))];
   const maxRank = Math.max(...srcs.map(s => s.rank), 0), byRank = Array.from({ length:maxRank + 1 }, (_, r) => srcs.filter(s => s.rank === r));
   const lift = c => 255*Math.pow(Math.max(c, 0)/255, gamma);
+  // Colour match between scenes. Neighbouring tiles and the fill scenes of one tile come from different days, with different haze and sun: where they meet, the
+  // picture steps in brightness (and an ASCII picture, drawn by brightness, shows every step as an edge of glyphs). So every scene gets a gain per colour,
+  // solved so the scenes agree where they overlap: on a coarse grid over the layer, every pair of scenes that both have a clear pixel at a point
+  // contributes the ratio of their colours; the gains (as logs) are relaxed toward agreement (Gauss-Seidel, weighted by how many points a pair shares) with a pull
+  // toward 1 and a limit of about +-22%, so a real difference (snow against forest) cannot be flattened. Opt out with match:false.
+  if (srcs.length > 1 && opt.match !== false){
+    const F = frameAt(L.la, L.lo), G = 72, m = L.size/G, ids = new Map(srcs.map((s, i) => [s, i])), acc = new Map(), zs = {};
+    const colourAt = (s, e, n) => { if (e < s.e0 || e > s.e1 || n < s.n0 || n > s.n1) return null;
+      const fx = (e - s.e0)/(s.e1 - s.e0)*s.W - 0.5, fy = (s.n1 - n)/(s.n1 - s.n0)*s.H - 0.5, w = bilin1(s.w, s.W, s.H, fx, fy); if (w < 0.9) return null;
+      const de = Math.min(e - s.ext[0], s.ext[2] - e, n - s.ext[1], s.ext[3] - n); if (de < 500) return null;
+      const v = bilinear(s.img, fx, fy); return v && v[0] + v[1] + v[2] > 45 && s.scl[clampN(Math.round(fy), 0, s.H - 1)*s.W + clampN(Math.round(fx), 0, s.W - 1)] !== 6 ? v : null; };   // (land only: water changes with the day)
+    for (let gy=0;gy<G;gy++) for (let gx=0;gx<G;gx++){
+      const [la, lo] = planeToLL(F, (gx + 0.5)*m - L.size/2, L.size/2 - (gy + 0.5)*m), ut = {}; for (const z of zones){ ut[z] = toUTM(la, lo, parseInt(z), z.endsWith('S')); }
+      const cs = []; for (const s of srcs){ const [e, n] = ut[s.zone + (s.south ? 'S' : 'N')], v = colourAt(s, e, n); if (v) cs.push([s, v]); }
+      for (let a=0;a<cs.length;a++) for (let b=a + 1;b<cs.length;b++){
+        const ka = ids.get(cs[a][0]), kb = ids.get(cs[b][0]), key = ka + ',' + kb; let o = acc.get(key); if (!o){ o = { a:ka, b:kb, n:0, ma:[0, 0, 0], mb:[0, 0, 0] }; acc.set(key, o); }
+        o.n++; for (let c=0;c<3;c++){ o.ma[c] += cs[a][1][c]; o.mb[c] += cs[b][1][c]; } }
+    }
+    const pairs = [...acc.values()].filter(o => o.n >= 12), x = srcs.map(() => [0, 0, 0]), nb = srcs.map(() => []);
+    for (const o of pairs){ const d = [0, 1, 2].map(c => Math.log(Math.max(o.mb[c], 1)/Math.max(o.ma[c], 1))); nb[o.a].push([o.b, o.n, d]); nb[o.b].push([o.a, o.n, d.map(v => -v)]); }   // (want x_a + ln ma = x_b + ln mb: x_a - x_b = d)
+    const iters = 60, LIM = 0.2;
+    for (let it=0;it<iters;it++) for (let i=0;i<srcs.length;i++){ if (!nb[i].length) continue;
+      for (let c=0;c<3;c++){ let sw = 0, sv = 0; for (const [j, n, d] of nb[i]){ sw += n; sv += n*(x[j][c] + d[c]); } x[i][c] = clampN(sv/(sw*1.12), -LIM, LIM); } }
+    let moved = 0;
+    srcs.forEach((s, i) => { if (!nb[i].length) return; const g = x[i].map(Math.exp), dd = s.img.d, n = s.W*s.H;
+      if (Math.max(...x[i].map(Math.abs)) < 0.01) return; moved++;
+      for (let k=0;k<n;k++){ if (dd[k*3] + dd[k*3 + 1] + dd[k*3 + 2] < 6) continue; for (let c=0;c<3;c++) dd[k*3 + c] = clampN(Math.round(dd[k*3 + c]*g[c]), 1, 255); } });
+    if (process.env.S2DEBUG) console.log(`\n  colour match: ${pairs.length} pairs, ${moved} of ${srcs.length} scenes adjusted, gains ${Math.min(...x.flat()).toFixed(2)} to ${Math.max(...x.flat()).toFixed(2)} (log)`);
+  }
   const sample = (la, lo) => {
     const ut = {}; for (const z of zones){ const zn = parseInt(z), south = z.endsWith('S'); ut[z] = toUTM(la, lo, zn, south); }
     let out0 = 0, out1 = 0, out2 = 0, wat = 0, rem = 1;
@@ -210,11 +277,13 @@ export async function s2Source(L, opt = {}){
       if (W > 0){ const a = Math.min(1, W); out0 += rem*a*a0/W; out1 += rem*a*a1/W; out2 += rem*a*a2/W; wat += rem*a*aw/W; rem *= 1 - a; if (rem < 0.01) break; }
     }
     if (rem > 0.97){
-      // (no clear pixel anywhere: the clearest scene's pixel is better than a hole)
+      // (no clear pixel anywhere: the scene with the best weight there, else the darkest pixel, since cloud is the brightest thing; better than a hole)
+      let best = null, bw = -1, bl = 1e9;
       for (const list of byRank) for (const s of list){ const [e, n] = ut[s.zone + (s.south ? 'S' : 'N')]; if (e < s.e0 || e > s.e1 || n < s.n0 || n > s.n1) continue;
         const fx = (e - s.e0)/(s.e1 - s.e0)*s.W - 0.5, fy = (s.n1 - n)/(s.n1 - s.n0)*s.H - 0.5; if (s.nd[clampN(Math.round(fy), 0, s.H - 1)*s.W + clampN(Math.round(fx), 0, s.W - 1)]) continue;
-        const v = bilinear(s.img, fx, fy); if (v) return [lift(v[0]), lift(v[1]), lift(v[2]), 0]; }
-      return null;
+        const v = bilinear(s.img, fx, fy); if (!v) continue; const w = bilin1(s.w, s.W, s.H, fx, fy), l = v[0] + v[1] + v[2];
+        if (w > bw + 0.05 || (Math.abs(w - bw) <= 0.05 && l < bl)){ best = v; bw = Math.max(w, bw); bl = l; } }
+      return best ? [lift(best[0]), lift(best[1]), lift(best[2]), 0] : null;
     }
     const k = 1/(1 - rem); return [lift(out0*k), lift(out1*k), lift(out2*k), wat*k];
   };
@@ -256,7 +325,7 @@ export async function copSource(L){
 // ---------------------------------------------------------------- heights: USGS 3DEP (public domain; the best available, 1 to 10 m, lidar where it has been flown; United States only),
 // from the National Map image service as a float TIFF, in pieces of at most 1,400 px; the sea and anything outside it is 0
 export async function depSource(L){
-  const [lo0, la0, lo1, la1] = bboxLL(L, L.size*0.01), want = L.size/L.px, res = Math.max(want*0.8, 10), pieces = [];
+  const [lo0, la0, lo1, la1] = bboxLL(L, L.size*0.01), want = L.size/L.px, res = Math.max(want*0.8, 2.5), pieces = [];
   const Wt = Math.ceil((lo1 - lo0)*111320*Math.cos(L.la*D2R)/res), Ht = Math.ceil((la1 - la0)*111320/res), PC = 1400, nx = Math.ceil(Wt/PC), ny = Math.ceil(Ht/PC);
   for (let j=0;j<ny;j++) for (let i=0;i<nx;i++){
     const b0 = lo0 + (lo1 - lo0)*i/nx, b1 = lo0 + (lo1 - lo0)*(i + 1)/nx, a1 = la1 - (la1 - la0)*j/ny, a0 = la1 - (la1 - la0)*(j + 1)/ny, W = Math.ceil(Wt/nx), H = Math.ceil(Ht/ny);
