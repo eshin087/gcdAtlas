@@ -49,10 +49,20 @@ try {
     if (!/local time/.test(s.ro)) errors.push("New York's readout has no local time: " + s.ro);
     if (!(s.d.lights > 0)) errors.push('no tower lights in New York');
     notes.push(`New York drawn with its layers after ${t} s (${s.d.layers.find(x => x.startsWith('newyork'))} in, ${s.d.lights} tower lights, ${s.views} framings)`);
+    // (0.14.0: its traffic's road maps drawn, its planes and boats, the readout's runways)
+    const tt = await until(page, () => { const c = window.__cosmos, r = c.etr.dbg(), a = c.eas.dbg(); return r.state === 2 && r.nearAt >= 0 && r.farAt >= 0 && a.routes > 0 && a.points > 0 && c.ect.dbg().cityProg; }, null, 90, "New York's traffic, planes and boats");
+    const a = await page.evaluate(() => { const c = window.__cosmos, o = c.OBJ[c.orbit.lock]; return { r:c.etr.dbg(), a:c.eas.dbg(), ro:o.readout() }; });
+    if (!/planes \(simulated\): landing JFK/.test(a.ro)) errors.push("New York's readout does not name the runways in use: " + a.ro);
+    if (!(a.r.busy > 0 && a.r.busy <= 1)) errors.push('the traffic is not busy at all: ' + JSON.stringify(a.r));
+    notes.push(`traffic after ${tt} s more (${a.r.segs} road segments, busy ${a.r.busy}), ${a.a.airports.join(' ')}, ${a.a.boats} boats on ${a.a.routes} routes, ${a.a.points} lights`);
     // (Paris: the ground drawn with the copy of the shader that has the Eiffel Tower as a model, which compiles only there)
     await page.evaluate(() => { const c = window.__cosmos; c.epl.go(c.epl.PICKS.cities.find(r => r[0] === 'Paris')); });
     const tp = await until(page, () => { const c = window.__cosmos, d = c.ect.dbg(); return !c.flight && d.env === 'city-paris' && d.eiffel; }, null, 150, 'Paris drawn with the Eiffel Tower');
     notes.push(`Paris drawn with the Eiffel Tower after ${tp} s`);
+    // (Tokyo: the copy with Tokyo Tower and the Skytree as models)
+    await page.evaluate(() => { const c = window.__cosmos; c.epl.go(c.epl.PICKS.cities.find(r => r[0] === 'Tokyo')); });
+    const tk = await until(page, () => { const c = window.__cosmos, d = c.ect.dbg(); return !c.flight && d.env === 'city-tokyo' && d.tokyo; }, null, 150, 'Tokyo drawn with its towers');
+    notes.push(`Tokyo drawn with Tokyo Tower and the Skytree after ${tk} s`);
     errors.push(...pe); await browser.close(); }
   // ---- a famous place with its own layers (0.15.0): Everest from the atlas's row, drawn with its own layers, its credits in the readout;
   // the search finds the places by their other names; moved by hand, the camera goes to a place object and Everest's own stays put
