@@ -14,18 +14,30 @@ export function joinItems(items){
   items.forEach((it, w) => { add(ek(it.pts[0]), w, true); add(ek(it.pts[it.pts.length - 1]), w, false); });
   // links: prev[w] / next[w] = { w, rev } : the neighbour at the start / end of w, and whether it must be walked backwards
   const next = new Array(n).fill(null), prev = new Array(n).fill(null);
-  for (const [, l] of ends){
-    if (l.length !== 2 || l[0].w === l[1].w) continue;
-    const [a, b] = l;
+  // (where two ways meet they are joined; where more meet, the pairs that run most nearly straight on, if they turn by less than 60 degrees)
+  const away = e => { const p = items[e.w].pts, k = p.length, a = e.atStart ? p[0] : p[k - 1], b = e.atStart ? p[1] : p[k - 2], d = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return [(b[0] - a[0])/d, (b[1] - a[1])/d]; };
+  const link = (a, b) => {
     if (items[a.w].dir){
       // one-way: only an end meeting a start
-      if (a.atStart === b.atStart) continue;
       const from = a.atStart ? b : a, to = a.atStart ? a : b; next[from.w] = { w:to.w, rev:false }; prev[to.w] = { w:from.w, rev:false };
     } else {
       // two-way: any end to any end
       const set = (x, y) => { const lk = { w:y.w, rev:x.atStart === y.atStart ? true : false }; if (x.atStart) prev[x.w] = lk; else next[x.w] = lk; };
       set(a, b); set(b, a);
     }
+  };
+  for (const [, l] of ends){
+    if (l.length < 2) continue;
+    const cands = [];
+    for (let i=0;i<l.length;i++) for (let j=i + 1;j<l.length;j++){
+      const a = l[i], b = l[j]; if (a.w === b.w) continue;
+      if (items[a.w].dir && a.atStart === b.atStart) continue;   // (one-way: an end meeting a start)
+      const da = away(a), db = away(b), c = da[0]*db[0] + da[1]*db[1];
+      if (l.length === 2 || c < -0.5) cands.push({ a, b, c });
+    }
+    cands.sort((x, y) => x.c - y.c);
+    const used = new Set();
+    for (const { a, b } of cands){ if (used.has(a) || used.has(b)) continue; used.add(a); used.add(b); link(a, b); }
   }
   const seen = new Uint8Array(n), out = [];
   // from any way, walk on in both directions (a two-way item may be walked backwards: `rev` follows the flips), then lay the chain out
@@ -43,6 +55,15 @@ export function joinItems(items){
 }
 
 // ---------------------------------------------------------------- roads
+// the cached road ways (as read from OpenStreetMap) of the tiles round a layer: the same tile queries buildRoads uses, so nothing new is fetched
+export async function roadWaysIn(city, L, pad = 100){
+  const r12 = city.layers.find(l => l.id === 'r12'), box12 = bboxLL(r12, 0), seen = new Set(), out = [];
+  for (const t of gridTiles(bboxLL(L, pad), 12.8, city.la)){
+    const inner = t.bb[2] > box12[1] && t.bb[0] < box12[3] && t.bb[3] > box12[0] && t.bb[1] < box12[2];
+    for (const w of await roadsTile(t, inner)){ if (seen.has(w.i)) continue; seen.add(w.i); out.push(w); }
+  }
+  return out;
+}
 const LANES_DEFAULT = { 0:[2, 4], 1:[2, 4], 2:[1, 2], 3:[1, 2], 4:[1, 2] };   // [one-way, two-way] total lanes when the way has no `lanes` tag
 export async function buildRoads(city, layers){
   const cityF = frameAt(city.la, city.lo), r51 = layers.find(l => l.id === 'r51'), r12 = layers.find(l => l.id === 'r12');
@@ -171,7 +192,7 @@ export async function buildSea(city, layers){
   }
   // (named terminals: ports by area first, then ferry terminals; one entry a name)
   const seenN = new Set(), term = [];
-  for (const t of terminals.sort((a, b) => b.area - a.area || a.name.localeCompare(b.name))){ if (seenN.has(t.name)) continue; seenN.add(t.name); term.push({ name:t.name, kind:t.kind, la:Math.round(t.la*1e5)/1e5, lo:Math.round(t.lo*1e5)/1e5 }); }
+  for (const t of terminals.sort((a, b) => b.area - a.area || a.name.localeCompare(b.name))){ if (seenN.has(t.name) || /^[a-zà-ÿ]/.test(t.name)) continue; /* (a name that starts in lower case is a description, "bac traversier", not a name) */ seenN.add(t.name); term.push({ name:t.name, kind:t.kind, la:Math.round(t.la*1e5)/1e5, lo:Math.round(t.lo*1e5)/1e5 }); }
   const buf = packLines(lines, 2), file = writeHashed(OUT, `${city.key}-sea`, 'bin', buf);
   console.log(`${city.key} sea: ${nFerry} ferry routes, ${lines.length - nFerry} areas, ${points.length} anchorages, ${term.length} named terminals, ${(buf.length/1024).toFixed(0)} KB`);
   return { file, bytes:buf.length, names, terminals:term.filter(t => t.kind === 'port').slice(0, 14).concat(term.filter(t => t.kind === 'ferry').slice(0, 18)), anchorages:points.slice(0, 40).map(p => ({ name:p.name, la:Math.round(p.la*1e5)/1e5, lo:Math.round(p.lo*1e5)/1e5 })), lines_:lines, nFerry };

@@ -41,12 +41,23 @@ function buildingFeatures(j){
   }
   return out;
 }
-export async function buildingsTile(tile){
+export async function buildingsTile(tile, depth = 0){
   const key = `bldf_${tile.key}_${tile.bb.join('_')}.json.gz`, hit = readGz(key);
   if (hit) return hit;
   const b = tile.bb.join(',');
-  const j = await overpass(`(way["building"](${b});way["building:part"](${b});relation["building"]["type"="multipolygon"](${b});relation["building:part"]["type"="multipolygon"](${b}););out geom;`, 'bld');
-  const f = buildingFeatures(j); writeGz(key, f); return f;
+  let f;
+  try {
+    const j = await overpass(`(way["building"](${b});way["building:part"](${b});relation["building"]["type"="multipolygon"](${b});relation["building:part"]["type"="multipolygon"](${b}););out geom;`, 'bld', depth ? 4 : 3);
+    f = buildingFeatures(j);
+  } catch (e) {
+    // (a dense tile that the server cannot answer in time: ask for its four quarters instead)
+    if (depth >= 2) throw e;
+    console.log(`\n  tile ${tile.key} too heavy (${e.message.slice(0, 80)}): in four`);
+    const [s, w, n, ea] = tile.bb, ms = (s + n)/2, mw = (w + ea)/2, seen = new Set(); f = [];
+    for (const [i, bb] of [[s, w, ms, mw], [s, mw, ms, ea], [ms, w, n, mw], [ms, mw, n, ea]].entries())
+      for (const x of await buildingsTile({ key:tile.key + 'q' + i, bb:bb.map(v => +v.toFixed(5)) }, depth + 1)) if (!seen.has(x.i)){ seen.add(x.i); f.push(x); }
+  }
+  writeGz(key, f); return f;
 }
 
 // ---------------------------------------------------------------- water and coast
@@ -66,12 +77,19 @@ function waterFeatures(j){
   }
   return { poly, coast };
 }
-export async function waterTile(tile){
+export async function waterTile(tile, depth = 0){
   const key = `watf_${tile.key}_${tile.bb.join('_')}.json.gz`, hit = readGz(key);
   if (hit) return hit;
   const b = tile.bb.join(',');
-  const j = await overpass(`(way["natural"="water"](${b});relation["natural"="water"](${b});way["waterway"="riverbank"](${b});relation["waterway"="riverbank"](${b});way["landuse"="reservoir"](${b});relation["landuse"="reservoir"](${b});way["natural"="coastline"](${b}););out geom;`, 'wat');
-  const f = waterFeatures(j); writeGz(key, f); return f;
+  let f;
+  try { f = waterFeatures(await overpass(`(way["natural"="water"](${b});relation["natural"="water"](${b});way["waterway"="riverbank"](${b});relation["waterway"="riverbank"](${b});way["landuse"="reservoir"](${b});relation["landuse"="reservoir"](${b});way["natural"="coastline"](${b}););out geom;`, 'wat', depth ? 4 : 3)); }
+  catch (e) {
+    if (depth >= 2) throw e;
+    console.log(`\n  water tile ${tile.key} too heavy: in four`);
+    const seenP = new Set(), seenC = new Set(); f = { poly:[], coast:[] };
+    for (const q of quarters(tile)){ const w = await waterTile(q, depth + 1); for (const p of w.poly) if (!seenP.has(p.i)){ seenP.add(p.i); f.poly.push(p); } for (const c of w.coast) if (!seenC.has(c.i)){ seenC.add(c.i); f.coast.push(c); } }
+  }
+  writeGz(key, f); return f;
 }
 
 // ---------------------------------------------------------------- roads
@@ -95,12 +113,21 @@ function roadWays(j){
   }
   return out;
 }
-export async function roadsTile(tile, tertiary){
+const quarters = tile => { const [s, w, n, ea] = tile.bb, ms = (s + n)/2, mw = (w + ea)/2; return [[s, w, ms, mw], [s, mw, ms, ea], [ms, w, n, mw], [ms, mw, n, ea]].map((bb, i) => ({ key:tile.key + 'q' + i, bb:bb.map(v => +v.toFixed(5)) })); };
+export async function roadsTile(tile, tertiary, depth = 0){
   const key = `roadf_${tile.key}_${tertiary ? 't' : 'm'}_${tile.bb.join('_')}.json.gz`, hit = readGz(key);
   if (hit) return hit;
   const b = tile.bb.join(','), cl = tertiary ? 'motorway|trunk|primary|secondary|tertiary' : 'motorway|trunk|primary|secondary';
-  const j = await overpass(`way["highway"~"^(${cl})(_link)?$"](${b});out geom tags;`, 'road');
-  const f = roadWays(j); writeGz(key, f); return f;
+  let f;
+  try { f = roadWays(await overpass(`way["highway"~"^(${cl})(_link)?$"](${b});out geom tags;`, 'road', depth ? 4 : 3)); }
+  catch (e) {
+    // (a tile the server cannot answer in time: its four quarters, which share their ways: the ways are kept once)
+    if (depth >= 2) throw e;
+    console.log(`\n  road tile ${tile.key} too heavy: in four`);
+    const seen = new Set(); f = [];
+    for (const q of quarters(tile)) for (const w of await roadsTile(q, tertiary, depth + 1)) if (!seen.has(w.i)){ seen.add(w.i); f.push(w); }
+  }
+  writeGz(key, f); return f;
 }
 
 // ---------------------------------------------------------------- airports

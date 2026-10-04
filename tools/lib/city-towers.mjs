@@ -14,18 +14,18 @@ export async function buildTowers(city, layers){
     if (near){ if (!near.name && c.name) { near.name = c.name; near.id = c.id; } near.n++; continue; }
     groups.push({ ...c, h, n:1 });
   }
-  let list = groups.map(g => ({ name:g.name, la:g.la, lo:g.lo, h:g.h, kind:KIND[g.man] || 'building', lattice:/lattice/.test(g.ty) || undefined, src:'OpenStreetMap', id:g.id }));
+  let list = groups.map(g => ({ name:g.name, la:g.la, lo:g.lo, h:g.h, kind:KIND[g.man] || 'building', thin:undefined, src:'OpenStreetMap', id:g.id }));
   list = list.filter(t => t.name && !(TOWER_SKIP[city.key] || []).some(re => re.test(t.name)));
   for (const fx of TOWER_FIX[city.key] || []){
     const t = list.find(x => fx.re.test(x.name));
     if (!t){ console.log('  tower fix without a tower: ' + fx.re); continue; }
-    if (fx.h != null) t.h = fx.h; if (fx.name) t.name = fx.name; if (fx.kind) t.kind = fx.kind; if (fx.lattice) t.lattice = true; if (fx.src) t.src = fx.src;
+    if (fx.h != null) t.h = fx.h; if (fx.name) t.name = fx.name; if (fx.kind) t.kind = fx.kind; if (fx.thin) t.thin = true; if (fx.src) t.src = fx.src;
     if (fx.la != null){ t.la = fx.la; t.lo = fx.lo; }
   }
   for (const a of TOWER_ADD[city.key] || []) if (!list.some(x => haversine(x.la, x.lo, a.la, a.lo) < 120 || x.name === a.name)) list.push({ ...a });
   list.sort((a, b) => b.h - a.h);
   // (heights over 900 m are typing mistakes; two decimals of a degree are plenty: 1 m)
-  const out = list.filter(t => t.h > 0 && t.h < 900).slice(0, 40).map(t => { const o = { name:t.name, la:Math.round(t.la*1e5)/1e5, lo:Math.round(t.lo*1e5)/1e5, h:Math.round(t.h), kind:t.kind, src:t.src }; if (t.lattice) o.lattice = true; return o; });
+  const out = list.filter(t => t.h > 0 && t.h < 900).slice(0, 40).map(t => { const o = { name:t.name, la:Math.round(t.la*1e5)/1e5, lo:Math.round(t.lo*1e5)/1e5, h:Math.round(t.h), kind:t.kind, src:t.src }; o.thin = !!(t.thin || t.kind !== 'building'); return o; });
   console.log(`${city.key} towers: ${out.length} (tallest ${out[0].name} ${out[0].h} m)`);
   return out;
 }

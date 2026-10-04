@@ -73,16 +73,18 @@ export function readGz(key){ const f = cacheFile(key); return fs.existsSync(f) ?
 export function writeGz(key, obj){ fs.writeFileSync(cacheFile(key), zlib.gzipSync(Buffer.from(JSON.stringify(obj)), { level:6 })); }
 
 // ---------------------------------------------------------------- Overpass: one query at a time, a pause between them, back off on 429 / 504
-const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
+const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://lz4.overpass-api.de/api/interpreter', 'https://z.overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://overpass.openstreetmap.fr/api/interpreter'];
 let lastQuery = 0, inst = 0;
-export async function overpass(ql, tag = 'q'){
+export async function overpass(ql, tag = 'q', tries = 14){
   const key = `op_${tag}_${sha(ql).slice(0, 10)}.json.gz`, hit = readGz(key);
   if (hit) return hit;
   const full = `[out:json][timeout:240][maxsize:2000000000];` + ql;
   let err = '';
-  for (let a=0;a<14;a++){
+  for (let a=0;a<tries;a++){
+    if (a > 0) console.log(`\n  Overpass retry ${a} (${tag}): ${err}`);
     const wait = lastQuery + 3000 - Date.now(); if (wait > 0) await sleep(wait);
     const url = OVERPASS[inst % OVERPASS.length];
+    if (a > 0 || process.env.OP_VERBOSE) console.log(`  [${new Date().toISOString().slice(11, 19)}] ${tag} try ${a + 1} on ${url.split('/')[2]}`);
     try {
       const r = await fetch(url, { method:'POST', headers:{ ...UA, 'Content-Type':'application/x-www-form-urlencoded' }, body:'data=' + encodeURIComponent(full), signal:AbortSignal.timeout(300000) });
       lastQuery = Date.now();

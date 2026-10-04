@@ -5,8 +5,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
-import { OUT, CACHE, cached, get, UA, readGz, writeGz, frameAt, planeToLL, llToPlane, bboxLL, gridTiles, clampN, fillRings, assembleRings, photoSource, s2Source, terrainSource, writeHashed, PHOTO } from './city-common.mjs';
-import { buildingsTile, waterTile } from './city-osm.mjs';
+import { OUT, CACHE, cached, get, UA, readGz, writeGz, frameAt, planeToLL, llToPlane, bboxLL, gridTiles, haversine, clampN, fillRings, assembleRings, photoSource, s2Source, terrainSource, writeHashed, PHOTO } from './city-common.mjs';
+import { buildingsTile, waterTile, airportInfo, airportDetail } from './city-osm.mjs';
+import { roadWaysIn } from './city-build.mjs';
 
 export const CREDIT = {
   osm:'© OpenStreetMap contributors (ODbL)',
@@ -15,12 +16,13 @@ export const CREDIT = {
   gsi:'GSI Japan (国土地理院) seamless aerial photographs, edited',
   ign:'IGN BD ORTHO (Licence Ouverte 2.0)',
   nyc:'NYC Open Data, Building Footprints (NYC Office of Technology and Innovation)',
+  bdtopo:'IGN BD TOPO (Licence Ouverte 2.0)',
   terrain:'Terrain: Mapzen Terrain Tiles on AWS (SRTM, USGS 3DEP and other sources)',
 };
 
 // ---------------------------------------------------------------- New York's own building footprints (Socrata, NYC Open Data): heights above the ground in feet
 const SOC = 'https://data.cityofnewyork.us/resource/5zhs-2jue.json';
-async function socrata(url){ return JSON.parse(await cached('soc_' + url.replace(/^https?:\/\//, '').replace(/[^a-z0-9]/gi, '_').slice(-180) + '_' + url.length + '.json', () => get(url, { timeout:300000 }))); }
+async function socrata(url){ return JSON.parse(await cached('soc_' + url.replace(/^https?:\/\//, '').replace(/[^a-z0-9]/gi, '_').slice(-180) + '_' + url.length + '.json', async () => { const b = await get(url, { timeout:300000 }); if (b[0] !== 91) throw new Error('Socrata answered: ' + b.toString('utf8', 0, 200)); return b; })); }
 export async function nycTile(tile){
   const key = `nycf_${tile.key}_${tile.bb.join('_')}.json.gz`, hit = readGz(key);
   if (hit) return hit;
@@ -35,6 +37,25 @@ export async function nycTile(tile){
       polys.forEach((rings, pi) => out.push({ i:'n' + r.bin + '_' + pi, h:Math.round(h*10)/10, k:'nyc', r:rings.map(ring => ring.flatMap(([lo, la]) => [la, lo])) }));
     }
     if (rows.length < 40000) break;
+  }
+  writeGz(key, out); return out;
+}
+// ---------------------------------------------------------------- Paris: IGN's BD TOPO buildings (Licence Ouverte 2.0), with their heights in metres (from the Lidar-based BD TOPO, `hauteur`)
+export async function bdtopoTile(tile){
+  const key = `bdtf_${tile.key}_${tile.bb.join('_')}.json.gz`, hit = readGz(key);
+  if (hit) return hit;
+  const pad = 0.0004, [s, w, n, e] = tile.bb, out = [];
+  for (let off=0; ; off+=4000){
+    const url = `https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=BDTOPO_V3:batiment&OUTPUTFORMAT=application/json&SRSNAME=EPSG:4326&COUNT=4000&STARTINDEX=${off}&SORTBY=cleabs&PROPERTYNAME=geometrie,hauteur,nombre_d_etages,etat_de_l_objet,construction_legere&BBOX=${w - pad},${s - pad},${e + pad},${n + pad},EPSG:4326`;
+    const j = JSON.parse(await cached(`bdt_${tile.key}_${off}_${tile.bb.join('_')}.json`, async () => { const b = await get(url, { timeout:300000 }); if (b[0] !== 123) throw new Error('WFS answered: ' + b.toString('utf8', 0, 200)); return b; }));
+    for (const f of j.features || []){
+      const p = f.properties || {}, g = f.geometry; if (!g || (p.etat_de_l_objet && p.etat_de_l_objet !== 'En service')) continue;
+      let h = +p.hauteur; if (!(h > 0)) h = +p.nombre_d_etages > 0 ? p.nombre_d_etages*3.1 + 1.5 : 8;
+      if (h > 400) continue;
+      const polys = g.type === 'MultiPolygon' ? g.coordinates : [g.coordinates];
+      polys.forEach((rings, pi) => out.push({ i:'p' + f.id + '_' + pi, h:Math.round(h*10)/10, k:'bdtopo', r:rings.map(ring => ring.flatMap(([lo, la]) => [la, lo])) }));
+    }
+    if ((j.features || []).length < 4000) break;
   }
   writeGz(key, out); return out;
 }
@@ -66,17 +87,22 @@ function rasterFeatures(feats, seen, F, N, half, m, h){
   }
   return n;
 }
+// (lattice and other slender towers, which a height map turns into solid blocks, are left out where the city's config says: the page draws them from the towers' list)
+const withoutThin = (city, feats) => city.thin ? feats.filter(f => !city.thin.some(t => haversine(f.r[0][0], f.r[0][1], t.la, t.lo) < t.r)) : feats;
 export async function rasterBuildings(city, L, F){
-  const N = L.px, half = L.size/2, m = L.size/N, h = new Float32Array(N*N), tiles = gridTiles(bboxLL(L, 150), 3.2, city.la), seen = new Set();
+  const N = L.px, half = L.size/2, m = L.size/N, h = new Float32Array(N*N), tiles = gridTiles(bboxLL(L, 150), city.bldKm || 3.2, city.la), seen = new Set();
   let n = 0;
   if (city.nyc){
     // inside the five boroughs: the city's own footprints; outside (New Jersey): OpenStreetMap
     const hn = new Float32Array(N*N), ho = new Float32Array(N*N), cover = new Uint8Array(N*N), seenN = new Set();
-    for (const t of tiles){ n += rasterFeatures(await nycTile(t), seenN, F, N, half, m, hn); process.stdout.write('c'); }
-    for (const t of tiles){ rasterFeatures(await buildingsTile(t), seen, F, N, half, m, ho); process.stdout.write('o'); }
+    for (const t of tiles){ n += rasterFeatures(withoutThin(city, await nycTile(t)), seenN, F, N, half, m, hn); process.stdout.write('c'); }
+    for (const t of tiles){ rasterFeatures(withoutThin(city, await buildingsTile(t)), seen, F, N, half, m, ho); process.stdout.write('o'); }
     for (const poly of await nycBoroughs()){ const rings = poly.map(fl => ringsToPixels(fl, F, half, m)); fillRings(rings, N, (y, a, c) => cover.fill(1, y*N + a, y*N + c + 1)); }
     for (let i=0;i<N*N;i++) h[i] = cover[i] ? hn[i] : ho[i];
-  } else for (const t of tiles){ n += rasterFeatures(await buildingsTile(t), seen, F, N, half, m, h); process.stdout.write('b'); }
+  } else if (city.bdtopo){
+    // Paris: IGN's own buildings and heights
+    for (const t of tiles){ n += rasterFeatures(withoutThin(city, await bdtopoTile(t)), seen, F, N, half, m, h); process.stdout.write('p'); }
+  } else for (const t of tiles){ n += rasterFeatures(withoutThin(city, await buildingsTile(t)), seen, F, N, half, m, h); process.stdout.write('b'); }
   return { h, n };
 }
 // water: OpenStreetMap river and lake polygons (water), and the coast (sea: 1 sea, 0 land, -1 a row the coast does not cross)
@@ -116,6 +142,50 @@ export async function rasterWater(city, L, F){
   return { water, sea, coasts:nc };
 }
 
+// ---------------------------------------------------------------- where there is no open aerial photo (London, Dubai): the Sentinel-2 colours (10 m) are painted over with what OpenStreetMap has
+// at a finer scale: roads (motorway to tertiary) in asphalt grey, building footprints as roofs (by height, with a dark edge), and at an airport its runways, taxiways and aprons.
+// The painting is illustrative: the shapes are real, the colours are not measured.
+function stamp(rgb, N, x, y, r, col, a){
+  const x0 = Math.max(0, Math.floor(x - r)), x1 = Math.min(N - 1, Math.ceil(x + r)), y0 = Math.max(0, Math.floor(y - r)), y1 = Math.min(N - 1, Math.ceil(y + r));
+  for (let yy=y0;yy<=y1;yy++) for (let xx=x0;xx<=x1;xx++){ const dx = xx + 0.5 - x, dy = yy + 0.5 - y; if (dx*dx + dy*dy > r*r) continue; const o = (yy*N + xx)*3; for (let c=0;c<3;c++) rgb[o + c] = rgb[o + c]*(1 - a) + col[c]*a; }
+}
+function strokeLine(rgb, N, pts, r, col, a){
+  for (let k=0;k + 1<pts.length;k++){ const [ax, ay] = pts[k], [bx, by] = pts[k + 1], n = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay)*2)); for (let i=0;i<=n;i++) stamp(rgb, N, ax + (bx - ax)*i/n, ay + (by - ay)*i/n, r, col, a); }
+}
+async function paintOsm(city, L, F, rgb, isWater, bh){
+  const N = L.px, half = L.size/2, m = L.size/N, toPx = ll => ringsToPixels(ll.flat(), F, half, m);
+  const before = Buffer.from(rgb);
+  // airport: aprons, taxiways, runways
+  if (L.airport){
+    const info = await airportInfo(L.airport, [0, 0, 0, 0]).catch(() => null), det = info && await airportDetail(L.airport, info, L.airport === 'CDG' ? 6500 : 4500);
+    if (det){
+      for (const a of det.apron) if (a.p.length > 3){ fillRings([toPx(a.p)], N, (y, xa, xb) => { for (let x=xa;x<=xb;x++){ const o = (y*N + x)*3; rgb[o] = rgb[o]*0.3 + 140*0.7; rgb[o + 1] = rgb[o + 1]*0.3 + 140*0.7; rgb[o + 2] = rgb[o + 2]*0.3 + 144*0.7; } }); }
+      for (const t of det.taxi) strokeLine(rgb, N, toPx(t.p), Math.max(0.8, (t.lane ? 5 : 8)/m), [112, 112, 116], 0.9);
+      for (const r of det.runways) strokeLine(rgb, N, toPx(r.p), Math.max(1, (r.width || 45)/2/m), [64, 64, 68], 1);
+      for (const r of det.runways) strokeLine(rgb, N, toPx(r.p), Math.max(0.5, 0.5/m), [200, 200, 196], 0.55);
+    }
+  }
+  // roads
+  const ways = await roadWaysIn(city, L, 100);
+  for (const w of ways){
+    if (w.tunnel) continue;
+    const lanes = w.lanes || (w.oneway ? 1 : 2), wd = (w.oneway ? lanes : lanes)*3.3 + (w.cls <= 1 ? 6 : 3.5), col = w.cls <= 1 ? [78, 78, 84] : [96, 96, 100];
+    strokeLine(rgb, N, toPx(w.p), Math.max(0.7, wd/2/m), col, 0.85);
+  }
+  // buildings: roofs by height, dark at the foot of a wall
+  if (bh){
+    for (let y=0;y<N;y++) for (let x=0;x<N;x++){
+      const i = y*N + x, h = bh[i]; if (h <= 0.5) continue;
+      const edge = (x > 0 && bh[i - 1] <= 0.5) || (x < N - 1 && bh[i + 1] <= 0.5) || (y > 0 && bh[i - N] <= 0.5) || (y < N - 1 && bh[i + N] <= 0.5);
+      const hash = ((x >> 1)*73856093 ^ (y >> 1)*19349663) >>> 0, v = 0.9 + (hash % 100)/500;
+      const roof = h < 12 ? [158, 148, 138] : h < 45 ? [170, 168, 164] : [158, 170, 186], k = edge ? 0.62 : v;
+      for (let c=0;c<3;c++) rgb[i*3 + c] = clampN(rgb[i*3 + c]*0.3 + roof[c]*0.7*k, 0, 255);
+    }
+  }
+  // (water stays as the satellite has it)
+  for (let i=0;i<N*N;i++) if (isWater[i]){ rgb[i*3] = before[i*3]; rgb[i*3 + 1] = before[i*3 + 1]; rgb[i*3 + 2] = before[i*3 + 2]; }
+}
+
 // ---------------------------------------------------------------- colours: the aerial photos set the look; the satellite images are brightened to match (as tools/earth-detail.mjs)
 export async function cityGain(city, ctx){
   if (city.photo === 's2') return null;
@@ -149,11 +219,13 @@ export async function buildLayer(city, L, ctx){
     if (b > 0.5) w = false;
     isWater[i] = w ? 1 : 0; if (w) wN++;
     let v = photo ? photo(la, lo) : null;
-    if (v) photoN++; else { v = s2(la, lo); if (v){ s2N++; if (gain && useAerial) v = gain(v); } }
+    if (v) photoN++; else { v = s2(la, lo); if (v){ s2N++; if (gain) v = gain(v); } }
     if (!v) v = w ? [14, 36, 58] : [96, 92, 78];
     rgb[i*3] = clampN(Math.round(v[0]), 0, 255); rgb[i*3 + 1] = clampN(Math.round(v[1]), 0, 255); rgb[i*3 + 2] = clampN(Math.round(v[2]), 0, 255);
     elev[i] = Math.max(t, 0) + b;
   }
+  let painted = false;
+  if (!useAerial && L.id !== 'r51'){ await paintOsm(city, L, F, rgb, isWater, bld ? bld.h : null); painted = true; }
   let lo = Infinity, hi = -Infinity; for (let i=0;i<N*N;i++) if (!isWater[i]){ lo = Math.min(lo, elev[i]); hi = Math.max(hi, elev[i]); }
   if (!isFinite(lo)){ lo = 0; hi = 1; }
   const base = Math.floor(lo), step = Math.max(0.1, Math.ceil((hi - base)/253*10)/10);
@@ -164,6 +236,7 @@ export async function buildLayer(city, L, ctx){
   const [dx, dy] = llToPlane(cityF, L.la, L.lo);
   console.log(` ${(webp.length/1024).toFixed(0)} KB, ${Math.round(100*photoN/(N*N))}% aerial, ${Math.round(100*s2N/(N*N))}% Sentinel-2, ${Math.round(100*wN/(N*N))}% water${bld ? `, ${bld.n} buildings` : ''}, ground ${base} to ${hi.toFixed(0)} m in ${step} m steps`);
   const meta = { id:L.id, name:L.name, file, la:L.la, lo:L.lo, size:L.size, px:N, dx:Math.round(dx), dy:Math.round(dy), base, step, top:Math.ceil(hi), src:[photoN ? L.photo : null, s2N ? 's2' : null].filter(Boolean), s2dates:s2N ? s2.dates : [], bld:bld ? bld.n : 0, bytes:webp.length };
+  if (painted) meta.painted = true;
   if (L.airport) meta.airport = L.airport;
   return meta;
 }
