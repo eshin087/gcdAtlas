@@ -52,6 +52,15 @@ release and one pull request each. This file is the plan; `docs/CHANGELOG.md` sa
 | Fine photos (phase 3+) | Sentinel-2 (everywhere), NAIP and NOAA (United States) | free with credit |
 | Live (phase 5) | NASA GIBS daily images, USGS earthquakes, NASA FIRMS fires | free |
 
+## Progress
+
+- Phase 1: 0.11.0, merged (PR #42).
+- Phase 2: 0.12.0. Tiles to 2.4 km a pixel (31 MB), the ground in 3D anywhere, places on Earth in the search.
+- Phases 3 to 5: their data was prepared in parallel on local branches. Each phase's release takes its branch in:
+  - `data/earth-places`: the iconic places' layers (`tools/earth-places.mjs`);
+  - `data/earth-cities`: the five cities' layers, roads, runways and towers (`tools/earth-cities.mjs`);
+  - `data/earth-live`: `/api/quakes`, `/api/fires`, `/api/clouds` (`docs/LIVE_DATA.md`).
+
 ## Phases
 
 1. **0.11, real Earth from space.**

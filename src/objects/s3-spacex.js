@@ -477,17 +477,21 @@ for (const o of [...Object.values(SX.parts), ...Object.values(SXS).map(S => S.o)
 function sxCamNear(c){ const rel = V.add(earth.rel, V.mul(M3.apply(earth.rot, c.C), KM)), d = V.len(rel)/MET; return c.R/Math.max(d, 1) > 0.0015; }
 // the ground and sky near a launch site, drawn just after Earth
 const SXENV = { on:false, cover:false };
-{ const prev = earth.drawAfter; earth.drawAfter = vis => { if (prev) prev(vis); if (FLAGS.spacex) drawEnv(); }; }
+// (also with the SpaceX flag off, for the ground anywhere: 0.12.0, from Codex's review of #43)
+const envOn = () => FLAGS.spacex || FLAGS.realEarth;
+{ const prev = earth.drawAfter; earth.drawAfter = vis => { if (prev) prev(vis); if (envOn()) drawEnv(); }; }
 // (while the ground and a nearly opaque sky cover the whole screen, Earth's own volume under them is not drawn: it cost as much again)
-earth.volOff = () => FLAGS.spacex && SXENV.cover;
+earth.volOff = () => envOn() && SXENV.cover;
 function camFixed(){ return M3.applyT(earth.rot, V.mul(earth.rel, -1/KM)); }
 function drawEnv(){
   const cf = camFixed(), alt = V.len(cf) - RE_KM;
   SXENV.on = SXENV.cover = false; if (alt > 90 || alt < -1) return;
   let best = null, bd = 1e9;
-  for (const S of SITE_LIST()){ const d = V.len(V.sub(cf, S.p)); if (d < bd){ bd = d; best = S; } }
+  for (const S of FLAGS.spacex ? SITE_LIST() : []){ const d = V.len(V.sub(cf, S.p)); if (d < bd){ bd = d; best = S; } }
+  // (away from the launch sites, the ground anywhere, baked from the tiles: e7g-earth-ground.js, 0.12.0)
+  if ((!best || bd > 420) && EGR.ready){ best = EGR.site; bd = 0; }
   if (!best || bd > 700) return;
-  const fade = (1 - smooth(22, 85, alt))*(1 - smooth(350, 700, bd));
+  const fade = (1 - smooth(22, 85, alt))*(best.ground ? EGR.fade : 1 - smooth(350, 700, bd));
   if (fade < 0.01) return;
   SXENV.on = true; SXENV.site = best; SXENV.alt = alt;
   const Rw = M3.mul(earth.rot, best.F.M), cl = M3.applyT(best.F.M, V.mul(V.sub(cf, best.p), 1000)), L = M3.applyT(best.F.M, sunFixed()), day = smooth(-0.12, 0.12, L[1]);
@@ -495,12 +499,13 @@ function drawEnv(){
   SXENV.cover = fade > 0.999 && (0.25 + 0.74*day)*(0.35 + 0.65*Math.exp(-alt*1000/8500)) > 0.85;
   let pl = [0, 0, 0], plI = 0;
   for (const k in SX.parts){ const st = SX.parts[k].sx.st; if (!st || !st.on || SX.parts[k].hidden || !(st.thr > plI) || st.alt > 20) continue; plI = st.thr; pl = M3.applyT(best.F.M, V.mul(V.sub(st.base, best.p), 1000)); }
-  const rel = V.add(earth.rel, V.mul(M3.apply(earth.rot, best.p), KM)), ED = best.kind === 4 ? null : EDT.siteOfPad(best.key);
+  const rel = V.add(earth.rel, V.mul(M3.apply(earth.rot, best.p), KM)), ED = best.ground ? best : best.kind === 4 ? null : EDT.siteOfPad(best.key);
   drawVolume(earth, P.sxEnv, rel, V.len(rel)*4 + 1e-3, p => {
     EDT.bind(p, ED, { M:best.F.M, p:best.p });
     gl.uniform4f(p.u.uP0, cl[0], cl[1], cl[2], fade); gl.uniform4f(p.u.uP1, L[0], L[1], L[2], day);
     gl.uniform4f(p.u.uP2, best.coast[0], best.coast[1], best.coast[2], best.kind === 4 ? 1 : 0);
-    gl.uniform4f(p.u.uP3, pl[0], pl[1], pl[2], plI*(0.4 + 1.6*(1 - day))); gl.uniform4f(p.u.uP4, GT, best.elev || 0, 0, 0);
+    // (z: how far the heights are marched, 0 at a pad (40 km, finely); 260 km over the ground anywhere, where the mountains are far)
+    gl.uniform4f(p.u.uP3, pl[0], pl[1], pl[2], plI*(0.4 + 1.6*(1 - day))); gl.uniform4f(p.u.uP4, GT, best.elev || 0, best.ground ? 260000 : 0, 0);
     wxUniforms(p);
   }, Rw, 1);
 }
@@ -517,6 +522,8 @@ function drawEnv(){
 const WX = { data:null, state:0, last:-1e9, now:null, key:null, wind:{ e:-3, n:2 }, wind850:{ e:-5, n:3 }, off:[0, 0], offH:[0, 0], t:0 };
 const WX_SITE = { starbase:'starbase', lc39a:'cape', slc40:'cape', lz:'cape', slc4e:'vandenberg', 'ds-f9':'cape', 'ds-fh':'cape' };
 const WX_FAIR = { low:0.28, mid:0.08, high:0.22, ws:4, wd:135, ws850:7, wd850:150, vis:22000, rain:0, code:2, rh:72, real:false };
+// (the ground anywhere, 0.12.0: no weather of its own yet, so a clear day with a few clouds and air clear enough to see far mountains)
+const WX_CLEAR = { low:0.12, mid:0.04, high:0.15, ws:4, wd:270, ws850:8, wd850:270, vis:150000, rain:0, code:1, rh:55, real:false };
 function wxWant(){
   if (WX.state === 1 || !/^https?:$/.test(location.protocol) || typeof fetch !== 'function') return;
   if ((WX.state === 2 || WX.state === 3) && GT - WX.last < (WX.state === 2 ? 1800 : 300)) return;
@@ -526,6 +533,7 @@ function wxWant(){
     .catch(e => { WX.state = 3; WX.last = GT; console.info('weather unavailable, a fair day instead (' + e + ')'); });
 }
 function wxAt(padKey, ms){
+  if (padKey === 'ground') return Object.assign({ key:padKey }, WX_CLEAR);
   const key = WX_SITE[padKey] || 'cape', d = WX.data && WX.data.sites && WX.data.sites[key];
   if (!d || !d.low || !d.low.length) return Object.assign({ key }, WX_FAIR);
   const i = clamp(Math.round((ms/1000 - WX.data.t0)/(WX.data.step || 3600)), 0, d.low.length - 1), g = k => (d[k] && d[k][i] != null) ? d[k][i] : WX_FAIR[k];
@@ -538,7 +546,7 @@ const windTo = (ws, wd) => ({ e:-ws*Math.sin(wd*DEG), n:-ws*Math.cos(wd*DEG) });
 function wxTick(dt){
   const S = LCAM.on ? SXS[LCAM.run.site] : SXENV.on && SXENV.site ? SXENV.site : null;
   if (!S){ WX.now = null; return; }
-  wxWant();
+  if (!S.ground) wxWant();
   const jd = jdNow(), ms = (jd - 2440587.5)*86400000, w = wxAt(S.key, ms);
   WX.now = w; WX.key = S.key;
   WX.wind = windTo(w.ws, w.wd); WX.wind850 = windTo(w.ws850, w.wd850);

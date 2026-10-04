@@ -5,6 +5,13 @@
      numbers with units. The newest version comes first and opens by itself; its number must match package.json (tests/smoke.mjs checks it).
      Every detail stays in docs/CHANGELOG.md, which the panel links to. -->
 
+## 0.12.0 · 3 Oct 2026 · Fly down anywhere on Earth
+- Places on Earth: open the atlas and pick "on Earth" for famous mountains, deserts, islands, seas and cities, or search any of about 32,000 cities and the highest mountains by name. Pick one and the camera flies down to it.
+- Mountains stand up in 3D wherever you fly low, from real heights of the land, not only at the launch sites.
+- Up close, Earth is four times sharper (about 2.4 km a pixel), and you can zoom down to about 330 km above it.
+- The atlas is easier to find your way in: each kind has its own colour, on its button, its heading and its rows.
+- Mountains are shown by day. A city keeps the time, so at night you see its lights.
+
 ## 0.11.0 · 3 Oct 2026 · The real Earth from space
 - Earth now shows its real colours from NASA's Blue Marble, with deserts, forests, ice and the shallow seas as satellites see them.
 - The seasons change with the date the atlas shows: snow spreads across the north in winter and forests green up in spring. Run the time machine to watch a year go by.

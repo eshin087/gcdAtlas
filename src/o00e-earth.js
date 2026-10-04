@@ -11,6 +11,11 @@ uniform sampler2D uTex2;
 // (only in the copies with EG_ON, compiled in the background once Earth is near: P.earth, compiled at start-up, stays as quick as before)
 #ifdef EG_ON
 uniform sampler2D uEgC0; uniform sampler2D uEgC1; uniform sampler2D uEgD; uniform vec4 uEg;
+// the finer tiles (e7-earth-tiles.js): uEtC the detail of January and July (layers 2 x slot and 2 x slot + 1, the ratio to the global map of
+// their month, 0.5 + log2(ratio)/4), uEtD the data (as uEgD), uEtI the index (r slot + 1, g how far the tile has faded in, b its season:
+// 0 January's detail, 1 July's), uEt: x 1 while any tile is in, y z the tiles across and down, w a tile texel at the equator (m)
+precision highp sampler2DArray;
+uniform sampler2DArray uEtC; uniform sampler2DArray uEtD; uniform sampler2D uEtI; uniform vec4 uEt;
 #endif
 vec2 euv(vec3 n){ float lat = asin(clamp(n.y, -1., 1.)), lon = atan(-n.z, n.x); return vec2(lon*0.15915494 + 0.5, 0.5 - lat*0.31830989); }
 vec4 etex(vec3 n, float lod){ return textureLod(uTex, euv(n), lod); }
@@ -100,6 +105,26 @@ void main(){
       egd = textureLod(uEgD, uv, el);
       // (the lights a level and a half sharper than the rest, as the painted map's: in characters a town reads as a point, not a smudge)
       egd.g = textureLod(uEgD, uv, max(el - 1.5, 0.)).g;
+      // (the relief: the height's slope east and north, from the neighbouring texels)
+      vec2 ts = exp2(el)/vec2(textureSize(uEgD, 0));
+      float h0 = egd.r*egd.r, hE = textureLod(uEgD, uv + vec2(ts.x, 0.), el).r, hN = textureLod(uEgD, uv - vec2(0., ts.y), el).r;
+      vec2 g = vec2((hE*hE - h0)/max(cos(lat), 0.08), hN*hN - h0)*8.848/(40075.*ts.x);
+      // the finer tiles where one is in and a pixel covers less than two of its texels: the month's colour times the tile's detail (of the
+      // season), its heights, lights and coast
+      if(uEt.x > 0.5){
+        vec2 tc = uv*uEt.yz; vec4 ix = texelFetch(uEtI, ivec2(clamp(floor(tc), vec2(0.), uEt.yz - 1.)), 0);
+        float w = ix.g*clamp(2. - hs.x*uPix*7.1344e6/max(mu, 0.25)/uEt.w, 0., 1.);
+        if(ix.r > 0. && w > 0.001){
+          float sl = floor(ix.r*255. + 0.5) - 1., dx = 1./float(textureSize(uEtD, 0).x); vec2 f = clamp(fract(tc), 0.5*dx, 1. - 0.5*dx);
+          vec3 r = mix(textureLod(uEtC, vec3(f, sl*2.), 0.).rgb, textureLod(uEtC, vec3(f, sl*2. + 1.), 0.).rgb, ix.b);
+          bm = mix(bm, max((bm + 0.00784)*exp2((r - 0.5)*4.) - 0.00784, 0.), w);
+          vec4 td = textureLod(uEtD, vec3(f, sl), 0.);
+          float t0 = td.r*td.r, tE = textureLod(uEtD, vec3(min(f.x + dx, 1.), f.y, sl), 0.).r, tN = textureLod(uEtD, vec3(f.x, max(f.y - dx, 0.), sl), 0.).r;
+          // (the slopes over 2.4 km are steeper than over 10: raised 1.4 times, not 7, or every slope away from a low Sun went black)
+          g = mix(g, vec2((tE*tE - t0)/max(cos(lat), 0.08), tN*tN - t0)*8.848/(uEt.w*0.001)*0.2, w);
+          egd = mix(egd, td, w);
+        }
+      }
       float lE = smoothstep(0.4, 0.8, egd.a);
       // (gentler than the launch sites' edLin: its curve turned forests nearly black, and from space the Amazon and the taiga vanished
       // into the sea; this keeps the deep sea as dark as the painted one and deserts as bright)
@@ -107,11 +132,7 @@ void main(){
       // (shallow seas a little deeper in tone, so the coast stays a clear edge in characters; their colour still shows)
       real = mix(real, real*vec3(0.62, 0.7, 0.85), (1. - smoothstep(0.4, 0.8, egd.a))*smoothstep(0.12, 0.35, dot(real, vec3(0.3, 0.5, 0.2))));
       surf = mix(surf, real, egk); land = mix(land, lE, egk);
-      // (the relief: the height's slope east and north, from the neighbouring texels)
-      vec2 ts = exp2(el)/vec2(textureSize(uEgD, 0));
-      float h0 = egd.r*egd.r, hE = textureLod(uEgD, uv + vec2(ts.x, 0.), el).r, hN = textureLod(uEgD, uv - vec2(0., ts.y), el).r;
-      float kmT = 40075.*ts.x;
-      vec2 g = vec2((hE*hE - h0)/max(cos(lat), 0.08), hN*hN - h0)*8.848/kmT*uEg.z*lE;
+      g *= uEg.z*lE;
       vec3 eE = normalize(cross(vec3(0., 1., 0.), n) + vec3(1e-6, 0., 0.)), eN = cross(n, eE);
       vec3 nr = normalize(n - eE*g.x - eN*g.y);
       dif = mix(dif, max(dot(nr, L), 0.)*smoothstep(-0.02, 0.06, sdot), egk);
@@ -307,7 +328,7 @@ const earth = (() => {
   sats.upload('ac');
   const o = addObj({ key:'earth', name:'Earth', label:'Earth', type:'rocky planet · home', group:'solar', sortKey:1,
     fact:'The only world known to have life. Real coastlines, weather systems pushed by the trade winds and westerlies, city lights on the night side and auroras over the poles.',
-    parent:sun, offset:planetPos(PLANET_EL.earth, JD_NOW), rad:R*bound, solid:0.893, R0:poleFrame(0, 90), prog:P.earth, tex:'earth', tex2:'lights', minZoom:1.035, pxMin:5, farColor:[0.55, 0.7, 1], farLum:0.9, labelRange:2e-3,
+    parent:sun, offset:planetPos(PLANET_EL.earth, JD_NOW), rad:R*bound, solid:0.893, R0:poleFrame(0, 90), prog:P.earth, tex:'earth', tex2:'lights', minZoom:0.94, pxMin:5, farColor:[0.55, 0.7, 1], farLum:0.9, labelRange:2e-3,
     distEarth:'home', aka:'home world planet blue marble',
     // tours play three of the angles (day side, the horizon up close, the night side with its city lights): about 30 s instead of a minute
     tourViews:[0, 2, 1],

@@ -32,11 +32,16 @@ catch (e) { console.error('Syntax error in the bundled script:\n' + e.stack.spli
   for (const f of list) for (const m of read(f).matchAll(/^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gm)){ if (seen.has(m[1])) dup.push(`${m[1]} (${seen.get(m[1])} and ${f})`); else seen.set(m[1], f); }
   if (dup.length){ console.error('The same top-level function name in two places:\n  ' + dup.join('\n  ')); process.exit(1); } }
 
-// the Earth detail images (tools/earth-detail.mjs) are served next to the page, never inside it: dist/earth/
-{ const src = path.join(ROOT, 'assets', 'earth'), dst = path.join(DIST, 'earth');
-  if (fs.existsSync(src)){ fs.mkdirSync(dst, { recursive:true });
-    const want = new Set(fs.readdirSync(src)); for (const f of fs.readdirSync(dst)) if (!want.has(f)) fs.unlinkSync(path.join(dst, f));
-    for (const f of want){ const a = path.join(src, f), b = path.join(dst, f); if (!fs.existsSync(b) || fs.statSync(b).size !== fs.statSync(a).size) fs.copyFileSync(a, b); } } }
+// the Earth's images (tools/earth-*.mjs) are served next to the page, never inside it: dist/earth/, folders and all (the tiles live in a
+// folder named after their set, 0.12.0); whatever is no longer in assets/earth goes
+function syncDir(src, dst){
+  fs.mkdirSync(dst, { recursive:true });
+  const want = new Map(fs.readdirSync(src, { withFileTypes:true }).map(e => [e.name, e.isDirectory()]));
+  for (const e of fs.readdirSync(dst, { withFileTypes:true })) if (want.get(e.name) !== e.isDirectory()) fs.rmSync(path.join(dst, e.name), { recursive:true, force:true });
+  for (const [f, dir] of want){ const a = path.join(src, f), b = path.join(dst, f);
+    if (dir) syncDir(a, b); else if (!fs.existsSync(b) || fs.statSync(b).size !== fs.statSync(a).size) fs.copyFileSync(a, b); }
+}
+{ const src = path.join(ROOT, 'assets', 'earth'); if (fs.existsSync(src)) syncDir(src, path.join(DIST, 'earth')); }
 // the link preview (og:image, 1200 x 630, made by tools/og-image.mjs): what a shared link shows in a chat or a post
 fs.mkdirSync(DIST, { recursive: true });
 fs.copyFileSync(path.join(ROOT, 'assets', 'og.jpg'), path.join(DIST, 'og.jpg'));
