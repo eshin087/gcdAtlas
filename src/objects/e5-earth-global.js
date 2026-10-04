@@ -82,5 +82,5 @@ const EGL = (() => {
     orbit.lock = earth.index; cam.focus = earth.index; orbit.frame = camFrameOf(earth); const d = M3.applyT(orbit.frame, M3.apply(earth.rot, u));
     orbit.yaw = Math.atan2(d[0], d[2]); orbit.pitch = Math.asin(d[1]); orbit.dist = orbit.distT = earth.rad*k; orbit.off = [0, 0, 0]; orbit.target = [0, 0, 0]; applyOrbit(); return 1;
   }
-  return { SZ, months, lookAt, set off(v){ off = !!v; fade = 0; }, get on(){ return fade > 0; }, get fade(){ return fade; }, get ready(){ return Object.keys(T).filter(f => T[f].state === 2); }, tick };
+  return { SZ, months, lookAt, bind, set off(v){ off = !!v; fade = 0; }, get on(){ return fade > 0; }, get fade(){ return fade; }, get ready(){ return Object.keys(T).filter(f => T[f].state === 2); }, tick };
 })();

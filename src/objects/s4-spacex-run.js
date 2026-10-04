@@ -440,7 +440,7 @@ function sxTick(dt){
     }
   }
   // near the ground (or watching) the Solar System clock runs in real time, so the Sun stays put and the pad does not spin round
-  const want = LCAM.on || (SX.pend && flight) || (SXENV.on && SXENV.alt < 40);
+  const want = LCAM.on || (SX.pend && flight) || (SXENV.on && SXENV.alt < 40) || EPL.hold();
   if (want && sxRatePrev == null){ sxRatePrev = ssRate; ssRate = 1/86400; }
   else if (!want && sxRatePrev != null){ if (ssRate === 1/86400) ssRate = sxRatePrev; sxRatePrev = null; }
   if (!LCAM.on){ const lk = 1 - Math.exp(-dt*2), k0 = LENS.k; LENS.k = Math.exp(Math.log(LENS.k)*(1 - lk));

@@ -560,13 +560,15 @@ void main(){
   float hTop = uEdS.z - e + 5.;
   if(det && d.y < 0.3 && (o.y < hTop || d.y < 0.)){
     float tt = o.y > hTop ? (o.y - hTop)/max(-d.y, 1e-5) : 0., tp = tt, lo = 0., hi = 0.; int nb = -1;
+    // (at a pad 40 km, finely; over the ground anywhere (uP4.z) much farther, in longer steps: the mountains are far and the heights coarse)
+    float tLim = uP4.z > 0. ? uP4.z : 40000., gA = uP4.z > 0. ? 100. : 25., gS = uP4.z > 0. ? 0.06 : 0.04;
     for(int i=ZI;i<86;i++){
       float tm = nb < 0 ? tt : 0.5*(lo + hi), w, k;
       vec3 p = o + d*tm; float dh = p.y - groundY(p.xz, w, k);
       if(nb < 0){
         if(dh < 0.){ nb = 0; lo = tp; hi = tt; continue; }
-        tp = tt; tt += clamp(dh*0.55, 0.25 + tt*0.003, 25. + tt*0.04);
-        if(tt > 40000. || (k < 0.5 && tt > 200.)) break;
+        tp = tt; tt += clamp(dh*0.55, 0.25 + tt*0.003, gA + tt*gS);
+        if(tt > tLim || (k < 0.5 && tt > 200.)) break;
       } else { if(dh < 0.) hi = tm; else lo = tm; nb++; if(nb >= 6) break; }
     }
     if(nb >= 0) t = hi;
@@ -617,7 +619,9 @@ void main(){
       vec3 base;
       // (near the ground a little darker than the rockets and towers, so they stand out; from a kilometre or more up, where the view is
       // about the land, brighter)
-      if(cov > 0.5) base = mix(fromSpace(edLin(img), sunE), grade(img)*mix(0.6, 0.9, smoothstep(300., 1500., CALT))*lit, near);
+      // (over the ground anywhere (uP4.z) the image is Blue Marble at 2.4 km, darker and softer than a photo: as it is, a little lifted, or
+      // its forests turned black)
+      if(cov > 0.5) base = mix(fromSpace(edLin(img), sunE), (uP4.z > 0. ? img*1.08 + 0.02 : grade(img))*mix(0.6, 0.9, smoothstep(300., 1500., CALT))*lit, near);
       else {
         float h = fbm3(vec3(p.xz*0.004, 2.)), h2 = noise(vec3(p.xz*0.03, 5.));
         base = mix(vec3(0.5, 0.45, 0.33), vec3(0.3, 0.36, 0.2), smoothstep(0.4, 0.6, h))*(0.8 + 0.4*h2);
@@ -629,7 +633,7 @@ void main(){
       g = base*clamp(here/fl, 0.15, 1.6)*mix(1., 0.8, wall);
       // lights round the site at night
       vec2 cl = floor(p.xz/35.); float hl = hash12(cl);
-      if(hl > 0.93 && length(p.xz) < 1400.){ vec2 f = fract(p.xz/35.) - 0.5; g += vec3(1., 0.7, 0.35)*exp(-dot(f, f)*60.)*(1. - day)*0.5; }
+      if(hl > 0.93 && length(p.xz) < 1400. && uP4.z == 0.){ vec2 f = fract(p.xz/35.) - 0.5; g += vec3(1., 0.7, 0.35)*exp(-dot(f, f)*60.)*(1. - day)*0.5; }
       vec3 lv = uP3.xyz - p; g += base*vec3(1., 0.55, 0.22)*uP3.w*1.5*max(dot(n, normalize(lv)), 0.)/(1. + dot(lv, lv)*4e-6);
     }
     g = mix(g, haze, hazeF(t, thin));

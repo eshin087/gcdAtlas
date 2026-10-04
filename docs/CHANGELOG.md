@@ -4,6 +4,15 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.12.0 · 2026-10-03
+
+**Fly down anywhere** (phase 2 of `docs/EARTH_PLAN.md`)
+- Finer tiles: `tools/earth-tiles.mjs` makes `assets/earth/tiles-<hash>/`: the 512 tiles with land of a 16384 x 8192 grid (512 px each, about 2.4 km a pixel at the equator), each with its data (as the global data map) and the detail of January and July, the ratio of NASA's Blue Marble NG at 500 m to the 4096-pixel map of the same month. 31 MB in all. `e7-earth-tiles.js` (`ETL`) fetches only the tiles whose texels would show at least half a screen pixel, into two texture arrays (32 slots on a desk, 12 on a phone; about 96 MB and 36 MB of the graphics card while Earth is near, freed a minute after). FS_EARTH multiplies the colour of the month on the clock by the season's detail where a pixel covers less than two texels, and takes the tiles' heights, lights and coast. From far away the tiles are exactly the global map, so they fade in without a seam.
+- The ground anywhere: below 120 km, `e7g-earth-ground.js` (`EGR`) bakes a layer 2,400 km across round the point under the camera from the global maps and the tiles, in the launch sites' layer format, and FS_SX_ENV draws it as it draws a pad: the heights marched out to 260 km (`uP4.z`), mountains standing up against the sky. The layer moves on after 450 km and is baked again as tiles arrive. There is no weather away from the pads yet: a clear day with a few illustrative clouds (`WX_CLEAR`, 150 km visibility).
+- Search: `tools/earth-names.mjs` makes `assets/earth/names-<hash>.json`, fetched the first time a search is typed (545 KB compressed): GeoNames' 31,716 cities of 15,000 people or more (CC BY 4.0) and Natural Earth's 639 mountains and spot heights and 1,566 regions, islands and waters. The atlas lists up to six under "on Earth" (`e7s-earth-search.js`, `EPL`). Picking one flies down to it: straight there when the camera is above the place's horizon, else first to 6,000 km over it. Each kind has its own angles; the camera stays 150 m above the ground; mountains and regions are shown by day (the clock eases to the afternoon there), and cities keep the clock. A link to a place carries the place (`g=`).
+- Earth's closest zoom is now about 330 km above the ground (it was about 1,000 km), so its own view shows the tiles.
+- `build.mjs` copies `assets/earth` with its folders.
+
 ## 0.11.0 · 2026-10-03
 
 **The real Earth from space** (owner, 2026-10-03: draw the whole Earth from real, public data; phase 1 of `docs/EARTH_PLAN.md`, which holds the plan and the owner's picks for the phases after it)

@@ -940,6 +940,23 @@ OBJ.filter(o => o.atlas !== false && !o.marker && GROUPS.some(([g]) => g === o.g
 atlasRows.forEach(r => { const p = typeof r.o.parent === 'string' ? BYKEY[r.o.parent] : r.o.parent;
   r.par = r.o.group === 'solar' && p && p !== sun ? atlasRows.find(q => q.o === p && q.o.group === 'solar') || null : null; });
 const catRows = {}; CATS.forEach(([id]) => { catRows[id] = id === 'all' ? atlasRows : atlasRows.filter(r => r.cats.includes(id)); });
+// places on Earth (0.12.0, e7s-earth-search.js): a heading and six rows under the list, filled by each search from the names it fetches on the
+// first one; a row flies down to its place
+const earthHead = mkHead('on Earth', 'cities, mountains, regions, seas');
+const earthRows = [...Array(6)].map(() => {
+  const b = document.createElement('button'); b.className = 'arow earth'; b.setAttribute('role', 'option'); b.setAttribute('aria-selected', 'false'); b.hidden = true;
+  b.innerHTML = `<span class="an"></span><span class="ad"></span>`;
+  const r = { b, o:null, rank:0, earth:null, go:() => { const x = r.earth; if (!trayEl.hidden) setBadgeTray(false); hideHint(); clearSearch(); if (cmpPick){ cmpPick = false; atlasTitle(); } if (cmp) endCompare(true); EPL.go(x); } };
+  b.addEventListener('click', r.go); rowOfB.set(b, r); return r;
+});
+function earthFill(q){
+  const res = q ? EPL.find(q) : [];
+  earthRows.forEach((r, i) => { const x = res[i]; r.earth = x || null; r.b.hidden = !x; r.b.classList.remove('kb');
+    if (x){ const [what, short] = EPL.about(x); r.b.firstChild.textContent = x[0]; r.b.lastChild.textContent = short; r.b.title = x[0] + ': ' + what; } });
+  return res.length;
+}
+// (the names arrive after the first letters are typed: the search runs again)
+EPL.onLoad.push(() => { if (searchEl.value || atlasSearch.value) filterAtlas(searchEl.value || atlasSearch.value, true); });
 const atlasEmpty = document.createElement('div'); atlasEmpty.className = 'atlas-empty'; atlasEmpty.innerHTML = '<div></div><button type="button"></button>';
 const atlasEnd = Object.assign(document.createElement('div'), { className:'aend', textContent:'real positions and sizes' });
 
@@ -1073,7 +1090,7 @@ function renderAtlas(){
     if (pin) put(aroundHead, rows.filter(r => r.around));
   }
   atlasRows.forEach(r => { r.b.querySelector('.ad').textContent = rowNum(r); });
-  atlasList.append(atlasEmpty, atlasEnd);
+  atlasList.append(earthHead, ...earthRows.map(r => r.b), atlasEmpty, atlasEnd);
   atlasOrder = [...atlasList.children]; atlasMoved = false;
   filterAtlas(searchEl.value, true);
   atlasMark(infoObj);
@@ -1092,7 +1109,7 @@ function atlasMark(i){
 function visibleRows(){ return [...atlasList.querySelectorAll('.arow')].filter(b => !b.hidden).map(b => rowOfB.get(b)); }
 // the keyboard's row while a search is typed (arrow keys, Enter); none otherwise, so no row looks chosen but the object in view
 function setKb(k){
-  atlasRows.forEach(r => r.b.classList.remove('kb'));
+  atlasRows.forEach(r => r.b.classList.remove('kb')); earthRows.forEach(r => r.b.classList.remove('kb'));
   if (k < 0){ kbRow = -1; return; }
   const vis = visibleRows();
   kbRow = vis.length ? clamp(k, 0, vis.length - 1) : -1;
@@ -1136,6 +1153,7 @@ function filterAtlas(q, keep){
   atlasRows.forEach(r => { r.rank = t && !t.codes.every(c => r.own.has(c)) ? 1 : 0;
     r.b.hidden = t ? !(t.codes.every(c => r.codes.has(c)) && t.words.every(w => r.text.includes(w))) : !r.shown; });
   if (t && t.codes.length) rankRows();
+  earthFill(q);
   atlasRows.forEach(r => r.b.classList.toggle('child', r.branch && !r.par.b.hidden));
   atlasList.querySelectorAll('.agroup').forEach(h => { let x = h.nextElementSibling, any = false; while (x && !x.classList.contains('agroup')){ if (x.classList.contains('arow') && !x.hidden) any = true; x = x.nextElementSibling; } h.hidden = !any; });
   atlasCountNow(q);
@@ -1157,7 +1175,7 @@ function rankRows(){
 // but no longer counts as not seen yet)
 function atlasCountNow(q){
   q = (q ?? searchEl.value).trim().toLowerCase();
-  const n = atlasRows.filter(r => !r.b.hidden && (q || catMatch(r))).length;
+  const n = atlasRows.filter(r => !r.b.hidden && (q || catMatch(r))).length + (q ? earthRows.filter(r => !r.b.hidden).length : 0);
   atlasSummary(n, q);
 }
 // the results line says what the list shows, in words ("19 galaxies not seen yet · near → far", "from Earth"), and holds the only reset.
@@ -1183,7 +1201,7 @@ function atlasSummary(n, q){
   atlasEmpty.hidden = n > 0;
   if (!n){
     const all = badgePick ? atlasRows.filter(r => badgePick.keys.has(r.o.key)).length : catRows[ATL.cat].length;
-    const [t, b] = q ? ['nothing found · try a planet, star, nebula or galaxy', 'clear the search']
+    const [t, b] = q ? [EPL.can ? 'nothing found · try a planet, star, galaxy or a place on Earth' : 'nothing found · try a planet, star, nebula or galaxy', 'clear the search']
       : ATL.unseen ? [`you have seen all ${all} ${what(all)}${forB} ✓`, 'show them all'] : ['nothing here', 'show everything'];
     atlasEmpty.firstChild.textContent = t; atlasEmpty.lastChild.textContent = b;
   }
@@ -1217,7 +1235,7 @@ function onSearchKey(e){
   const vis = visibleRows();
   if (e.key === 'ArrowDown'){ e.preventDefault(); setKb(kbRow + 1); }
   else if (e.key === 'ArrowUp'){ e.preventDefault(); setKb(Math.max(0, kbRow - 1)); }
-  else if (e.key === 'Enter'){ const r = vis[kbRow >= 0 ? kbRow : 0]; if (r) goTo(r.o.index); }
+  else if (e.key === 'Enter'){ const r = vis[kbRow >= 0 ? kbRow : 0]; if (r) r.go ? r.go() : goTo(r.o.index); }
   else if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); closeAtlas(); }   // (Esc in the search box closes the search, never lets go of the object)
 }
 // empty both search boxes (after a pick, or when the search closes), and give the keys back to the page
@@ -1558,6 +1576,7 @@ function viewHash(){
   // (on the Halo tour, the place the panel shows: a link cannot bring back the ship where it is now)
   const ht = htShowsPlace(), p = new URLSearchParams(), i = orbit.lock >= 0 && !ht ? orbit.lock : infoObj, o = OBJ[i];
   p.set('o', o.key);
+  if (o.earthSpot) p.set('g', EPL.hashOf(o));
   if (orbit.lock >= 0 && !flight && !ht) p.set('c', orbit.yaw.toFixed(3) + ',' + orbit.pitch.toFixed(3) + ',' + (orbit.distT/o.rad).toPrecision(4));
   if (cmp) p.set('vs', cmp.b.key);
   if (tour.on) p.set('tour', TOUR_ID);
@@ -1574,6 +1593,7 @@ function updateHash(dt){
 function applyHash(){
   let p; try { p = new URLSearchParams(location.hash.slice(1)); } catch (e) { return false; }
   const o = BYKEY[p.get('o')]; if (!o || o.marker) return false;
+  if (o.earthSpot && !EPL.fromHash(o, p.get('g'))) return false;
   // (values from a link are checked: anything that is not a sensible number is ignored)
   const jd = +p.get('jd'), deep = +p.get('deep');
   if (p.get('jd') && isFinite(jd)) ssDays = clamp(jd, JD_NOW - 4e6, JD_NOW + 4e6) - JD_NOW;
@@ -1681,7 +1701,7 @@ tick(0);
 if (!applyHash()) tourGo(TOUR[0], true);
 tick(0);
 updateModeUI(); syncTimeUI();
-window.__cosmos = { get egl(){ return typeof EGL !== 'undefined' ? EGL : null; }, startTour, playFlyby, setMove(o, v, f){ flight = null; tween = null; tourGo(o.index, true); tour.on = false; flyMove = { o, v, t:f*v.hold, frozen:true }; },  get flyMove(){ return flyMove; }, startCompare, endCompare, setDeep, viewHash, applyHash, get cmp(){ return cmp; }, get ssRate(){ return ssRate; }, set ssRate(v){ ssRate = v; }, dbg:{ imp, impSpec, atlas, sphereRect, get tan(){ return [tanX, tanY]; }, get cols(){ return cols; }, get sceneH(){ return sceneH; }, get LODK(){ return LODK; }, PROGS }, OBJ, BYKEY, tourGo, lockOn, setTour, cam, orbit, tour, TOUR, SET, setOpt, music, LADDER, goLadder,
+window.__cosmos = { get egl(){ return typeof EGL !== 'undefined' ? EGL : null; }, get etl(){ return ETL; }, get egr(){ return EGR; }, get epl(){ return EPL; }, startTour, playFlyby, setMove(o, v, f){ flight = null; tween = null; tourGo(o.index, true); tour.on = false; flyMove = { o, v, t:f*v.hold, frozen:true }; },  get flyMove(){ return flyMove; }, startCompare, endCompare, setDeep, viewHash, applyHash, get cmp(){ return cmp; }, get ssRate(){ return ssRate; }, set ssRate(v){ ssRate = v; }, dbg:{ imp, impSpec, atlas, sphereRect, get tan(){ return [tanX, tanY]; }, get cols(){ return cols; }, get sceneH(){ return sceneH; }, get LODK(){ return LODK; }, PROGS }, OBJ, BYKEY, tourGo, lockOn, setTour, cam, orbit, tour, TOUR, SET, setOpt, music, LADDER, goLadder,
   land:(extra = 0.2) => { let n = 0; while (flight && n < 60*180){ tick(1/60); n++; } for (let i=0;i<extra*60;i++) tick(1/60); return n/60; },
   setDays:d => { ssDays = d; }, stepObject, stepAngle, get tourId(){ return TOUR_ID; }, get tourGen(){ return TOUR_GEN; }, randomSeed:n => { RSEED = n >>> 0; }, samePlace, tourable, tourPool, tripClear, dealRandom, RANDOM_W, tripW:(a, b) => tripWeight(tripEnd(a), tripEnd(b)), get nextDeal(){ return nextDeal; }, get stepTarget(){ return flight ? (flight.dest || flight.obj).key : null; }, get via(){ return flight && flight.via ? flight.via.key : null; }, PASS,
   startShipCam, stopShipCam, setShipCamMode, get shipCam(){ return shipCam; }, SHIP_POSE, get show(){ return show; }, togglePlay, get flight(){ return flight; },
