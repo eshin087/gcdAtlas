@@ -454,6 +454,7 @@ P.sxSmoke = program(VS_RECT, FS_SX_SMOKE);
 // uP3 = plume light: position (m), strength;  uP4 = time, the height of the pad above the sea (m), 0, ZI (0)
 const FS_SX_ENV = COMMON + '#define ED_GRAD\n' + ED_GLSL + CLOUD_GLSL + `
 const float RE = 6371000.;
+uniform vec4 uTwL[16]; uniform float uTwLN;   // (a city's tower lights: e9c-earth-cities.js)
 int ZI = 0;   // (a 0 the compiler cannot see, set in main from a uniform, so the loops stay loops)
 float CALT = 0., DIP = 0.;   // the height of the camera above the sea (m), and how far below level the horizon lies (radians, about)
 vec3 unTone(vec3 c){ return -log(1. - clamp(c, 0., 0.985)); }
@@ -560,8 +561,9 @@ void main(){
   float hTop = uEdS.z - e + 5.;
   if(det && d.y < 0.3 && (o.y < hTop || d.y < 0.)){
     float tt = o.y > hTop ? (o.y - hTop)/max(-d.y, 1e-5) : 0., tp = tt, lo = 0., hi = 0.; int nb = -1;
-    // (at a pad 40 km, finely; over the ground anywhere (uP4.z) much farther, in longer steps: the mountains are far and the heights coarse)
-    float tLim = uP4.z > 0. ? uP4.z : 40000., gA = uP4.z > 0. ? 100. : 25., gS = uP4.z > 0. ? 0.06 : 0.04;
+    // (at a pad 40 km, finely; over the ground anywhere (uP4.z > 0) much farther, in longer steps: the mountains are far and the heights
+    // coarse; over a city (uP4.z < 0) as far as -uP4.z, finely near, so its towers stand up, and in longer steps farther out)
+    float tLim = uP4.z > 0. ? uP4.z : uP4.z < 0. ? -uP4.z : 40000., gA = uP4.z > 0. ? 100. : 25., gS = uP4.z > 0. ? 0.06 : uP4.z < 0. ? 0.05 : 0.04;
     for(int i=ZI;i<86;i++){
       float tm = nb < 0 ? tt : 0.5*(lo + hi), w, k;
       vec3 p = o + d*tm; float dh = p.y - groundY(p.xz, w, k);
@@ -621,16 +623,30 @@ void main(){
       // about the land, brighter)
       // (over the ground anywhere (uP4.z) the image is Blue Marble at 2.4 km, darker and softer than a photo: as it is, a little lifted, or
       // its forests turned black)
-      if(cov > 0.5) base = mix(fromSpace(edLin(img), sunE), (uP4.z > 0. ? img*1.08 + 0.02 : grade(img))*mix(0.6, 0.9, smoothstep(300., 1500., CALT))*lit, near);
+      if(cov > 0.5) base = mix(fromSpace(edLin(img), sunE), (uP4.z > 0. ? img*1.08 + 0.02 : grade(img))*(uP4.z < 0. ? 1.05 : mix(0.6, 0.9, smoothstep(300., 1500., CALT)))*lit, near);
       else {
         float h = fbm3(vec3(p.xz*0.004, 2.)), h2 = noise(vec3(p.xz*0.03, 5.));
         base = mix(vec3(0.5, 0.45, 0.33), vec3(0.3, 0.36, 0.2), smoothstep(0.4, 0.6, h))*(0.8 + 0.4*h2);
         if(sd > -120.) base = mix(base, vec3(0.75, 0.7, 0.58), smoothstep(-120., -40., sd));
         base = mix(base, vec3(0.5, 0.49, 0.47), smoothstep(90., 70., length(p.xz)))*lit;
       }
+      // a city (uP4.z < 0): the photos are taken from above, so a wall gets a facade of its own, concrete and glass with floors 3.6 m high
+      // and windows 2.6 m apart (illustrative), about a third of them lit at night; paved ground (grey and light in the photo) glows faintly
+      // warm at night, as street lights do (illustrative)
+      vec3 glowC = vec3(0.);
+      if(uP4.z < 0. && cov > 0.5){
+        float wl = smoothstep(0.3, 0.7, wall), hA = altOf(p, e), nt = 1. - smoothstep(-0.12, 0.05, sunE);
+        vec2 tn = normalize(vec2(-n.z, n.x) + vec2(1e-5, 0.)); float wu = dot(p.xz, tn);
+        vec2 cell = floor(vec2(wu/2.6, hA/3.6)), fw = fract(vec2(wu/2.6, hA/3.6));
+        float win = step(0.2, fw.x)*step(fw.x, 0.8)*step(0.3, fw.y)*step(fw.y, 0.85);
+        base = mix(base, mix(vec3(0.42, 0.44, 0.47), img, 0.35)*(0.85 + 0.25*win)*lit, wl);
+        glowC += vec3(1., 0.78, 0.45)*win*step(0.66, hash12(cell + floor(p.xz/40.)*7.31))*nt*wl*0.9;
+        float lum = dot(img, vec3(0.3, 0.59, 0.11)), sat = length(img - vec3(lum));
+        glowC += vec3(1., 0.62, 0.3)*nt*(1. - wl)*smoothstep(0.18, 0.4, lum)*(1. - smoothstep(0.03, 0.12, sat))*0.2;
+      }
       // (the photo already holds the light on flat ground; slopes, walls and shadows change it by their share of the light of the Sun)
       float fl = max(sunE, 0.) + 0.3, here = max(dot(n, L), 0.)*sh*csh + 0.3*(0.6 + 0.4*n.y);
-      g = base*clamp(here/fl, 0.15, 1.6)*mix(1., 0.8, wall);
+      g = base*clamp(here/fl, 0.15, 1.6)*mix(1., 0.8, wall) + glowC;
       // lights round the site at night
       vec2 cl = floor(p.xz/35.); float hl = hash12(cl);
       if(hl > 0.93 && length(p.xz) < 1400. && uP4.z == 0.){ vec2 f = fract(p.xz/35.) - 0.5; g += vec3(1., 0.7, 0.35)*exp(-dot(f, f)*60.)*(1. - day)*0.5; }
@@ -642,6 +658,14 @@ void main(){
     col = skyCol(d, L, day);
     float tw = smoothstep(-0.18, 0.02, sunE)*smoothstep(0.25, 0.0, sunE);
     a = clamp((0.25 + 0.74*day)*mix(0.35, 1., thin) + 0.3*tw, 0., 0.99);
+  }
+  // the blinking lights on a city's tallest towers (uTwL: their tops in this frame, w how bright now), hidden by whatever the ray met first
+  for(int i=ZI;i<16;i++){
+    if(float(i) >= uTwLN) break;
+    vec4 tw = uTwL[i]; if(tw.w < 0.01) continue;
+    vec3 v = tw.xyz - o; float tl = dot(v, d); if(tl <= 0. || (t > 0. && tl > t + 8.)) continue;
+    float r = length(v - d*tl), s = max(tl*uPix*1.4, 1.5);
+    col += vec3(1., 0.16, 0.08)*tw.w*(exp(-r*r/(s*s))*2.2 + exp(-r/(s*6.))*0.12);
   }
   // the clouds in front of what the ray met, in the order it meets them (the sunlight warm when the Sun is low)
   { vec3 sunC = mix(vec3(1., 0.97, 0.92), vec3(1., 0.62, 0.36), smoothstep(0.3, 0.02, sunE))*lit*smoothstep(-0.06, 0.04, sunE);

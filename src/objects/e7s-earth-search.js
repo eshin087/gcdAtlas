@@ -8,7 +8,7 @@ const EPL = (() => {
   const can = typeof EARTH_NAMES !== 'undefined' && FLAGS.realEarth && /^https?:$/.test(location.protocol) && typeof fetch === 'function';
   const R = 6371, unit = (la, lo) => [Math.cos(la*DEG)*Math.cos(lo*DEG), Math.sin(la*DEG), -Math.cos(la*DEG)*Math.sin(lo*DEG)];
   const fold = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-  let data = null, names = null, ctry = null, state = 0, turn = 0, pend = null;
+  let data = null, names = null, ctry = null, state = 0, turn = 0, pend = null; const spotHooks = [];
   const onLoad = [];
   function load(){
     if (!can || state) return; state = 1;
@@ -76,7 +76,8 @@ const EPL = (() => {
     place:{ la:0, lo:0, h:0, row:null, kind:'c' }, readout(){ return readout(this); }, update(){ placeSpot(this); } }));
   // where it stands now: on the turning Earth, at the height of the ground as drawn (the tiles' heights once they are in)
   function placeSpot(o){
-    const P = o.place, g = ETL.heightAt(P.la*DEG, P.lo*DEG), h = g != null ? (P.kind === 'm' ? Math.max(g, P.h*0.8) : g) : P.h;
+    // (a city with its own layers stands at its centre's ground, where its framings were measured)
+    const P = o.place, g = ETL.heightAt(P.la*DEG, P.lo*DEG), h = o.city ? o.city.ele || 0 : g != null ? (P.kind === 'm' ? Math.max(g, P.h*0.8) : g) : P.h;
     o.hNow = o.hNow == null || Math.abs(o.hNow - h) > 2000 ? h : o.hNow + (h - o.hNow)*0.1;
     const u = unit(P.la, P.lo), F = enuOf(u);
     o.offset = V.mul(M3.apply(earth.rot, V.mul(u, R + o.hNow/1000)), KM); o.pos = V.add(earth.pos, o.offset);
@@ -88,7 +89,8 @@ const EPL = (() => {
     const P = o.place, dKm = orbit.dist/KM;
     for (let k=0;k<3;k++){
       const d = sphL(orbit.yaw, orbit.pitch), eyeF = V.add(V.mul(o.up, R + o.hNow/1000), V.add(V.add(V.mul(o.F.e, d[0]*dKm), V.mul(o.up, d[1]*dKm)), V.mul(o.F.n, -d[2]*dKm)));
-      const r = V.len(eyeF), la = Math.asin(eyeF[1]/r), lo = Math.atan2(-eyeF[2], eyeF[0]), g = ETL.heightAt(la, lo);
+      // (the tiles' ground, or a city's or launch site's own heights with the buildings on it, where they are in)
+      const r = V.len(eyeF), la = Math.asin(eyeF[1]/r), lo = Math.atan2(-eyeF[2], eyeF[0]), g0 = ETL.heightAt(la, lo), g1 = EDT.heightAt(eyeF), g = g1 != null ? Math.max(g1, g0 || 0) : g0;
       const need = ((g == null ? 0 : g) + 150)/1000 - (r - R);   // (km the eye is under where it should be)
       if (!(need > 0)) break;
       orbit.pitch = Math.min(orbit.pitch + need/Math.max(dKm, 0.1)*1.05, 1.5);
@@ -97,18 +99,22 @@ const EPL = (() => {
   function readout(o){
     const P = o.place, r = P.row; if (!r) return '';
     const what = r[1] === 'c' || r[1] === 'C' ? `about ${people(r[4])} people` : r[1] === 'm' ? `${metres(r[4])} above sea level` : `its outline spans about ${Math.round(r[4]).toLocaleString('en-US')} km`;
+    // (a city with its own layers: its time and weather, and the credit for its photos and buildings)
+    if (o.city) return [`${llTxt(P.la, P.lo)} · about ${people(o.city.facts.population.n)} people`, o.readoutExtra ? o.readoutExtra() : '', EDT.credit(o.city.ed, true)].filter(Boolean).join('\n');
     return `${llTxt(P.la, P.lo)} · ${what}\n${r[1] === 'c' || r[1] === 'C' ? 'name: GeoNames (CC BY 4.0)' : 'name: Natural Earth'} · ground: NASA Blue Marble and GEBCO, about 2.4 km a pixel`;
   }
   // set a place object to a result
   function setSpot(o, r){
     const [name, kind, la, lo, n] = r, k = kind === 'C' ? 'c' : kind === 'm' ? 'm' : kind === 'c' ? 'c' : 'r', [what] = about(r);
-    o.place = { la, lo, h:kind === 'm' ? n : 0, row:r, kind:k }; o.hNow = null;
+    o.place = { la, lo, h:kind === 'm' ? n : 0, row:r, kind:k }; o.hNow = null; o.city = null; o.readoutExtra = null;
     o.name = name; o.type = what;
     o.rad = (k === 'm' ? 3 : k === 'c' ? 5 : clamp(n*0.35, 20, 2000))*KM; o.minZoom = k === 'r' ? 0.05 : 0.3;
     o.views = VIEWS[k];
     o.fact = k === 'c' ? `${name} is ${what}, with about ${people(n)} people (GeoNames).` :
       k === 'm' ? `${name} rises ${metres(n)} above sea level (Natural Earth). Its shape here comes from GEBCO's heights at about 2 km a pixel, so smaller peaks and ridges are smoothed; the clouds are illustrative.` :
       `${name} is ${what}. Natural Earth's outline of it spans about ${Math.round(n).toLocaleString('en-US')} km.`;
+    // (later files dress it up: a city with its own layers, e9c-earth-cities.js)
+    for (const f of spotHooks) f(o, r);
     placeSpot(o);
   }
   // fly down to a result: straight there when the camera is above the place's horizon, else first round to above it (a flight that
@@ -146,5 +152,5 @@ const EPL = (() => {
   // (while a place on Earth is visited, or flown to, the clock runs in real time, as near a launch pad: at the atlas's usual pace the
   // afternoon it was flown to turned to night on the way)
   const hold = () => { const o = OBJ[orbit.lock]; return !!(o && o.earthSpot && !flight) || !!(flight && (flight.obj.earthSpot || (pend && flight.obj === earth))); };
-  return { can, find, go, about, load, spots, hashOf, fromHash, onLoad, hold, PICKS, get state(){ return state; } };
+  return { can, find, go, about, load, spots, hashOf, fromHash, onLoad, hold, PICKS, spotHooks, get state(){ return state; } };
 })();

@@ -9,8 +9,13 @@
 const EDT = (() => {
   const unit = (la, lo) => [Math.cos(la*DEG)*Math.cos(lo*DEG), Math.sin(la*DEG), -Math.cos(la*DEG)*Math.sin(lo*DEG)];
   const axes = u => { const e = V.norm(V.cross([0, 1, 0], u)); return { e, n:V.cross(u, e) }; };
-  const sites = EARTH_DETAIL.sites.map(S => ({ key:S.key, name:S.name, c:unit(S.la, S.lo), pads:S.pads, top:S.top || 0, used:0,
-    layers:S.layers.map(L => Object.assign({}, L, { c:unit(L.la, L.lo) }, axes(unit(L.la, L.lo)), { tex:null, state:0 })).sort((a, b) => a.size - b.size) }));
+  const mkSite = (S, dir, extra) => Object.assign({ key:S.key, name:S.name, c:unit(S.la, S.lo), pads:S.pads || {}, top:S.top || 0, used:0,
+    layers:S.layers.map(L => Object.assign({}, L, { file:dir + L.file, c:unit(L.la, L.lo) }, axes(unit(L.la, L.lo)), { tex:null, state:0 })).sort((a, b) => a.size - b.size) }, extra);
+  const sites = EARTH_DETAIL.sites.map(S => mkSite(S, '', { pad:true }));
+  // (a site's layers are wanted only while its feature is on: the launch sites with SpaceX, the cities with the real Earth)
+  const live = S => S.pad ? FLAGS.spacex : FLAGS.realEarth;
+  // more sites, from files that load after this one: the cities (0.13.0, e9c-earth-cities.js), with their folder and their own credit line
+  function addSite(S, dir, extra){ const s = mkSite(S, dir, extra); sites.push(s); return s; }
   const can = /^https?:$/.test(location.protocol) && typeof createImageBitmap === 'function';
   let dummy = null, last = 0;
   const ANISO = gl.getExtension('EXT_texture_filter_anisotropic');
@@ -57,9 +62,10 @@ const EDT = (() => {
   const camE = () => M3.applyT(earth.rot, V.mul(V.sub(cam.rel, frel(earth)), 1/KM));
   // once a second: load what the camera is heading for, let go of what it left
   function tick(){
-    if (!can || !FLAGS.spacex || GT - last < 1) return; last = GT;
+    if (!can || GT - last < 1) return; last = GT;
     const cf = camE(), r = V.len(cf), alt = r - 6371, g = V.mul(cf, 6371/Math.max(r, 1));
     for (const S of sites){
+      if (!live(S)) continue;
       const dS = V.len(V.sub(g, V.mul(S.c, 6371))) + Math.max(alt, 0)*0.5;
       if (dS < 4500) S.used = GT;
       for (const L of S.layers){ const dL = V.len(V.sub(g, V.mul(L.c, 6371))) + Math.max(alt, 0)*0.7, k = L.size/1000;
@@ -74,7 +80,7 @@ const EDT = (() => {
   const siteOfPad = k => sites.find(s => s.pads[k]);
   // the site whose layers the camera sees: the nearest one within 5,000 km that has any ready
   function pick(){ const cf = camE(); let best = null, bd = 5000;
-    for (const S of sites){ const d = V.len(V.sub(cf, V.mul(S.c, 6371))); if (d < bd && S.layers.some(L => L.state === 2)){ bd = d; best = S; } } return best; }
+    for (const S of sites){ if (!live(S)) continue; const d = V.len(V.sub(cf, V.mul(S.c, 6371))); if (d < bd && S.layers.some(L => L.state === 2)){ bd = d; best = S; } } return best; }
   // the uniforms: up to four ready layers of site S, finest first (the fine patches only near them), in Earth's frame or a site's.
   // Earth's shader takes only the two widest (ED_N 2 there: seen from space the finer ones add nothing, and it compiles at start-up)
   const ub = { C:new Float32Array(16), E:new Float32Array(16), N:new Float32Array(16), X:new Float32Array(16) };
@@ -87,8 +93,10 @@ const EDT = (() => {
       // (a 1.6 km patch adds detail only within a few km of the camera; the others while the camera is anywhere near them)
       for (const L of S.layers){ if (L.state !== 2) continue; const k = L.size/1000; if (k < 20 && near(L) > (k < 5 ? k*1.5 + 2 : k*6 + 10)) continue; ls.push(L); }
       if (frame.earth) ls = ls.slice(-N);
-      // more than four: the fine patches farthest away go first, then the second widest (the widest stays: it holds the horizon)
-      while (ls.length > N){ const fine = ls.filter(L => L.size < 5000).sort((a, b) => near(b)/b.size - near(a)/a.size);
+      // more than four: the patches (under 20 km) farthest away for their size go first, then the second widest (the widest stays: it holds
+      // the horizon). (Patches under 5 km only, before 0.13.0: from New York's harbour its airports' 5 and 6 km layers pushed out the 51 km
+      // one, and the ground in front of the camera was the 2.4 km map's)
+      while (ls.length > N){ const fine = ls.filter(L => L.size < 20000).sort((a, b) => near(b)/b.size - near(a)/a.size);
         ls.splice(ls.indexOf(fine.length > 1 ? fine[0] : ls[ls.length - 2]), 1); } }
     ub.C.fill(0); ub.E.fill(0); ub.N.fill(0); ub.X.fill(0);
     ls.forEach((L, i) => {
@@ -106,19 +114,19 @@ const EDT = (() => {
   }
   // the credit line for the ground in view (the licences ask for it: Copernicus Sentinel data, OpenStreetMap's ODbL), from the layers drawn;
   // near is false seen from space, where only the satellite images show
-  function credit(S, near){ if (!S) return ''; const ls = S.layers.filter(L => L.state === 2 && (near || L.size > 20000)); if (!ls.length) return '';
+  function credit(S, near){ if (!S) return ''; if (S.credit) return S.credit(near); const ls = S.layers.filter(L => L.state === 2 && (near || L.size > 20000)); if (!ls.length) return '';
     const photos = [...new Set(ls.flatMap(L => L.photos || (L.naip ? ['USGS NAIP aerial photos'] : [])))], s2 = ls.some(L => L.src.includes('s2')), bld = near && ls.some(L => L.bld);
     const yrs = [...new Set(ls.flatMap(L => L.s2dates || []).map(d => d.slice(0, 4)))].sort(), yr = yrs.length > 1 ? yrs[0] + ' to ' + yrs[yrs.length - 1] : yrs[0] || '';
     return 'ground: ' + [photos.join(', '), s2 ? `contains modified Copernicus Sentinel data ${yr}` : '', bld ? 'buildings © OpenStreetMap contributors' : ''].filter(Boolean).join(' · '); }
   // what the readout adds now: the ground under a launch camera or near a pad, or the images on Earth seen from space nearby
   function creditNow(){
-    if (!can || !FLAGS.spacex) return '';
-    if (typeof SXENV !== 'undefined' && SXENV.on && SXENV.site && SXENV.site.key) return credit(siteOfPad(SXENV.site.key), true);
-    if (earth.prog === P.earthEd && orbit.lock === earth.index){ const alt = V.len(camE()) - 6371; if (alt < 2500) return credit(pick(), false); }
+    if (!can) return '';
+    if (typeof SXENV !== 'undefined' && SXENV.on && SXENV.site && SXENV.site.key) return credit(SXENV.site.city ? SXENV.site.ed : siteOfPad(SXENV.site.key), true);
+    if ((earth.prog === P.earthEd || earth.prog === P.earthGEd) && orbit.lock === earth.index){ const alt = V.len(camE()) - 6371; if (alt < 2500) return credit(pick(), false); }
     return '';
   }
   { const prev = earth.readout; earth.readout = () => { const t = prev(), c = creditNow(); return c ? t + '\n' + c : t; }; }
   // Earth's shader takes the layers of the site nearest the camera
-  { const prev = earth.setU; earth.setU = function(pr){ prev.call(this, pr); bind(pr, FLAGS.spacex ? pick() : null, { earth:true }); }; }
-  return { sites, tick, want, bind, pick, siteOfPad, credit, creditNow, heightAt, load, get ready(){ return sites.flatMap(S => S.layers.filter(L => L.state === 2).map(L => S.key + '-' + L.id)); } };
+  { const prev = earth.setU; earth.setU = function(pr){ prev.call(this, pr); bind(pr, pick(), { earth:true }); }; }
+  return { sites, tick, want, bind, pick, siteOfPad, credit, creditNow, heightAt, load, addSite, get ready(){ return sites.flatMap(S => S.layers.filter(L => L.state === 2).map(L => S.key + '-' + L.id)); } };
 })();

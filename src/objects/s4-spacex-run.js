@@ -373,7 +373,7 @@ const SXD = addObj({ key:'sx-director', name:'launch director', type:'', group:'
   update(dt){ if (FLAGS.spacex) sxTick(dt); else if (FLAGS.realEarth) groundTick(dt); } });
 // what the ground anywhere needs of the director with the SpaceX flag off (0.12.0, from Codex's review of #43): the day the clock eases to,
 // the clock in real time near the ground, the atmosphere over the camera, the weather it draws. sxTick does the same with the rest
-function groundTick(dt){ dayStep(dt); clockStep(); atmStep(); wxTick(dt); }
+function groundTick(dt){ EDT.tick(); dayStep(dt); clockStep(); atmStep(); wxTick(dt); }
 // (the atlas clock easing to a daytime moment)
 function dayStep(dt){ if (DAY.T > 0){ DAY.t += dt; const e = smoother(clamp(DAY.t/DAY.T, 0, 1)); ssDays = DAY.from + (DAY.to - DAY.from)*e; if (e >= 1) DAY.T = 0; earth.update(0); } }
 // (near the ground, watching a launch or visiting a place on Earth, the Solar System clock runs in real time, so the Sun stays put and the

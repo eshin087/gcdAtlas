@@ -38,6 +38,18 @@ try {
     const there = await until(page, k => window.__cosmos.etl.state.some(t => t.k === k && t.fade > 0), k, 60, "Australia's tile after leaving the ground");
     notes.push(`phone: ${where} ${s1.extra} ground tiles for ${s1.slots} slots, the one under the camera in after ${under} s; away over Australia its tile in after ${there} s`);
     errors.push(...pe); await browser.close(); }
+  // ---- a city with its own layers (0.13.0): New York, its towers standing up, its lights, its time and weather
+  { const { browser, page, errors:pe } = await openPage({ url:URL0 });
+    await page.evaluate(() => window.__cosmos.epl.load());
+    await until(page, () => window.__cosmos.epl.state === 2, null, 30, 'the names (city)');
+    await page.evaluate(() => { const c = window.__cosmos; c.ssRate = 0; c.epl.go(c.epl.PICKS.cities.find(r => r[0] === 'New York City')); });
+    const t = await until(page, () => { const c = window.__cosmos; return !c.flight && c.ect.dbg().env === 'city-newyork'; }, null, 150, 'New York drawn with its own layers');
+    const s = await page.evaluate(() => { const c = window.__cosmos, o = c.OBJ[c.orbit.lock]; return { name:o && o.name, ro:o && o.readout ? o.readout() : '', d:c.ect.dbg(), views:o && o.views.length }; });
+    if (s.name !== 'New York') errors.push('the place flown to is ' + s.name + ', not New York');
+    if (!/local time/.test(s.ro)) errors.push("New York's readout has no local time: " + s.ro);
+    if (!(s.d.lights > 0)) errors.push('no tower lights in New York');
+    notes.push(`New York drawn with its layers after ${t} s (${s.d.layers.find(x => x.startsWith('newyork'))} in, ${s.d.lights} tower lights, ${s.views} framings)`);
+    errors.push(...pe); await browser.close(); }
   // ---- the SpaceX flag off
   { const { browser, page, errors:pe } = await openPage({ url:URL0 + '?flags=-spacex' });
     await page.evaluate(() => window.__cosmos.epl.load());

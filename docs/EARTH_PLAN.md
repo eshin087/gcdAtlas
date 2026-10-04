@@ -55,7 +55,8 @@ release and one pull request each. This file is the plan; `docs/CHANGELOG.md` sa
 ## Progress
 
 - Phase 1: 0.11.0, merged (PR #42).
-- Phase 2: 0.12.0. Tiles to 2.4 km a pixel (31 MB), the ground in 3D anywhere, places on Earth in the search.
+- Phase 2: 0.12.0, merged (PR #43). Tiles to 2.4 km a pixel (31 MB), the ground in 3D anywhere, places on Earth in the search.
+- Phase 4, first part: 0.13.0. The five cities in 3D, tower lights, local time and weather. The second part (traffic, planes, ships) follows; phase 3 (the iconic places) after it.
 - Phases 3 to 5: their data was prepared in parallel on local branches. Each phase's release takes its branch in:
   - `data/earth-places`: the iconic places' layers (`tools/earth-places.mjs`);
   - `data/earth-cities`: the five cities' layers, roads, runways and towers (`tools/earth-cities.mjs`);

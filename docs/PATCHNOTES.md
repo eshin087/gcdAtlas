@@ -5,6 +5,12 @@
      numbers with units. The newest version comes first and opens by itself; its number must match package.json (tests/smoke.mjs checks it).
      Every detail stays in docs/CHANGELOG.md, which the panel links to. -->
 
+## 0.13.0 · 4 Oct 2026 · Five cities in 3D
+- New York, Tokyo, Dubai, London and Paris stand up in 3D: real photos from above, and every building at its real height, or a close guess where none is recorded.
+- Pick a city from "on Earth" in the atlas, or search for it, and the camera flies in among its towers, with three views of each city.
+- The tallest towers blink their red warning lights, brightest at night.
+- Each city shows its local time and its real weather, which also brings its clouds.
+
 ## 0.12.0 · 3 Oct 2026 · Fly down anywhere on Earth
 - Places on Earth: open the atlas and pick "on Earth" for famous mountains, deserts, islands, seas and cities, or search any of about 32,000 cities and the highest mountains by name. Pick one and the camera flies down to it.
 - Mountains stand up in 3D wherever you fly low, from real heights of the land, not only at the launch sites.

@@ -4,6 +4,17 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.13.0 · 2026-10-04
+
+**Five cities in 3D** (phase 4 of `docs/EARTH_PLAN.md`, first part; owner, 2026-10-04: two releases, this one the ground, buildings, towers, time and weather, the next the traffic, planes and ships)
+- The data (`tools/earth-cities.mjs`, prepared on the branch `data/earth-cities`): for each city, layers in the launch sites' format, 51 km, 12.8 km, a 3.2 km (London 6.4 km) layer over the centre at 2048 px, more over the other famous parts and one a main airport, 21.9 MB in all, under `assets/earth/cities/`, with the manifest `EARTH_CITIES` (`e9-earth-cities-data.js`). Photos: USDA NAIP (New York), GSI (Tokyo), IGN BD ORTHO (Paris); London and Dubai have no open aerial photos, so Sentinel-2 with OpenStreetMap's streets and buildings painted in (the readout says the colours are partly illustrative). Heights: IGN BD TOPO (Paris), the city's footprints (New York), elsewhere OpenStreetMap's heights, or levels, or a guess by size. The roads, runways, ferries and ports for the next release are in the data too.
+- The cities join the Earth detail as sites of their own (`EDT.addSite`): Earth shows their layers from space, as the launch sites'. The Earth detail now runs with the SpaceX flag off as well, for the cities.
+- Below 90 km within 60 km of a city, FS_SX_ENV draws it as the site (`ECT.envSite`, e9c-earth-cities.js): its layers and the ground anywhere's as the widest, marched finely near (`uP4.z` minus 150 km), so the towers stand up, with the city's real weather (`/api/weather`, now eight places with the temperature) and its clouds.
+- The 16 tallest towers nearest the camera blink red about 40 times a minute (aviation warning lights), bright at night and faint by day, hidden behind whatever is nearer (`uTwL`).
+- A city picked in the atlas or the search flies to the three framings in its data, and its readout says its local time (from its time zone, worked out on the visitor's device) and its weather, with the credit for its photos and buildings. The camera keeps clear of the rooftops (`EDT.heightAt`).
+- Earth's readout from space credits the photos round a launch site or city again (it missed them since 0.11.0, which draws Earth with `P.earthGEd` there).
+- `tests/earth.mjs` flies to New York and checks its layers, its lights and its readout.
+
 ## 0.12.0 · 2026-10-03
 
 **Fly down anywhere** (phase 2 of `docs/EARTH_PLAN.md`)
