@@ -3,7 +3,8 @@
 ## What the site does and does not do
 
 - Static page plus three read-only serverless functions (`/api/sats`, `/api/launches`, `/api/weather`), and the static images of the ground round the launch sites (`/earth/`).
-- No accounts, no cookies, no analytics, no tracking, no ads.
+- No accounts, no cookies, no ads, no tracking across sites.
+- Visits are counted with Vercel Web Analytics (since 0.17.1, `src/09v-visits.js`, flag `analytics`). Its script comes from our own domain (`/_vercel/insights/script.js`), sets no cookies and stores nothing on the device. Each page load sends one page view: the path only (we cut the `?query` and the `#view` off in `beforeSend`), the referrer, and what Vercel reads from the request (country and region, browser, operating system, device type). Vercel tells visits apart by a hash of the request that it throws away after 24 hours; the IP address is not stored. Nothing is sent when the browser asks not to be tracked (Global Privacy Control or Do Not Track), from `/lab` or `/songs`, or anywhere but gcdatlas.com and `*.vercel.app`. See https://vercel.com/docs/analytics/privacy-policy.
 - Everything personal stays in the visitor's own browser (`localStorage`, keys `gcdatlas.*`): settings, collection log, daily streak, and the location used for *your sky*. Location is only requested when the visitor asks for *use my location*, and only a rounded latitude and longitude are kept.
 
 ## Threat model and mitigations
@@ -18,7 +19,7 @@
 | MIME sniffing, referrer leaks | `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`. |
 | Powerful browser features | `Permissions-Policy` disables camera, microphone and payment; geolocation only for this origin, and only on request. |
 | Secrets | There are none. No API keys are needed (CelesTrak, Launch Library 2 and Open-Meteo are public). If one is ever needed, put it in Vercel environment variables, read it only in `api/`, never in `src/`. |
-| Supply chain | The page has zero runtime dependencies. Dev dependencies (Playwright, sharp) never ship. Tools in `tools/` run only at data-generation time. |
+| Supply chain | The page has zero runtime dependencies (Vercel's analytics script is served by Vercel itself, from our domain, and only on the live site). Dev dependencies (Playwright, sharp) never ship. Tools in `tools/` run only at data-generation time. |
 
 ## Recommended next step: a Content Security Policy
 

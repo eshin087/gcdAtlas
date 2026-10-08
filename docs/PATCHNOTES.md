@@ -5,6 +5,11 @@
      numbers with units. The newest version comes first and opens by itself; its number must match package.json (tests/smoke.mjs checks it).
      Every detail stays in docs/CHANGELOG.md, which the panel links to. -->
 
+## 0.17.1 · 7 Oct 2026 · Counting visits, privately
+- Visits are now counted with Vercel Web Analytics, so we can see how many people explore the atlas.
+- No cookies, and nothing is saved on your device. A visit sends the page's address (not the place you are looking at), the site you came from, your country, browser and kind of device.
+- Nothing is sent if your browser asks sites not to track you (Global Privacy Control or Do Not Track).
+
 ## 0.17.0 · 4 Oct 2026 · Cities you can read, alive from afar
 - The five cities in a new style, like an architect's model: every building in one clean colour from the city's real roofs (Paris zinc and slate, London slate and clay tile, Tokyo concrete), outlined, on darker streets.
 - Traffic shows from 15 km: streams of white and red lights along the main roads at night, moving dashes by day.
