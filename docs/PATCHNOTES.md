@@ -5,6 +5,11 @@
      numbers with units. The newest version comes first and opens by itself; its number must match package.json (tests/smoke.mjs checks it).
      Every detail stays in docs/CHANGELOG.md, which the panel links to. -->
 
+## 0.18.0 · 8 Oct 2026 · Star clusters from their real stars
+- 19 more Messier objects: the Little Dumbbell, the reflection nebula M78, the Sagittarius Star Cloud and sixteen open clusters, from the Butterfly Cluster to M67, one of the oldest known.
+- Every open cluster is now drawn from its real stars, measured by the Gaia space telescope: each one where it really is on the sky, as bright and as coloured as it really is.
+- The Messier marathon tour grows to 54 stops. 57 of Messier's 110 objects are in so far.
+
 ## 0.17.1 · 7 Oct 2026 · Counting visits, privately
 - Visits are now counted with Vercel Web Analytics, so we can see how many people explore the atlas.
 - No cookies, and nothing is saved on your device. A visit sends the page's address (not the place you are looking at), the site you came from, your country, browser and kind of device.

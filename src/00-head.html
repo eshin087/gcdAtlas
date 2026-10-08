@@ -353,7 +353,8 @@ body.showcase .strip{padding-bottom:calc(124px + env(safe-area-inset-bottom,0px)
 .dirbtn b{color:var(--flare);font-weight:400}
 .dirbtn:hover{color:var(--ink);border-color:rgba(255,179,92,.45)}
 /* show: "not seen yet", a box that works with any kind, then one radio group: all (across the top) or one kind (a grid of equal cells with their counts) */
-.cell{display:flex;align-items:center;justify-content:space-between;gap:4px;box-sizing:border-box;min-width:0;min-height:28px;padding:0 6px;font-size:calc(10px*var(--ts));line-height:1.2;
+/* (4 px of padding and a 3 px gap, 0.18.0: room for a two-digit count, "star clusters 25", at 90% menu text without widening the grid) */
+.cell{display:flex;align-items:center;justify-content:space-between;gap:3px;box-sizing:border-box;min-width:0;min-height:28px;padding:0 4px;font-size:calc(10px*var(--ts));line-height:1.2;
   color:var(--soft);background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:3px;cursor:pointer;white-space:nowrap;text-align:left}
 .cell .n{flex:none;color:var(--dim);font-size:calc(9.5px*var(--ts));font-variant-numeric:tabular-nums}
 .cell:hover{color:var(--ink);border-color:rgba(140,160,210,.45)}
@@ -707,7 +708,7 @@ body.sky .info .acts,body.sky .ladder,body.sky .lad-chip,body.sky .progress{opac
   .sortseg button,.dirbtn,.unseen{font-size:calc(10px*var(--ts))}
   .sortseg button{padding:0 6px}
   .dirbtn{gap:4px;padding:0 7px 0 6px}
-  .cell{font-size:calc(9.5px*var(--ts))}
+  .cell{font-size:calc(9.5px*var(--ts));padding:0 3px;gap:2px}
   .cell .n{font-size:calc(9px*var(--ts))}
   .cats{grid-template-columns:repeat(auto-fill,minmax(calc(94px*var(--ts)),1fr))}
   .aresult .rreset{min-height:30px}
