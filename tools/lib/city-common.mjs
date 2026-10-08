@@ -10,7 +10,8 @@ import { fromUrl } from 'geotiff';
 sharp.concurrency(2);
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-export const CACHE = path.join(ROOT, 'tools', 'cache', 'earth-cities');
+// (CITY_CACHE: a cache kept elsewhere, such as the main checkout's when this runs in a worktree; never link it in: removing a worktree can delete through a link)
+export const CACHE = process.env.CITY_CACHE || path.join(ROOT, 'tools', 'cache', 'earth-cities');
 export const OUT = path.join(ROOT, 'assets', 'earth', 'cities');
 fs.mkdirSync(CACHE, { recursive:true }); fs.mkdirSync(OUT, { recursive:true });
 export const RE = 6371000, D2R = Math.PI/180;
@@ -129,6 +130,8 @@ export const PHOTO = {
   usgs:{ kind:'arcgis', url:'https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer/exportImage', extra:'' },
   ign:{ kind:'wms', url:'https://data.geopf.fr/wms-r/wms', layer:'ORTHOIMAGERY.ORTHOPHOTOS' },
   gsi:{ kind:'xyz', url:'https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg', minZ:14, maxZ:18 },
+  // (0.19.0: NSW Spatial Services' NSW Imagery, Creative Commons Attribution; a cached map service, exported like the image services)
+  nsw:{ kind:'arcgis', url:'https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/export', extra:'&transparent=false' },
 };
 // an image fetched in pieces of at most 1,000 px (the services answer 502 to big exports) and stitched, in Web Mercator, sampled by lat, lon
 async function stitched(L, key, pieceUrl, ratio){
@@ -189,7 +192,7 @@ export async function s2Source(L){
   const want = L.size/L.px, srcs = [];
   for (const f of pick){
     const epsg = f.properties['proj:epsg'] || +String(f.properties['proj:code'] || '').split(':')[1], zone = epsg % 100, south = epsg > 32700;
-    if (south) continue;
+    if (south !== (bb[1] + bb[3] < 0)) continue;   // (scenes from the region's own hemisphere: Sydney and Rio are south, 0.19.0)
     const cs = [[bb[1], bb[0]], [bb[1], bb[2]], [bb[3], bb[0]], [bb[3], bb[2]]].map(([la, lo]) => toUTM(la, lo, zone));
     let e0 = Math.min(...cs.map(c => c[0])), e1 = Math.max(...cs.map(c => c[0])), n0 = Math.min(...cs.map(c => c[1])), n1 = Math.max(...cs.map(c => c[1]));
     const va = f.assets.visual, tf = va['proj:transform'] || f.properties['proj:transform'], shp = va['proj:shape'] || f.properties['proj:shape'];

@@ -22,17 +22,19 @@
 const EAS = (() => {
   const can = /^https?:$/.test(location.protocol), R = 6371000;
   // arrivals an hour at the busiest hours, from each airport's yearly movements (2024, rounded; illustrative), and the share kept at night
-  const PEAK = { JFK:30, LGA:26, EWR:28, HND:36, NRT:20, DXB:26, DWC:3, LHR:36, LGW:20, LCY:5, STN:14, LTN:10, CDG:34, ORY:17 };
-  const NIGHT = { DXB:0.75, JFK:0.3, HND:0.25 };
+  const PEAK = { JFK:30, LGA:26, EWR:28, HND:36, NRT:20, DXB:26, DWC:3, LHR:36, LGW:20, LCY:5, STN:14, LTN:10, CDG:34, ORY:17,
+    HKG:30, SFO:24, OAK:9, SYD:22, FCO:22, CIA:4, LAX:32, BUR:7, GIG:8, SDU:9 };
+  const NIGHT = { DXB:0.75, JFK:0.3, HND:0.25, HKG:0.35, LAX:0.25 };
   // the prevailing wind (degrees, where it comes from) for calm hours, when runways are used as usual
-  const CALM = { newyork:310, tokyo:20, dubai:300, london:250, paris:250 };
-  const BOATV = { newyork:8, tokyo:7, dubai:5, london:9, paris:3.5 };
+  const CALM = { newyork:310, tokyo:20, dubai:300, london:250, paris:250, hongkong:90, sanfrancisco:290, sydney:180, rome:250, losangeles:250, rio:150 };
+  const BOATV = { newyork:8, tokyo:7, dubai:5, london:9, paris:3.5, hongkong:7, sanfrancisco:10, sydney:8, rome:3, losangeles:8, rio:8 };
   const S = { city:null, ap:[], routes:[], state:0, pts:[], n:0, vis:new Float32Array(1024), visAt:new Float32Array(1024), vi:0, line:'', seen:0 };
   const MAXP = 2048, ps = makePS(MAXP), MAXL = 1024, ls = makePS(MAXL);
   // (the planes' shapes, as lines: about four times the light of a point to read as characters)
   const lspec = { ps:ls, prog:'lnBasic', lines:true, mode:3, sb:1, size:1, rel:() => S.rel, rot:() => S.rot, rad:1e-3*KM, count:() => S.nl };
   const SHORT = { JFK:'JFK', LGA:'LaGuardia', EWR:'Newark', HND:'Haneda', NRT:'Narita', DXB:'Dubai International', DWC:'Al Maktoum', LHR:'Heathrow', LGW:'Gatwick', LCY:'London City',
-    STN:'Stansted', LTN:'Luton', CDG:'Charles de Gaulle', ORY:'Orly' };
+    STN:'Stansted', LTN:'Luton', CDG:'Charles de Gaulle', ORY:'Orly',
+    HKG:'Hong Kong International', SFO:'SFO', OAK:'Oakland', SYD:'Sydney Airport', FCO:'Fiumicino', CIA:'Ciampino', LAX:'LAX', BUR:'Burbank', GIG:'Galeão', SDU:'Santos Dumont' };
   const OVER = 12;   // (airliners passing over the city an hour, at cruising height)
   const spec = { ps, prog:'ptBasic', mode:3, sb:1, size:4.5,   // (4.5 px: a light must fill a character's cell of the scene, two by two pixels, or it averages away)
     rel:() => S.rel, rot:() => S.rot, rad:1e-3*KM, count:() => S.n };

@@ -483,6 +483,8 @@ const envOn = () => FLAGS.spacex || FLAGS.realEarth;
 // (while the ground and a nearly opaque sky cover the whole screen, Earth's own volume under them is not drawn: it cost as much again)
 earth.volOff = () => envOn() && SXENV.cover;
 function camFixed(){ return M3.applyT(earth.rot, V.mul(earth.rel, -1/KM)); }
+// (the cities' order in FS_SX_ENV's cityMat, uCity.x)
+const CITY_KEYS = ['paris', 'newyork', 'tokyo', 'dubai', 'london', 'hongkong', 'sanfrancisco', 'sydney', 'rome', 'losangeles', 'rio'];
 function drawEnv(){
   const cf = camFixed(), alt = V.len(cf) - RE_KM;
   SXENV.on = SXENV.cover = false; if (alt > 90 || alt < -1) return;
@@ -510,9 +512,12 @@ function drawEnv(){
   const nTw = ECT.lights(best, cf, day);
   // (near the Eiffel Tower, the copy of the shader that draws it as a model, once it has compiled in the background; until then the plain one)
   // (over a city the copy with the traffic, P.sxEnvC (0.14.0), and near Paris the one with the Eiffel Tower too, each once it has compiled)
-  const sunEl = Math.asin(clamp(L[1], -1, 1))/DEG, ef = ECT.eiffel(best, cf, sunEl), tk = ECT.tokyo(best, cf, sunEl), want = ef ? P.sxEnvEf : tk ? P.sxEnvTk : best.city ? P.sxEnvC : P.sxEnv;
+  // (0.19.0: near a landmark of the new cities, that city's copy with its models)
+  const sunEl = Math.asin(clamp(L[1], -1, 1))/DEG, ef = ECT.eiffel(best, cf, sunEl), tk = ECT.tokyo(best, cf, sunEl), lm = ECT.landmarks(best, cf, sunEl);
+  const want = ef ? P.sxEnvEf : tk ? P.sxEnvTk : lm ? P[lm.prog] : best.city ? P.sxEnvC : P.sxEnv;
   const prog = progReady(want) ? want : best.city && progReady(P.sxEnvC) ? P.sxEnvC : P.sxEnv;
-  SXENV.eiffel = prog === P.sxEnvEf; SXENV.tokyo = prog === P.sxEnvTk; SXENV.city = prog === P.sxEnvC || SXENV.eiffel || SXENV.tokyo;
+  SXENV.eiffel = prog === P.sxEnvEf; SXENV.tokyo = prog === P.sxEnvTk; SXENV.lm = lm && prog === P[lm.prog] ? lm.prog : null;
+  SXENV.city = prog === P.sxEnvC || SXENV.eiffel || SXENV.tokyo || !!SXENV.lm;
   drawVolume(earth, prog, rel, V.len(rel)*4 + 1e-3, p => {
     EDT.bind(p, ED, { M:best.F.M, p:best.p });
     gl.uniform4f(p.u.uP0, cl[0], cl[1], cl[2], fade); gl.uniform4f(p.u.uP1, L[0], L[1], L[2], day);
@@ -521,9 +526,10 @@ function drawEnv(){
     // are far; over a city, minus 150 km: finely near, the towers stand up, and on to the horizon)
     gl.uniform4f(p.u.uP3, pl[0], pl[1], pl[2], plI*(0.4 + 1.6*(1 - day))); gl.uniform4f(p.u.uP4, GT, best.elev || 0, best.ground || best.place ? 260000 : best.city ? -150000 : 0, 0);
     if (p.u.uTwL){ gl.uniform4fv(p.u.uTwL, ECT.LT); gl.uniform1f(p.u.uTwLN, nTw); }
-    if (p.u.uCity) gl.uniform4f(p.u.uCity, best.city ? ['paris', 'newyork', 'tokyo', 'dubai', 'london'].indexOf(best.city.key) : -1, best.city ? best.city.ele || 0 : 0, best.place ? 1 : 0, 0);   // (which city: its materials; a famous place: its water)
+    if (p.u.uCity) gl.uniform4f(p.u.uCity, best.city ? CITY_KEYS.indexOf(best.city.key) : -1, best.city ? best.city.ele || 0 : 0, best.place ? 1 : 0, 0);   // (which city: its materials; a famous place: its water)
     if (p.u.uThin){ const nTh = ECT.thin(best, cf); gl.uniform4fv(p.u.uThin, ECT.TH); gl.uniform4fv(p.u.uThinB, ECT.THB); gl.uniform1f(p.u.uThinN, nTh); }
     if (p.u.uEf0 && ef){ gl.uniform4f(p.u.uEf0, ef[0], ef[1], ef[2], ef[3]); gl.uniform4f(p.u.uEf1, ef[4], ef[5], ef[6], ef[7]); }
+    if (p.u.uLm0 && lm){ gl.uniform4fv(p.u.uLm0, lm.u0); gl.uniform4fv(p.u.uLm1, lm.u1); gl.uniform4fv(p.u.uLm2, lm.u2); }
     if (p.u.uTk0 && tk){ gl.uniform4f(p.u.uTk0, tk[0], tk[1], tk[2], tk[3]); gl.uniform4f(p.u.uTk1, tk[4], tk[5], tk[6], tk[7]); gl.uniform4f(p.u.uTk2, tk[8], tk[9], tk[10], tk[11]); }
     ETR.bind(p, best.city);
     wxUniforms(p);

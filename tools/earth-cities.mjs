@@ -71,7 +71,7 @@ for (const city of CITIES){
   if (stages.includes('layers')){ const t = await terrainSource({ la:city.la, lo:city.lo, size:1600, px:1024 }); man.ele = Math.round(Math.max(0, t(city.la, city.lo))*10)/10; man.top = Math.max(...man.layers.map(l => l.top)); }
   if (man.towers && man.layers && (stages.includes('towers') || stages.includes('layers') || stages.includes('mapinfo'))) await addMapInfo({ ...man, la:city.la, lo:city.lo });
   // the credits this city's data needs (keys of `sources`)
-  man.credits = ['osm', 's2', 'terrain', ...(city.nyc ? ['fpac', 'nyc'] : []), ...(city.photo === 'gsi' ? ['gsi'] : []), ...(city.photo === 'ign' ? ['ign', 'bdtopo'] : []), 'meteo'];
+  man.credits = ['osm', 's2', 'terrain', ...(city.nyc ? ['fpac', 'nyc'] : []), ...(city.photo === 'gsi' ? ['gsi'] : []), ...(city.photo === 'ign' ? ['ign', 'bdtopo'] : []), ...(city.photo === 'fpac' ? ['fpac'] : []), ...(city.photo === 'nsw' ? ['nsw'] : []), 'meteo'];
   Object.assign(man, { key:city.key, name:city.name, la:city.la, lo:city.lo, drive:city.drive, tz:FACTS[city.key].tz, country:FACTS[city.key].country });
   fs.writeFileSync(manFile(city.key), JSON.stringify(man));
   if (stages.includes('preview') && man.layers) await previews(city, man);

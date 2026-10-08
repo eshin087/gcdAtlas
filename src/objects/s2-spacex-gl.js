@@ -511,6 +511,155 @@ vec4 cars(vec2 en, vec4 rd, float fp, vec2 dv, out vec3 body){
   return vec4(lamp*I, g*mix(min(6.25/(r*r), 1.), 1., far)*(1. - k)*0.85);
 }
 #endif
+#ifdef LM
+// the landmarks of the cities of 0.19.0 as models (owner's picks, 2026-10-07: the Golden Gate Bridge, the Sydney Opera House, the Colosseum and
+// St Peter's, the Hollywood sign, Christ the Redeemer), each in the copy of this shader used near its city (P.sxEnvSF, P.sxEnvSyd,
+// P.sxEnvRome, P.sxEnvLA, P.sxEnvRio, built in the background), as the Eiffel Tower and Tokyo's towers are. Real sizes, in their sources'
+// comments; the finer shapes (the sails' curves, the arches, the letters' strokes, the statue's robe) are illustrative. uLm0 / uLm1: each
+// landmark's foot (x, z in this frame), the ground there (m above the sea), the turn of its own frame (its x along the bridge, the sign or the
+// building's axis, its z toward the front); uLm2: the lights (0..1), a clock (s), how many landmarks (1 or 2), 0. Each city's lmBounds(k)
+// (half-length in x, y from, y to, half-width in z) and lmMap(p, k) (the distance, in m) and lmBase(q, n, k, px, glow) (the colour in full
+// sunlight, and how much of its night lighting shows)
+uniform vec4 uLm0; uniform vec4 uLm1; uniform vec4 uLm2;
+float lmBox(vec3 p, vec3 c, vec3 b){ vec3 q = abs(p - c) - b; return length(max(q, 0.)) + min(max(q.x, max(q.y, q.z)), 0.); }
+float lmCap(vec3 p, vec3 a, vec3 b, float r){ vec3 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba)/dot(ba, ba), 0., 1.); return length(pa - ba*h) - r; }
+float lmSeg(vec2 p, vec2 a, vec2 b){ vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba)/dot(ba, ba), 0., 1.); return length(pa - ba*h); }
+vec3 lmRot(vec3 v, float a){ float c = cos(a), s = sin(a); return vec3(c*v.x + s*v.z, v.y, -s*v.x + c*v.z); }
+#endif
+#ifdef LM_SF
+// the Golden Gate Bridge (Golden Gate Bridge, Highway and Transportation District): towers 227 m above the water and 1,280 m apart, the roadway
+// 67 m up and 27 m wide, side spans of 343 m to the anchorages, the main cables sagging from the towers' tops to just above the roadway in the
+// middle; x along the bridge from its middle, z across. International Orange, its towers floodlit at night
+vec4 lmBounds(float k){ return vec4(1300., -2., 232., 26.); }
+float ggCable(float x){ float ax = abs(x); if(ax < 640.){ float u = x/640.; return 72. + 155.*u*u; } float s = clamp((ax - 640.)/343., 0., 1.); return 227. - 152.*s - 34.*s*(1. - s); }
+float lmMap(vec3 p, float k){
+  float ax = abs(p.x), d = lmBox(p, vec3(0., 65., 0.), vec3(1290., 3., 13.7));   // (the roadway)
+  vec3 q = vec3(ax - 640., p.y, abs(p.z) - 17.);
+  d = min(d, lmBox(q, vec3(0., 113.5, 0.), vec3(mix(6.5, 4., clamp(p.y/227., 0., 1.)), 113.5, 4.5)));   // (each tower's two legs, tapering)
+  float sy = p.y < 85. ? 40. : p.y < 128. ? 105. : p.y < 170. ? 150. : p.y < 206. ? 190. : 222.;   // (the nearest of the struts between them)
+  d = min(d, lmBox(vec3(ax - 640., p.y, p.z), vec3(0., sy, 0.), vec3(3., 3.5, 17.)));
+  if(ax < 990.){   // (the two main cables, about 0.9 m thick: the distance to each curve, its height difference eased by the slope)
+    float sl = ax < 640. ? 0.484*ax/640. : 0.5;
+    d = min(d, length(vec2((p.y - ggCable(p.x))/sqrt(1. + sl*sl), abs(p.z) - 15.)) - 0.6);
+  }
+  d = min(d, lmBox(vec3(ax, p.y, p.z), vec3(995., 34., 0.), vec3(18., 34., 22.)));   // (the anchorages)
+  return d*0.9;
+}
+vec3 lmBase(vec3 q, vec3 n, float k, float px, out float glow){
+  float deck = step(0.7, n.y)*step(abs(q.y - 68.), 1.5)*step(abs(q.z), 13.);
+  glow = deck > 0.5 ? 0.12 : step(abs(abs(q.x) - 640.), 9.)*0.55 + 0.12;   // (the towers floodlit, the roadway's lamps)
+  return deck > 0.5 ? vec3(0.3, 0.3, 0.32) : vec3(0.8, 0.28, 0.14);
+}
+#endif
+#ifdef LM_SYD
+// the Sydney Opera House (Sydney Opera House Trust): its sails rise to 67 m above the sea, two halls side by side and a pair over the restaurant,
+// on a podium about 10 m high; x along its long axis toward the harbour, z across. The sails as curved shells over the halls (their tiles white,
+// the glass of their mouths dark), floodlit at night
+vec4 lmBounds(float k){ return vec4(100., -2., 70., 64.); }
+float osSail(vec2 xz, vec4 a, vec2 b){   // a: the mouth's x, the hall's z, which way the mouth faces (+1 toward +x), the height above the podium; b: length, half-width
+  float u = a.z*(xz.x - a.x)/b.x, zz = abs(xz.y - a.y)/(b.y*(0.8 + 0.4*clamp(u, 0., 1.)));
+  if(u < -0.02 || u > 1. || zz > 1.) return 0.;
+  return a.w*pow(max(1. - u, 0.), 0.7)*pow(max(1. - zz, 0.), 0.55);
+}
+float osH(vec2 xz){
+  float H = osSail(xz, vec4( 40., -22.,  1., 42.), vec2(32., 21.));   // (the Concert Hall: two sails facing the harbour, two facing the steps)
+  H = max(H, osSail(xz, vec4(  8., -22.,  1., 57.), vec2(42., 24.)));
+  H = max(H, osSail(xz, vec4(-30., -22., -1., 44.), vec2(30., 22.)));
+  H = max(H, osSail(xz, vec4(-58., -22., -1., 24.), vec2(16., 17.)));
+  H = max(H, osSail(xz, vec4( 36.,  24.,  1., 36.), vec2(28., 18.)));   // (the Joan Sutherland Theatre)
+  H = max(H, osSail(xz, vec4(  6.,  24.,  1., 50.), vec2(38., 21.)));
+  H = max(H, osSail(xz, vec4(-28.,  24., -1., 38.), vec2(27., 19.)));
+  H = max(H, osSail(xz, vec4(-54.,  24., -1., 20.), vec2(14., 15.)));
+  H = max(H, osSail(xz, vec4(-80., -38., -1., 20.), vec2(14., 11.)));   // (the restaurant's pair)
+  return max(H, osSail(xz, vec4(-68., -38.,  1., 16.), vec2(12., 9.)));
+}
+float lmMap(vec3 p, float k){
+  float pod = lmBox(p, vec3(-12., 5., -4.), vec3(84., 5., 56.));
+  return min(pod, max(max((p.y - 10. - osH(p.xz))*0.4, 10. - p.y), lmBox(p, vec3(-10., 40., -4.), vec3(90., 30., 60.))));
+}
+vec3 lmBase(vec3 q, vec3 n, float k, float px, out float glow){
+  glow = q.y > 10.5 ? 0.6 : 0.1;
+  if(q.y < 10.5) return vec3(0.74, 0.62, 0.54);   // (the podium's pink granite)
+  if(abs(n.x) > 0.75 && n.y < 0.35) return vec3(0.28, 0.25, 0.22);   // (the glass in the sails' mouths)
+  float tl = step(0.12, fract(q.y*0.9 + q.z*0.15));
+  return mix(vec3(0.95, 0.94, 0.9), vec3(0.88, 0.86, 0.8), (1. - tl)*smoothstep(1.2, 0.3, px));   // (the white and cream tiles)
+}
+#endif
+#ifdef LM_ROME
+// the Colosseum (k 0): an oval 189 by 156 m, its outer wall 48 m high where it stands (the north side) and only the second ring, about 31 m,
+// on the south; the seating sloping down to the arena; three tiers of 80 arches and the attic above. St Peter's Basilica (k 1): the nave,
+// transept, apse and the facade (115 m wide, 46 m high), the drum and the dome, 136.6 m to the top of its cross (Fabbrica di San Pietro);
+// x toward the facade (east), the dome at the origin. Travertine, the dome lead grey; both floodlit at night
+vec4 lmBounds(float k){ return k < 0.5 ? vec4(99., -2., 50., 83.) : vec4(136., -2., 139., 74.); }
+float lmMap(vec3 p, float k){
+  if(k < 0.5){
+    float r = length(vec2(p.x/94.5, p.z/78.)), sc = 78., hO = mix(31., 48., smoothstep(12., -22., p.z));
+    float d = max(abs(r - 0.965)*sc - 2.8, p.y - hO);   // (the outer wall)
+    d = min(d, max(abs(r - 0.865)*sc - 2.8, p.y - 31.));   // (the second ring)
+    d = min(d, max(max(0.5 - r, r - 0.85)*sc, p.y - mix(4., 29., clamp((r - 0.5)/0.35, 0., 1.))));   // (the seating)
+    d = min(d, max(abs(r - 0.485)*sc - 1., p.y - 4.));   // (the arena's wall)
+    return max(d, -p.y - 1.)*0.8;
+  }
+  float d = lmBox(p, vec3(75., 22.5, 0.), vec3(48., 22.5, 30.));   // (the nave)
+  d = min(d, lmBox(p, vec3(0., 22.5, 0.), vec3(30., 22.5, 68.)));   // (the transept)
+  d = min(d, max(length(p.xz - vec2(-30., 0.)) - 30., abs(p.y - 22.5) - 22.5));   // (the apse)
+  d = min(d, lmBox(p, vec3(126., 23., 0.), vec3(5., 23., 57.)));   // (the facade)
+  d = min(d, max(length(p.xz) - 23., abs(p.y - 61.5) - 16.5));   // (the drum, 45 to 78 m)
+  d = min(d, max((length((p - vec3(0., 78., 0.))/vec3(21., 32., 21.)) - 1.)*21., 78. - p.y));   // (the dome)
+  d = min(d, max(length(p.xz) - 5., abs(p.y - 118.) - 9.));   // (the lantern)
+  d = min(d, max(length(p.xz) - max(3.4 - (p.y - 127.)*0.6, 0.3), abs(p.y - 130.) - 3.));
+  d = min(d, lmBox(p, vec3(0., 134.6, 0.), vec3(0.35, 2., 0.35)));   // (the cross)
+  vec2 md = vec2(p.x - 36., abs(p.z) - 46.);   // (the two smaller domes)
+  return min(d, max(length(vec3(md.x, (p.y - 52.)*0.8, md.y)) - 10., 44. - p.y))*0.9;
+}
+vec3 lmBase(vec3 q, vec3 n, float k, float px, out float glow){
+  glow = 0.5;
+  vec3 tr = vec3(0.86, 0.78, 0.62);
+  if(k < 0.5){
+    float r = length(vec2(q.x/94.5, q.z/78.)), th = atan(q.z/78., q.x/94.5), a = fract(th/6.2831853*80.), y = q.y;
+    // (on the outer faces, three tiers of arches and the attic's small windows: dark where a pixel resolves them)
+    float arch = step(0.2, a)*step(a, 0.8)*(step(1.5, y)*step(y, 8.5) + step(12., y)*step(y, 19.5) + step(23., y)*step(y, 30.) + step(37., y)*step(y, 39.)*step(0.4, a)*step(a, 0.6));
+    float out_ = step(0.9, r)*step(abs(n.y), 0.5);
+    if(n.y > 0.5 && r < 0.48) return vec3(0.5, 0.42, 0.34);   // (the arena's floor and the rooms under it)
+    return mix(tr, vec3(0.28, 0.24, 0.2), arch*out_*smoothstep(4., 1.5, px));
+  }
+  if(q.y > 78. && q.y < 112. && length(q.xz) < 22.) return mix(vec3(0.42, 0.47, 0.53), vec3(0.9, 0.88, 0.84), step(0.88, fract(atan(q.z, q.x)/6.2831853*16.))*smoothstep(3., 1., px));   // (the dome's dark lead and its white ribs: in a pale grey it vanished into an overcast sky)
+  return tr;
+}
+#endif
+#ifdef LM_LA
+// the Hollywood sign (Hollywood Sign Trust): nine white letters, each 13.7 m tall, about 107 m from the H to the D, on Mount Lee; x along the
+// sign as it reads, z toward the front (south-southwest). Not lit at night
+vec4 lmBounds(float k){ return vec4(56., -9., 14.5, 2.5); }
+float lmMap(vec3 p, float k){
+  float x = p.x + 53.5, i = clamp(floor(x/11.9), 0., 8.), lx = x - i*11.9, y = p.y;
+  vec2 q = vec2(lx, y); float d2;
+  if(i < 0.5) d2 = min(min(lmSeg(q, vec2(1.2, 0.), vec2(1.2, 13.7)), lmSeg(q, vec2(8.8, 0.), vec2(8.8, 13.7))), lmSeg(q, vec2(1.2, 6.9), vec2(8.8, 6.9)));   // (H)
+  else if(i < 1.5 || (i > 5.5 && i < 7.5)) d2 = abs(length((q - vec2(5., 6.85))/vec2(3.8, 5.65)) - 1.)*3.8;   // (O)
+  else if(i < 3.5) d2 = min(lmSeg(q, vec2(1.2, 0.), vec2(1.2, 13.7)), lmSeg(q, vec2(1.2, 1.2), vec2(8.6, 1.2)));   // (L)
+  else if(i < 4.5) d2 = min(min(lmSeg(q, vec2(1., 13.7), vec2(5., 6.6)), lmSeg(q, vec2(9., 13.7), vec2(5., 6.6))), lmSeg(q, vec2(5., 6.6), vec2(5., 0.)));   // (Y)
+  else if(i < 5.5) d2 = min(min(lmSeg(q, vec2(0.6, 13.7), vec2(2.9, 0.)), lmSeg(q, vec2(2.9, 0.), vec2(5., 8.6))), min(lmSeg(q, vec2(5., 8.6), vec2(7.1, 0.)), lmSeg(q, vec2(7.1, 0.), vec2(9.4, 13.7))));   // (W)
+  else d2 = min(lmSeg(q, vec2(1.2, 0.), vec2(1.2, 13.7)), lx > 1.2 ? abs(length((q - vec2(1.2, 6.85))/vec2(7.6, 5.65)) - 1.)*5.6 : 1e4);   // (D)
+  d2 = min(d2 - 1.2, max(min(abs(lx - 2.5), abs(lx - 7.5)) - 0.25, y));   // (the strokes, 2.4 m wide, and two posts under each letter)
+  float d = max(max(d2, abs(p.z) - 0.3), max(y - 13.7, -y - 8.));
+  return min(d, max(min(lx, 11.9 - lx), 0.4));   // (never a step past the gap into the next letter)
+}
+vec3 lmBase(vec3 q, vec3 n, float k, float px, out float glow){ glow = 0.; return q.y < 0. ? vec3(0.45, 0.43, 0.4) : vec3(0.96, 0.96, 0.94); }
+#endif
+#ifdef LM_RIO
+// Christ the Redeemer (Santuario Cristo Redentor): 30 m tall on an 8 m pedestal, its arms 28 m across, on the top of Corcovado; x along its
+// arms, z the way it faces (east-northeast, over the city and the bay). Soapstone, floodlit at night
+vec4 lmBounds(float k){ return vec4(15.5, -1., 38.5, 6.); }
+float lmMap(vec3 p, float k){
+  float d = lmBox(p, vec3(0., 4., 0.), vec3(4.5, 4., 4.5));   // (the pedestal)
+  float y = clamp(p.y, 8., 31.), u = (y - 8.)/23., hw = mix(4.2, 2.8, u), hd = mix(3.1, 1.9, u);
+  d = min(d, max((length(vec2(p.x/hw, p.z/hd)) - 1.)*min(hw, hd), max(8. - p.y, p.y - 32.)));   // (the robe)
+  d = min(d, lmCap(p, vec3(-13.6, 31.4, 0.), vec3(13.6, 31.4, 0.), 1.1 + 1.1*smoothstep(9., 2., abs(p.x))));   // (the arms, the sleeves hanging near the body)
+  d = min(d, length((p - vec3(0., 35.6, 0.25))/vec3(1., 1.3, 1.)) - 1.8);   // (the head)
+  return d*0.85;
+}
+vec3 lmBase(vec3 q, vec3 n, float k, float px, out float glow){ glow = 0.85; return q.y < 8. ? vec3(0.62, 0.6, 0.56) : vec3(0.9, 0.9, 0.86); }
+#endif
 #ifdef TOKYO
 // Tokyo Tower and the Tokyo Skytree as models (0.14.0, owner's pick), only in P.sxEnvTk, the copy used near Tokyo. Real sizes: Tokyo Tower
 // 332.9 m, 80 m across at the ground, the Main Deck at 150 m and the Top Deck at 249.6 m (Wikipedia); the Skytree 634 m, a triangle 68 m a
@@ -577,7 +726,7 @@ float efMap(vec3 p){
   return min(d, max(length(p.xz) - 1.1, abs(y - 315.) - 15.));
 }
 #endif
-// (which city, 0.13.0: x 0 Paris, 1 New York, 2 Tokyo, 3 Dubai, 4 London, -1 none; y the ground at its centre, m above the sea; z 1 at a
+// (which city, 0.13.0: x 0 Paris, 1 New York, 2 Tokyo, 3 Dubai, 4 London, 5 to 10 the cities of 0.19.0 (CITY_KEYS in s3-spacex.js), -1 none; y the ground at its centre, m above the sea; z 1 at a
 // famous place, 0.15.0: its water keeps the images' colours)
 uniform vec4 uCity;
 // a building's materials in a city, after each city's common ones and a little brighter than life so they read as characters (illustrative,
@@ -592,8 +741,20 @@ void cityMat(float k, float tall, float hsh, out vec3 wc, out vec3 rc){
     wc = hsh < 0.4 ? vec3(0.9, 0.9, 0.88) : hsh < 0.7 ? vec3(0.74, 0.75, 0.76) : hsh < 0.85 ? vec3(0.82, 0.76, 0.66) : vec3(0.56, 0.68, 0.8); rc = vec3(0.72, 0.73, 0.74);
   } else if(k < 3.5){ // Dubai: sand, white, blue-silver glass
     wc = hsh < 0.5 ? vec3(0.9, 0.8, 0.62) : hsh < 0.75 ? vec3(0.94, 0.93, 0.9) : vec3(0.52, 0.68, 0.82); rc = vec3(0.86, 0.8, 0.68);
-  } else {            // London: red-brown brick, yellow stock brick, Portland stone, glass; slate roofs
+  } else if(k < 4.5){ // London: red-brown brick, yellow stock brick, Portland stone, glass; slate roofs
     wc = hsh < 0.35 ? vec3(0.68, 0.4, 0.3) : hsh < 0.5 ? vec3(0.8, 0.69, 0.5) : hsh < 0.8 ? vec3(0.9, 0.87, 0.78) : vec3(0.52, 0.64, 0.76); rc = vec3(0.47, 0.49, 0.54);
+  } else if(k < 5.5){ // Hong Kong (0.19.0): white and grey concrete, pale tile, blue-green glass
+    wc = hsh < 0.35 ? vec3(0.86, 0.86, 0.84) : hsh < 0.55 ? vec3(0.7, 0.71, 0.72) : hsh < 0.7 ? vec3(0.84, 0.76, 0.7) : vec3(0.5, 0.66, 0.7); rc = vec3(0.62, 0.63, 0.64);
+  } else if(k < 6.5){ // San Francisco: pale stucco, painted wood in pastels, grey stone, glass
+    wc = hsh < 0.35 ? vec3(0.9, 0.88, 0.82) : hsh < 0.5 ? vec3(0.78, 0.84, 0.86) : hsh < 0.62 ? vec3(0.88, 0.78, 0.74) : hsh < 0.8 ? vec3(0.74, 0.73, 0.71) : vec3(0.52, 0.64, 0.76); rc = vec3(0.6, 0.6, 0.62);
+  } else if(k < 7.5){ // Sydney: golden sandstone, red-brown brick, white render, glass; terracotta tile roofs
+    wc = hsh < 0.25 ? vec3(0.86, 0.72, 0.5) : hsh < 0.5 ? vec3(0.66, 0.42, 0.32) : hsh < 0.75 ? vec3(0.9, 0.88, 0.84) : vec3(0.52, 0.66, 0.76); rc = vec3(0.74, 0.46, 0.34);
+  } else if(k < 8.5){ // Rome: ochre, terracotta and cream plaster, travertine; terracotta tile roofs
+    wc = hsh < 0.3 ? vec3(0.86, 0.64, 0.4) : hsh < 0.55 ? vec3(0.78, 0.48, 0.34) : hsh < 0.8 ? vec3(0.9, 0.82, 0.66) : vec3(0.84, 0.78, 0.66); rc = vec3(0.76, 0.46, 0.33);
+  } else if(k < 9.5){ // Los Angeles: white and beige stucco, pink and tan render, glass
+    wc = hsh < 0.35 ? vec3(0.92, 0.9, 0.86) : hsh < 0.55 ? vec3(0.86, 0.78, 0.66) : hsh < 0.7 ? vec3(0.88, 0.74, 0.7) : vec3(0.54, 0.66, 0.78); rc = vec3(0.8, 0.79, 0.76);
+  } else {            // Rio de Janeiro: white and pastel concrete, red brick of the hillside favelas, glass
+    wc = hsh < 0.35 ? vec3(0.9, 0.9, 0.88) : hsh < 0.55 ? vec3(0.86, 0.8, 0.66) : hsh < 0.75 ? vec3(0.74, 0.46, 0.34) : vec3(0.54, 0.68, 0.76); rc = vec3(0.64, 0.64, 0.64);
   }
   if(tall > 0.5) wc = k > 2.5 && k < 3.5 ? vec3(0.55, 0.7, 0.84) : vec3(0.52, 0.65, 0.78);
 }
@@ -615,7 +776,7 @@ vec3 seaPt(vec2 xz){ return vec3(xz.x, -uP4.y - dot(xz, xz)/(2.*RE), xz.y); }
 float groundY(vec2 xz, out float water, out float ok){ vec3 P = seaPt(xz); float h = edHeight(P, water, ok), y = P.y + max(h, 0.); THIN = 0.;
   for(int i=ZI;i<4;i++){
     if(float(i) >= uThinN) break;
-#if defined(EIFFEL) || defined(TOKYO)
+#if defined(EIFFEL) || defined(TOKYO) || defined(LM)
     if(uThinB[i].z > 1.5) continue;
 #endif
     vec4 a = uThin[i]; vec2 q = abs(xz - a.xy); float r = max(q.x, q.y), R = uThinB[i].x;
@@ -623,6 +784,35 @@ float groundY(vec2 xz, out float water, out float ok){ vec3 P = seaPt(xz); float
       if(ty > y){ y = ty; THIN = 1.; ok = 1.; water = 0.; } }
   }
   return y; }
+#ifdef LM
+// where the ray meets a landmark (-1: none before tMax), its normal in its own frame, which one (kk) and the point in its frame. The march and
+// the normal's four samples share one loop, so lmMap is compiled once (as for the Eiffel Tower)
+float lmHit(vec3 o, vec3 d, float tMax, out vec3 nl, out float kk, out vec3 ql){
+  nl = vec3(0., 1., 0.); kk = 0.; ql = vec3(0.); float best = -1.;
+  for(int j=ZI;j<2;j++){
+    if(float(j) >= uLm2.z) break;
+    float k = float(j); vec4 U = j == 0 ? uLm0 : uLm1, bb = lmBounds(k);
+    vec3 B = vec3(U.x, seaPt(U.xy).y + U.z, U.y), ol = lmRot(o - B, U.w), dl = lmRot(d, U.w);
+    vec3 iv = 1./(dl + vec3(dl.x < 0. ? -1e-7 : 1e-7, dl.y < 0. ? -1e-7 : 1e-7, dl.z < 0. ? -1e-7 : 1e-7));
+    vec3 t0 = (vec3(-bb.x, bb.y, -bb.w) - ol)*iv, t1 = (vec3(bb.x, bb.z, bb.w) - ol)*iv, tn = min(t0, t1), tf = max(t0, t1);
+    float ta = max(max(tn.x, tn.y), max(tn.z, 0.)), tb = min(min(tf.x, tf.y), min(tf.z, best > 0. ? best : tMax));
+    if(ta >= tb) continue;
+    float t = ta; int hi = -1; vec3 ph = vec3(0.), n = vec3(0.); float ep = 0.;
+    for(int i=ZI;i<124;i++){
+      int mm = hi < 0 ? -1 : i - hi - 1;
+      vec3 kv = mm == 0 ? vec3(1., -1., -1.) : mm == 1 ? vec3(-1., -1., 1.) : mm == 2 ? vec3(-1., 1., -1.) : vec3(1.), p = mm < 0 ? ol + dl*t : ph + kv*ep;
+      float h = lmMap(p, k);
+      if(mm >= 0){ n += kv*h; if(mm == 3) break; continue; }
+      float pw = t*uPix*0.6;
+      if(h < pw){ hi = i; ph = p; ep = max(0.06, t*uPix*0.5); continue; }
+      t += max(h, pw*0.5); if(t > tb) break;
+    }
+    if(hi < 0) continue;
+    best = t; nl = normalize(n + vec3(0., 1e-6, 0.)); kk = k; ql = ph;
+  }
+  return best;
+}
+#endif
 #ifdef TOKYO
 // where the ray meets Tokyo Tower or the Skytree (-1: neither before tMax): the nearer of the two, its normal in its own frame, which (k),
 // and the point in its frame. The lattices' gaps let the ray through where a pixel resolves them, as for the Eiffel Tower
@@ -824,6 +1014,17 @@ void main(){
     col = mix(g, skyCol(normalize(vec3(d.x, DIP + 0.015, d.z)), L, day), hazeF(tE, thin)*0.4); a = 1.; t = tE;
   } else
 #endif
+#ifdef LM
+  vec3 nM, qM; float kM, tM = lmHit(o, d, t > 0. ? t : 1e9, nM, kM, qM);
+  if(tM > 0.){
+    vec4 U = kM < 0.5 ? uLm0 : uLm1; vec3 nw = lmRot(nM, -U.w);
+    float glow, ov = smoothstep(0.5, 0.95, uWx0.x), fl = max(sunE, 0.)*(1. - 0.65*ov) + 0.6;
+    vec3 base = lmBase(qM, nM, kM, tM*uPix, glow);
+    float here = max(dot(nw, L), 0.)*cloudShadow(o + d*tM, e, L) + 0.6*(0.85 + 0.15*nw.y);
+    vec3 g = base*lit*clamp(here/fl, 0.15, 1.6) + vec3(1., 0.88, 0.7)*base*uLm2.x*glow;
+    col = mix(g, skyCol(normalize(vec3(d.x, DIP + 0.015, d.z)), L, day), hazeF(tM, thin)*0.4); a = 1.; t = tM;
+  } else
+#endif
 #ifdef TOKYO
   vec3 nT, qT; float kT, tT = tkHit(o, d, t > 0. ? t : 1e9, nT, kT, qT);
   if(tT > 0.){
@@ -1000,3 +1201,9 @@ P.sxEnv = program(VS_RECT, FS_SX_ENV);
 P.sxEnvC = program(VS_RECT, FS_SX_ENV.replace('#version 300 es\n', '#version 300 es\n#define CITY\n'));   // (with the traffic: over a city, 0.14.0)
 P.sxEnvEf = program(VS_RECT, FS_SX_ENV.replace('#version 300 es\n', '#version 300 es\n#define CITY\n#define EIFFEL\n'));   // (and the Eiffel Tower: near Paris)
 P.sxEnvTk = program(VS_RECT, FS_SX_ENV.replace('#version 300 es\n', '#version 300 es\n#define CITY\n#define TOKYO\n'));   // (and Tokyo Tower and the Skytree: near Tokyo)
+// (0.19.0: the landmarks of the new cities, each city's in its own copy)
+P.sxEnvSF = program(VS_RECT, FS_SX_ENV.replace('#version 300 es\n', '#version 300 es\n#define CITY\n#define LM\n#define LM_SF\n'));
+P.sxEnvSyd = program(VS_RECT, FS_SX_ENV.replace('#version 300 es\n', '#version 300 es\n#define CITY\n#define LM\n#define LM_SYD\n'));
+P.sxEnvRome = program(VS_RECT, FS_SX_ENV.replace('#version 300 es\n', '#version 300 es\n#define CITY\n#define LM\n#define LM_ROME\n'));
+P.sxEnvLA = program(VS_RECT, FS_SX_ENV.replace('#version 300 es\n', '#version 300 es\n#define CITY\n#define LM\n#define LM_LA\n'));
+P.sxEnvRio = program(VS_RECT, FS_SX_ENV.replace('#version 300 es\n', '#version 300 es\n#define CITY\n#define LM\n#define LM_RIO\n'));
