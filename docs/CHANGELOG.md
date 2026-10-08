@@ -4,6 +4,14 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.17.1 · 2026-10-07
+
+**Visit counts** (owner, 2026-10-07: "install the vercel analytics so we can see how many visitors we get")
+- Vercel Web Analytics, loaded by `src/09v-visits.js` behind a new flag, `analytics` (on). It runs only on gcdatlas.com and `*.vercel.app` (not on a local server, a file or the claude.ai artifact, where `/_vercel/insights/` does not exist), never on `/lab` or `/songs`, and never when the browser sends Global Privacy Control or Do Not Track. It adds `/_vercel/insights/script.js` (served by Vercel from our own domain once Web Analytics is enabled for the project; until then it is a 404 and nothing is counted).
+- One page view per page load: Vercel's script counts a `pushState` to a new path, and the page only ever `replaceState`s the view into the hash (`updateHash`, once a second), so moving round the atlas is not counted again. The script returns at once in headless browsers (`navigator.webdriver`), so the tests send nothing.
+- `beforeSend` cuts the address down to its path: the `#view` and any `?query` (`?flags=`, `?showcase=`) are never sent. No cookies; the script writes to localStorage only for `identify`, which we never call.
+- `CLAUDE.md` golden rules 2 and 6, `docs/SECURITY.md` and `docs/FEATURE_FLAGS.md` say what is sent and what is not.
+
 ## 0.17.0 · 2026-10-04
 
 **The cities easy to see, and alive from afar** (owner, 2026-10-04: "you have to zoom in very close to see the cars and stuff, and i haven't seen any airplanes yet"; "the city structures are still a bit blurry and hard to distinguish ... figure out an artstyle to make all cities look detailed and easy to see". Picks: an architectural-model style, light streams on the big roads, larger plane shapes, routes over the city, contrails up high and a small label. Numbered 0.17.0 after 0.16.0, the Messier checklists)
