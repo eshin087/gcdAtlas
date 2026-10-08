@@ -5,6 +5,27 @@
   "buildCommand": "node build.mjs",
   "outputDirectory": "dist",
   "cleanUrls": true,
+  "routes": [
+    {
+      "src": "^/$",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": {
+            "re": ".*(?:SummalyBot|Misskey/|\\(Mastodon/|Pleroma|Akkoma|GoToSocial|gotosocial|facebookexternalhit|Facebot|Twitterbot|Discordbot|Slackbot|TelegramBot|WhatsApp|LinkedInBot|Cardyb|redditbot|Pinterestbot|SkypeUriPreview|Embedly|Iframely|vkShare|Snap URL Preview).*"
+          }
+        }
+      ],
+      "missing": [
+        {
+          "type": "header",
+          "key": "sec-fetch-mode"
+        }
+      ],
+      "dest": "/preview"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
