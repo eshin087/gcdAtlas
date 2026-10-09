@@ -9,6 +9,11 @@
 - Hong Kong, San Francisco, Sydney, Rome, Los Angeles and Rio de Janeiro in 3D, in the same model style, with their traffic, planes, boats, local time and real weather.
 - Their landmarks in their real shapes and sizes: the Golden Gate Bridge, the Sydney Opera House, the Colosseum, St Peter's, the Hollywood sign and Christ the Redeemer.
 
+## 0.18.0 · 8 Oct 2026 · Star clusters from their real stars
+- 19 more Messier objects: the Little Dumbbell, the reflection nebula M78, the Sagittarius Star Cloud and sixteen open clusters, from the Butterfly Cluster to M67, one of the oldest known.
+- Every open cluster is now drawn from its real stars, measured by the Gaia space telescope: each one where it really is on the sky, as bright and as coloured as it really is.
+- The Messier marathon tour grows to 54 stops. 57 of Messier's 110 objects are in so far.
+
 ## 0.17.2 · 8 Oct 2026 · Lighter link previews
 - When a gcdatlas link is shared in a chat or a post, the app that draws its preview now gets a 2 KB page with the title and picture, not the whole 2.5 MB atlas.
 - Nothing changes for you: anyone who opens the link gets the full atlas, as before.

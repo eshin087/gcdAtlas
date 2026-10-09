@@ -20,7 +20,7 @@ Everything the two lists do not cover stays on our own curated backlog below: bl
 ## How to add a pack
 
 1. Pick about 20 objects: from the empty checklist rows in `docs/CATALOG.md`, or from the curated backlog below. Mark the pack *in progress* here.
-2. Create `src/objects/pN-name.js`. One pack per theme. Reuse helpers before writing new ones: `addGalaxy` (06g-galaxies.js) with `galAt` / `discR0` for a real position angle and tilt, `addGlobular`, `addOpenCluster`, the star-nursery shader `FS_NURSERY` (p8-messier.js), `addRingPN` and `clusterPS` (p1-nebulae.js), `namedStar`, `addBody`, `addProbe`. A pack that draws from `rnd()` saves `seed` at its start and puts it back at its end.
+2. Create `src/objects/pN-name.js`. One pack per theme. Reuse helpers before writing new ones: `addGalaxy` (06g-galaxies.js) with `galAt` / `discR0` for a real position angle and tilt, `addGlobular`, `gaiaOpenCluster` (an open cluster from its Gaia members; its data from `tools/cluster-stars.mjs`), the star-nursery shader `FS_NURSERY` (p8-messier.js; kinds 0 to 3), `addRingPN` and `clusterPS` (p1-nebulae.js), `namedStar`, `addBody`, `addProbe`. A pack that draws from `rnd()` saves `seed` at its start and puts it back at its end.
 3. Every object: real position (SIMBAD), true size, a sourced fact, a readout with numbers, 2 or 3 views including one close and dramatic, `aka` search words with its catalogue numbers (`m31 ngc 224`), a `sortKey`. Big objects: add them to `FLYBY_OBJ` in `src/objects/z8-flybys.js`.
    - Atlas place: `group` is its one heading (`GROUPS` in `src/09-render.js`: solar, comets, stars, worlds, nebulae, galaxies, cosmic, travel). `tags` put it in more kinds (`CATS`, the grid of filters in the atlas): `moons` (moons and small worlds), `events` (explosions and collisions), `clusters` (star clusters), `human` (human-made; `addProbe` adds it). Planets of other stars go in `worlds` (`exoPlanet` does this). When an object is not what its heading says, `atlasKind` sets its main kind (the S-stars sit under Galaxies & black holes but are `stars`); do not use `kind`, which is the surface shader's number on planets and moons.
 4. Have a separate agent research the numbers and check the facts against NASA, ESA, SIMBAD and the papers before shipping (in 0.16.0 this corrected the distance or size of more than half of the 20).
@@ -32,17 +32,19 @@ Everything the two lists do not cover stays on our own curated backlog below: bl
 Status: `planned`, `in progress`, `done` (then it appears in CATALOG.md and can be removed from here).
 
 ### From the checklists · planned (one pull request each, about 20 objects)
-After 0.16.0, 72 Messier objects are left. In the order to take them:
+After 0.18.0, 53 Messier objects are left. In the order to take them:
 
 | Pack | Objects |
 | --- | --- |
-| Messier 2: nebulae and open clusters | M76 (Little Dumbbell), M78 (a reflection nebula), M24 (the Sagittarius Star Cloud), M6 (Butterfly Cluster), M35, M36, M37, M38, M41, M46 (with the planetary nebula NGC 2438 in front of it), M47, M67 (one of the oldest open clusters), M52, M103, M34, M39, M29, M23, M25 |
 | Messier 3: globular clusters | M2, M5, M9, M10, M12, M14, M15 (with its planetary nebula Pease 1), M19, M28, M30, M53, M54 (the heart of the Sagittarius Dwarf galaxy), M55, M56, M62, M68, M69, M70, M71, M72, M75, M79, M80, M92, M107 |
-| Messier 4: galaxies and the rest | the Virgo Cluster's M49, M58, M59, M60, M61, M85, M88, M89, M90, M91, M98, M99, M100; M94, M95, M96, M105, M102, M108, M109; the open clusters M18, M21, M26, M48, M50, M93; the double star M40 and the asterism M73 |
+| Messier 4: galaxies and the rest | the Virgo Cluster's M49, M58, M59, M60, M61, M85, M88, M89, M90, M91, M98, M99, M100; M94, M95, M96, M105, M102, M108, M109; the open clusters M18, M21, M26, M48, M50, M93 (a line each now: add them to `LIST` in `tools/cluster-stars.mjs`, run it, and call `gaiaOpenCluster`); the double star M40 and the asterism M73 |
 | Caldwell 1: southern showpieces | 47 Tucanae (C106), the Jewel Box (C94), the Coalsack (C99), the Southern Pleiades (C102), the Wishing Well (C91), NGC 6397 (C86), NGC 6752 (C93), the Running Chicken (C100), NGC 3201 (C79), NGC 1851 (C73) |
 | Caldwell 2: northern nebulae | the Double Cluster (C14), the North America Nebula (C20), the Crescent (C27), the Rosette (C49, C50), the Cocoon (C19), the Iris (C4), the Cave (C9), the Flaming Star (C31), Hubble's Variable Nebula (C46) |
 | Caldwell 3: planetary nebulae | the Saturn Nebula (C55), the Eskimo (C39), the Ghost of Jupiter (C59), the Blue Snowball (C22), the Bug or Butterfly (C69), the Skull (C56), the Bow-Tie (C2), the Blinking Planetary (C15) |
 | Caldwell 4: galaxies | the Needle (C38), NGC 891 (C23), the Whale (C32), the Fireworks (C12), the Hidden Galaxy (C5), NGC 1097 (C67), NGC 4945 (C83), NGC 300 (C70), NGC 55 (C72), the Spindle (C53); and list NGC 6822 (C57) and IC 1613 (C51), drawn already but left out of the atlas |
+
+### Done in 0.18.0 (`src/objects/p9-messier2.js`)
+M76, M78, M24 (and NGC 6603, drawn, not listed), M6, M23, M25, M29, M34, M35, M36, M37, M38, M39, M41, M46, M47, M52, M67, M103; every open cluster drawn from its Gaia members (`gaiaCluster`).
 
 ### Done in 0.16.0 (`src/objects/p8-messier.js`)
 The checklists and the Messier marathon tour; M27, M97, M20, M17, M44, M11, M7, M3, M4, M22, M63, M64, M83, M77, M65, M66 (and NGC 3628, drawn, not listed), M106, M74, M84, M86.
