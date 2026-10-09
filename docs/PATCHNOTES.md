@@ -9,6 +9,10 @@
 - Hong Kong, San Francisco, Sydney, Rome, Los Angeles and Rio de Janeiro in 3D, in the same model style, with their traffic, planes, boats, local time and real weather.
 - Their landmarks in their real shapes and sizes: the Golden Gate Bridge, the Sydney Opera House, the Colosseum, St Peter's, the Hollywood sign and Christ the Redeemer.
 
+## 0.17.2 · 8 Oct 2026 · Lighter link previews
+- When a gcdatlas link is shared in a chat or a post, the app that draws its preview now gets a 2 KB page with the title and picture, not the whole 2.5 MB atlas.
+- Nothing changes for you: anyone who opens the link gets the full atlas, as before.
+
 ## 0.17.1 · 7 Oct 2026 · Counting visits, privately
 - Visits are now counted with Vercel Web Analytics, so we can see how many people explore the atlas.
 - No cookies, and nothing is saved on your device. A visit sends the page's address (not the place you are looking at), the site you came from, your country, browser and kind of device.
