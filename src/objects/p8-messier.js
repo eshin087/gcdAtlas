@@ -242,10 +242,11 @@ function gaiaCluster(key){
   return { pos, D, RAD, R0, R90:rr[Math.floor(0.9*(n - 1))], cl:{ ps, spikes:makeSpikes(bright) } };
 }
 // (the angles: from Earth, from the side, and from inside the cluster's middle; RAD reaches out to its farthest members, so the angles sit
-// closer in than a nebula's. In mode 1 a point's light falls off with the square of its distance in light-years, so its strength goes up with
-// the square of the cluster's size: every cluster then looks as bright at its own framing, whatever its size)
+// closer in than a nebula's. In mode 1 drawParticles already scales a point's strength by the square of the object's radius, and its light
+// falls off with the square of its distance, so every cluster looks as bright at its own framing, whatever its size. A second (rad/16)^2 here
+// made M39 about 13 times brighter than M36 and saturated the big clusters: from Codex's review of #50)
 function addOpenCluster(def, cl, extra = []){
-  const k2 = (def.rad/16)**2;
+  const k2 = 1;
   return addObj(Object.assign({ tags:['clusters'], group:'nebulae', R0:facingEarth(def.pos, [0, 0, 1], 0), minZoom:0.03, pxMin:5, farColor:[0.8, 0.86, 1], farLum:0.6,
     views:[{ dirFn:() => V.norm(V.mul(def.pos, -1)), k:0.7, hold:9, drift:0.02 }, { d:[0.6, 0.4, 0.7], k:0.65, hold:8, drift:0.03 }, { d:[0.2, 0.15, 1], k:0.18, hold:8, drift:0.03 }],
     particles:[{ ps:cl.ps, prog:'ptBasic', mode:1, sb:(def.sb ?? 0.7)*k2, size:1.7 }, ...extra, { ps:cl.spikes, prog:'spike', lines:true, mode:1, sb:2.2*k2, size:1, len:0.04, q0:() => [1, 0, 0, 0] }] }, def));
