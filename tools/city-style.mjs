@@ -44,6 +44,8 @@ for (const city of CITIES){
     console.log(` ${n} buildings painted, ${(webp.length/1024).toFixed(0)} KB (was ${(L.bytes/1024).toFixed(0)} KB) -> ${file}`);
     L.file = file; L.bytes = webp.length; if (roofs) L.styled = 'model';
   }
+  // (the city's highest ground or roof, from its layers' tops as they are now: a height fix can lower it)
+  if (man.layers && man.layers.length) man.top = Math.max(...man.layers.map(l => l.top));
   fs.writeFileSync(manFile(city.key), JSON.stringify(man));
 }
 // the page's manifest, from every city's cached manifest
