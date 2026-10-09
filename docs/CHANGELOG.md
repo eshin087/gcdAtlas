@@ -4,6 +4,16 @@ All notable changes, newest first. Dates are UTC.
 
 ## Unreleased
 
+## 0.18.0 · 2026-10-08
+
+**Messier's nebulae and open clusters, the clusters drawn from their real stars** (owner, 2026-10-07: the next pack from the checklists, Messier 2 of `docs/CONTENT.md`)
+- Nineteen Messier objects (`src/objects/p9-messier2.js`): the Little Dumbbell (M76), the reflection nebula M78, the Sagittarius Star Cloud (M24, with the cluster NGC 6603 drawn inside it, not listed) and sixteen open clusters: M6 (the Butterfly), M23, M25, M29, M34, M35, M36, M37, M38, M39, M41, M46, M47, M52, M67 and M103. Messier goes from 38 to 57 of 110.
+- Every open cluster is drawn from its real stars: its brightest members (up to 600) from Gaia DR3 as Hunt & Reffert 2023 list them, each at its real place on the sky with its real brightness and colour (`gaiaCluster` in p8-messier.js; the data, 82 KB, is `src/objects/p0-cluster-stars-data.js`, made by `node tools/cluster-stars.mjs` from VizieR). Only each star's depth along our line of sight is made up. The Beehive, the Wild Duck and Ptolemy's Cluster from 0.16.0 now use them too (the Wild Duck's drawn V is gone: its real stars show instead), and every cluster's readout gives how far its stars spread.
+- A cluster's points are as bright at its own framing whatever its size (`addOpenCluster` scales their strength with the square of its radius: in that point mode light falls off with the distance in light-years, and the bigger clusters drew their faint stars almost black).
+- New looks: the Little Dumbbell's edge-on ring and faint lobes (`FS_LITTLEDB`), and two more kinds in the star-nursery shader: a star cloud seen through a window in the dust, with Barnard 92 and 93 in front (`KIND 2`), and a dust cloud lit by its stars, mostly blue (`KIND 3`, M78).
+- Distances and ages were researched by a separate agent and the texts checked: Hunt & Reffert's own ages are left out (M67 1.7 billion years against the published 4), M76 is about 3,400 light-years (Gaia has no usable parallax for its star), M78 1,320, and M24's stars 10,000 to 16,000, toward the inner galaxy. The marathon tour now has 54 stops.
+- The atlas's kind buttons have a little less padding (`.cell`: 4 px and a 3 px gap, 3 px and 2 px on a phone): "star clusters 25", the first count of two digits there, overflowed its button at 90% menu text. Widening the grid instead put the atlas on a phone held sideways into one column.
+
 ## 0.17.2 · 2026-10-08
 
 **A small page for link-preview bots** (owner, 2026-10-07: "what is using so much 'fast data transfer' on my vercel account?"; picked this over blocking the bot, so every link preview keeps working)

@@ -111,7 +111,8 @@ void main(){
 // One shader for both (compiled once for each: KIND is a constant). Local radius 1, +z toward Earth.
 // KIND 0, the Trifid: a round red cloud cut into three lobes by lanes of dark dust that meet near its central star, with a blue reflection
 // nebula on its north side. KIND 1, the Omega: a bright bar of glowing gas with a hook at one end (the swan's neck), in a fainter cloud, and
-// the dark molecular cloud M17 SW pressing on its south-west.
+// the dark molecular cloud M17 SW pressing on its south-west. (0.18.0, p9-messier2.js: KIND 2, the Sagittarius Star Cloud M24; KIND 3, the
+// reflection nebula M78.)
 const FS_NURSERY = `
 float lane2(vec2 q, float a, float w){ vec2 u = vec2(cos(a), sin(a)); float s = dot(q, u); return s < 0. ? 0. : smoothstep(w, 0., abs(dot(q, vec2(-u.y, u.x))) - 0.012*s); }
 float seg3(vec3 p, vec3 a, vec3 b){ vec3 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba)/dot(ba, ba), 0., 1.); return length(pa - ba*h); }
@@ -139,7 +140,7 @@ void main(){
     dust = lanes*smoothstep(-0.25, 0.1, p.z)*smoothstep(0.75, 0.3, length(s))*(0.6 + 0.8*fbm3(p*6. + 2.));
     vec3 c = mix(vec3(1., 0.3, 0.42), vec3(1., 0.55, 0.5), g);
     col += T*(c*em + vec3(0.42, 0.62, 1.)*blue*0.6)*dt*5.;
-#else
+#elif KIND == 1
     float bar = seg3(q, vec3(-0.34, 0.02, 0.), vec3(0.36, -0.06, 0.02));
     float neck = min(seg3(q, vec3(-0.34, 0.02, 0.), vec3(-0.46, 0.24, 0.)), seg3(q, vec3(-0.46, 0.24, 0.), vec3(-0.32, 0.4, 0.02)));
     float b = exp(-pow(bar/0.12, 2.))*5., nk = exp(-pow(neck/0.08, 2.))*3.6;
@@ -150,6 +151,29 @@ void main(){
     vec3 c = mix(vec3(1., 0.32, 0.45), vec3(1., 0.62, 0.6), clamp(g*b*0.35, 0., 1.));
     c = mix(c, vec3(1., 0.85, 0.8), smoothstep(0.5, 1., b*g*0.45));
     col += T*c*em*dt*3.;
+#elif KIND == 2
+    // a sea of stars too many and too faint to see one by one: a fine speckle, warm white, brightest in the middle of the window; in front of
+    // it the dark clouds Barnard 92 (a round blot) and 93 (a thin streak) and ragged dust round the edge of the window
+    float sh = length(q*vec3(1., 1.9, 1.4));
+    float body = smoothstep(1., 0.3, sh);
+    float spk = pow(noise(p*58. + 3.), 6.)*7. + pow(noise(p*21. + 9.), 4.)*1.6;
+    em = body*(0.1 + 0.45*g + 0.7*spk);
+    vec3 c = mix(vec3(1., 0.8, 0.58), vec3(0.86, 0.9, 1.), smoothstep(0.45, 0.8, fine));
+    float b92 = smoothstep(0.07, 0.015, length((p - vec3(-0.3, 0.17, 0.4))*vec3(1., 1.25, 0.6)) + 0.035*(fbm3(p*14. + 5.) - 0.5));
+    float b93 = smoothstep(0.035, 0.008, seg3(p, vec3(-0.19, 0.08, 0.38), vec3(-0.11, 0.24, 0.38)));
+    float rim = smoothstep(0.5, 0.95, sh)*smoothstep(0.45, 0.72, fbm3(p*4. + 1.));
+    dust = (b92 + b93)*9. + rim*0.8;
+    col += T*c*em*dt*1.7;
+#else
+    // KIND 3, M78: dust lit by two young hot stars at its head; their light falls off with the square of the distance and the dust scatters
+    // it, mostly blue; thicker dust in lanes dims what is behind it
+    vec3 L1 = vec3(-0.14, 0.2, 0.04), L2 = vec3(-0.04, 0.12, -0.04);
+    float body = smoothstep(0.95, 0.2, length((q - vec3(0.1, -0.12, 0.))*vec3(1.1, 0.8, 1.3)));
+    float dens = body*(0.12 + 1.5*g*g)*(0.45 + fine);
+    float lit = 0.016/(dot(p - L1, p - L1) + 0.012) + 0.01/(dot(p - L2, p - L2) + 0.01);
+    em = dens*lit;
+    dust = body*smoothstep(0.58, 0.8, fbm3(p*3.5 + 21.))*3. + dens*0.5;
+    col += T*mix(vec3(0.5, 0.68, 1.), vec3(0.8, 0.86, 1.), smoothstep(2., 6., lit))*em*dt*13.;
 #endif
     T *= exp(-dust*7.*dt);
     if(T < 0.01) break;
@@ -157,6 +181,9 @@ void main(){
 #if KIND == 0
   vec3 st = vec3(0.02, -0.1, 0.02);
   col += vec3(0.82, 0.88, 1.)*(pblob(o, d, st, 0.004)*300. + blob(o, d, st, 0.03)*0.5);
+#elif KIND == 3
+  // the two stars that light M78 (HD 38563 A and B)
+  col += vec3(0.75, 0.84, 1.)*(pblob(o, d, vec3(-0.14, 0.2, 0.04), 0.004)*220. + pblob(o, d, vec3(-0.04, 0.12, -0.04), 0.004)*160. + blob(o, d, vec3(-0.1, 0.17, 0.), 0.04)*0.3);
 #endif
   outCol(col, (1. - T)*0.85);
 }`;
@@ -186,57 +213,61 @@ const nurseryProg = kind => program(VS_RECT, COMMON + '#define KIND ' + kind + '
     readout:() => '5,500 light-years (Gaia) · its bright part about 20 light-years across\nits central stars are only about a million years old' });
 }
 
-// ---------------------------------------------------------------- open clusters: the Beehive (M44), the Wild Duck (M11), Ptolemy's Cluster (M7)
-// stars only, no volume: a Plummer-like ball of radius rc (local units) with a population mix: giants (orange), hot stars (white-blue,
-// up to hotT) and the rest Sun-like and cooler. The brightest get spikes.
-function openClusterPS(n, rc, giants, hot, hotT){
-  const ps = makePS(n), bright = [];
-  for (let i=0;i<n;i++){
-    let r; do { r = rc/Math.sqrt(Math.pow(Math.max(rnd(), 1e-6), -2/3) - 1); } while (r > 1);
-    const p = V.mul(randDir(), r), u = rnd();
-    let c, w;
-    if (u < giants){ c = blackbodyJS(4200 + 600*rnd()); w = 1.9 + 0.6*rnd(); }
-    else if (u < giants + hot){ c = blackbodyJS(hotT*(0.6 + 0.4*rnd())); w = 1.1 + 1.3*Math.pow(rnd(), 2); }
-    else { c = blackbodyJS(3800 + 2600*Math.pow(rnd(), 1.4)); w = 0.3 + 0.6*rnd(); }
-    ps.a.set([p[0], p[1], p[2], w], i*4); ps.c.set([c[0], c[1], c[2], 0], i*4);
-    if (w > 1.7 && bright.length < 14) bright.push({ p, w:Math.min(w, 2.4), c });
-  }
+// ---------------------------------------------------------------- open clusters, from their real stars: the Beehive (M44), the Wild Duck (M11), Ptolemy's Cluster (M7)
+// (and the open clusters of p9-messier2.js). An open cluster is drawn from its Gaia DR3 members (CLUSTER_STARS, p0-cluster-stars-data.js,
+// made by tools/cluster-stars.mjs from Hunt & Reffert 2023): each star at its real place on the sky, with its real brightness and colour.
+// Only how far along our line of sight each one sits is made up (a bell curve as wide as the cluster on the sky): one star's parallax is not
+// precise enough at these distances. Colour: BP-RP less the reddening (E(BP-RP) about 0.42 AV) turned into a temperature (Mucciarelli &
+// Bellazzini 2020, for dwarfs); the size of a point goes by the star's absolute G magnitude. Stars only, no volume.
+function gaiaCluster(key){
+  const c = CLUSTER_STARS[key], D = c.pc*3.2616, pos = radec(c.ra/15, c.dec, D), R0 = facingEarth(pos, [0, 0, 1], 0);
+  const bin = atob(c.s), dv = new DataView(Uint8Array.from(bin, ch => ch.charCodeAt(0)).buffer), n = c.k, cd = Math.cos(c.dec*DEG), lyDeg = DEG*D;
+  const S = [];
+  for (let i=0;i<n;i++) S.push({ xi:dv.getInt16(i*6, true)/6000, eta:dv.getInt16(i*6 + 2, true)/6000, g:dv.getUint8(i*6 + 4)/10, bc:dv.getInt8(i*6 + 5) });
+  const rr = S.map(s => Math.hypot(s.xi, s.eta)*lyDeg).sort((a, b) => a - b), RAD = rr[Math.floor(0.98*(n - 1))]*1.05;
+  const sig = Math.sqrt(S.reduce((a, s) => a + (s.xi*s.xi + s.eta*s.eta)*lyDeg*lyDeg, 0)/(2*n));
+  // (the depths come from a little generator of its own, seeded by the key, so the shared rnd() is left alone)
+  let z = [...key].reduce((h, ch) => Math.imul(h ^ ch.charCodeAt(0), 16777619), 2166136261) >>> 0;
+  const u01 = () => { z = (z + 0x6D2B79F5) >>> 0; let t = z; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0)/4294967296; };
+  const gauss = () => Math.sqrt(-2*Math.log(Math.max(u01(), 1e-9)))*Math.cos(6.2832*u01());
+  const mu = 5*Math.log10(c.pc/10) + 0.79*c.av, ebr = 0.42*c.av, ps = makePS(n), all = [];
+  S.forEach((s, i) => {
+    const w = radec((c.ra + s.xi/cd)/15, c.dec + s.eta, D + gauss()*sig), p = V.mul(M3.applyT(R0, V.sub(w, pos)), 1/RAD);
+    const C = clamp(s.bc === -128 ? 0.8 : s.bc/40 - ebr, -0.45, 3), T = clamp(5040/(0.4929 + 0.5092*C - 0.0353*C*C), 3000, 25000);
+    const col = blackbodyJS(T), wt = clamp(0.6 + (6 - (s.g - mu))*0.2, 0.5, 2.4);
+    ps.a.set([p[0], p[1], p[2], wt], i*4); ps.c.set([col[0], col[1], col[2], 0], i*4); all.push({ p, w:wt, c:col });
+  });
   ps.upload('ac');
-  return { ps, spikes:makeSpikes(bright) };
+  const bright = all.filter(s => s.w > 1.8).sort((a, b) => b.w - a.w).slice(0, 8).map(s => ({ p:s.p, w:Math.min(s.w, 2.4), c:s.c }));
+  return { pos, D, RAD, R0, R90:rr[Math.floor(0.9*(n - 1))], cl:{ ps, spikes:makeSpikes(bright) } };
 }
+// (the angles: from Earth, from the side, and from inside the cluster's middle; RAD reaches out to its farthest members, so the angles sit
+// closer in than a nebula's. In mode 1 drawParticles already scales a point's strength by the square of the object's radius, and its light
+// falls off with the square of its distance, so every cluster looks as bright at its own framing, whatever its size. A second (rad/16)^2 here
+// made M39 about 13 times brighter than M36 and saturated the big clusters: from Codex's review of #50)
 function addOpenCluster(def, cl, extra = []){
-  return addObj(Object.assign({ tags:['clusters'], group:'nebulae', R0:facingEarth(def.pos, [0, 0, 1], 0), minZoom:0.05, pxMin:5, farColor:[0.8, 0.86, 1], farLum:0.6,
-    views:[{ dirFn:() => V.norm(V.mul(def.pos, -1)), k:1.3, hold:9, drift:0.02 }, { d:[0.6, 0.4, 0.7], k:1.1, hold:8, drift:0.03 }, { d:[0.2, 0.15, 1], k:0.3, hold:8, drift:0.03 }],
-    particles:[{ ps:cl.ps, prog:'ptBasic', mode:1, sb:def.sb ?? 0.55, size:1.6 }, ...extra, { ps:cl.spikes, prog:'spike', lines:true, mode:1, sb:2.2, size:1, len:0.04, q0:() => [1, 0, 0, 0] }] }, def));
+  const k2 = 1;
+  return addObj(Object.assign({ tags:['clusters'], group:'nebulae', R0:facingEarth(def.pos, [0, 0, 1], 0), minZoom:0.03, pxMin:5, farColor:[0.8, 0.86, 1], farLum:0.6,
+    views:[{ dirFn:() => V.norm(V.mul(def.pos, -1)), k:0.7, hold:9, drift:0.02 }, { d:[0.6, 0.4, 0.7], k:0.65, hold:8, drift:0.03 }, { d:[0.2, 0.15, 1], k:0.18, hold:8, drift:0.03 }],
+    particles:[{ ps:cl.ps, prog:'ptBasic', mode:1, sb:(def.sb ?? 0.7)*k2, size:1.7 }, ...extra, { ps:cl.spikes, prog:'spike', lines:true, mode:1, sb:2.2*k2, size:1, len:0.04, q0:() => [1, 0, 0, 0] }] }, def));
 }
-{
-  const D = 600, pos = simbadPos(130.0542, 19.6211, D);
-  addOpenCluster({ key:'beehive', name:'Beehive Cluster', label:'Beehive', type:'open star cluster · M44 · Praesepe · in Cancer', sortKey:D, pos, rad:16, sizeR:8.3, labelRange:4e4,
-    fact:'Over a thousand stars born together some 600 to 700 million years ago. Known since ancient times as a little cloud, it was seen as stars by Galileo in 1610. Planets have been found round several of its stars.',
-    aka:'m44 messier 44 ngc 2632 praesepe beehive manger cancer', sb:0.85,
-    readout:() => '600 light-years (Gaia) · the part you see about 16 light-years across\nabout 650 million years old' }, openClusterPS(Math.round(1300*QUALITY), 0.22, 0.012, 0.06, 9000));
+// an open cluster from its Gaia members, by its key in CLUSTER_STARS (the atlas's key too)
+function gaiaOpenCluster(key, def){
+  const G = gaiaCluster(key);
+  return addOpenCluster(Object.assign({ key, pos:G.pos, rad:G.RAD, R0:G.R0, sizeR:G.R90, sortKey:Math.round(G.D) }, def), G.cl);
 }
-{
-  // (its brightest stars form a V like a flight of wild ducks, which gave it its name: drawn here as a V of bright stars, illustrative)
-  const D = 7300, pos = simbadPos(282.7658, -6.2719, D);
-  const cl = openClusterPS(Math.round(2900*QUALITY), 0.12, 0.02, 0.05, 15000);
-  const n = 13, vps = makePS(n), vb = [];
-  for (let i=0;i<n;i++){ const k = i - (n - 1)/2, x = k*0.055, y = -Math.abs(k)*0.045 + 0.12, p = [x + rndn()*0.01, y + rndn()*0.01, rndn()*0.05], c = blackbodyJS(9000 + 6000*rnd()), w = 1.5 + 0.8*rnd();
-    vps.a.set([...p, w], i*4); vps.c.set([...c, 0], i*4); vb.push({ p, w, c }); }
-  vps.upload('ac');
-  addOpenCluster({ key:'wildduck', name:'Wild Duck Cluster', label:'Wild Duck', type:'open star cluster · M11 · in Scutum', sortKey:D, pos, rad:18, sizeR:15, labelRange:9e4,
-    fact:'One of the richest and most massive open clusters known: thousands of stars born together about 300 million years ago. Its brightest stars form a V, like a flight of wild ducks.',
-    aka:'m11 messier 11 ngc 6705 wild duck scutum',
-    readout:() => '7,300 light-years (Gaia) · about 30 light-years across\nabout 300 million years old' }, cl,
-    [{ ps:vps, prog:'ptBasic', mode:1, sb:2.2, size:2.2 }, { ps:makeSpikes(vb), prog:'spike', lines:true, mode:1, sb:2, size:1, len:0.035, q0:() => [1, 0, 0, 0] }]);
-}
-{
-  const D = 900, pos = simbadPos(268.4471, -34.8411, D);
-  addOpenCluster({ key:'ptolemy', name:"Ptolemy's Cluster", label:"Ptolemy's Cluster", type:'open star cluster · M7 · in Scorpius', sortKey:D, pos, rad:14, sizeR:10.5, labelRange:4e4,
-    fact:'A bright cluster by the tail of Scorpius, easy to see with the naked eye and the farthest south of all the Messier objects. Ptolemy described it nearly 1,900 years ago as a nebula following the sting of Scorpius.',
-    aka:'m7 messier 7 ngc 6475 ptolemy scorpius',
-    readout:() => '900 light-years (Gaia) · about 20 light-years across\nabout 220 million years old' }, openClusterPS(Math.round(800*QUALITY), 0.26, 0.02, 0.1, 16000));
-}
+gaiaOpenCluster('beehive', { name:'Beehive Cluster', label:'Beehive', type:'open star cluster · M44 · Praesepe · in Cancer', labelRange:4e4, sb:0.9,
+  fact:'Over a thousand stars born together some 600 to 700 million years ago. Known since ancient times as a little cloud, it was seen as stars by Galileo in 1610. Planets have been found round several of its stars.',
+  aka:'m44 messier 44 ngc 2632 praesepe beehive manger cancer',
+  readout:() => '600 light-years (Gaia) · its stars spread over about 40 light-years\nabout 650 million years old · 600 of its stars as Gaia measured them' });
+gaiaOpenCluster('wildduck', { name:'Wild Duck Cluster', label:'Wild Duck', type:'open star cluster · M11 · in Scutum', labelRange:9e4,
+  fact:'One of the richest and most massive open clusters known: thousands of stars born together about 300 million years ago. Its brightest stars form a V, like a flight of wild ducks.',
+  aka:'m11 messier 11 ngc 6705 wild duck scutum',
+  readout:() => '7,300 light-years (Gaia) · its stars spread over about 35 light-years\nabout 300 million years old · 600 of its stars as Gaia measured them' });
+gaiaOpenCluster('ptolemy', { name:"Ptolemy's Cluster", label:"Ptolemy's Cluster", type:'open star cluster · M7 · in Scorpius', labelRange:4e4,
+  fact:'A bright cluster by the tail of Scorpius, easy to see with the naked eye and the farthest south of all the Messier objects. Ptolemy described it nearly 1,900 years ago as a nebula following the sting of Scorpius.',
+  aka:'m7 messier 7 ngc 6475 ptolemy scorpius',
+  readout:() => '900 light-years (Gaia) · its stars spread over about 45 light-years\nabout 220 million years old · 600 of its stars as Gaia measured them' });
 
 // ---------------------------------------------------------------- globular clusters: M3, M4, M22 (the glow shader is Omega Centauri's)
 function globularPS(n, rc, giants, bhb, flat = 1){
