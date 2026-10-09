@@ -83,6 +83,39 @@ const ECT = (() => {
     const day = Math.floor((jdNow() + S.city.lo/360)), summer = (mo === 7 && dd >= 7) || mo === 8 || mo === 9;
     return [a[0], a[2], tt.ground, 0.3, b[0], b[2], sk.ground, 0.5, TK.a, TK.b, day % 2, summer ? 1 : 0];
   }
+  // the landmarks of the cities of 0.19.0 as models (FS_SX_ENV's LM copies): where each stands (its middle), which way its own x points (b,
+  // degrees from north: along the bridge, the sign, the building's axis; its front faces b + 90), the ground there (g, m above the sea: the
+  // city's own heights when they are in, else this), and whether it is lit at night. The Hollywood sign is not
+  const LMK = {
+    sanfrancisco:{ prog:'sxEnvSF', lit:true, items:[{ name:'the Golden Gate Bridge', la:37.81870, lo:-122.47825, b:-7.1, g:0, water:true }] },
+    sydney:{ prog:'sxEnvSyd', lit:true, items:[{ name:'the Sydney Opera House', la:-33.85680, lo:151.21530, b:20, g:3 }] },
+    rome:{ prog:'sxEnvRome', lit:true, items:[{ name:'the Colosseum', la:41.89021, lo:12.49223, b:72, g:21 }, { name:"St Peter's Basilica", la:41.90220, lo:12.45330, b:96, g:33 }] },   // (the Colosseum's long axis about 72 degrees from north, St Peter's facade toward 96: OpenStreetMap outlines)
+    // (the Hollywood sign: its frame at OpenStreetMap's node for it, x east; letters: each letter's middle, m east and north of the node, from
+    // OpenStreetMap's letter by letter mapping; the ground under each goes to the shader, uLmY)
+    losangeles:{ prog:'sxEnvLA', lit:false, items:[{ name:'the Hollywood sign', la:34.1340991, lo:-118.321652, b:90, g:478,
+      letters:[[-47.2, -7.7], [-34.4, -11.0], [-21.9, -8.6], [-12.6, -7.0], [-3.3, -5.7], [8.9, -0.9], [21.5, 0.7], [34.1, 2.7], [48.8, -1.7]] }] },
+    rio:{ prog:'sxEnvRio', lit:true, items:[{ name:'Christ the Redeemer', la:-22.95192, lo:-43.21049, b:-15, g:700 }] },
+  };
+  const LM = { k:0, at:0 };
+  function landmarks(S, cf, sunEl){
+    const L = S && S.city && LMK[S.city.key]; if (!L) return null;
+    const u = [];
+    for (const it of L.items){
+      const p = V.mul(unit(it.la, it.lo), R); if (V.len(V.sub(p, cf)) > 40){ u.push(null); continue; }
+      const q = M3.applyT(S.F.M, V.mul(V.sub(p, S.p), 1000)), h = it.water ? null : EDT.heightAt(p);
+      u.push([q[0], q[2], h != null && h > -50 ? h : it.g, (it.b - 90)*DEG]);
+    }
+    if (!u.some(Boolean)) return null;
+    // (letters standing each on its own ground: their heights over the frame's foot)
+    const LY = new Float32Array(12), it0 = L.items[0];
+    if (it0.letters && u[0]){ const ml = R*1000;
+      it0.letters.forEach(([x, y], i) => { const la = it0.la + y/ml/DEG, lo = it0.lo + x/(ml*Math.cos(it0.la*DEG))/DEG, h = EDT.heightAt(V.mul(unit(la, lo), R));
+        LY[i] = (h != null && h > -50 ? h : u[0][2]) - u[0][2]; }); }
+    const now = performance.now(), dt = LM.at ? Math.min((now - LM.at)/1000, 0.5) : 1; LM.at = now;
+    LM.k += ((L.lit && sunEl < -1.5 ? 1 : 0) - LM.k)*Math.min(1, dt*1.5);
+    const a = u[0] || u[1], b = u[1] || u[0];
+    return { prog:L.prog, u0:a, u1:b, u2:[LM.k, (now/1000) % 1000, u.filter(Boolean).length > 1 && u[0] && u[1] ? 2 : 1, 0], ly:LY };
+  }
   // the time and weather there now (the atlas clock's moment), for the readout
   const WMO = c => c == null ? '' : c === 0 ? 'clear' : c <= 1 ? 'mainly clear' : c === 2 ? 'partly cloudy' : c === 3 ? 'overcast' : c <= 48 ? 'fog' : c <= 57 ? 'drizzle' :
     c <= 67 ? 'rain' : c <= 77 ? 'snow' : c <= 82 ? 'showers' : c <= 86 ? 'snow showers' : 'thunderstorms';
@@ -115,6 +148,6 @@ const ECT = (() => {
     o.readoutExtra = () => [nowLine(c), EAS.S.city === c ? EAS.line : ''].filter(Boolean).join('\n');
   });
   // (tests: the site the ground is drawn with, the city's layers that are in, the tower lights last drawn)
-  const dbg = (key) => ({ cam:(() => { const c = cities.find(x => x.key === key); if (!c) return null; const q = M3.applyT(c.env.F.M, V.mul(V.sub(camFixed(), c.env.p), 1000)); return [Math.round(q[0]), Math.round(q[1]), Math.round(-q[2])]; })(), env:typeof SXENV !== 'undefined' && SXENV.on && SXENV.site ? SXENV.site.key : null, eiffel:typeof SXENV !== 'undefined' && SXENV.on && !!SXENV.eiffel, tokyo:typeof SXENV !== 'undefined' && SXENV.on && !!SXENV.tokyo, cityProg:typeof SXENV !== 'undefined' && SXENV.on && !!SXENV.city, layers:cities.map(c => c.key + ' ' + c.ed.layers.filter(L => L.state === 2).length + '/' + c.ed.layers.length), lights:lastN });
-  return { cities, near, envSite, lights, LT, thin, TH, THB, eiffel, EF, tokyo, TK, nowLine, match, dbg };
+  const dbg = (key) => ({ cam:(() => { const c = cities.find(x => x.key === key); if (!c) return null; const q = M3.applyT(c.env.F.M, V.mul(V.sub(camFixed(), c.env.p), 1000)); return [Math.round(q[0]), Math.round(q[1]), Math.round(-q[2])]; })(), env:typeof SXENV !== 'undefined' && SXENV.on && SXENV.site ? SXENV.site.key : null, eiffel:typeof SXENV !== 'undefined' && SXENV.on && !!SXENV.eiffel, tokyo:typeof SXENV !== 'undefined' && SXENV.on && !!SXENV.tokyo, landmark:typeof SXENV !== 'undefined' && SXENV.on ? SXENV.lm || null : null, cityProg:typeof SXENV !== 'undefined' && SXENV.on && !!SXENV.city, layers:cities.map(c => c.key + ' ' + c.ed.layers.filter(L => L.state === 2).length + '/' + c.ed.layers.length), lights:lastN });
+  return { cities, near, envSite, lights, LT, thin, TH, THB, eiffel, EF, tokyo, TK, landmarks, LMK, nowLine, match, dbg };
 })();

@@ -4,14 +4,15 @@
 export const SOURCES = {
   osm:{ what:'Roads, buildings, water, airports, ferries, ports, tall buildings', credit:'© OpenStreetMap contributors (ODbL)', url:'https://www.openstreetmap.org/copyright', licence:'ODbL 1.0' },
   s2:{ what:'Satellite colour (the 51 km layers everywhere; London and Dubai down to the finest)', credit:'Contains modified Copernicus Sentinel data 2025 and 2026', url:'https://sentinel.esa.int', licence:'Copernicus Sentinel data terms (free, full and open, with credit)' },
-  fpac:{ what:'New York aerial photos', credit:'USDA NAIP aerial photos (2024 and 2025)', url:'https://naip-usdaonline.hub.arcgis.com', licence:'public domain (US government work)' },
+  fpac:{ what:'US aerial photos (New York, San Francisco, Los Angeles)', credit:'USDA NAIP aerial photos (2022 to 2025)', url:'https://naip-usdaonline.hub.arcgis.com', licence:'public domain (US government work)' },
   nyc:{ what:'New York building footprints and heights', credit:'NYC Open Data, Building Footprints (NYC Office of Technology and Innovation)', url:'https://data.cityofnewyork.us/City-Government/BUILDING/5zhs-2jue', licence:'NYC Open Data terms of use (free to use)' },
   gsi:{ what:'Tokyo aerial photos', credit:'Aerial photos: GSI Japan (国土地理院), seamless photographs, edited', url:'https://maps.gsi.go.jp/development/ichiran.html', licence:'GSI terms of use, Public Data License 1.0 (compatible with CC BY 4.0)' },
   ign:{ what:'Paris aerial photos', credit:'Aerial photos: IGN, BD ORTHO (Licence Ouverte 2.0)', url:'https://geoservices.ign.fr/bdortho', licence:'Licence Ouverte / Open Licence 2.0 (Etalab)' },
   bdtopo:{ what:'Paris building footprints and heights', credit:'IGN, BD TOPO (Licence Ouverte 2.0)', url:'https://geoservices.ign.fr/bdtopo', licence:'Licence Ouverte / Open Licence 2.0 (Etalab)' },
   terrain:{ what:'Ground height', credit:'Terrain: Mapzen Terrain Tiles on AWS (SRTM, USGS 3DEP and others)', url:'https://registry.opendata.aws/terrain-tiles/', licence:'free with credit' },
   meteo:{ what:'Each city\'s weather (through /api/weather)', credit:'Weather data by Open-Meteo.com', url:'https://open-meteo.com', licence:'CC BY 4.0' },
-  population:{ what:'Population', credit:'US Census Bureau 2020; Statistics Bureau of Japan, Tokyo Metropolitan Government 2020 census; Dubai Statistics Center; ONS Census 2021; INSEE', licence:'official statistics' },
+  population:{ what:'Population', credit:'US Census Bureau 2020; Statistics Bureau of Japan, Tokyo Metropolitan Government 2020 census; Dubai Statistics Center; ONS Census 2021; INSEE; Census and Statistics Department (Hong Kong); ABS Census 2021; ISTAT; IBGE Census 2022', licence:'official statistics' },
+  nsw:{ what:'Sydney aerial photos', credit:'Aerial photos: NSW Imagery, © State of New South Wales and Spatial Services (CC BY)', url:'https://www.spatial.nsw.gov.au/products_and_services/web_services', licence:'Creative Commons Attribution (the dataset listings say 3.0, the copyright page 4.0)' },
 };
 
 // framings: look [la, lo, height m above the sea], az degrees from north the camera looks toward, tilt degrees down from the horizon, dist metres from the look point
@@ -70,6 +71,79 @@ export const FACTS = {
       { look:[48.857, 2.33, 60], az:300, tilt:9, dist:9000, why:'Paris and the Seine' },
       { look:[48.8584, 2.2945, 120], az:35, tilt:12, dist:800, why:'the Eiffel Tower and the Champ de Mars' },
       { look:[48.8905, 2.2405, 120], az:95, tilt:14, dist:1100, why:'the towers of La Défense' } ],
+  },
+  // ---- 0.19.0
+  hongkong:{
+    country:'China', tz:'Asia/Hong_Kong',
+    // Census and Statistics Department, mid-2024: about 7.5 million
+    population:{ n:7500000, year:2024, of:'Hong Kong', source:'Census and Statistics Department, mid-2024' },
+    // International Commerce Centre 484 m (CTBUH); Victoria Peak 552 m (Lands Department)
+    facts:['About 7.5 million people live in Hong Kong.', 'Its tallest building, the International Commerce Centre, is 484 m tall, and Victoria Peak rises 552 m above the harbour.'],
+    aka:'hong kong hk victoria harbour kowloon central tsim sha tsui wan chai the peak victoria peak',
+    views:[
+      { look:[22.288, 114.165, 100], az:190, tilt:8, dist:9000, why:'the skyline across Victoria Harbour' },
+      { look:[22.2825, 114.159, 200], az:160, tilt:14, dist:1500, why:'the towers of Central' },
+      { look:[22.290, 114.168, 100], az:10, tilt:18, dist:3200, why:'the harbour from above the Peak' } ],
+  },
+  sanfrancisco:{
+    country:'United States', tz:'America/Los_Angeles',
+    // 2020 United States Census: 873,965
+    population:{ n:873965, year:2020, of:'the city', source:'2020 United States Census' },
+    // Golden Gate Bridge, opened 27 May 1937, main span 1,280 m (Golden Gate Bridge, Highway and Transportation District)
+    facts:['About 870,000 people live in San Francisco.', 'The Golden Gate Bridge opened in 1937; its main span is 1,280 m long.'],
+    aka:'san francisco sf frisco golden gate golden gate bridge bay area alcatraz',
+    views:[
+      { look:[37.795, -122.42, 80], az:240, tilt:8, dist:9000, why:'the city from the bay' },
+      { look:[37.8199, -122.4783, 120], az:160, tilt:9, dist:2600, why:'the Golden Gate Bridge' },
+      { look:[37.7915, -122.399, 150], az:300, tilt:14, dist:1300, why:'Salesforce Tower and downtown' } ],
+  },
+  sydney:{
+    country:'Australia', tz:'Australia/Sydney',
+    // ABS Census 2021, Greater Sydney (GCCSA): 5,231,147
+    population:{ n:5231147, year:2021, of:'Greater Sydney', source:'ABS Census 2021' },
+    // Sydney Opera House opened 20 October 1973; Sydney Harbour Bridge opened 1932, arch 134 m above the water (Transport for NSW)
+    facts:['About 5.2 million people live in Greater Sydney.', 'The Opera House opened in 1973; the Harbour Bridge, opened in 1932, rises 134 m above the water.'],
+    aka:'sydney harbour opera house harbour bridge circular quay the rocks bondi',
+    views:[
+      { look:[-33.858, 151.212, 60], az:225, tilt:9, dist:8000, why:'Sydney Harbour' },
+      { look:[-33.8568, 151.2153, 40], az:290, tilt:10, dist:1200, why:'the Opera House and the Harbour Bridge' },
+      { look:[-33.8523, 151.2108, 80], az:170, tilt:10, dist:1500, why:'the Harbour Bridge and the city' } ],
+  },
+  rome:{
+    country:'Italy', tz:'Europe/Rome',
+    // ISTAT: about 2.75 million (Roma Capitale)
+    population:{ n:2750000, year:2024, of:'the city', source:'ISTAT' },
+    // Colosseum finished AD 80, about 50,000 spectators; St Peter's dome 136.6 m to the top of the cross
+    facts:['About 2.75 million people live in Rome.', 'The Colosseum, finished in AD 80, held about 50,000 people; the dome of St Peter\'s rises 136.6 m to the top of its cross.'],
+    aka:'rome roma colosseum colosseo vatican st peters pantheon trevi forum',
+    views:[
+      { look:[41.896, 12.475, 40], az:90, tilt:10, dist:7000, why:'Rome from above the Tiber' },
+      { look:[41.8902, 12.4922, 30], az:60, tilt:18, dist:700, why:'the Colosseum' },
+      { look:[41.9022, 12.4539, 80], az:270, tilt:10, dist:1200, why:'St Peter\'s Basilica' } ],
+  },
+  losangeles:{
+    country:'United States', tz:'America/Los_Angeles',
+    // 2020 United States Census: 3,898,747
+    population:{ n:3898747, year:2020, of:'the city', source:'2020 United States Census' },
+    // Hollywood sign: letters 13.7 m (45 ft) tall, first put up in 1923 (Hollywood Sign Trust)
+    facts:['About 3.9 million people live in the city of Los Angeles.', 'Each letter of the Hollywood sign is 13.7 m tall; the sign went up in 1923.'],
+    aka:'los angeles la hollywood hollywood sign downtown santa monica beverly hills griffith',
+    views:[
+      { look:[34.05, -118.25, 100], az:135, tilt:9, dist:9000, why:'Downtown from the hills' },
+      { look:[34.1341, -118.32165, 488], az:355, tilt:12, dist:170, why:'the Hollywood sign' },
+      { look:[34.0505, -118.2552, 150], az:50, tilt:14, dist:1300, why:'the towers of Downtown' } ],
+  },
+  rio:{
+    country:'Brazil', tz:'America/Sao_Paulo',
+    // IBGE Census 2022: about 6.21 million
+    population:{ n:6211000, year:2022, of:'the city', source:'IBGE Census 2022' },
+    // Christ the Redeemer, finished 1931, 30 m on an 8 m pedestal, on Corcovado (710 m); Sugarloaf Mountain 396 m
+    facts:['About 6.2 million people live in Rio de Janeiro.', 'Christ the Redeemer, finished in 1931, stands 30 m tall on Corcovado; Sugarloaf Mountain rises 396 m from the bay.'],
+    aka:'rio de janeiro rio copacabana ipanema sugarloaf pao de acucar corcovado christ the redeemer cristo redentor',
+    views:[
+      { look:[-22.94, -43.19, 100], az:315, tilt:8, dist:9000, why:'the bay and the mountains' },
+      { look:[-22.9519, -43.2105, 720], az:250, tilt:6, dist:600, why:'Christ the Redeemer' },
+      { look:[-22.9492, -43.1545, 250], az:135, tilt:8, dist:2500, why:'Sugarloaf Mountain' } ],
   },
 };
 

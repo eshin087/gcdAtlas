@@ -5,6 +5,10 @@
      numbers with units. The newest version comes first and opens by itself; its number must match package.json (tests/smoke.mjs checks it).
      Every detail stays in docs/CHANGELOG.md, which the panel links to. -->
 
+## 0.19.0 · 8 Oct 2026 · Six more cities
+- Hong Kong, San Francisco, Sydney, Rome, Los Angeles and Rio de Janeiro in 3D, in the same model style, with their traffic, planes, boats, local time and real weather.
+- Their landmarks in their real shapes and sizes: the Golden Gate Bridge, the Sydney Opera House, the Colosseum, St Peter's, the Hollywood sign and Christ the Redeemer.
+
 ## 0.18.0 · 8 Oct 2026 · Star clusters from their real stars
 - 19 more Messier objects: the Little Dumbbell, the reflection nebula M78, the Sagittarius Star Cloud and sixteen open clusters, from the Butterfly Cluster to M67, one of the oldest known.
 - Every open cluster is now drawn from its real stars, measured by the Gaia space telescope: each one where it really is on the sky, as bright and as coloured as it really is.

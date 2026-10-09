@@ -1,4 +1,4 @@
-// The five cities: where their layers are, which photos, which airports. Facts and framings are in city-facts.mjs.
+// The cities (five in 0.13.0, six more in 0.19.0): where their layers are, which photos, which airports. Facts and framings are in city-facts.mjs.
 //   la, lo      the city's centre point (the origin of the roads' and lines' coordinates, and where the city's sun, clock and weather are taken)
 //   drive       the side the cars drive on
 //   photo       the aerial photo source for the 12.8 km and finer layers ('s2' where there is no open aerial photo)
@@ -44,6 +44,55 @@ export const CITIES = [
       { id:'eiffel', name:'The Eiffel Tower', la:48.8584, lo:2.2945, size:3200, px:1536, bld:true },
       { id:'defense', name:'La Défense', la:48.892, lo:2.238, size:3200, px:1536, bld:true } ],
     airports:[ { iata:'CDG', size:9600 }, { iata:'ORY', size:6400 } ] },
+  // ---- 0.19.0 (owner's picks, 2026-10-07: Hong Kong, San Francisco, Sydney, Rome, Los Angeles, Rio de Janeiro). thin: buildings left out of the
+  // heights because the page draws them as models (the Golden Gate Bridge's towers, the Opera House, the Colosseum, St Peter's)
+  { key:'hongkong', name:'Hong Kong', la:22.2855, lo:114.1577, drive:'left', photo:'s2',
+    layers:[
+      { id:'r51', name:'The region', la:22.33, lo:114.10, size:51200, px:1024, bld:false },
+      { id:'r12', name:'Victoria Harbour', la:22.29, lo:114.17, size:12800, px:1536, bld:true },
+      { id:'central', name:'Central and Admiralty', la:22.281, lo:114.162, size:3200, px:2048, bld:true },
+      { id:'tst', name:'Tsim Sha Tsui', la:22.298, lo:114.172, size:3200, px:1536, bld:true } ],
+    airports:[ { iata:'HKG', size:6400 } ] },
+  { key:'sanfrancisco', name:'San Francisco', la:37.7915, lo:-122.3990, drive:'right', photo:'fpac',
+    thin:[{ la:37.8108, lo:-122.4770, r:80 }, { la:37.8266, lo:-122.4795, r:80 }],
+    layers:[
+      { id:'r51', name:'The Bay', la:37.76, lo:-122.36, size:51200, px:1024, bld:false },
+      { id:'r12', name:'San Francisco', la:37.785, lo:-122.435, size:12800, px:1536, bld:true },
+      { id:'downtown', name:'Downtown', la:37.792, lo:-122.400, size:3200, px:2048, bld:true },
+      { id:'goldengate', name:'The Golden Gate', la:37.815, lo:-122.475, size:3200, px:1536, bld:true } ],
+    airports:[ { iata:'SFO', size:6400 }, { iata:'OAK', size:4800 } ] },
+  { key:'sydney', name:'Sydney', la:-33.8610, lo:151.2108, drive:'left', photo:'nsw',
+    thin:[{ la:-33.8568, lo:151.2153, r:130 }],
+    layers:[
+      { id:'r51', name:'The region', la:-33.86, lo:151.17, size:51200, px:1024, bld:false },
+      { id:'r12', name:'Sydney Harbour', la:-33.862, lo:151.215, size:12800, px:1536, bld:true },
+      { id:'cbd', name:'The Rocks and the city centre', la:-33.864, lo:151.210, size:3200, px:2048, bld:true } ],
+    airports:[ { iata:'SYD', size:6400 } ] },
+  { key:'rome', name:'Rome', la:41.8961, lo:12.4823, drive:'right', photo:'s2',
+    thin:[{ la:41.8902, lo:12.4922, r:115 }, { la:41.9022, lo:12.4539, r:125 }],
+    layers:[
+      { id:'r51', name:'The region', la:41.86, lo:12.42, size:51200, px:1024, bld:false },
+      { id:'r12', name:'Rome', la:41.895, lo:12.475, size:12800, px:1536, bld:true },
+      { id:'centro', name:'The historic centre and the Colosseum', la:41.896, lo:12.482, size:3200, px:2048, bld:true },
+      { id:'vatican', name:'Vatican City', la:41.9022, lo:12.4539, size:3200, px:1536, bld:true } ],
+    airports:[ { iata:'FCO', size:6400 }, { iata:'CIA', size:3200 } ] },
+  { key:'losangeles', name:'Los Angeles', la:34.0522, lo:-118.2437, drive:'right', photo:'fpac',
+    layers:[
+      { id:'r51', name:'The basin', la:34.02, lo:-118.33, size:51200, px:1024, bld:false },
+      { id:'r12', name:'Downtown to Hollywood', la:34.085, lo:-118.29, size:12800, px:1536, bld:true },
+      { id:'downtown', name:'Downtown', la:34.050, lo:-118.255, size:3200, px:2048, bld:true },
+      { id:'hollywood', name:'Hollywood and the sign', la:34.125, lo:-118.325, size:3200, px:1536, bld:true } ],
+    airports:[ { iata:'LAX', size:6400 }, { iata:'BUR', size:3200 } ] },
+  // (peaks: Corcovado's summit, 704 m under Christ the Redeemer, which the terrain tiles round down to about 520 m: city-terrain-fix.mjs)
+  { key:'rio', name:'Rio de Janeiro', la:-22.935, lo:-43.180, drive:'right', photo:'s2', peaks:[{ la:-22.95192, lo:-43.21049, h:704, r:170 }],
+    layers:[
+      { id:'r51', name:'The region', la:-22.90, lo:-43.25, size:51200, px:1024, bld:false },
+      { id:'r12', name:'The bay and the beaches', la:-22.935, lo:-43.190, size:12800, px:1536, bld:true },
+      { id:'zonasul', name:'Copacabana, Botafogo and Sugarloaf', la:-22.958, lo:-43.178, size:3200, px:2048, bld:true },
+      { id:'corcovado', name:'Corcovado', la:-22.952, lo:-43.211, size:3200, px:1536, bld:true } ],
+    airports:[ { iata:'GIG', size:6400 }, { iata:'SDU', size:3200 } ] },
 ];
 // airports' known elevations, to check OpenStreetMap's (m above sea level; official figures, aeronautical charts): JFK 4, LGA 6, EWR 5, HND 6, NRT 43, DXB 19, DWC 33, LHR 25, LGW 62, LCY 6, STN 106, LTN 160, CDG 119, ORY 89
-export const ELE_CHECK = { JFK:4, LGA:6, EWR:5, HND:6, NRT:43, DXB:19, DWC:33, LHR:25, LGW:62, LCY:6, STN:106, LTN:160, CDG:119, ORY:89 };
+// (0.19.0: HKG 9, SFO 4, OAK 3, SYD 6, FCO 4, CIA 129, LAX 38, BUR 236, GIG 9, SDU 3)
+export const ELE_CHECK = { JFK:4, LGA:6, EWR:5, HND:6, NRT:43, DXB:19, DWC:33, LHR:25, LGW:62, LCY:6, STN:106, LTN:160, CDG:119, ORY:89,
+  HKG:9, SFO:4, OAK:3, SYD:6, FCO:4, CIA:129, LAX:38, BUR:236, GIG:9, SDU:3 };

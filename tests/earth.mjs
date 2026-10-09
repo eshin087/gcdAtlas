@@ -63,6 +63,10 @@ try {
     await page.evaluate(() => { const c = window.__cosmos; c.epl.go(c.epl.PICKS.cities.find(r => r[0] === 'Tokyo')); });
     const tk = await until(page, () => { const c = window.__cosmos, d = c.ect.dbg(); return !c.flight && d.env === 'city-tokyo' && d.tokyo; }, null, 150, 'Tokyo drawn with its towers');
     notes.push(`Tokyo drawn with Tokyo Tower and the Skytree after ${tk} s`);
+    // (0.19.0: Rio de Janeiro, a city of the second batch, drawn with its own layers and Christ the Redeemer's copy of the shader)
+    await page.evaluate(() => { const c = window.__cosmos; c.epl.go(c.epl.PICKS.cities.find(r => r[0] === 'Rio de Janeiro')); });
+    const tr = await until(page, () => { const c = window.__cosmos, d = c.ect.dbg(); return !c.flight && d.env === 'city-rio' && d.landmark === 'sxEnvRio'; }, null, 150, 'Rio drawn with Christ the Redeemer');
+    notes.push(`Rio drawn with Christ the Redeemer after ${tr} s`);
     errors.push(...pe); await browser.close(); }
   // ---- a famous place with its own layers (0.15.0): Everest from the atlas's row, drawn with its own layers, its credits in the readout;
   // the search finds the places by their other names; moved by hand, the camera goes to a place object and Everest's own stays put

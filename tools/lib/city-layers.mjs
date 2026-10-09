@@ -9,6 +9,7 @@ import { OUT, CACHE, cached, get, UA, readGz, writeGz, frameAt, planeToLL, llToP
 import { buildingsTile, waterTile, airportInfo, airportDetail } from './city-osm.mjs';
 import { roadWaysIn } from './city-build.mjs';
 import { styleRoofs } from './city-style.mjs';
+import { fixHeights } from './city-terrain-fix.mjs';
 
 export const CREDIT = {
   osm:'© OpenStreetMap contributors (ODbL)',
@@ -16,6 +17,7 @@ export const CREDIT = {
   fpac:'USDA NAIP aerial photos',
   gsi:'GSI Japan (国土地理院) seamless aerial photographs, edited',
   ign:'IGN BD ORTHO (Licence Ouverte 2.0)',
+  nsw:'NSW Imagery, © State of New South Wales and Spatial Services (CC BY)',
   nyc:'NYC Open Data, Building Footprints (NYC Office of Technology and Innovation)',
   bdtopo:'IGN BD TOPO (Licence Ouverte 2.0)',
   terrain:'Terrain: Mapzen Terrain Tiles on AWS (SRTM, USGS 3DEP and other sources)',
@@ -250,6 +252,9 @@ export async function buildLayer(city, L, ctx){
   const base = Math.floor(lo), step = Math.max(0.1, Math.ceil((hi - base)/253*10)/10);
   const rgba = Buffer.alloc(N*N*4);
   for (let i=0;i<N*N;i++){ rgba[i*4] = rgb[i*3]; rgba[i*4 + 1] = rgb[i*3 + 1]; rgba[i*4 + 2] = rgb[i*3 + 2]; rgba[i*4 + 3] = isWater[i] ? 1 : Math.min(255, 2 + Math.round((elev[i] - base)/step)); }
+  // (the heights' fixes, 0.19.0: spikes out, summits the terrain tiles rounded down put back; city-terrain-fix.mjs)
+  const fx = { px:N, size:L.size, la:L.la, lo:L.lo, base, step, top:Math.ceil(hi) };
+  fixHeights(city, fx, rgba);
   // (the architectural-model style, 0.17.0, city-style.mjs: the unstyled layer is kept in the cache first, where tools/city-style.mjs restyles from)
   let styled = false;
   if (bld && bld.id){
@@ -261,7 +266,7 @@ export async function buildLayer(city, L, ctx){
   const file = writeHashed(OUT, `${city.key}-${L.id}`, 'webp', webp);
   const [dx, dy] = llToPlane(cityF, L.la, L.lo);
   console.log(` ${(webp.length/1024).toFixed(0)} KB, ${Math.round(100*photoN/(N*N))}% aerial, ${Math.round(100*s2N/(N*N))}% Sentinel-2, ${Math.round(100*wN/(N*N))}% water${bld ? `, ${bld.n} buildings` : ''}, ground ${base} to ${hi.toFixed(0)} m in ${step} m steps`);
-  const meta = { id:L.id, name:L.name, file, la:L.la, lo:L.lo, size:L.size, px:N, dx:Math.round(dx), dy:Math.round(dy), base, step, top:Math.ceil(hi), src:[photoN ? (Array.isArray(L.photo) ? L.photo[L.photo.length - 1] : L.photo) : null, s2N ? 's2' : null].filter(Boolean), s2dates:s2N ? s2.dates : [], bld:bld ? bld.n : 0, bytes:webp.length };
+  const meta = { id:L.id, name:L.name, file, la:L.la, lo:L.lo, size:L.size, px:N, dx:Math.round(dx), dy:Math.round(dy), base:fx.base, step:fx.step, top:fx.top, src:[photoN ? (Array.isArray(L.photo) ? L.photo[L.photo.length - 1] : L.photo) : null, s2N ? 's2' : null].filter(Boolean), s2dates:s2N ? s2.dates : [], bld:bld ? bld.n : 0, bytes:webp.length };
   if (painted) meta.painted = true;
   if (styled) meta.styled = 'model';
   if (L.airport) meta.airport = L.airport;
