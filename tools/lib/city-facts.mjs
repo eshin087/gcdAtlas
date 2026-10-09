@@ -130,7 +130,7 @@ export const FACTS = {
     aka:'los angeles la hollywood hollywood sign downtown santa monica beverly hills griffith',
     views:[
       { look:[34.05, -118.25, 100], az:135, tilt:9, dist:9000, why:'Downtown from the hills' },
-      { look:[34.13412, -118.3215, 492], az:20, tilt:4, dist:240, why:'the Hollywood sign' },
+      { look:[34.1341, -118.32165, 488], az:355, tilt:12, dist:170, why:'the Hollywood sign' },
       { look:[34.0505, -118.2552, 150], az:50, tilt:14, dist:1300, why:'the towers of Downtown' } ],
   },
   rio:{

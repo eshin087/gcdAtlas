@@ -628,23 +628,43 @@ vec3 lmBase(vec3 q, vec3 n, float k, float px, out float glow){
 }
 #endif
 #ifdef LM_LA
-// the Hollywood sign (Hollywood Sign Trust): nine white letters, each 13.7 m tall, about 107 m from the H to the D, on Mount Lee; x along the
-// sign as it reads, z toward the front (south-southwest). Not lit at night
-vec4 lmBounds(float k){ return vec4(56., -9., 14.5, 2.5); }
-float lmMap(vec3 p, float k){
-  float x = p.x + 53.5, i = clamp(floor(x/11.9), 0., 8.), lx = x - i*11.9, y = p.y;
-  vec2 q = vec2(lx, y); float d2;
-  if(i < 0.5) d2 = min(min(lmSeg(q, vec2(1.2, 0.), vec2(1.2, 13.7)), lmSeg(q, vec2(8.8, 0.), vec2(8.8, 13.7))), lmSeg(q, vec2(1.2, 6.9), vec2(8.8, 6.9)));   // (H)
-  else if(i < 1.5 || (i > 5.5 && i < 7.5)) d2 = abs(length((q - vec2(5., 6.85))/vec2(3.8, 5.65)) - 1.)*3.8;   // (O)
-  else if(i < 3.5) d2 = min(lmSeg(q, vec2(1.2, 0.), vec2(1.2, 13.7)), lmSeg(q, vec2(1.2, 1.2), vec2(8.6, 1.2)));   // (L)
-  else if(i < 4.5) d2 = min(min(lmSeg(q, vec2(1., 13.7), vec2(5., 6.6)), lmSeg(q, vec2(9., 13.7), vec2(5., 6.6))), lmSeg(q, vec2(5., 6.6), vec2(5., 0.)));   // (Y)
-  else if(i < 5.5) d2 = min(min(lmSeg(q, vec2(0.6, 13.7), vec2(2.9, 0.)), lmSeg(q, vec2(2.9, 0.), vec2(5., 8.6))), min(lmSeg(q, vec2(5., 8.6), vec2(7.1, 0.)), lmSeg(q, vec2(7.1, 0.), vec2(9.4, 13.7))));   // (W)
-  else d2 = min(lmSeg(q, vec2(1.2, 0.), vec2(1.2, 13.7)), lx > 1.2 ? abs(length((q - vec2(1.2, 6.85))/vec2(7.6, 5.65)) - 1.)*5.6 : 1e4);   // (D)
-  d2 = min(d2 - 1.2, max(min(abs(lx - 2.5), abs(lx - 7.5)) - 0.25, y));   // (the strokes, 2.4 m wide, and two posts under each letter)
-  float d = max(max(d2, abs(p.z) - 0.3), max(y - 13.7, -y - 8.));
-  return min(d, max(min(lx, 11.9 - lx), 0.4));   // (never a step past the gap into the next letter)
+// the Hollywood sign (Hollywood Sign Trust; OpenStreetMap maps each letter): nine white letters 13.7 m tall, each where OpenStreetMap puts
+// it, at its own width and angle, standing on the ground under it. They are not in a straight row: they step along the slope of Mount Lee,
+// up to 14 m apart front to back, the ground under them 25 m higher at the H than at the D. The frame is the OSM node's: x east, z south;
+// SL: each letter's middle (x, z), the bearing it runs toward (radians) and its width (m); uLmY: the ground under each, m above the node's
+// (from the drawn heights). Not lit at night. (0.19.0, round 2, owner: the sign was "messed up": one straight sign on the ground at its
+// middle had the H buried in the hill and the D in the air)
+uniform vec4 uLmY[3];
+const vec4 SL[9] = vec4[9](vec4(-47.2, 7.7, 1.5656, 9.6), vec4(-34.4, 11.0, 1.6354, 8.6), vec4(-21.9, 8.6, 1.4416, 9.1), vec4(-12.6, 7.0, 1.4102, 8.5),
+  vec4(-3.3, 5.7, 1.4155, 9.2), vec4(8.9, 0.9, 1.4085, 11.0), vec4(21.5, -0.7, 1.5202, 9.6), vec4(34.1, -2.7, 1.4783, 8.8), vec4(48.8, 1.7, 1.6057, 8.5));
+vec4 lmBounds(float k){ return vec4(60., -28., 34., 16.); }
+float hwGround(int i){ vec4 a = uLmY[i/4]; int r = i - (i/4)*4; return r == 0 ? a.x : r == 1 ? a.y : r == 2 ? a.z : a.w; }
+// one letter's distance in its own frame (q.x across it from its middle, q.y up from its foot), its glyph g (0 H, 1 O, 2 L, 3 Y, 4 W, 5 D)
+float hwGlyph(vec2 q, int g){
+  float d;
+  if(g == 0) d = min(min(lmSeg(q, vec2(-3.6, 0.), vec2(-3.6, 13.7)), lmSeg(q, vec2(3.6, 0.), vec2(3.6, 13.7))), lmSeg(q, vec2(-3.6, 6.9), vec2(3.6, 6.9)));
+  else if(g == 1) d = abs(length((q - vec2(0., 6.85))/vec2(3.7, 5.75)) - 1.)*3.7;
+  else if(g == 2) d = min(lmSeg(q, vec2(-3.4, 0.), vec2(-3.4, 13.7)), lmSeg(q, vec2(-3.4, 1.1), vec2(3.8, 1.1)));
+  else if(g == 3) d = min(min(lmSeg(q, vec2(-4., 13.7), vec2(0., 6.4)), lmSeg(q, vec2(4., 13.7), vec2(0., 6.4))), lmSeg(q, vec2(0., 6.4), vec2(0., 0.)));
+  else if(g == 4) d = min(min(lmSeg(q, vec2(-4.6, 13.7), vec2(-2.3, 0.)), lmSeg(q, vec2(-2.3, 0.), vec2(0., 9.))), min(lmSeg(q, vec2(0., 9.), vec2(2.3, 0.)), lmSeg(q, vec2(2.3, 0.), vec2(4.6, 13.7))));
+  else d = min(lmSeg(q, vec2(-3.4, 0.), vec2(-3.4, 13.7)), q.x > -3.4 ? abs(length((q - vec2(-3.4, 6.85))/vec2(7., 5.75)) - 1.)*5.6 : 1e4);
+  return d - 1.05;   // (strokes 2.1 m wide)
 }
-vec3 lmBase(vec3 q, vec3 n, float k, float px, out float glow){ glow = 0.; return q.y < 0. ? vec3(0.45, 0.43, 0.4) : vec3(0.96, 0.96, 0.94); }
+float lmMap(vec3 p, float k){
+  float best = 1e9;
+  for(int i=int(uLm2.w);i<9;i++){   // (uLm2.w is a 0 the compiler cannot see, so this stays a loop: ZI is declared further down)
+    vec4 L = SL[i]; vec2 dd = p.xz - L.xy, u = vec2(sin(L.z), -cos(L.z)), n = vec2(cos(L.z), sin(L.z));
+    float qx = dot(dd, u), qz = dot(dd, n), qy = p.y - hwGround(i), s = L.w/9.6;
+    float bx = length(max(abs(vec3(qx, qy - 6.85, qz)) - vec3(L.w*0.5 + 1.2, 6.85 + 1.2, 0.4), 0.));   // (a bound first: only the near letters are drawn in full)
+    if(bx > best) continue;
+    int g = i == 0 ? 0 : i == 1 || i == 6 || i == 7 ? 1 : i < 4 ? 2 : i == 4 ? 3 : i == 5 ? 4 : 5;
+    float d2 = hwGlyph(vec2(qx/s, qy), g)*min(s, 1.);
+    d2 = min(d2, max(min(abs(qx - L.w*0.27), abs(qx + L.w*0.27)) - 0.2, max(qy, -qy - 5.)));   // (two posts under each letter, down into the slope)
+    best = min(best, max(max(d2, abs(qz) - 0.3), max(qy - 13.7, -qy - 5.)));
+  }
+  return best;
+}
+vec3 lmBase(vec3 q, vec3 n, float k, float px, out float glow){ glow = 0.; return vec3(0.96, 0.96, 0.94); }
 #endif
 #ifdef LM_RIO
 // Christ the Redeemer (Santuario Cristo Redentor): 30 m tall on an 8 m pedestal, its arms 28 m across, on the top of Corcovado; x along its

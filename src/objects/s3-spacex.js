@@ -529,7 +529,7 @@ function drawEnv(){
     if (p.u.uCity) gl.uniform4f(p.u.uCity, best.city ? CITY_KEYS.indexOf(best.city.key) : -1, best.city ? best.city.ele || 0 : 0, best.place ? 1 : 0, 0);   // (which city: its materials; a famous place: its water)
     if (p.u.uThin){ const nTh = ECT.thin(best, cf); gl.uniform4fv(p.u.uThin, ECT.TH); gl.uniform4fv(p.u.uThinB, ECT.THB); gl.uniform1f(p.u.uThinN, nTh); }
     if (p.u.uEf0 && ef){ gl.uniform4f(p.u.uEf0, ef[0], ef[1], ef[2], ef[3]); gl.uniform4f(p.u.uEf1, ef[4], ef[5], ef[6], ef[7]); }
-    if (p.u.uLm0 && lm){ gl.uniform4fv(p.u.uLm0, lm.u0); gl.uniform4fv(p.u.uLm1, lm.u1); gl.uniform4fv(p.u.uLm2, lm.u2); }
+    if (p.u.uLm0 && lm){ gl.uniform4fv(p.u.uLm0, lm.u0); gl.uniform4fv(p.u.uLm1, lm.u1); gl.uniform4fv(p.u.uLm2, lm.u2); if (p.u.uLmY) gl.uniform4fv(p.u.uLmY, lm.ly); }
     if (p.u.uTk0 && tk){ gl.uniform4f(p.u.uTk0, tk[0], tk[1], tk[2], tk[3]); gl.uniform4f(p.u.uTk1, tk[4], tk[5], tk[6], tk[7]); gl.uniform4f(p.u.uTk2, tk[8], tk[9], tk[10], tk[11]); }
     ETR.bind(p, best.city);
     wxUniforms(p);
