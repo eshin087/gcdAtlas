@@ -1,6 +1,7 @@
 // gcdatlas build: concatenates src/ into one self-contained page.
 //   dist/index.html     the website (Vercel serves this)
 //   dist/artifact.html  the same page without the document wrapper (for a claude.ai artifact)
+//   dist/preview.html   only the head's tags, for link-preview bots (vercel.json)
 // Usage: node build.mjs            (no dependencies; Node 18+)
 import fs from 'node:fs';
 import path from 'node:path';
@@ -91,5 +92,10 @@ fs.writeFileSync(path.join(DIST, 'lab.html'), `<!doctype html>\n<html lang="en">
 // and mark keep or drop (src/09s-songs.js); kept out of search
 const songsHead = head.replace(/<title>[^<]*<\/title>/, '<title>gcdatlas songs</title>');
 fs.writeFileSync(path.join(DIST, 'songs.html'), `<!doctype html>\n<html lang="en">\n<head>\n${meta}<meta name="robots" content="noindex">\n${songsHead}\n</head>\n<body>\n${body}\n<script>window.__SONGS = 1;</script>\n${script}</body>\n</html>\n`);
+// the page link-preview bots get for / (vercel.json `routes`, 0.17.2): a server drawing a shared link's card reads only the tags in the
+// head, so it gets the same tags in a page of about 2 KB instead of the whole 2.5 MB atlas (a Misskey server fetched the page about
+// 3,000 times a day, 2.7 GB of the site's 4 GB). Made from `meta` and the page's own title, so the two never drift (tests/preview.mjs)
+const ogDesc = meta.match(/property="og:description" content="([^"]*)"/)[1];
+fs.writeFileSync(path.join(DIST, 'preview.html'), `<!doctype html>\n<html lang="en">\n<head>\n${meta}${head.match(/<title>[^<]*<\/title>/)[0]}\n</head>\n<body>\n<h1>gcdatlas</h1>\n<p>${ogDesc}</p>\n<p><a href="https://gcdatlas.com/">gcdatlas.com</a></p>\n</body>\n</html>\n`);
 const kb = f => (fs.statSync(path.join(DIST, f)).size/1024).toFixed(0) + ' KB';
 console.log(`built ${list.length} scripts -> dist/index.html (${kb('index.html')}), dist/artifact.html (${kb('artifact.html')})`);

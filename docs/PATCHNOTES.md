@@ -10,6 +10,10 @@
 - Every open cluster is now drawn from its real stars, measured by the Gaia space telescope: each one where it really is on the sky, as bright and as coloured as it really is.
 - The Messier marathon tour grows to 54 stops. 57 of Messier's 110 objects are in so far.
 
+## 0.17.2 · 8 Oct 2026 · Lighter link previews
+- When a gcdatlas link is shared in a chat or a post, the app that draws its preview now gets a 2 KB page with the title and picture, not the whole 2.5 MB atlas.
+- Nothing changes for you: anyone who opens the link gets the full atlas, as before.
+
 ## 0.17.1 · 7 Oct 2026 · Counting visits, privately
 - Visits are now counted with Vercel Web Analytics, so we can see how many people explore the atlas.
 - No cookies, and nothing is saved on your device. A visit sends the page's address (not the place you are looking at), the site you came from, your country, browser and kind of device.

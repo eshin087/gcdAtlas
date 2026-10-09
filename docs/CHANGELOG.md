@@ -14,6 +14,15 @@ All notable changes, newest first. Dates are UTC.
 - Distances and ages were researched by a separate agent and the texts checked: Hunt & Reffert's own ages are left out (M67 1.7 billion years against the published 4), M76 is about 3,400 light-years (Gaia has no usable parallax for its star), M78 1,320, and M24's stars 10,000 to 16,000, toward the inner galaxy. The marathon tour now has 54 stops.
 - The atlas's kind buttons have a little less padding (`.cell`: 4 px and a 3 px gap, 3 px and 2 px on a phone): "star clusters 25", the first count of two digits there, overflowed its button at 90% menu text. Widening the grid instead put the atlas on a phone held sideways into one column.
 
+## 0.17.2 · 2026-10-08
+
+**A small page for link-preview bots** (owner, 2026-10-07: "what is using so much 'fast data transfer' on my vercel account?"; picked this over blocking the bot, so every link preview keeps working)
+- The account was at 77.4 of Hobby's 100 GB of Fast Data Transfer for the last 30 days, gcdatlas 65 GB of it, about 4 GB a day since 2026-09-23. Vercel's Firewall traffic showed 5,800 of the site's 7,800 requests a day from one server (188.245.170.79, Hetzner), SummalyBot, Misskey's link-preview fetcher: a quick check and then the whole 1 MB page (brotli; 2.5 MB raw) about 2,900 times a day, round the clock, about 2.7 GB a day, to read the title and preview image.
+- `build.mjs` writes `dist/preview.html` (2 KB): the page's own `meta` block and title, a heading, the description and a link, nothing else. `vercel.json` sends it for `/` to requests whose user agent is a known link-preview bot (SummalyBot, Mastodon's and Misskey's fetchers, Pleroma, Akkoma, GoToSocial, facebookexternalhit, Twitterbot, Discordbot, Slackbot, TelegramBot, WhatsApp, LinkedInBot, Bluesky's Cardyb, Reddit, Pinterest, Skype and Teams, Embedly, Iframely, VK, Snap) and that carry no `Sec-Fetch-Mode` header, which every browser sends when it opens a page, so a person never gets it. Search engines are not on the list: Google ranks a page by what it is served.
+- It is a `routes` entry, not a rewrite: Vercel serves a file that exists (`/` is `index.html`) before it looks at `rewrites`, and `routes` run first. The destination is `/preview` because of `cleanUrls`.
+- That server's share drops from about 2.7 GB a day to about 10 MB (its requests still count as CDN Requests, about 175K a month of the 1M).
+- `tests/preview.mjs` (in `npm test`, also `npm run test:preview`): the preview page has every title, description, og:, twitter:, canonical and icon tag of `dist/index.html` word for word and loads nothing; the rule is for `/` alone, skips requests with `Sec-Fetch-Mode`, and matches the bots but no browser, in-app browser (Instagram, Facebook, Snapchat, LINE), search crawler or `got`'s quick check.
+
 ## 0.17.1 · 2026-10-07
 
 **Visit counts** (owner, 2026-10-07: "install the vercel analytics so we can see how many visitors we get")
